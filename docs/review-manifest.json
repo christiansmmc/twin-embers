@@ -6861,6 +6861,14 @@
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
    "basis": "Reviewed text-only tooling: incremental build sync, local data-pack build from the user's own ROM, Azahar launch, 3dslink and ftpd upload to the user's own console; no ROM/game payloads."
+  },
+  {
+   "path": "docs/superpowers/specs/2026-11-13-lower-screen-rework-design.md",
+   "sha256": "fd5a84e86e316aa3f2e603b103906ef779f4b1d5ef8feb8514877b5835d79d8e",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork design with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only design document for the lower-screen rework; no ROM/game payloads, no game art."
   }
  ],
  "historical_reviews": [
