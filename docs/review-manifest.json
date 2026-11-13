@@ -6912,7 +6912,23 @@
   },
   {
    "path": "tools/test_lower_kit.py",
-   "sha256": "731d9b66f30222161ffebd67696e61f4289b3599beb85e76feac6b574951d5e0",
+   "sha256": "3a598c661bf3000723bc96344d615a94cc92c6df4de7253e1f9c0313c167b4dc",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "3ds_port/include/3ds_lower_layout.h",
+   "sha256": "80dadab25394f3060e866f98145275eb27a59e7e58a6d18560b41d1b4d374b51",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "3ds_port/tests/lower_layout_test.c",
+   "sha256": "37892ef70dd126bd3f60e96f6b88b825f46551ebcd60b3f6e9806891e739afb7",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

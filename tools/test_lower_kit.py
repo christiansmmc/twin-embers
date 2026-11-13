@@ -28,6 +28,13 @@ class LowerKit(unittest.TestCase):
             self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
             self.assertIn('PASS lower kit fallback', run.stdout)
 
+    def test_layout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            exe = build(Path(tmp), '3ds_port/tests/lower_layout_test.c')
+            run = subprocess.run([str(exe)], capture_output=True, text=True)
+            self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+            self.assertIn('PASS lower layout', run.stdout)
+
 
 if __name__ == '__main__':
     unittest.main()
