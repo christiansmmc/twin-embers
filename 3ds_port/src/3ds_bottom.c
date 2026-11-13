@@ -1858,6 +1858,7 @@ static void BattleFill(CtrBattleView *v)
     int state = CtrBattle_State();
 
     BattleCommon(v);
+    v->frameType = (uint8_t)CtrPokeTouch_OptionGet(PT_OPT_FRAME);
     v->state = state == BATTLE_ACTION ? BUI_ACTION : state == BATTLE_MOVE ? BUI_MOVE
              : state == BATTLE_TARGET ? BUI_TARGET : state == BATTLE_SAFARI ? BUI_SAFARI : BUI_IDLE;
     if (v->state == BUI_TARGET) {
@@ -1889,12 +1890,12 @@ static void BattleFill(CtrBattleView *v)
             if (b == cursor)
                 v->cursor = (int8_t)i;
         }
-        v->showCursor = !sBatTouchLast;
+        v->showCursor = 1;              /* the reworked views: FireRed's arrow always shows */
         return;
     }
     if (v->state == BUI_SAFARI) {
         v->cursor = (int8_t)CtrBattle_ActionCursor();
-        v->showCursor = !sBatTouchLast;
+        v->showCursor = 1;              /* the reworked views: FireRed's arrow always shows */
         return;
     }
     if (v->state == BUI_ACTION) {
@@ -1902,7 +1903,7 @@ static void BattleFill(CtrBattleView *v)
         int place, count;
 
         v->cursor = (int8_t)CtrBattle_ActionCursor();
-        v->showCursor = !sBatTouchLast;
+        v->showCursor = 1;              /* the reworked views: FireRed's arrow always shows */
         v->ball = (uint8_t)CtrBattle_QuickBall(&item, &qty, &place, &count);
         if (v->ball != CTR_QUICK_BALL_NONE) {
             v->ballItem = (uint16_t)item;
@@ -1916,7 +1917,7 @@ static void BattleFill(CtrBattleView *v)
     if (v->state != BUI_MOVE)
         return;
     v->cursor = (int8_t)CtrBattle_MoveCursor();
-    v->showCursor = !sBatTouchLast;
+    v->showCursor = 1;              /* the reworked views: FireRed's arrow always shows */
     for (int i = 0; i < 4; ++i) {
         unsigned move = CtrBattle_Move(i);
         CtrBattleMove *m = &v->move[i];

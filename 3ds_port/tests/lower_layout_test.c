@@ -77,6 +77,15 @@ static void battle(void)
     int n;
 
     Row(&kBatParty);
+    /* The commands, the quick ball and its arrows, the Safari's four are framed cells. */
+    for (int i = 0; i < 4; ++i) {
+        Framed(&kBatAction[i]);
+        Framed(&kBatActionBall[i]);
+        Framed(&kBatSafari[i]);
+    }
+    Framed(&kBatBall);
+    Framed(&kBatBallArrow[0]);
+    Framed(&kBatBallArrow[1]);
     n = 0;
     for (int i = 0; i < 4; ++i) {
         Button(&kBatAction[i]);
