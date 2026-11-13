@@ -6,8 +6,26 @@
 
 #include "3ds_settings.h"   /* built with CTR_SETTINGS_PATH "build/settings_test.cfg" */
 
-int main(void)
+int main(int argc, char **argv)
 {
+    if (argc > 1 && strcmp(argv[1], "old-embers") == 0) {
+        /* A settings.cfg from before the EMBERS option went: its line is skipped, the others are read, and the line is
+         * gone from the next write. */
+        FILE *old = fopen(CTR_SETTINGS_PATH, "wb");
+        char text[300] = {0};
+
+        assert(old != NULL);
+        fputs("turbo=2\nautorun=1\nrepel=1\nembers=2\ncompanion=1\n", old);
+        fclose(old);
+        assert(CtrSettings_Turbo() == 2 && CtrSettings_AutoRun() == 1 && CtrSettings_Companion() == 1);
+        CtrSettings_SetTurbo(3);
+        old = fopen(CTR_SETTINGS_PATH, "rb");
+        assert(old != NULL && fread(text, 1, sizeof(text) - 1, old) > 0);
+        fclose(old);
+        assert(strstr(text, "turbo=3\n") != NULL && strstr(text, "companion=1\n") != NULL && strstr(text, "embers") == NULL);
+        puts("PASS settings: an old embers= line");
+        return 0;
+    }
     remove(CTR_SETTINGS_PATH);
 
     /* No file: the defaults. */

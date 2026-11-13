@@ -100,6 +100,7 @@ verify-host: build/gba_shadow_test.exe build/video_decode_test.exe build/gba_ali
 	./build/vram_track_test.exe
 	./build/fast_forward_test.exe
 	./build/settings_test.exe
+	./build/settings_test.exe old-embers
 	./build/looks_test.exe
 	./build/palette_fade_test.exe
 	./build/day_night_test.exe

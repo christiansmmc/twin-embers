@@ -42,13 +42,6 @@ int CtrOptions_MoveDetails(void);
 int CtrOptions_DayNight(void);
 /* ... the second of the day it shows: the one chosen (DAWN, DAY, DUSK, NIGHT), -1 for CLOCK (the 3DS clock's). */
 int CtrOptions_DayNightSecond(void);
-/* The embers rising behind the lower screen's menus: OFF, LOW or HIGH (CTR_EMBERS_*). LOW is a third of the
- * sparks, moved every third frame. The choice is kept in settings.cfg (3ds_settings.h); until the player makes
- * one, CtrOptions_EmbersInit gives the console's: HIGH on a New 3DS, LOW on an Old 3DS. */
-enum { CTR_EMBERS_OFF, CTR_EMBERS_LOW, CTR_EMBERS_HIGH, CTR_EMBERS_COUNT };
-void CtrOptions_EmbersInit(int isNew3ds);
-int CtrOptions_Embers(void);        /* on unless OFF */
-int CtrOptions_EmbersLow(void);
 int CtrOptions_RepelAgain(void);    /* a Repel that wears off offers another (REPEL AGAIN) */
 int CtrOptions_Companion(void);     /* 0 none, 1 the first Pokemon follows, 2 the player is that Pokemon (COMPANION) */
 int CtrOptions_ExpShare(void);      /* 0 the game's own, 1 the team shares by halves, 2 everyone gets the full share (EXP SHARE) */

@@ -1370,8 +1370,6 @@ void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const Ct
     }
 }
 
-/* The embers over whatever screen is on the canvas (3ds_bottom.c calls it once a frame): kept off the GBA picture
- * when one is shown, only taken away when `on` is false. */
 #include "idle_logo.h"
 
 /* The lower screen while FireRed's screen above has nothing for it: the ember backdrop and the project's logo. */
@@ -1396,13 +1394,6 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
             }
             Px(x0 + x, y0 + y, (uint16_t)c);
         }
-}
-
-void CtrPokeTouch_Embers(uint16_t *canvas, int on, int low, int pictureShown, CtrDirtyList *dirty)
-{
-    static const CtrPokeTouchRect picture = {PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H};
-
-    EmbersStep(canvas, on, low, pictureShown ? &picture : NULL, dirty);
 }
 
 #include "3ds_battle_ui_impl.h"
