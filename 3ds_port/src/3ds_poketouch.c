@@ -321,6 +321,7 @@ static void Art(const uint8_t *pixels, const uint16_t *pal, int stride, int x0, 
 #include "3ds_icons.h"
 #include "3ds_touch_skin_impl.h"
 #include "3ds_lower_kit_impl.h"
+#include "3ds_lower_layout.h"
 
 #define BTN_DEPTH 3                    /* the lip under a big button (BACK, PAGE, SAVE's) */
 #define COL_DEPTH 2                     /* and under the column's and the rows' */
@@ -1105,6 +1106,30 @@ static int ColumnIcon(int id)
     return id;          /* kEmberIcon is in the order PT_POKEDEX .. PT_OPTIONS */
 }
 
+/* The label of a menu entry PT_POKEDEX .. PT_OPTIONS; the Trainer Card's is the player's name (in original case for
+ * modern Title Case, or uppercase otherwise), written into `name`. */
+static const char *ColumnLabel(int id, const CtrPokeTouchView *v, char name[16])
+{
+    if (id == PT_CARD) {
+        int n = 0;
+
+        for (; n < 15 && v->playerName[n]; ++n) {
+            char ch = v->playerName[n];
+#if CTR_LANG_DE
+            name[n] = ch;
+#else
+            name[n] = (char)(ch >= 'a' && ch <= 'z' ? ch - ('a' - 'A') : ch);
+#endif
+        }
+        name[n] = 0;
+        return name;
+    }
+    return id == PT_POKEDEX ? CTR_TR("POK\xc3\xa9" "DEX", "POK\xc3\xa9" "DEX", "Pok\xc3\xa9" "dex")
+         : id == PT_POKEMON ? CTR_TR("POK\xc3\xa9" "MON", "POK\xc3\xa9" "MON", "Pok\xc3\xa9" "mon")
+         : id == PT_BAG ? CTR_TR("BAG", "MOCHILA", "Beutel")
+         : id == PT_SAVE ? CTR_TR("SAVE", "GUARDAR", "Sichern") : id == PT_OPTIONS ? CTR_TR("OPTION", "AJUSTES", "Option") : "";
+}
+
 /* A button: cream, amber and glowing when selected (the screen shown, or the running mode on), sunk when pressed,
  * grey when it cannot be used. The column's carry their icon and label (the Trainer Card the player's name), the
  * shortcuts their key and their item in its well, RUN its switch. */
@@ -1143,25 +1168,8 @@ static void Button(int id, const CtrPokeTouchView *v)
         break;
     default: {
         char name[16] = {0};
-        const char *label = id == PT_POKEDEX ? CTR_TR("POK\xc3\xa9" "DEX", "POK\xc3\xa9" "DEX", "Pok\xc3\xa9" "dex")
-                          : id == PT_POKEMON ? CTR_TR("POK\xc3\xa9" "MON", "POK\xc3\xa9" "MON", "Pok\xc3\xa9" "mon")
-                          : id == PT_BAG ? CTR_TR("BAG", "MOCHILA", "Beutel")
-                          : id == PT_SAVE ? CTR_TR("SAVE", "GUARDAR", "Sichern") : id == PT_OPTIONS ? CTR_TR("OPTION", "AJUSTES", "Option") : name;
+        const char *label = ColumnLabel(id, v, name);
 
-        if (id == PT_CARD) {
-            /* The player's name (in original case for modern Title Case, or uppercase otherwise). */
-            int n = 0;
-
-            for (; n < (int)sizeof(name) - 1 && v->playerName[n]; ++n) {
-                char ch = v->playerName[n];
-#if CTR_LANG_DE
-                name[n] = ch;
-#else
-                name[n] = (char)(ch >= 'a' && ch <= 'z' ? ch - ('a' - 'A') : ch);
-#endif
-            }
-            name[n] = 0;
-        }
         EmIcon(ColumnIcon(id), r->x + 4, fy + (fh - EMBER_ICON) / 2, on);
         UiText(label, r->x + 23, fy + (fh - UI_TEXT_H) / 2, pal->ink, pal->inkSh, 1, r->x + r->w - 2);
         break;
@@ -1205,9 +1213,16 @@ bool CtrPokeTouch_ViewportToGba(int x, int y, int *gx, int *gy)
     return true;
 }
 
+static void HomePageDraw(const CtrPokeTouchView *v);
+static void HomePageUpdate(const CtrPokeTouchView *old, const CtrPokeTouchView *v, CtrDirtyList *dirty);
+
 void CtrPokeTouch_Draw(uint16_t *canvas, const CtrPokeTouchView *v)
 {
     sCanvas = canvas;
+    if (CtrPokeTouch_HomePageShown(v)) {
+        HomePageDraw(v);
+        return;
+    }
     Frame();
     MenuFrame(v);
     Bar(v);
@@ -1232,12 +1247,24 @@ static void Mark(CtrDirtyList *dirty, const CtrPokeTouchRect *r)
     CtrDirty_Add(dirty, r->x, r->y, r->x + r->w, r->y + r->h);
 }
 
+#include "3ds_home_page_impl.h"
+
 void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const CtrPokeTouchView *v, CtrDirtyList *dirty)
 {
     int oldHasPage = old->options && !old->viewport && old->optPageCount > 1;
     int newHasPage = v->options && !v->viewport && v->optPageCount > 1;
 
     sCanvas = canvas;
+    if (CtrPokeTouch_HomePageShown(old) || CtrPokeTouch_HomePageShown(v)) {
+        /* HOME's page: its own elements while it stays up; any change to or from it repaints the whole screen. */
+        if (CtrPokeTouch_HomePageShown(old) && CtrPokeTouch_HomePageShown(v)) {
+            HomePageUpdate(old, v, dirty);
+        } else {
+            CtrPokeTouch_Draw(canvas, v);
+            CtrDirty_Add(dirty, 0, 0, W, H);
+        }
+        return;
+    }
     if (memcmp(&old->bag, &v->bag, sizeof(v->bag)) || memcmp(&old->dex, &v->dex, sizeof(v->dex))
         || memcmp(&old->card, &v->card, sizeof(v->card)) || memcmp(&old->learn, &v->learn, sizeof(v->learn))
         || memcmp(&old->name, &v->name, sizeof(v->name)) || memcmp(&old->box, &v->box, sizeof(v->box))

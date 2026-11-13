@@ -181,6 +181,60 @@ static void decoder(void)
     assert(!CtrPokeTouch_PackMenuIcon(6,pixels,pal));
 #endif
 }
+#ifndef PT_BASELINE
+/* HOME as a full-screen page (3ds_home_page_impl.h): its hits, the map at 1:1 and its cells, the page only when
+ * nothing else is open, and every partial redraw equal to a full one. `v` is the HOME view just drawn. */
+static void home_page(CtrPokeTouchView *v)
+{
+    const int mx = kHomeMapPanel.x + 8, my = kHomeMapPanel.y + 8;
+    const CtrPokeTouchRect *buttons[PT_COUNT];
+    int cx, cy;
+
+    /* home_map_1to1: the stub map is one colour; at 1:1 it covers exactly the 192x128 at (mx, my). */
+    for (int x = mx; x < mx + 192; ++x) for (int y = my; y < my + 128; ++y) assert(at(x, y) == Gba(0x5ab3));
+    assert(at(mx - 1, my + 10) != Gba(0x5ab3) && at(mx + 192, my + 10) != Gba(0x5ab3));
+    /* home_hit_centres */
+    for (int i = PT_POKEDEX; i <= PT_OPTIONS; ++i) buttons[i] = &kHomeEntry[i - PT_POKEDEX];
+    buttons[PT_REGISTERED] = &kHomeRegistered; buttons[PT_BIKE] = &kHomeBike; buttons[PT_RUN] = &kHomeRun;
+    for (int i = 0; i < PT_COUNT; ++i) {
+        const CtrPokeTouchRect *r = buttons[i];
+        assert(CtrPokeTouch_HomeHit(v, r->x + r->w / 2, r->y + r->h / 2) == i);
+        assert(CtrPokeTouch_HomeHit(v, r->x, r->y) == i && CtrPokeTouch_HomeHit(v, r->x + r->w - 1, r->y + r->h - 1) == i);
+    }
+    /* home_hit_gaps: between two entries, on the map, off the screen */
+    assert(CtrPokeTouch_HomeHit(v, kHomeEntry[0].x + kHomeEntry[0].w, kHomeEntry[0].y + 4) == -1);
+    assert(CtrPokeTouch_HomeHit(v, mx + 50, my + 50) == -1 && CtrPokeTouch_HomeHit(v, -1, -1) == -1);
+    /* home_map_cell_bounds: cell (cx, cy) is the 8x8 at (mx + 8 + 8 cx, my + 4 + 8 cy) */
+    assert(CtrPokeTouch_HomeMapCell(mx + 8 + 3, my + 4 + 3, &cx, &cy) && cx == 0 && cy == 0);
+    assert(CtrPokeTouch_HomeMapCell(mx + 8 + 8 * 21 + 7, my + 4 + 8 * 14 + 7, &cx, &cy) && cx == 21 && cy == 14);
+    assert(!CtrPokeTouch_HomeMapCell(mx + 7, my + 10, &cx, &cy));                 /* left of cell 0 */
+    assert(!CtrPokeTouch_HomeMapCell(mx + 20, my + 4 + 8 * 15, &cx, &cy));        /* below row 14 */
+    assert(!CtrPokeTouch_HomeMapCell(mx + 8 + 8 * 22, my + 20, &cx, &cy));        /* right of column 21 */
+    assert(!CtrPokeTouch_HomeMapCell(kHomeCaption.x + 20, kHomeCaption.y + 8, &cx, &cy));
+    /* old_views_keep_old_frame: the page is HOME alone; any other view keeps the old frame and column */
+    assert(CtrPokeTouch_HomePageShown(v));
+    {
+        CtrPokeTouchView w = *v;
+        w.bag.on = 1; assert(!CtrPokeTouch_HomePageShown(&w));
+        w = *v; w.viewport = 1; assert(!CtrPokeTouch_HomePageShown(&w));
+        w = *v; w.options = 1; assert(!CtrPokeTouch_HomePageShown(&w));
+        w = *v; w.home = 0; assert(!CtrPokeTouch_HomePageShown(&w));
+    }
+    /* home_update_equals_draw: frame type, the caption's and the message's text, the map, the player */
+    {
+        CtrPokeTouchView old = *v;
+        v->frameType = 4; update(&old, v);
+        strcpy(v->bar[0], "SEAFOAM ISLANDS"); update(&old, v);
+        strcpy(v->bar[2], "Tap a destination"); update(&old, v);
+        v->mapGroup = PT_MAP_SEVII123; update(&old, v);
+        v->playerX = 3; v->playerY = 4; update(&old, v);
+        v->cursorX = 5; v->cursorY = 6; v->cursorFrame = 1; update(&old, v);
+        v->mapGroup = PT_MAP_KANTO; v->frameType = 0; v->cursorX = v->cursorY = v->playerX = v->playerY = -1;
+        strcpy(v->bar[0], "TEST MAP"); v->bar[2][0] = 0; update(&old, v);
+    }
+}
+#endif
+
 int main(int argc, char **argv)
 {
     decoder(); fixtureFail=1; /* Exercise original fallbacks for the UI. */
@@ -221,7 +275,11 @@ int main(int argc, char **argv)
     strcpy(v.playerName,"Trades"); strcpy(v.bar[0],"TEST MAP");
     for(int i=0;i<PT_COUNT;++i) v.enabled[i]=1;
     CtrPokeTouch_Draw(canvas,&v);
+#ifndef PT_BASELINE
+    home_page(&v);
+#else
     for(int x=4;x<244;++x) for(int y=4;y<164;++y) assert(at(x,y)==Gba(0x5ab3));
+#endif
     if(argc>1) { /* Synthetic render for visual QA, never a ROM screenshot. */
         FILE *f=fopen(argv[1],"wb"); assert(f);
         fprintf(f,"P6\n320 240\n255\n");

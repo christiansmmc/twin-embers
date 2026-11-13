@@ -1447,6 +1447,7 @@ static struct {
     int group, version;         /* on this map */
     int mapsec, dungeon;        /* its map section and the dungeon over it (0: none) */
     int down, downX, downY, lastX, lastY;   /* a touch that began in the viewport (GBA pixels) */
+    int page;                   /* ... or on HOME's page map (screen pixels then, CtrPokeTouch_HomeMapCell) */
     unsigned frames;            /* the cursor's blink clock */
 } sHome;
 
@@ -1488,10 +1489,11 @@ static int HomeFind(int group, int cx, int cy, int *fx, int *fy, int *mapsec, in
     return 1;
 }
 
+static void HomeTapCell(int cx, int cy);
+
 static void HomeTap(int gx, int gy)
 {
-    int group = CtrPokeTouch_MapGroup(), version = CtrPokeTouch_MapVersion();
-    int cx, cy, x, y, mapsec, dungeon;
+    int cx, cy;
 
     /* (gx, gy) is a viewport pixel: HOME's map is the enlarged one (PT_HOME_*). */
     if (gx < PT_HOME_X || gy < PT_HOME_Y) {
@@ -1500,7 +1502,16 @@ static void HomeTap(int gx, int gy)
     }
     cx = (gx - PT_HOME_X) / PT_HOME_CELL;
     cy = (gy - PT_HOME_Y) / PT_HOME_CELL;
-    if (cx >= 22 || cy >= 15) {
+    HomeTapCell(cx, cy);
+}
+
+/* A tap on the map's cell (cx, cy) of the 22x15 grid: select it, or Fly there on the second tap. */
+static void HomeTapCell(int cx, int cy)
+{
+    int group = CtrPokeTouch_MapGroup(), version = CtrPokeTouch_MapVersion();
+    int x, y, mapsec, dungeon;
+
+    if (cx < 0 || cy < 0 || cx >= 22 || cy >= 15) {
         sHome.valid = 0;
         return;
     }
@@ -2084,6 +2095,7 @@ static void SnapshotState(Snapshot *s, int mode, int pressed)
         s->touch.pressed = sPoke.inside ? sPoke.id : PT_NONE;
         s->touch.selected = PT_NONE;
         s->touch.running = (uint8_t)(CtrPokeTouch_RunModeShown() != 0);
+        s->touch.frameType = (uint8_t)CtrPokeTouch_OptionGet(PT_OPT_FRAME);
         CtrPokeTouch_PlayerName(s->touch.playerName, sizeof(s->touch.playerName));
         s->touch.registeredItem = (uint16_t)CtrPokeTouch_RegisteredItem();
         s->touch.bikeItem = (uint16_t)CtrPokeTouch_BikeItem();
@@ -3638,6 +3650,18 @@ static void UpdateSave(void)
 
 /* Touch-down presses an enabled element, moving off releases the highlight,
  * release over it acts once. Holding never repeats. */
+/* The field's button under a touch: HOME's page has its own places (3ds_lower_layout.h), every other view the old
+ * column's. */
+static int PokeHit(int page, int x, int y)
+{
+    if (page) {
+        int id = CtrPokeTouch_HomeHit(&sShown.touch, x, y);
+
+        return id < 0 ? PT_NONE : id;
+    }
+    return CtrPokeTouch_HitTest(x, y);
+}
+
 static void ProcessPokeTouch(const CtrInput *in)
 {
     if (OptionsActive())
@@ -3645,24 +3669,28 @@ static void ProcessPokeTouch(const CtrInput *in)
     if (SaveActive())
         ProcessSaveInput(in);
     if (in->touchDown) {
-        int id = CtrPokeTouch_HitTest((int)in->touchX, (int)in->touchY), gx, gy;
+        int x = (int)in->touchX, y = (int)in->touchY, gx, gy;
+        int page = CtrPokeTouch_HomePageShown(&sShown.touch), id = PokeHit(page, x, y);
         sPoke.id = (uint8_t)(id != PT_NONE && FieldEnabled(id) ? id : PT_NONE);
         sPoke.inside = sPoke.id != PT_NONE;
-        /* A touch on the map (the viewport): a tap when released near where it began.
-         * The OPTIONS rows are there instead while that screen is up. */
-        sHome.down = !NativeActive() && id == PT_NONE && CtrPokeTouch_ViewportToGba((int)in->touchX, (int)in->touchY, &gx, &gy);
+        /* A touch on the map: a tap when released near where it began. On HOME's page the map is the panel at 1:1
+         * (screen pixels kept); otherwise the old viewport (GBA pixels). The OPTIONS rows are there instead while
+         * that screen is up. */
+        sHome.page = page;
+        sHome.down = !NativeActive() && id == PT_NONE
+            && (page ? CtrPokeTouch_HomeMapCell(x, y, &gx, &gy) : CtrPokeTouch_ViewportToGba(x, y, &gx, &gy));
         if (sHome.down) {
-            sHome.downX = sHome.lastX = gx;
-            sHome.downY = sHome.lastY = gy;
+            sHome.downX = sHome.lastX = page ? x : gx;
+            sHome.downY = sHome.lastY = page ? y : gy;
         }
         return;
     }
     if (sHome.down) {
-        int gx, gy;
+        int x = (int)in->touchX, y = (int)in->touchY, gx, gy;
         if (in->touchActive) {
-            if (CtrPokeTouch_ViewportToGba((int)in->touchX, (int)in->touchY, &gx, &gy)) {
-                sHome.lastX = gx;
-                sHome.lastY = gy;
+            if (sHome.page ? CtrPokeTouch_HomeMapCell(x, y, &gx, &gy) : CtrPokeTouch_ViewportToGba(x, y, &gx, &gy)) {
+                sHome.lastX = sHome.page ? x : gx;
+                sHome.lastY = sHome.page ? y : gy;
             } else {
                 sHome.lastX = sHome.lastY = -1000;    /* left the map */
             }
@@ -3670,14 +3698,20 @@ static void ProcessPokeTouch(const CtrInput *in)
         }
         sHome.down = 0;
         if (sHome.lastX - sHome.downX <= MAP_TAP_SLOP && sHome.downX - sHome.lastX <= MAP_TAP_SLOP
-            && sHome.lastY - sHome.downY <= MAP_TAP_SLOP && sHome.downY - sHome.lastY <= MAP_TAP_SLOP)
-            HomeTap(sHome.downX, sHome.downY);
+            && sHome.lastY - sHome.downY <= MAP_TAP_SLOP && sHome.downY - sHome.lastY <= MAP_TAP_SLOP) {
+            int cx, cy;
+
+            if (!sHome.page)
+                HomeTap(sHome.downX, sHome.downY);
+            else if (CtrPokeTouch_HomeMapCell(sHome.downX, sHome.downY, &cx, &cy))
+                HomeTapCell(cx, cy);
+        }
         return;
     }
     if (sPoke.id == PT_NONE)
         return;
     if (in->touchActive) {
-        sPoke.inside = CtrPokeTouch_HitTest((int)in->touchX, (int)in->touchY) == sPoke.id;
+        sPoke.inside = PokeHit(sHome.page, (int)in->touchX, (int)in->touchY) == sPoke.id;
         return;
     }
     int id = sPoke.id, inside = sPoke.inside;

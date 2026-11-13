@@ -315,6 +315,7 @@ typedef struct {
     uint8_t running;            /* the running mode is on (Running Shoes) */
     uint8_t viewport;           /* the GPU shows a GBA picture in the viewport */
     uint8_t home;               /* the HOME map fills the viewport (no GBA picture) */
+    uint8_t frameType;          /* OPTIONS -> FRAME, 0..9: the standard frame of the reworked views' lists and menus */
     uint8_t mapGroup;           /* which map: PT_MAP_KANTO..PT_MAP_SEVII67 */
     uint8_t mapVersion;         /* what else its art depends on (CtrPokeTouch_MapVersion) */
     uint8_t playerFemale;       /* Leaf's map icon rather than Red's */
@@ -384,6 +385,11 @@ int CtrPokeTouch_SaveHit(int x, int y, int state);
 
 /* PT_* under a bottom-screen pixel, or PT_NONE. */
 int CtrPokeTouch_HitTest(int x, int y);
+/* HOME as a full-screen page (3ds_home_page_impl.h): shown when HOME is up and nothing else is; its buttons (a PT_*
+ * id, or -1) and its map's cells (the 22x15 grid of FireRed's Region Map, at 1:1 in the map panel). */
+bool CtrPokeTouch_HomePageShown(const CtrPokeTouchView *view);
+int CtrPokeTouch_HomeHit(const CtrPokeTouchView *view, int x, int y);
+bool CtrPokeTouch_HomeMapCell(int x, int y, int *cx, int *cy);
 /* What the field Bag (view->bag.on) shows under lower-screen point (x, y): a PT_BAG_HIT_* code, or -1. */
 int CtrPokeTouch_BagHit(const CtrPokeTouchView *view, int x, int y);
 /* What the Pokedex (view->dex.on) shows under lower-screen point (x, y): a PT_DEX_HIT_* code, or -1. */

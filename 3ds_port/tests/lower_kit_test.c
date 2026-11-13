@@ -310,6 +310,24 @@ static void disabled_row_toned(void)
     assert(Count(16, 8, 18, 16, Tone(KitInk(2), 0)) > 0 && Count(8, 8, 96, 16, KitInk(2)) == 0);
 }
 
+/* Words that do not fit go to the next 14 px line; no more than maxLines; nothing outside x..x+width. */
+static void wrap_lines(void)
+{
+    Clear();
+    /* "AAA" is 18 px, "AAA BBB" 41: in 40 px each word takes its own line. */
+    assert(KitWrap("AAA BBB CCC", 8, 8, 40, 3) == 3);
+    assert(Count(8, 8, 40, 14, KitInk(2)) > 0 && Count(8, 22, 40, 14, KitInk(2)) > 0 && Count(8, 36, 40, 14, KitInk(2)) > 0);
+    Untouched(8, 8, 40, 3 * 14);
+    Clear();
+    assert(KitWrap("AAA BBB CCC", 8, 8, 40, 2) == 2);
+    assert(Count(8, 36, 40, 14, KitInk(2)) == 0);
+    Clear();
+    assert(KitWrap("AA BB", 8, 8, 80, 3) == 1);              /* fits on one line */
+    Clear();
+    assert(KitWrap("", 8, 8, 80, 3) == 0);
+    Untouched(0, 0, 0, 0);
+}
+
 static void type_label_flat(void)
 {
     Clear();
@@ -339,6 +357,7 @@ int main(int argc, char **argv)
     icon_cell_1to1();
     hp_thresholds();
     disabled_row_toned();
+    wrap_lines();
     type_label_flat();
     printf("PASS lower kit\n");
     return 0;

@@ -253,3 +253,39 @@ UI_FN void KitTypeLabel(const CtrPokeTouchRect *r, int type, const char *name)
     Fill(r->x, r->y, r->w, r->h, UiTypeColor(type));
     UiTextCentered(name, r, -1, RGB(255, 255, 255), KitInk(2), 1);
 }
+
+/* Text wrapped at spaces into at most maxLines lines `width` wide from lineTop, KIT_LINE_H apart; a word wider than
+ * a line is cut at its end. Breaking only at spaces keeps UTF-8 and the raw-code escapes whole. Returns the lines
+ * drawn. */
+UI_FN int KitWrap(const char *s, int x, int lineTop, int width, int maxLines)
+{
+    char line[128];
+    int lines = 0;
+
+    while (lines < maxLines) {
+        int fit = 0, end = 0;
+
+        while (*s == ' ')
+            ++s;
+        if (!*s)
+            break;
+        for (;;) {
+            while (s[end] && s[end] != ' ' && end < (int)sizeof(line) - 1)
+                ++end;
+            memcpy(line, s, (size_t)end);
+            line[end] = 0;
+            if (fit > 0 && UiTextWidth(line, 1) > width)
+                break;
+            fit = end;
+            if (!s[end] || end >= (int)sizeof(line) - 1)
+                break;
+            ++end;                          /* past the space, to the next word */
+        }
+        memcpy(line, s, (size_t)fit);
+        line[fit] = 0;
+        KitText(line, x, lineTop + lines * KIT_LINE_H, x + width);
+        ++lines;
+        s += fit;
+    }
+    return lines;
+}
