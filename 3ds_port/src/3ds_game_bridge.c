@@ -1,5 +1,6 @@
 /* FireRed keeps ownership of its main loop. This is its VBlank boundary on
  * ARM11, adapted from ZallaxDev's DualScreen game bridge (MIT). */
+#include "3ds_app_name.h"
 #include <3ds.h>
 #include <stdlib.h>
 #include <string.h>
@@ -817,10 +818,10 @@ void VBlankIntrWait(void)
     else if (++sFlashFailures == 1)
         CtrLog_Write(CTR_LOG_FS, "save flush failed; retrying");
     else if (sFlashFailures >= 60)
-        CtrPlatform_ShowError("twinembers save error",
+        CtrPlatform_ShowError(CTR_APP_NAME " save error",
                               "The game could not be written to the SD card, so the last save may be incomplete.",
                               "Check the card (write-protect switch, free space) before playing again. "
-                              "twinembers.sav.bak in /3ds/twinembers/ holds the save from the last start.");
+                              CTR_APP_NAME ".sav.bak in /3ds/" CTR_APP_NAME "/ holds the save from the last start.");
     /* GBA scanline order per frame: VCount match at line 150 advances the
      * m4a PCM ring (m4aSoundVSync), then VBlank at line 160 mixes the fresh
      * slice (SoundMain). Dispatching only VBlank left pcmDmaCounter stuck. */

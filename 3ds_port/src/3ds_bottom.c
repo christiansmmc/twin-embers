@@ -29,6 +29,7 @@
  *   so it remains visible, and Party resumes on return.
  * - Redraws only when the snapshot changes; HID is never polled here.
  */
+#include "3ds_app_name.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5047,7 +5048,7 @@ static int ProcessTouch(int mode)
     return HIT_NONE;
 }
 
-/* Opt-in profiling (sdmc:/3ds/twinembers/bottom.perf, optionally holding a
+/* Opt-in profiling (sdmc:/3ds/classicfirered3ds/bottom.perf, optionally holding a
  * slow-frame threshold in microseconds): the time of the bottom UI's three
  * parts, summed over a window of frames and logged once per window, plus one
  * line (at most every 120 frames) for a frame over the threshold. Off, it
@@ -5124,7 +5125,7 @@ static void ProfFrameEnd(const CtrDirtyList *dirty)
 static void ProfInit(void)
 {
 #ifndef CTR_BOTTOM_PERF_PATH
-#define CTR_BOTTOM_PERF_PATH "sdmc:/3ds/twinembers/bottom.perf"
+#define CTR_BOTTOM_PERF_PATH CTR_APP_FILE("bottom.perf")
 #endif
     FILE *file = fopen(CTR_BOTTOM_PERF_PATH, "rb");
     unsigned slow = 0;
@@ -5294,9 +5295,9 @@ void CtrBottom_Init(void)
     sForceRedraw = 1;
     sEnabled = 1;
     sInitDone = 1;
-    /* Opt-out fallback: creating sdmc:/3ds/twinembers/bottom.off disables
+    /* Opt-out fallback: creating sdmc:/3ds/classicfirered3ds/bottom.off disables
      * the bottom UI; TOP fallback (centred Party) keeps working. */
-    off = fopen("sdmc:/3ds/twinembers/bottom.off", "rb");
+    off = fopen(CTR_APP_FILE("bottom.off"), "rb");
     if (off != NULL) {
         fclose(off);
         sEnabled = 0;

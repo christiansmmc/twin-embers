@@ -27,7 +27,7 @@ CTR_AUDIO_PSG_BLEP ?= 1
 CFLAGS += -DCTR_AUDIO_PSG_BLEP=$(CTR_AUDIO_PSG_BLEP)
 # 1 makes a New 3DS play as an Old 3DS (268 MHz, no L2, no core 2, Old 3DS
 # settings) and writes port.log without debug.txt: a build to measure Old 3DS
-# speed. The file sdmc:/3ds/twinembers/force_old3ds does the same at run time.
+# speed. The file sdmc:/3ds/classicfirered3ds/force_old3ds does the same at run time.
 CTR_FORCE_OLD3DS ?= 0
 CFLAGS += -DCTR_FORCE_OLD3DS=$(CTR_FORCE_OLD3DS)
 # The lower screen's own words (include/3ds_lang.h): en, or es/de for the localized builds.
@@ -261,9 +261,11 @@ build/firered_game_3dsx.elf: build/firered_game.elf ../tools/filter_3dsx_relocs.
 #   ICON_CROP=0         for a picture that already is the 48x48 icon (default 0.09 cut from each side)
 #   (none)              the two flames drawn by forwarder/make_art.py (a PUBLIC release must not ship
 #                       them: pass REQUIRE_ART=1 and the build stops when ICON_SRC is missing)
-APP_TITLE := Twin Embers
-APP_DESCRIPTION := A FireRed port for the 3DS
-APP_AUTHOR := alex61194
+# APP_NAME and APP_TITLE match CTR_APP_NAME and CTR_APP_TITLE in include/3ds_app_name.h.
+APP_NAME := classicfirered3ds
+APP_TITLE := Classic FireRed 3DS
+APP_DESCRIPTION := A FireRed port for the 3DS, forked from Twin Embers
+APP_AUTHOR := alex61194, fork by christiansmmc
 ICON_SRC ?=
 ICON_CROP ?= 0.09
 ICON_ART := build/icon-art
@@ -295,11 +297,11 @@ ifeq ($(CLEAN_RELEASE),1)
 override EMBED_DATA := 0
 override FIRERED_ROM :=
 RUNTIME_ROMFS := build/runtime-romfs-clean
-IMAGE_3DSX := $(if $(filter es,$(TWIN_LANG)),twinembers-es.3dsx,$(if $(filter de,$(TWIN_LANG)),twinembers-de.3dsx,twinembers.3dsx))
+IMAGE_3DSX := $(if $(filter es,$(TWIN_LANG)),$(APP_NAME)-es.3dsx,$(if $(filter de,$(TWIN_LANG)),$(APP_NAME)-de.3dsx,$(APP_NAME).3dsx))
 STAGE_PROFILE := clean
 else
 RUNTIME_ROMFS := build/runtime-romfs
-IMAGE_3DSX := $(if $(filter es,$(TWIN_LANG)),twinembers-es.3dsx,$(if $(filter de,$(TWIN_LANG)),twinembers-de.3dsx,twinembers.3dsx))
+IMAGE_3DSX := $(if $(filter es,$(TWIN_LANG)),$(APP_NAME)-es.3dsx,$(if $(filter de,$(TWIN_LANG)),$(APP_NAME)-de.3dsx,$(APP_NAME).3dsx))
 STAGE_PROFILE := development
 endif
 .PHONY: runtime-data private-pack

@@ -43,7 +43,7 @@ static inline uint16_t GbaColor(uint16_t c)
 
 
 /* Native menu icons: the six themed item graphics already reconstructed from
- * the user's FireRed ROM into twinembers.pak. No game pixels or palettes are
+ * the user's FireRed ROM into classicfirered3ds.pak. No game pixels or palettes are
  * compiled into the port. Running Shoes keeps the port-authored shoe symbol:
  * the supported ROM has no corresponding item-icon entry. */
 static const char *const sMenuItemArt[6] = {

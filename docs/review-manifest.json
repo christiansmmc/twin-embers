@@ -70,9 +70,9 @@
   },
   {
    "path": ".gitignore",
-   "sha256": "41d7aaf8182e18ceb9ca64be61a5801d257751aaa1a242587a14ddbab758f52d",
+   "sha256": "fabebf50f77b023267c95d56c444f228226b73b2829f4c9d7cdfeec8cf788b43",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Pinned 96f95e0 Git blob verified; reviewed port-only text, no media/payload; inherited notices and external-game scope preserved; test fixtures synthetic",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -81,9 +81,9 @@
   },
   {
    "path": "3ds_port/Makefile",
-   "sha256": "8cfaeb682c7b3b23226ec0dbac47e660265b6ecf5e681ba605f9f88b9999814f",
+   "sha256": "6e3a0a5f6c20bd91b5c67ab8349674fe3be4bf22591148131a181eed80d95592",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Oak stage callbacks separated from credits at compile time; identical underlying engine callbacks and gameplay flow.",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -369,9 +369,9 @@
   },
   {
    "path": "3ds_port/include/3ds_data.h",
-   "sha256": "167acfef46e687e30e5ca3136a646ce9501ef13fb8600a6952e35463f6aec384",
+   "sha256": "b6c8b0bb25d44e77cb6c8cc9dbaa0536aea2a3344779a86ed8fa0ea31b575169",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Pinned 96f95e0 Git blob verified; reviewed port-only text, no media/payload; inherited notices and external-game scope preserved; test fixtures synthetic",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -442,9 +442,9 @@
   },
   {
    "path": "3ds_port/include/3ds_fast_cells.h",
-   "sha256": "7ee8c02f53a22bb2e3e3804a4883973c0f3ead882785d041b7c1ccb350267972",
+   "sha256": "010255230708e27be62f8346604c8e158da482446964023fc08c26d41ed03a87",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Reviewed text-only source; adapted from ZallaxDev/pokeemerald-3Ds-dualscreen src/3ds_video.c FastInit/FastQuad/FastCells (b198c08, MIT); no ROM/game payloads or generated media"
   },
@@ -588,9 +588,9 @@
   },
   {
    "path": "3ds_port/include/3ds_pak.h",
-   "sha256": "15d1d3d0d9e23a2f092d6c07379b5e09d2329759e62932fd30c710a350926360",
+   "sha256": "b927293ebef09e4d3a17281a578e75eca862b923024f37905d5d102d46d3ed98",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Pinned 96f95e0 Git blob verified; reviewed port-only text, no media/payload; inherited notices and external-game scope preserved; test fixtures synthetic",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -628,9 +628,9 @@
   },
   {
    "path": "3ds_port/include/3ds_platform.h",
-   "sha256": "ee15f680df8aab85c434c45a9b7a8b2227e1cee726d01d566c2545a97ef615af",
+   "sha256": "33cc8084b58ba7111e4a0866b617d5540e3912b0af8df94920a91757206191ba",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Pinned 96f95e0 Git blob verified; reviewed port-only text, no media/payload; inherited notices and external-game scope preserved; test fixtures synthetic",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -702,9 +702,9 @@
   },
   {
    "path": "3ds_port/include/3ds_settings.h",
-   "sha256": "5321789ebf1bcdf9f5472624657874e166e21e2ade88d6cc8ba2b0c4731fbfe8",
+   "sha256": "0965d8026497f3dfa2a41b59289a7e31b7dbef685038a991052ae27df445ff1a",
    "review_status": "reviewed",
-   "credit": "alex61194 (original distribution work with disclosed AI assistance)",
+   "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
    "basis": "Reviewed text-only source/documentation; no ROM/game payloads or generated media; synthetic fixtures only"
   },
@@ -1034,9 +1034,9 @@
   },
   {
    "path": "3ds_port/src/3ds_bottom.c",
-   "sha256": "01fc3d0ca02f7782aa58f889b796b967bd3b9c7b8dc34270d20ef8db22ddf91d",
+   "sha256": "69b8a48587034a3b1f786dba88c2aab859601f9d419215da21407e2e6c078fed",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Keeps PC-owned Summary and Bag child touchscreen and Back routing without exposing the unrelated field PokéTouch roots or changing storage data.",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -1077,9 +1077,9 @@
   },
   {
    "path": "3ds_port/src/3ds_data.c",
-   "sha256": "6de573c2792f153524a2571738219fee2be9d0b28624ccb445b366f6ca061cce",
+   "sha256": "d4884be254e6d1c77bb1bb8c61b67a791923f7dd670d865d04aa8b935b0ba023",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Pinned 96f95e0 Git blob verified; reviewed port-only text, no media/payload; inherited notices and external-game scope preserved; test fixtures synthetic",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -1091,9 +1091,9 @@
   },
   {
    "path": "3ds_port/src/3ds_data_error.c",
-   "sha256": "452db1feae2c54ae9ba912ef8dba5db06078a6521223b95d809bd274adb698ce",
+   "sha256": "e1a46d14e7c4b3ad7ff173febe992cbde26864a81da1a6b54ae96ed1a2070f5f",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Pinned 96f95e0 Git blob verified; reviewed port-only text, no media/payload; inherited notices and external-game scope preserved; test fixtures synthetic",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -1120,9 +1120,9 @@
   },
   {
    "path": "3ds_port/src/3ds_fast_cells.c",
-   "sha256": "c54b6c344f6b443e1055e0db291fcb5d2f797bafce3e5feac5f5cd6d62f4512b",
+   "sha256": "38ea45188c76238a93273c1c23b28af48b427e0689baf1a55c514a47ed274938",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Reviewed text-only source; adapted from ZallaxDev/pokeemerald-3Ds-dualscreen src/3ds_video.c FastInit/FastQuad/FastCells (b198c08, MIT); no ROM/game payloads or generated media"
   },
@@ -1207,9 +1207,9 @@
   },
   {
    "path": "3ds_port/src/3ds_game_bridge.c",
-   "sha256": "d48fa0ce90322768cbb95ef77ea4936986b3f2fac089101b22feab8540c5ca52",
+   "sha256": "001a8d71658e8e0c9ae790919d569a2308e4ac23e3b0cfa3e81ead2dea4620df",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Tracks Oak stage callback and sets UI-layer-only mode while keeping every existing stage/callback route.; 2026-10-08 reviewed Oak-only native surround and 1:1 layer clipping; no new game assets or gameplay changes",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -1357,9 +1357,9 @@
   },
   {
    "path": "3ds_port/src/3ds_pak.c",
-   "sha256": "5846f06867013ebf60a6b5404793852f3fefc17e549a8a28a90bdb939bd69753",
+   "sha256": "f076e9b00b50459bddfbb430761fb153b4e45033a4a080614e10f9573e4a26b0",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Pinned 96f95e0 Git blob verified; reviewed port-only text, no media/payload; inherited notices and external-game scope preserved; test fixtures synthetic",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -1371,9 +1371,9 @@
   },
   {
    "path": "3ds_port/src/3ds_perf.c",
-   "sha256": "e6802f68db13257715f7a9304bf072e489758d445d1fc8e027a9d7bd33bf0e94",
+   "sha256": "b21ac9f3ad16106a6f2b7030398b5cceef45df3ff0780791e0f264910fb4c5f5",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Pinned 96f95e0 Git blob verified; reviewed port-only text, no media/payload; inherited notices and external-game scope preserved; test fixtures synthetic",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -1385,9 +1385,9 @@
   },
   {
    "path": "3ds_port/src/3ds_platform_min.c",
-   "sha256": "9650fd4f6f1a2400d0ab723ff52fd89fc4cac2e539f6e0cdce6e548eb593d103",
+   "sha256": "cbed2be6385f4a7b6e9f882e918be00e75e228e64a0a7469df5a0a143825be42",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Pinned 96f95e0 Git blob verified; reviewed port-only text, no media/payload; inherited notices and external-game scope preserved; test fixtures synthetic",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -1400,9 +1400,9 @@
   },
   {
    "path": "3ds_port/src/3ds_poketouch.c",
-   "sha256": "95d65e67b4c0fe8ce8a30f1aa0cb6bb82b5b93a98f2b2243e9ddece882933fbf",
+   "sha256": "f128232f5257a33d624f6bb9da61b258a96c4dceca945338e19f7cecc1d331e6",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Pinned technical port adapted for pack-backed PokÃ©Touch item art. Uses verified CtrData_Load, bounded local GBA LZ decoding and existing canvas drawing; no bundled game image/palette data.",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -1580,9 +1580,9 @@
   },
   {
    "path": "3ds_port/src/main.c",
-   "sha256": "580a5c280e7cca284c88d83640a9e7bd8c4a0a81c7dd5ccdb79d0c18b604c914",
+   "sha256": "c53a668d4766641801c7d41ece96811da7c0f6909bd4561e2bb273d08839f9fa",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Pinned 96f95e0 Git blob verified; reviewed port-only text, no media/payload; inherited notices and external-game scope preserved; test fixtures synthetic",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -1594,9 +1594,9 @@
   },
   {
    "path": "3ds_port/src/main_game_full.c",
-   "sha256": "51ce01ceabf78e240d7c452e516bc06cc5e991a33bb2218d8be0bfb4fc670b2f",
+   "sha256": "a555aaaa0ce5825a41e0f203d645390acd2b19ab7954adc4f5cf27242f95c4a9",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Pinned 96f95e0 Git blob verified; reviewed port-only text, no media/payload; inherited notices and external-game scope preserved; test fixtures synthetic",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -1610,9 +1610,9 @@
   },
   {
    "path": "3ds_port/src/main_game_native.c",
-   "sha256": "a5fda27acd3b720fb1d70e811b15aa74384d3c42a5fc67a63038d47fa2cac465",
+   "sha256": "2c2d0f3522b53d1da527f427ebed23fe8c08b63c8f82be180722072d8c73c1d2",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Pinned 96f95e0 Git blob verified; reviewed port-only text, no media/payload; inherited notices and external-game scope preserved; test fixtures synthetic",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -1774,17 +1774,17 @@
   },
   {
    "path": "3ds_port/tests/data_error_text_test.c",
-   "sha256": "0a0ce0e88dc02457cfef911b6c6744b51edf1e5d02662422b93a534ebf9a2be2",
+   "sha256": "e58e817c987a41905f7c7e502cd16330ab1b1a5b61879db4b49135f592de4a09",
    "review_status": "reviewed",
-   "credit": "alex61194 (original distribution work with disclosed AI assistance)",
+   "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
    "basis": "Data-error screen word-wraps messages to 39 columns with an empty row between text rows (3ds_data_error_text.h); no message text, pack checks or exit behaviour changed"
   },
   {
    "path": "3ds_port/tests/data_runtime_test.c",
-   "sha256": "59eb9771a6f48fd26ed07cd1473b411886e112b7bf11b08188761e4733dd83c4",
+   "sha256": "7ad20e56def4f38d7089dde3429c36e8242e7b9da76680218b9245a31b1c9914",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Pinned 96f95e0 Git blob verified; reviewed port-only text, no media/payload; inherited notices and external-game scope preserved; test fixtures synthetic",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -6456,9 +6456,9 @@
   },
   {
    "path": "tools/test_data_runtime.py",
-   "sha256": "d8d862d7e4eb3ada064badd2df58493e6decfcbf742397fbb32489481cc15660",
+   "sha256": "30023638eb0c55f98c650356f161b67f08560d1d472d26f3f436ef55d25a47b1",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Pinned 96f95e0 Git blob verified; reviewed port-only text, no media/payload; inherited notices and external-game scope preserved; test fixtures synthetic",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -6823,6 +6823,14 @@
    "basis": "Reviewed text-only source/documentation; no ROM/game payloads or generated media; synthetic fixtures only"
   },
   {
+   "path": "tools/make_recipe.py",
+   "sha256": "05552148a35233cff5db986d7faffa9b3a2534dd83858073d4ef333ec9903942",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork contribution with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only tooling: writes an edit recipe from an edited copy, unchanged lines as local line references, only changed lines as port additions; no ROM/game payloads."
+  },
+  {
    "path": "patches/pokefirered/0237-anim-shake-u16-pointer.json",
    "sha256": "0ce01043be9901b425cdee431e56eb73b8e030665ef89ac068bb3d78a072f1d8",
    "review_status": "reviewed",
@@ -6839,12 +6847,20 @@
    "basis": "Reviewed structural edit recipe (issue #87): four added lines select asr under PLATFORM_3DS in the compressed-sample block index; no upstream context copied, no ROM/game payloads."
   },
   {
-   "path": "tools/make_recipe.py",
-   "sha256": "05552148a35233cff5db986d7faffa9b3a2534dd83858073d4ef333ec9903942",
+   "path": "3ds_port/include/3ds_app_name.h",
+   "sha256": "1b09cbd98cabb5e4dcdbee017db81306e1005c85b67654229ccfa8230d2c084c",
    "review_status": "reviewed",
-   "credit": "christiansmmc (fork contribution with disclosed AI assistance)",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
-   "basis": "Reviewed text-only tooling: writes an edit recipe from an edited copy, unchanged lines as local line references, only changed lines as port additions; no ROM/game payloads."
+   "basis": "Reviewed text-only source: the fork name, SD folder and upstream save path as string macros; no ROM/game payloads."
+  },
+  {
+   "path": "tools/dev.py",
+   "sha256": "94225a6bcd04d30f3051944fac49546f8ddaabd5360453c710de3b27f3842c78",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only tooling: incremental build sync, local data-pack build from the user's own ROM, Azahar launch, 3dslink and ftpd upload to the user's own console; no ROM/game payloads."
   }
  ],
  "historical_reviews": [

@@ -1,5 +1,5 @@
 /* Adapted from ZallaxDev 6419a400; MIT: licenses/ZallaxDev-MIT.txt. */
-/* twinembers.pak parsing; see include/3ds_pak.h. */
+/* classicfirered3ds.pak parsing; see include/3ds_pak.h. */
 
 #include <stdlib.h>
 #include <string.h>
