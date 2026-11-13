@@ -84,6 +84,11 @@ static void battle(void)
         Framed(&kBatSafari[i]);
     }
     Framed(&kBatBall);
+    for (int i = 0; i < 4; ++i) {
+        Framed(&kBatMove[i]);
+        Framed(&kBatTarget[i]);
+    }
+    Framed(&kBatCancel);
     Framed(&kBatBallArrow[0]);
     Framed(&kBatBallArrow[1]);
     n = 0;

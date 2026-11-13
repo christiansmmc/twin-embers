@@ -21,8 +21,7 @@ static const CtrPokeTouchRect *BActRect(const CtrBattleView *v, int i)
         return &kBatBall;
     return &(v->ball == CTR_QUICK_BALL_NONE ? kBatAction : kBatActionBall)[i];
 }
-/* The move cards (and a double battle's target cards) in the controller's 2x2 order; under them the note and CANCEL. */
-static const CtrPokeTouchRect sBCard[4] = {{8, 38, 150, 62}, {162, 38, 150, 62}, {8, 104, 150, 62}, {162, 104, 150, 62}};
+/* The battle Bag's note and CANCEL. */
 static const CtrPokeTouchRect sBNote = {4, 176, 236, 60};
 static const CtrPokeTouchRect sBCancel = {244, 180, 72, 52};
 /* The battle Bag: its title (the Items pocket, the only one it shows) and BERRIES for the Berry Pouch, the item list
@@ -111,9 +110,10 @@ int CtrBattleUi_Hit(const CtrBattleView *v, int x, int y)
     }
     if (v->state == BUI_MOVE || v->state == BUI_TARGET) {
         for (int i = 0; i < 4; ++i)
-            if ((v->state == BUI_MOVE ? v->move[i].present : v->target[i].present) && BIn(&sBCard[i], x, y))
+            if (v->state == BUI_MOVE ? v->move[i].present && BIn(&kBatMove[i], x, y)
+                                     : v->target[i].present && BIn(&kBatTarget[i], x, y))
                 return i;
-        if (BIn(&sBCancel, x, y))
+        if (BIn(&kBatCancel, x, y))
             return BUI_CANCEL;
         return -1;
     }
@@ -179,14 +179,6 @@ int CtrBattleUi_Hit(const CtrBattleView *v, int x, int y)
         }
     }
     return -1;
-}
-
-/* Whether button or card `i` looks different between two views of the same screen: pressed, or focused. */
-static int BLooksChanged(const CtrBattleView *a, const CtrBattleView *b, int i)
-{
-    return (a->pressed == i) != (b->pressed == i)
-        || (a->showCursor && a->cursor == i) != (b->showCursor && b->cursor == i)
-        || (b->state == BUI_ACTION && i == 0 && a->activeFrame != b->activeFrame);   /* the lead's icon bounces */
 }
 
 /* Appends `word` to `line` (a space first when it is not empty), within `size`. */
@@ -814,23 +806,6 @@ UI_FN void BDiscIcon(int icon, int cx, int cy, int r, const EmPal *p)
     }
 }
 
-/* A raised card of the battle: the backdrop back round it, the glow while FireRed's cursor is on it. */
-static int BEmCard(const CtrPokeTouchRect *r, const EmPal *p, int focused, int pressed)
-{
-    TsBgRect(r->x - 2, r->y - 2, r->w + 4, r->h + 4);
-    if (focused)
-        EmGlowRing(r->x, r->y, r->w, r->h);
-    return EmButton(r->x, r->y, r->w, r->h, p, B_DEPTH, pressed);
-}
-
-/* An empty slot: a hollow in the backdrop. */
-static void BHollow(const CtrPokeTouchRect *r)
-{
-    TsBgRect(r->x - 2, r->y - 2, r->w + 4, r->h + 4);
-    UiRoundFill(r->x, r->y, r->w, r->h - B_DEPTH, 5, UI_RGB(140, 70, 60));
-    UiRoundFill(r->x + 1, r->y + 1, r->w - 2, r->h - B_DEPTH - 2, 4, UI_RGB(70, 18, 16));
-}
-
 /* CANCEL: violet, as BACK and the Party's. */
 static void BEmCancel(const CtrPokeTouchRect *r, int pressed)
 {
@@ -873,236 +848,11 @@ static void BBall(int cx, int cy, int kind, int status)
     }
 }
 
-/* The party's six balls on a dark pill, an HP bar under each. */
-static void BStrip(const CtrBattleView *v)
-{
-    const CtrPokeTouchRect *s = &sBStrip;
-
-    TsBgRect(s->x, s->y, s->w, s->h);
-    UiRoundFill(s->x, s->y, s->w, s->h, 5, UI_RGB(24, 8, 10));
-    EmGradFill(s->x + 1, s->y + 1, s->w - 2, s->h - 2, 4, UI_RGB(72, 26, 26), UI_RGB(44, 14, 16));
-    for (int i = 0; i < 6; ++i) {
-        int cx = s->x + 15 + 30 * i, kind = v->party[i];
-
-        BBall(cx, s->y + 10, kind, kind == 3 || (v->partyStatus[i] >= 1 && v->partyStatus[i] <= 6));
-        if (kind) {
-            unsigned hp = kind == 2 ? 0 : v->partyHp[i];
-            int fill = (int)(hp * 18 / 100);
-
-            if (hp && fill < 1)
-                fill = 1;
-            UiRoundFill(cx - 10, s->y + 20, 20, 5, 2, UI_RGB(24, 8, 10));
-            Fill(cx - 9, s->y + 21, fill, 3, hp > 50 ? UI_RGB(72, 200, 96) : hp > 20 ? UI_RGB(240, 200, 40) : UI_RGB(230, 60, 40));
-        }
-    }
-}
-
 /* ---- The action menu ---- */
 /* A hit code of the quick ball: the button or one of its arrows. */
 static int BBallPart(int code)
 {
     return code >= BUI_ACT_BALL && code <= BUI_ACT_BALL_NEXT;
-}
-
-/* ---- The moves ---- */
-/* The PP count's ink: red at 0, orange and amber when low. On the amber card the orange and amber vanish into it, so
- * there only 0 is red and the pips tell the rest. */
-static uint16_t BEmPpInk(unsigned pp, unsigned max, const EmPal *p)
-{
-    if (pp == 0)
-        return EM_VALUE;
-    if (p == &kEmAmber)
-        return p->ink;
-    return pp * 4 <= max ? UI_RGB(222, 96, 24) : pp * 2 <= max ? UI_RGB(196, 128, 0) : p->ink;
-}
-
-/* What the move does to the foe, on a pill: green when it is super effective, orange when not very, grey otherwise. */
-static const uint16_t kBFxColor[] = {0, UI_RGB(110, 100, 110), UI_RGB(204, 84, 24), UI_RGB(214, 112, 30),
-                                     UI_RGB(40, 150, 70), UI_RGB(30, 170, 60), UI_RGB(100, 106, 132)};
-
-/* The mark before the pill's words, as in the mockup: two arrows up for super effective, one down for not very, a red
- * cross for no effect; a plain hit has none. 7 pixels tall, `x` its left edge; returns its width. */
-enum { BFX_MARK_NONE, BFX_MARK_UP, BFX_MARK_DOWN, BFX_MARK_CROSS };
-
-static int BFxMarkW(int mark)
-{
-    return mark == BFX_MARK_UP ? 11 : mark == BFX_MARK_DOWN ? 7 : mark == BFX_MARK_CROSS ? 7 : 0;
-}
-
-static void BFxMark(int mark, int x, int y, uint16_t ink, uint16_t shadow)
-{
-    for (int pass = 0; pass < 2; ++pass) {
-        uint16_t c = pass ? ink : shadow;
-        int sx = x + !pass, sy = y + !pass;      /* the shadow first, a pixel down and right, as the font's */
-
-        if (mark == BFX_MARK_UP)
-            for (int k = 0; k < 2; ++k)
-                for (int row = 0; row < 6; ++row)
-                    Fill(sx + 6 * k + 2 - row / 2, sy + 1 + row, 1 + row / 2 * 2, 1, c);
-        else if (mark == BFX_MARK_DOWN)
-            for (int row = 0; row < 7; ++row)
-                Fill(sx + (row + 1) / 2, sy + row, 7 - (row + 1) / 2 * 2, 1, c);
-        else if (mark == BFX_MARK_CROSS) {
-            if (pass)
-                c = UI_RGB(240, 72, 64);
-            for (int k = 0; k < 6; ++k) {
-                Fill(sx + k, sy + k, 2, 1, c);
-                Fill(sx + 5 - k, sy + k, 2, 1, c);
-            }
-        }
-    }
-}
-
-static void BMatchupPill(uint8_t matchup, int right, int y)
-{
-    static const char *const kText[] = {"", CTR_TR("NO EFFECT", "NO AFECTA", "Wirkungslos"), CTR_TR("NOT VERY", "POCO EFIC.", "Nicht sehr"), CTR_TR("NOT VERY", "POCO EFIC.", "Nicht sehr"), CTR_TR("SUPER", "S\xC3\x9APER", "Sehr"), CTR_TR("SUPER x4", "S\xC3\x9APER x4", "Sehr x4"), CTR_TR("EFFECTIVE", "EFICAZ", "Effektiv")};
-    static const uint8_t kMark[] = {BFX_MARK_NONE, BFX_MARK_CROSS, BFX_MARK_DOWN, BFX_MARK_DOWN, BFX_MARK_UP, BFX_MARK_UP,
-                                    BFX_MARK_NONE};
-    const uint16_t *kColor = kBFxColor;
-    uint16_t shadow;
-    int markW, w, x;
-
-    if (matchup == CTR_FX_NONE || matchup > CTR_FX_NEUTRAL)
-        return;
-    markW = BFxMarkW(kMark[matchup]);
-    w = BPillW(kText[matchup]) + (markW ? markW + 2 : 0);
-    x = right - w;
-    shadow = UiMix(kColor[matchup], UI_RGB(0, 0, 0), 4);
-    UiRoundFill(x, y, w, 15, 5, UiMix(kColor[matchup], UI_RGB(0, 0, 0), 3));
-    UiRoundFill(x + 1, y + 1, w - 2, 13, 4, kColor[matchup]);
-    if (markW)
-        BFxMark(kMark[matchup], x + 6, y + 4, EM_WHITE, shadow);
-    UiText(kText[matchup], x + 7 + (markW ? markW + 2 : 0), y + 3, EM_WHITE, shadow, 1, x + w);
-}
-
-static void BMoveCard(int i, const CtrBattleView *v)
-{
-    const CtrPokeTouchRect *r = &sBCard[i];
-    const CtrBattleMove *m = &v->move[i];
-    int focused = v->showCursor && v->cursor == i;
-    const EmPal *p = focused ? &kEmAmber : &kEmCream;
-    uint16_t label = focused ? UI_RGB(255, 236, 200) : EM_DIM;
-    int fy, fh = r->h - B_DEPTH;
-
-    if (!m->present) {
-        BHollow(r);
-        return;
-    }
-    fy = BEmCard(r, p, focused, v->pressed == i);
-    Fill(r->x + 3, fy + 4, 4, fh - 8, UiTypeColor(m->type));
-    UiText(m->name, r->x + 12, fy + 7, p->ink, p->inkSh, 1, r->x + r->w - 58);
-    BPill(r->x + r->w - 6 - BPillW(m->typeName), fy + 4, m->typeName, UiTypeColor(m->type), EM_WHITE,
-          UiMix(UiTypeColor(m->type), UI_RGB(0, 0, 0), 4));
-    UiText(CTR_TR("POW", "POT", "St\xC3\xA4"), r->x + 12, fy + 25, label, p->inkSh, 1, r->x + 40);
-    UiText(m->power[0] ? m->power : "-", r->x + 40, fy + 25, p->ink, p->inkSh, 1, r->x + 72);
-    if (m->matchup != CTR_FX_NONE)
-        BMatchupPill(m->matchup, r->x + r->w - 6, fy + 22);
-    else if (!m->power[0] || m->power[0] == '-')
-        UiTextRight(CTR_TR("STATUS", "ESTADO", "Status"), r->x + r->w - 8, fy + 25, label, p->inkSh, 1);
-    {
-        /* The last row: PP as five pips (a fifth of the move's PP each) and its number, and the move's accuracy between them. */
-        int lit = m->maxPp ? ((int)m->pp * 5 + m->maxPp - 1) / m->maxPp : 0;
-        uint16_t on = m->pp * 4 <= m->maxPp ? UI_RGB(232, 110, 30) : m->pp * 2 <= m->maxPp ? UI_RGB(236, 190, 30)
-                    : UI_RGB(72, 190, 96);
-        /* On the amber card the unlit pips are its dark brown: its orange looked like lit pips (a move at 0 PP read full). */
-        uint16_t off = focused ? UiMix(p->lip, p->edge, 4) : UiMix(p->bottom, p->edge, 3);
-        char pp[16];
-
-        const char *accLabel = CTR_TR("ACC", "PRE", "Gen");
-        const char *acc = m->accuracy[0] && m->accuracy[0] != '-' ? m->accuracy : "--";
-        int pipsEnd = r->x + 12 + 5 * 6, ppLeft, accRight, accStart;
-
-        for (int k = 0; k < 5; ++k)
-            UiRoundFill(r->x + 12 + 6 * k, fy + 45, 5, 5, 2, k < lit ? on : off);
-        snprintf(pp, sizeof(pp), "%u/%u", m->pp, m->maxPp);
-        UiTextRight(pp, r->x + r->w - 8, fy + 43, BEmPpInk(m->pp, m->maxPp, p), p->inkSh, 1);
-        ppLeft = r->x + r->w - 13 - UiTextWidth(pp, 1) - UiTextWidth("PP", 1);
-        UiTextRight("PP", r->x + r->w - 13 - UiTextWidth(pp, 1), fy + 43, label, p->inkSh, 1);
-        /* The accuracy sits just before PP; where its label does not fit between the pips and PP, only the number is shown. */
-        accRight = ppLeft - 8;
-        accStart = accRight - UiTextWidth(acc, 1) - 3 - UiTextWidth(accLabel, 1);
-        if (accStart >= pipsEnd + 5) {
-            UiText(accLabel, accStart, fy + 43, label, p->inkSh, 1, accRight);
-            UiTextRight(acc, accRight, fy + 43, p->ink, p->inkSh, 1);
-        } else {
-            UiTextRight(acc, accRight, fy + 43, p->ink, p->inkSh, 1);
-        }
-    }
-}
-
-/* The note under the moves: accuracy, effect chance and STAB of the move under FireRed's cursor, and its description. */
-static void BMoveNote(const CtrBattleView *v)
-{
-    const CtrPokeTouchRect *n = &sBNote;
-    int sel = v->cursor >= 0 && v->cursor < 4 && v->move[v->cursor].present ? v->cursor : 0;
-    const CtrBattleMove *m = &v->move[sel];
-
-    TsBgRect(n->x, n->y, n->w, n->h);
-    EmNote(n->x, n->y, n->w, n->h);
-    if (!m->present)
-        return;
-    {
-        const char *acc = m->accuracy[0] && m->accuracy[0] != '-' ? m->accuracy : "--";
-        char val[16];
-        int x = n->x + 12;
-
-        UiText(CTR_TR("ACC", "PRE", "Gen"), x, n->y + 7, EM_DIM, EM_DARK_SH, 1, n->x + n->w);
-        snprintf(val, sizeof(val), "%s%s", acc, acc[0] == '-' ? "" : "%");
-        UiText(val, x + 26, n->y + 7, EM_DARK, EM_DARK_SH, 1, n->x + n->w);
-        if (m->effectChance) {
-            UiText(CTR_TR("EFFECT", "EFECTO", "Effekt"), x + 70, n->y + 7, EM_DIM, EM_DARK_SH, 1, n->x + n->w);
-            snprintf(val, sizeof(val), "%u%%", m->effectChance);
-            UiText(val, x + 116, n->y + 7, EM_DARK, EM_DARK_SH, 1, n->x + n->w);
-        }
-        if (m->stab)
-            BPill(n->x + n->w - 8 - BPillW(CTR_TR("STAB", "STAB", "STAB")), n->y + 4, CTR_TR("STAB", "STAB", "STAB"), EM_STRIPE, EM_WHITE, UI_RGB(110, 40, 6));
-    }
-    BDescribeN(m->desc[0] ? m->desc : m->type < 10 ? CTR_TR("Physical move", "Ataque f\xC3\xADsico", "Physischer Angriff") : CTR_TR("Special move", "Ataque especial", "Spezialangriff"), n->x + 12, n->y + 24,
-               n->w - 18, 3, EM_DARK);
-}
-
-/* ---- A double battle's targets: the opposing battlers on top, the player's below, as the move cards ---- */
-static void BTargetCard(int i, const CtrBattleView *v)
-{
-    const CtrPokeTouchRect *r = &sBCard[i];
-    const CtrBattleTarget *t = &v->target[i];
-    int focused = v->showCursor && v->cursor == i;
-    const EmPal *p = focused ? &kEmAmber : &kEmCream;
-    uint16_t side = t->side ? UI_RGB(60, 120, 230) : UI_RGB(220, 60, 50);
-    int fy, fh = r->h - B_DEPTH;
-    char text[20];
-
-    if (!t->present) {
-        BHollow(r);
-        return;
-    }
-    fy = BEmCard(r, p, focused, v->pressed == i);
-    Fill(r->x + 3, fy + 4, 4, fh - 8, side);
-    UiText(t->name, r->x + 12, fy + 7, p->ink, p->inkSh, 1, r->x + r->w - 48);
-    BPill(r->x + r->w - 6 - BPillW(t->side ? CTR_TR("ALLY", "ALIADO", "Partner") : CTR_TR("FOE", "RIVAL", "Gegner")), fy + 4, t->side ? CTR_TR("ALLY", "ALIADO", "Partner") : CTR_TR("FOE", "RIVAL", "Gegner"), side, EM_WHITE,
-          UiMix(side, UI_RGB(0, 0, 0), 4));
-    snprintf(text, sizeof(text), "Lv%u", t->level);
-    UiText(text, r->x + 12, fy + 25, p->ink, p->inkSh, 1, r->x + 60);
-    BMatchupPill(t->matchup, r->x + r->w - 6, fy + 22);
-    {
-        CtrPokeTouchRect bar = {(int16_t)(r->x + 12), (int16_t)(fy + 45), 70, 6};
-
-        UiRoundFill(bar.x - 1, bar.y - 1, bar.w + 2, bar.h + 2, 2, UI_RGB(64, 72, 104));
-        UiHpBar(&bar, t->hp, t->maxHp);
-        if (t->side) {
-            snprintf(text, sizeof(text), "%u/%u", t->hp, t->maxHp);
-            UiTextRight(text, r->x + r->w - 8, fy + 44, p->ink, p->inkSh, 1);
-        }
-    }
-}
-
-static void BTargetNote(void)
-{
-    const CtrPokeTouchRect *n = &sBNote;
-
-    TsBgRect(n->x, n->y, n->w, n->h);
-    EmNote(n->x, n->y, n->w, n->h);
-    BPWrap(CTR_TR("Which POK\xC3\xA9MON should the move hit?", "\xC2\xBF" "A qu\xC3\xA9 POK\xC3\xA9MON ataca?", "Welches Pok\xC3\xA9mon angreifen?"), n->x + 12, n->y + 25, n->w - 18, 2, EM_DARK, EM_DARK_SH);
 }
 
 /* ---- The Safari Zone: BALL, BAIT, ROCK, RUN (the words of FireRed's gText_SafariZoneMenu) ---- */
@@ -1240,25 +990,10 @@ static void BBag(const CtrBattleView *v)
 /* A screen with the party's balls on top. */
 #include "3ds_battle_page_impl.h"
 
+/* Every state but the Bag and the Party: a page (3ds_battle_page_impl.h). */
 static void BScreen(const CtrBattleView *v)
 {
-    if (v->state == BUI_ACTION || v->state == BUI_SAFARI) {
-        BPageScreen(v);
-        return;
-    }
-    TsBackdrop();
-    BStrip(v);
-    if (v->state == BUI_MOVE) {
-        for (int i = 0; i < 4; ++i)
-            BMoveCard(i, v);
-        BMoveNote(v);
-        BEmCancel(&sBCancel, v->pressed == BUI_CANCEL);
-    } else if (v->state == BUI_TARGET) {
-        for (int i = 0; i < 4; ++i)
-            BTargetCard(i, v);
-        BTargetNote();
-        BEmCancel(&sBCancel, v->pressed == BUI_CANCEL);
-    }
+    BPageScreen(v);
 }
 
 void CtrBattleUi_Draw(uint16_t *canvas, const CtrBattleView *v)
@@ -1392,31 +1127,8 @@ void CtrBattleUi_Update(uint16_t *canvas, const CtrBattleView *old, const CtrBat
         CtrBattleUi_Draw(canvas, v);
         EmSurface();
         BMark(dirty, &all);
-    } else if (v->state != BUI_IDLE) {
-        /* Only what looks different: a card pressed or under the cursor, the note that follows the cursor, CANCEL. */
-        if (v->state == BUI_ACTION || v->state == BUI_SAFARI) {
-            BPageUpdate(old, v, dirty);
-            sUiS = &sUiNavy;
-            return;
-        }
-        for (int i = 0; i < 4; ++i)
-            if (BLooksChanged(old, v, i)) {
-                CtrPokeTouchRect g = UiInset(&sBCard[i], -2);
-
-                if (v->state == BUI_MOVE)
-                    BMoveCard(i, v);
-                else
-                    BTargetCard(i, v);
-                BMark(dirty, &g);
-            }
-        if (v->state == BUI_MOVE && old->cursor != v->cursor) {
-            BMoveNote(v);
-            BMark(dirty, &sBNote);
-        }
-        if ((v->state == BUI_MOVE || v->state == BUI_TARGET) && (old->pressed == BUI_CANCEL) != (v->pressed == BUI_CANCEL)) {
-            BEmCancel(&sBCancel, v->pressed == BUI_CANCEL);
-            BMark(dirty, &sBCancel);
-        }
+    } else {
+        BPageUpdate(old, v, dirty);
     }
     sUiS = &sUiNavy;
 }

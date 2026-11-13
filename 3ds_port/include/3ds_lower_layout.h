@@ -41,12 +41,12 @@ static const CtrPokeTouchRect kBatSafari[4] = {
 
 /* Moves (and, in a double battle, the targets): four cells, the move's note with the dialogue frame, CANCEL. */
 static const CtrPokeTouchRect kBatMove[4] = {
-    { 8, 8, 148, 52 }, { 164, 8, 148, 52 }, { 8, 64, 148, 52 }, { 164, 64, 148, 52 },
+    { 8, 8, 152, 64 }, { 160, 8, 152, 64 }, { 8, 72, 152, 64 }, { 160, 72, 152, 64 },
 };
-static const CtrPokeTouchRect kBatMoveNote = { 8, 120, 232, 112 };
-static const CtrPokeTouchRect kBatCancel = { 248, 120, 64, 112 };
+static const CtrPokeTouchRect kBatMoveNote = { 8, 136, 232, 96 };
+static const CtrPokeTouchRect kBatCancel = { 248, 136, 64, 96 };
 static const CtrPokeTouchRect kBatTarget[4] = {
-    { 8, 8, 148, 52 }, { 164, 8, 148, 52 }, { 8, 64, 148, 52 }, { 164, 64, 148, 52 },
+    { 8, 8, 152, 64 }, { 160, 8, 152, 64 }, { 8, 72, 152, 64 }, { 160, 72, 152, 64 },
 };
 
 #endif

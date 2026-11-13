@@ -203,10 +203,177 @@ static void BPageSafari(const CtrBattleView *v, int i)
         BPageShoe(&kBatSafari[i], 1);
 }
 
+/* ---- The moves and a double battle's targets ---- */
+/* What a move does to the foe, as today's tags (the port's own colours: x2 and x4 green, x1/2 orange, x0 and a plain hit
+ * grey), flat now. */
+static const uint16_t kBFxColor[] = {0, UI_RGB(110, 100, 110), UI_RGB(204, 84, 24), UI_RGB(214, 112, 30),
+                                     UI_RGB(40, 150, 70), UI_RGB(30, 170, 60), UI_RGB(100, 106, 132)};
+
+static const char *BFxText(uint8_t matchup)
+{
+    static const char *const kText[] = {"", CTR_TR("NO EFFECT", "NO AFECTA", "Wirkungslos"),
+                                        CTR_TR("NOT VERY", "POCO EFIC.", "Nicht sehr"), CTR_TR("NOT VERY", "POCO EFIC.", "Nicht sehr"),
+                                        CTR_TR("SUPER", "S\xC3\x9APER", "Sehr"), CTR_TR("SUPER x4", "S\xC3\x9APER x4", "Sehr x4"),
+                                        CTR_TR("EFFECTIVE", "EFICAZ", "Effektiv")};
+
+    return matchup <= CTR_FX_NEUTRAL ? kText[matchup] : "";
+}
+
+/* The tag on a line, ending at `right`; nothing for CTR_FX_NONE (the option off, or a status move). */
+static void BPageFxTag(uint8_t matchup, int right, int lineTop)
+{
+    const char *text;
+    int w;
+
+    if (matchup == CTR_FX_NONE || matchup > CTR_FX_NEUTRAL)
+        return;
+    text = BFxText(matchup);
+    w = UiTextWidth(text, 1) + 8;
+    Fill(right - w, lineTop, w, KIT_LINE_H - 1, kBFxColor[matchup]);
+    UiText(text, right - w + 4, lineTop + 3, RGB(255, 255, 255), KitInk(2), 1, right);
+}
+
+/* The three lines of a move or target cell, 16 px apart from the top of its interior. */
+#define BPAGE_LINE(in, n) ((in).y + 1 + 16 * (n))
+
+/* A move: the arrow and its name, its PP (grey at none left); its type and what it does to the foe; power, accuracy.
+ * An empty slot is the page only. */
+static void BPageMove(const CtrBattleView *v, int i)
+{
+    const CtrPokeTouchRect *r = &kBatMove[i];
+    const CtrBattleMove *m = &v->move[i];
+    CtrPokeTouchRect in = BPageInside(r);
+    int right = in.x + in.w, ppw;
+    char text[24];
+
+    Fill(r->x, r->y, r->w, r->h, BPageBg());
+    if (!m->present)
+        return;
+    KitPanel(r, KIT_FRAME_STD, v->frameType);
+    Fill(in.x, in.y, in.w, in.h, v->pressed == i ? KitInk(3) : KitInk(1));
+    if (BPageChosen(v, i, i))
+        KitText(KIT_ARROW, in.x, BPAGE_LINE(in, 0), right);
+    snprintf(text, sizeof(text), "%u/%u", m->pp, m->maxPp);
+    ppw = UiTextWidth(text, 1);
+    UiText(text, right - ppw, BPAGE_LINE(in, 0) + 3, Tone(KitInk(2), m->pp > 0), Tone(KitInk(3), m->pp > 0), 1, right);
+    KitText(m->name, in.x + KIT_ARROW_W, BPAGE_LINE(in, 0), right - ppw - 4);
+    {
+        CtrPokeTouchRect type = {(int16_t)(in.x + KIT_ARROW_W), (int16_t)BPAGE_LINE(in, 1), 40, KIT_LINE_H - 1};
+
+        KitTypeLabel(&type, m->type, m->typeName);
+    }
+    BPageFxTag(m->matchup, right, BPAGE_LINE(in, 1));
+    snprintf(text, sizeof(text), "%s %s", CTR_TR("POW", "POT", "St\xC3\xA4"), m->power[0] ? m->power : "-");
+    KitText(text, in.x + KIT_ARROW_W, BPAGE_LINE(in, 2), right);
+    snprintf(text, sizeof(text), "%s %s", CTR_TR("ACC", "PRE", "Gen"),
+             m->accuracy[0] && m->accuracy[0] != '-' ? m->accuracy : "--");
+    KitText(text, right - UiTextWidth(text, 1), BPAGE_LINE(in, 2), right);
+}
+
+/* The note under the moves, in the dialogue frame: accuracy, effect chance and STAB of the move under the controller's
+ * cursor, then its description (or whether it is physical or special). */
+static void BPageMoveNote(const CtrBattleView *v)
+{
+    const CtrPokeTouchRect *n = &kBatMoveNote;
+    int sel = v->cursor >= 0 && v->cursor < 4 && v->move[v->cursor].present ? v->cursor : 0;
+    const CtrBattleMove *m = &v->move[sel];
+    int x = n->x + 16, top = n->y + 8, right = n->x + n->w - 16;
+    char text[24];
+
+    Fill(n->x, n->y, n->w, n->h, BPageBg());
+    KitPanel(n, KIT_FRAME_DIALOGUE, 0);
+    if (!m->present)
+        return;
+    {
+        const char *acc = m->accuracy[0] && m->accuracy[0] != '-' ? m->accuracy : "--";
+
+        snprintf(text, sizeof(text), "%s %s%s", CTR_TR("ACC", "PRE", "Gen"), acc, acc[0] == '-' ? "" : "%");
+        KitText(text, x, top, right);
+    }
+    if (m->effectChance) {
+        snprintf(text, sizeof(text), "%s %u%%", CTR_TR("EFFECT", "EFECTO", "Effekt"), m->effectChance);
+        KitText(text, x + 80, top, right);
+    }
+    if (m->stab)
+        KitText("STAB", right - UiTextWidth("STAB", 1), top, right);
+    KitWrap(m->desc[0] ? m->desc
+                       : m->type < 10 ? CTR_TR("Physical move", "Ataque f\xC3\xADsico", "Physischer Angriff")
+                                      : CTR_TR("Special move", "Ataque especial", "Spezialangriff"),
+            x, top + KIT_LINE_H, right - x, (n->h - 16) / KIT_LINE_H - 1);
+}
+
+/* A target: the arrow and its name, FOE or ALLY; its level and what the move does to it; its HP (and the numbers for
+ * the player's own). */
+static void BPageTarget(const CtrBattleView *v, int i)
+{
+    const CtrPokeTouchRect *r = &kBatTarget[i];
+    const CtrBattleTarget *t = &v->target[i];
+    CtrPokeTouchRect in = BPageInside(r);
+    const char *side = t->side ? CTR_TR("ALLY", "ALIADO", "Partner") : CTR_TR("FOE", "RIVAL", "Gegner");
+    int right = in.x + in.w, sw = UiTextWidth(side, 1);
+    char text[20];
+
+    Fill(r->x, r->y, r->w, r->h, BPageBg());
+    if (!t->present)
+        return;
+    KitPanel(r, KIT_FRAME_STD, v->frameType);
+    Fill(in.x, in.y, in.w, in.h, v->pressed == i ? KitInk(3) : KitInk(1));
+    if (BPageChosen(v, i, i))
+        KitText(KIT_ARROW, in.x, BPAGE_LINE(in, 0), right);
+    KitText(side, right - sw, BPAGE_LINE(in, 0), right);
+    KitText(t->name, in.x + KIT_ARROW_W, BPAGE_LINE(in, 0), right - sw - 4);
+    snprintf(text, sizeof(text), "Lv%u", t->level);
+    KitText(text, in.x + KIT_ARROW_W, BPAGE_LINE(in, 1), right);
+    BPageFxTag(t->matchup, right, BPAGE_LINE(in, 1));
+    KitHpBar(in.x + KIT_ARROW_W, BPAGE_LINE(in, 2) + 5, 64, t->hp, t->maxHp);
+    if (t->side) {
+        snprintf(text, sizeof(text), "%u/%u", t->hp, t->maxHp);
+        KitText(text, right - UiTextWidth(text, 1), BPAGE_LINE(in, 2), right);
+    }
+}
+
+static void BPageTargetNote(void)
+{
+    const CtrPokeTouchRect *n = &kBatMoveNote;
+
+    Fill(n->x, n->y, n->w, n->h, BPageBg());
+    KitPanel(n, KIT_FRAME_DIALOGUE, 0);
+    KitWrap(CTR_TR("Which POK\xC3\xA9MON should the move hit?", "\xC2\xBF" "A qu\xC3\xA9 POK\xC3\xA9MON ataca?",
+                   "Welches Pok\xC3\xA9mon angreifen?"),
+            n->x + 16, n->y + 8, n->w - 32, (n->h - 16) / KIT_LINE_H);
+}
+
+/* CANCEL: a framed cell with one row, the arrow on it while it is held. */
+static void BPageCancel(const CtrBattleView *v)
+{
+    const CtrPokeTouchRect *r = &kBatCancel;
+    CtrPokeTouchRect in = BPageInside(r);
+
+    Fill(r->x, r->y, r->w, r->h, BPageBg());
+    KitPanel(r, KIT_FRAME_STD, v->frameType);
+    KitRow(&in, CTR_TR("CANCEL", "CANCELAR", "Zur\xC3\xBC" "ck"), v->pressed == BUI_CANCEL, 1);
+}
+
 static void BPageScreen(const CtrBattleView *v)
 {
     Fill(0, 0, W, H, BPageBg());
+    if (v->state == BUI_MOVE || v->state == BUI_TARGET) {
+        for (int i = 0; i < 4; ++i) {
+            if (v->state == BUI_MOVE)
+                BPageMove(v, i);
+            else
+                BPageTarget(v, i);
+        }
+        if (v->state == BUI_MOVE)
+            BPageMoveNote(v);
+        else
+            BPageTargetNote();
+        BPageCancel(v);
+        return;
+    }
     BPageParty(v);
+    if (v->state == BUI_IDLE)
+        return;                         /* a message or an animation: the party's balls only */
     if (v->state == BUI_SAFARI) {
         for (int i = 0; i < 4; ++i)
             BPageSafari(v, i);
@@ -225,6 +392,27 @@ static void BPageScreen(const CtrBattleView *v)
  * bounce, the quick ball and its arrows. Each repaints its whole rectangle, so the result equals BPageScreen. */
 static void BPageUpdate(const CtrBattleView *old, const CtrBattleView *v, CtrDirtyList *dirty)
 {
+    if (v->state == BUI_IDLE)
+        return;                         /* the balls change only with the screen's data (BScreenChanged) */
+    if (v->state == BUI_MOVE || v->state == BUI_TARGET) {
+        for (int i = 0; i < 4; ++i)
+            if (BPageLook(old, i) != BPageLook(v, i)) {
+                if (v->state == BUI_MOVE)
+                    BPageMove(v, i);
+                else
+                    BPageTarget(v, i);
+                BPageMark(dirty, v->state == BUI_MOVE ? &kBatMove[i] : &kBatTarget[i]);
+            }
+        if (v->state == BUI_MOVE && old->cursor != v->cursor) {
+            BPageMoveNote(v);
+            BPageMark(dirty, &kBatMoveNote);
+        }
+        if ((old->pressed == BUI_CANCEL) != (v->pressed == BUI_CANCEL)) {
+            BPageCancel(v);
+            BPageMark(dirty, &kBatCancel);
+        }
+        return;
+    }
     for (int i = 0; i < 4; ++i) {
         if (BPageLook(old, i) == BPageLook(v, i) && !(v->state == BUI_ACTION && i == 0 && old->activeFrame != v->activeFrame))
             continue;
