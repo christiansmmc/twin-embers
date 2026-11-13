@@ -6869,6 +6869,30 @@
    "credit": "christiansmmc (fork design with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
    "basis": "Reviewed text-only design document for the lower-screen rework; no ROM/game payloads, no game art."
+  },
+  {
+   "path": "docs/superpowers/plans/2026-11-13-lower-screen-phase1.md",
+   "sha256": "ee0df06554bd3208a9d4f58711d0acf3bacc95e8afad8bf9edf084c0719df296",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "docs/superpowers/specs/2026-11-13-lower-screen-claude-design-brief.md",
+   "sha256": "11a60d88e96c95207f1799325a61f93114935617e0a087764f2a5de8e4047edf",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "tools/manifest_update.py",
+   "sha256": "08c6af94a76da1aca76ba865fc07438d8ebc8f000406606b44b43f3f330511d0",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
   }
  ],
  "historical_reviews": [
