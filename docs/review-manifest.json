@@ -6821,6 +6821,30 @@
    "credit": "alex61194 (original distribution work with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
    "basis": "Reviewed text-only source/documentation; no ROM/game payloads or generated media; synthetic fixtures only"
+  },
+  {
+   "path": "patches/pokefirered/0237-anim-shake-u16-pointer.json",
+   "sha256": "0ce01043be9901b425cdee431e56eb73b8e030665ef89ac068bb3d78a072f1d8",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork contribution with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed structural edit recipe (issue #85): three changed lines cast data[6] to u16 when rebuilding the stored pointer; no upstream context copied, no ROM/game payloads."
+  },
+  {
+   "path": "patches/pokefirered/0238-m4a-reverse-block-asr.json",
+   "sha256": "d318b37bf4e3abe9ae905bb1c1732f1cd24aad9ae9f73b1cede89d12d1425b48",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork contribution with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed structural edit recipe (issue #87): four added lines select asr under PLATFORM_3DS in the compressed-sample block index; no upstream context copied, no ROM/game payloads."
+  },
+  {
+   "path": "tools/make_recipe.py",
+   "sha256": "05552148a35233cff5db986d7faffa9b3a2534dd83858073d4ef333ec9903942",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork contribution with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only tooling: writes an edit recipe from an edited copy, unchanged lines as local line references, only changed lines as port additions; no ROM/game payloads."
   }
  ],
  "historical_reviews": [
