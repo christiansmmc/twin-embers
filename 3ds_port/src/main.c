@@ -1,6 +1,7 @@
 /* ARM11 diagnostic entry. FireRed's AgbMain is deliberately not linked yet.
  * Frame pacing and input follow Zallax's 3ds_port bootstrap, adapted here as
  * the first independent FireRed build gate. */
+#include "3ds_app_name.h"
 #include <3ds.h>
 #include <stdio.h>
 #include <sys/stat.h>
@@ -12,8 +13,8 @@
 static FILE *OpenLog(void)
 {
     if (mkdir("sdmc:/3ds", 0777) != 0) { /* Existing directory is fine. */ }
-    if (mkdir("sdmc:/3ds/twinembers", 0777) != 0) { }
-    return fopen("sdmc:/3ds/twinembers/port.log", "a");
+    if (mkdir(CTR_APP_DIR, 0777) != 0) { }
+    return fopen(CTR_APP_FILE("port.log"), "a");
 }
 
 static unsigned long sVBlankIrqs;
@@ -88,7 +89,7 @@ int main(void)
             printf("\x1b[11;1HVirtual GBA RAM: %u bytes\n", (unsigned)sizeof(gGbaShadow));
             printf("Top: 400x240 tiled test pattern\n");
             printf("Game code: not linked yet\n");
-            printf("Log: sdmc:/3ds/twinembers/port.log\n");
+            printf("Log: sdmc:/3ds/classicfirered3ds/port.log\n");
         }
         ++frames;
         CtrVideo_Present();

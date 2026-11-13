@@ -1,4 +1,5 @@
 /* See 3ds_fast_cells.h. Adapted from ZallaxDev's pokeemerald-3Ds-dualscreen (FastInit/FastQuad/FastCells, MIT). */
+#include "3ds_app_name.h"
 #include <3ds.h>
 #include <citro3d.h>
 #include <stdio.h>
@@ -21,7 +22,7 @@ static bool sReady;
 
 bool CtrFastCells_Init(void)
 {
-    FILE *off = fopen("sdmc:/3ds/twinembers/fastcells.off", "rb");
+    FILE *off = fopen(CTR_APP_FILE("fastcells.off"), "rb");
 
     if (off != NULL)
     {

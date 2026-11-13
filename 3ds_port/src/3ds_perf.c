@@ -1,4 +1,5 @@
 /* Aggregate only; no rendering decisions or game/audio changes. */
+#include "3ds_app_name.h"
 #include "3ds_perf.h"
 #include "3ds_log.h"
 #include <stdarg.h>
@@ -137,7 +138,7 @@ void CtrPerf_Init(uint64_t frequency, uintptr_t reference)
     sFrequency = frequency;
     /* Runtime opt-out allows the same executable to compare instrumentation
      * overhead without changing game/renderer code. */
-    FILE *off = fopen("sdmc:/3ds/twinembers/perf.off", "rb");
+    FILE *off = fopen(CTR_APP_FILE("perf.off"), "rb");
     if (off) { fclose(off); return; }
     if (!CtrLog_SetDeferredFormatter(FormatDeferredCsv))
     {

@@ -6,6 +6,7 @@
  */
 
 #define _GNU_SOURCE
+#include "3ds_app_name.h"
 #include <3ds.h>
 #include <errno.h>
 #include <limits.h>
@@ -188,11 +189,12 @@ static bool OpenPak(void)
     sPak = fopen(CTR_DATA_PAK_PATH, "rb");
     if (sPak == NULL)
     {
-        SetError("twinembers data pack missing.",
-                 "Use twinembers Builder with your own\n"
+        SetError(CTR_APP_NAME " data pack missing.",
+                 "Use the Builder with your own\n"
                  "Pokemon FireRed ROM to create it, then\n"
                  "install it as:\n\n"
-                 "  /3ds/twinembers/twinembers.pak");
+                 "  /3ds/" CTR_APP_NAME "/\n"
+                 "  " CTR_APP_NAME ".pak");
         return false;
     }
     setvbuf(sPak, NULL, _IOFBF, 64 * 1024);
@@ -204,8 +206,8 @@ static bool OpenPak(void)
         break;
     case CTR_PAK_BAD_MAGIC:
         SetError("This is not a game data pack.",
-                 "/3ds/twinembers/twinembers.pak is not a\n"
-                 "data pack. Run the builder again.");
+                 CTR_APP_NAME ".pak is not a data\n"
+                 "pack. Run the builder again.");
         goto fail;
     case CTR_PAK_BAD_SCHEMA:
     case CTR_PAK_BAD_ABI:
@@ -306,19 +308,20 @@ bool CtrData_Init(void)
         {
             /* The 3DSX's own files could not be opened: it was not started as the file it is. */
             snprintf(detail, sizeof(detail),
-                     "Start twinembers.3dsx from the Homebrew Launcher or the HOME Menu shortcut, as\n"
-                     "  /3ds/twinembers/twinembers.3dsx\n"
+                     "Start " CTR_APP_NAME ".3dsx from the Homebrew Launcher, as\n"
+                     "  /3ds/" CTR_APP_NAME "/\n"
+                     "  " CTR_APP_NAME ".3dsx\n"
                      "without renaming or moving it.\n\nError 0x%08lX", sRomfsFailure);
             SetError("The game's own files can't be opened.", detail);
         }
         else
-            SetError("This twinembers.3dsx has no engine data.",
+            SetError("This " CTR_APP_NAME ".3dsx has no engine data.",
                      "Its RomFS lacks engine/abi.bin. Download the 3DSX again, or build it with:\n"
                      "  make CLEAN_RELEASE=1 verify-game-3dsx");
         return false;
     }
     mkdir("sdmc:/3ds", 0777);
-    mkdir("sdmc:/3ds/twinembers", 0777);
+    mkdir(CTR_APP_DIR, 0777);
     /* A clean release has no embedded data and no development back door: it
      * reads the player's pack or stops with a message. */
     if (sCleanRelease)

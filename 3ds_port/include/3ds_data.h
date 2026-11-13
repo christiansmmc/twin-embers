@@ -11,9 +11,9 @@
  *
  *   romfs  the executable's own RomFS, in a development build that embeds
  *          its data;
- *   loose  sdmc:/3ds/twinembers/devdata/<path>, for iterating on one
+ *   loose  sdmc:/3ds/classicfirered3ds/devdata/<path>, for iterating on one
  *          generated file without rebuilding anything else;
- *   pak    sdmc:/3ds/twinembers/twinembers.pak, the single data pack the
+ *   pak    sdmc:/3ds/classicfirered3ds/classicfirered3ds.pak, the single data pack the
  *          Pokemon FireRed 3Ds Dual Screen Builder generates from the player's own ROM.
  *
  * Files that only describe the executable (asset index, relocation tables,
@@ -23,17 +23,18 @@
  * SDK-free: game translation units include this header.
  */
 
+#include "3ds_app_name.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 
 #ifndef CTR_DATA_DIR
-#define CTR_DATA_DIR "sdmc:/3ds/twinembers/"
+#define CTR_DATA_DIR CTR_APP_DIR "/"
 #endif
 #ifndef CTR_DATA_ROMFS_DIR
 #define CTR_DATA_ROMFS_DIR "romfs:/"
 #endif
-#define CTR_DATA_PAK_PATH CTR_DATA_DIR "twinembers.pak"
+#define CTR_DATA_PAK_PATH CTR_DATA_DIR CTR_APP_NAME ".pak"
 #define CTR_DATA_LOOSE_DIR CTR_DATA_DIR "devdata/"
 #define CTR_DATA_LOOSE_MARKER CTR_DATA_LOOSE_DIR ".firered3ds-dev"
 /* Present in the RomFS of a build that embeds its game data. */

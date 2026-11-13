@@ -40,7 +40,7 @@ def main():
         (tmp / 'romfs/engine').mkdir(parents=True)
         (tmp / 'romfs/engine/abi.bin').write_bytes(struct.pack('<I', 123))
         (tmp / 'data').mkdir()
-        pak = tmp / 'data/twinembers.pak'
+        pak = tmp / 'data/classicfirered3ds.pak'
         write_pak(pak, [('graphics/good.bin', b'\x11' * 4096),
                         ('graphics/bad.bin', b'\x22' * 8192)], 123, bytes.fromhex(SUPPORTED_SHA1))
         with PakReader(pak) as reader:
@@ -89,7 +89,7 @@ def run_time_backend_checks(args, tmp):
             if profile == b'FR3DCLN\0':   # a clean image must ignore this development switch too
                 (work / 'data/devdata/.firered3ds-dev').write_text('x')
         if pack:
-            write_pak(work / 'data/twinembers.pak', [('graphics/good.bin', b'\x11' * 4096)], 123, bytes.fromhex(SUPPORTED_SHA1))
+            write_pak(work / 'data/classicfirered3ds.pak', [('graphics/good.bin', b'\x11' * 4096)], 123, bytes.fromhex(SUPPORTED_SHA1))
         subprocess.run([str(exe), mode], cwd=work, check=True)
 
 

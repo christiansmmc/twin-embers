@@ -11,3 +11,4 @@ __pycache__/
 *.sav
 *.o
 *.exe
+/.dev.local.json

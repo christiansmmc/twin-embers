@@ -1,4 +1,5 @@
 /* Small native services needed by the 2D compositor during diagnostics. */
+#include "3ds_app_name.h"
 #include <3ds.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -17,8 +18,8 @@ uint64_t CtrPlatform_Milliseconds(void)
     return svcGetSystemTick() / (SYSCLOCK_ARM11 / 1000);
 }
 
-#define CTR_LOG_PATH "sdmc:/3ds/twinembers/port.log"
-#define CTR_LOG_PREV_PATH "sdmc:/3ds/twinembers/port-prev.log"
+#define CTR_LOG_PATH CTR_APP_FILE("port.log")
+#define CTR_LOG_PREV_PATH CTR_APP_FILE("port-prev.log")
 #define CTR_LOG_QUEUE_BYTES (64u * 1024u)
 #define CTR_LOG_BATCH_NS 500000000LL
 
@@ -34,7 +35,7 @@ uint64_t CtrPlatform_Milliseconds(void)
  * is dropped and counted, and atexit drains the queue and appends one
  * "LOG dropped=N" line, so Fatal and normal exits keep every queued line.
  *
- * Diagnostics are opt-in. With none of sdmc:/3ds/twinembers/debug.txt,
+ * Diagnostics are opt-in. With none of sdmc:/3ds/classicfirered3ds/debug.txt,
  * log.sync, warp.trace or tm.trace present nothing is written and no thread
  * exists. Any of them enables the async logger; creating log.sync restores
  * the synchronous per-line writes for crash diagnosis before a fault. Each start
@@ -155,7 +156,7 @@ static bool FileExists(const char *path)
 #ifndef CTR_FORCE_OLD3DS
 #define CTR_FORCE_OLD3DS 0
 #endif
-#define CTR_FORCE_OLD3DS_PATH "sdmc:/3ds/twinembers/force_old3ds"
+#define CTR_FORCE_OLD3DS_PATH CTR_APP_FILE("force_old3ds")
 static int sNew3ds = -1;
 static bool sOld3dsForced;
 
@@ -185,13 +186,13 @@ static void LogInit(void)
 {
     sLogMode = LOG_OFF;
     sLogStartMs = CtrPlatform_Milliseconds();
-    sWarpTrace = FileExists("sdmc:/3ds/twinembers/warp.trace");
-    sMoveTrace = FileExists("sdmc:/3ds/twinembers/tm.trace");
-    bool sync = FileExists("sdmc:/3ds/twinembers/log.sync");
-    if (!sWarpTrace && !sMoveTrace && !sync && !CTR_FORCE_OLD3DS && !FileExists("sdmc:/3ds/twinembers/debug.txt"))
+    sWarpTrace = FileExists(CTR_APP_FILE("warp.trace"));
+    sMoveTrace = FileExists(CTR_APP_FILE("tm.trace"));
+    bool sync = FileExists(CTR_APP_FILE("log.sync"));
+    if (!sWarpTrace && !sMoveTrace && !sync && !CTR_FORCE_OLD3DS && !FileExists(CTR_APP_FILE("debug.txt")))
         return;
     mkdir("sdmc:/3ds", 0777);
-    mkdir("sdmc:/3ds/twinembers", 0777);
+    mkdir(CTR_APP_DIR, 0777);
     /* The previous session is kept as port-prev.log, so a crash is still on the card after the next start
      * (the log is appended to, and used to grow across sessions). A FAT rename needs the target gone. */
     if (FileExists(CTR_LOG_PATH))
@@ -329,5 +330,5 @@ void CtrPlatform_ShowError(const char *heading, const char *title, const char *d
 void CtrPlatform_Fatal(const char *reason)
 {
     CtrLog_Write(CTR_LOG_ERROR, "fatal: %s", reason);
-    CtrPlatform_ShowError("twinembers error", reason, NULL);
+    CtrPlatform_ShowError(CTR_APP_NAME " error", reason, NULL);
 }

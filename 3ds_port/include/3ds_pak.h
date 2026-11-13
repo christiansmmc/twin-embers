@@ -3,7 +3,7 @@
 #define CTR_PAK_H
 
 /*
- * twinembers.pak parsing, free of any SDK so the host tests can run it.
+ * classicfirered3ds.pak parsing, free of any SDK so the host tests can run it.
  * The format is documented in builder/firered3ds_builder/pak.py, which writes
  * it; 3ds_data.c does the file I/O around these functions.
  */
