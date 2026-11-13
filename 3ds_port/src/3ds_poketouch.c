@@ -320,8 +320,9 @@ static void Art(const uint8_t *pixels, const uint16_t *pal, int stride, int x0, 
 #include "3ds_ui_theme_impl.h"
 #include "3ds_icons.h"
 #include "3ds_touch_skin_impl.h"
+#include "3ds_lower_kit_impl.h"
 
-#define BTN_DEPTH 3                     /* the lip under a big button (BACK, PAGE, SAVE's) */
+#define BTN_DEPTH 3                    /* the lip under a big button (BACK, PAGE, SAVE's) */
 #define COL_DEPTH 2                     /* and under the column's and the rows' */
 
 /* Shortcut item icons from FireRed's icon table, decoded once per item and
@@ -1009,7 +1010,7 @@ static int FrameSample(int type, int x, int y)
 
     if (loaded != type) {
         uint8_t tiles[9 * 32], colors[32];
-        char base[8];
+        char base[16];
         uint16_t pal[16];
 
         loaded = type;

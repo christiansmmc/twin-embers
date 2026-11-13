@@ -54,9 +54,9 @@
   },
   {
    "path": ".github/workflows/source-audit.yml",
-   "sha256": "02365d530119acdaf9e411d2ef016add8749ce63c17f416a23675e05fa7785e9",
+   "sha256": "a0c151b9caa53daf0b4ddbf898f4c58494e1bbe51d95045021ff9b88b29c198d",
    "review_status": "reviewed",
-   "credit": "alex61194 (original distribution work with disclosed AI assistance)",
+   "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
    "basis": "Add host-only storage touch tests without changing binary release policy, permissions or existing checks.",
    "modified_for_distribution": true,
@@ -1400,7 +1400,7 @@
   },
   {
    "path": "3ds_port/src/3ds_poketouch.c",
-   "sha256": "f128232f5257a33d624f6bb9da61b258a96c4dceca945338e19f7cecc1d331e6",
+   "sha256": "bf7596384ffce45f641de7d449487af8da3fdc745da443e697c5d5058efd8caa",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -6889,6 +6889,30 @@
   {
    "path": "tools/manifest_update.py",
    "sha256": "08c6af94a76da1aca76ba865fc07438d8ebc8f000406606b44b43f3f330511d0",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "3ds_port/src/3ds_lower_kit_impl.h",
+   "sha256": "0c912a9a54e74a13941c3a99090239f2210b193b15eb3c89b482b6c50725abce",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "3ds_port/tests/lower_kit_test.c",
+   "sha256": "df3d2445a956894ea83941cf0aeccdf50fe635ba737380c9246531799d34103d",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "tools/test_lower_kit.py",
+   "sha256": "731d9b66f30222161ffebd67696e61f4289b3599beb85e76feac6b574951d5e0",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
