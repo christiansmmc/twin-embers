@@ -8,9 +8,36 @@
 #include PT_SOURCE
 
 static int fixtureFail;
-static uint8_t font[256 * 64];
+static uint8_t font[256 * 64], fontWidth[256];
 const uint8_t *CtrTwinFontData(void) { return font; }
-unsigned CtrTwinFontWidth(unsigned code) { (void)code; return 5; }
+unsigned CtrTwinFontWidth(unsigned code) { return code < 256 && fontWidth[code] ? fontWidth[code] : 5; }
+
+/* One pixel of a synthetic glyph, in the game's layout (TwinGlyphDecode reads it back). */
+static void GlyphPixel(unsigned code, int x, int y, unsigned value)
+{
+    uint8_t *src = font + code * 64 + ((y / 8) * 2 + x / 8) * 16 + (y % 8) * 2;
+    unsigned bits = (unsigned)src[1] << 8 | src[0];
+
+    bits |= value << ((7 - x % 8) * 2);
+    src[0] = (uint8_t)bits;
+    src[1] = (uint8_t)(bits >> 8);
+}
+
+/* The arrow (0xEF) a solid 8x14 block of text ink; every letter, digit and sign 6 wide with ink in columns 0-4 on
+ * the capitals' rows 3-11. */
+static void SyntheticFont(void)
+{
+    for (unsigned code = 0xA1; code < 0xEF; ++code) {
+        fontWidth[code] = 6;
+        for (int y = 3; y <= 11; ++y)
+            for (int x = 0; x <= 4; ++x)
+                GlyphPixel(code, x, y, 1);
+    }
+    fontWidth[0xEF] = 8;
+    for (int y = 0; y < 14; ++y)
+        for (int x = 0; x < 8; ++x)
+            GlyphPixel(0xEF, x, y, 1);
+}
 const uint8_t *CtrTwinJapaneseGlyph(unsigned code, uint8_t out[64]) { (void)code; memset(out, 0, 64); return out; }
 unsigned CtrTwinJapaneseFontWidth(unsigned code) { (void)code; return 8; }
 static uint8_t smallFont[256 * 32];
@@ -195,8 +222,106 @@ static void frame_fallback_without_pack(void)
     }
 }
 
+/* Pixels of colour c inside the rectangle. */
+static int Count(int x, int y, int w, int h, uint16_t c)
+{
+    int n = 0;
+
+    for (int px = x; px < x + w; ++px)
+        for (int py = y; py < y + h; ++py)
+            n += at(px, py) == c;
+    return n;
+}
+
+static void row_arrow_when_selected(void)
+{
+    Clear();
+    KitRow(&(CtrPokeTouchRect){8, 8, 96, 16}, "BAG", 1, 1);
+    assert(Count(8, 8, 8, 16, KitInk(2)) == 8 * 14);    /* the arrow, whole, left of the label */
+    assert(Count(16, 8, 18, 16, KitInk(2)) > 0);        /* the label 8 px to its right */
+    Untouched(8, 8, 96, 16);
+    Clear();
+    KitRow(&(CtrPokeTouchRect){8, 8, 96, 16}, "BAG", 0, 1);
+    assert(Count(8, 8, 8, 16, KitInk(2)) == 0 && Count(8, 8, 8, 16, KitInk(1)) == 8 * 16);
+    assert(Count(16, 8, 18, 16, KitInk(2)) > 0);
+}
+
+static void text_clipped_to_rect(void)
+{
+    Clear();
+    KitRow(&(CtrPokeTouchRect){8, 8, 64, 16}, "ABCDEFGHIJKLMNOPQRSTUVWXYZABCD", 1, 1);
+    Untouched(8, 8, 64, 16);
+    Clear();
+    KitCaption(&(CtrPokeTouchRect){8, 8, 120, 16}, "SEAFOAM ISLANDS AND MORE", "SEVII ISLANDS");
+    Untouched(8, 8, 120, 16);
+}
+
+static void caption_no_overlap(void)
+{
+    Clear();
+    KitCaption(&(CtrPokeTouchRect){8, 8, 120, 16}, "SEAFOAM ISLANDS AND MORE", "SEVII");
+    /* SEVII is 30 px wide and ends 4 px inside the strip: x 94..123. */
+    assert(Count(94, 8, 5, 16, KitInk(2)) > 0 && Count(118, 8, 5, 16, KitInk(2)) > 0);
+    assert(Count(90, 8, 4, 16, KitInk(2)) == 0);        /* the left text stops at least 4 px before it */
+    assert(Count(12, 8, 6, 16, KitInk(2)) > 0);         /* and starts 4 px inside */
+}
+
+static void icon_cell_1to1(void)
+{
+    static uint8_t pixels[24 * 24];
+    uint16_t pal[16] = {0};
+
+    memset(pixels, 1, sizeof(pixels));
+    pal[1] = RGB(16, 200, 32);
+    Clear();
+    KitIconCell(&(CtrPokeTouchRect){100, 100, 48, 56}, pixels, pal, 24, 24, "BAG", 0, 0, 1);
+    /* The label's line starts at 100 + 56 - 2 - 14 = 140; the icon is centred above it: (112, 108). */
+    assert(Count(112, 108, 24, 24, pal[1]) == 24 * 24);
+    assert(Count(100, 100, 48, 56, pal[1]) == 24 * 24);
+    assert(Count(100, 140, 48, 16, KitInk(2)) > 0);
+    Untouched(100, 100, 48, 56);
+    Clear();
+    KitIconCell(&(CtrPokeTouchRect){100, 100, 48, 56}, pixels, pal, 24, 24, "BAG", 1, 1, 1);
+    assert(Count(100, 100, 48, 56, KitInk(3)) > 0);     /* pressed: the shadow grey */
+    assert(Count(100, 140, 48, 16, KitInk(2)) >= 8 * 14 / 2);
+}
+
+static void hp_thresholds(void)
+{
+    static const struct { unsigned hp; uint16_t color; } cases[] = {
+        {25, UI_HP_HIGH}, {10, UI_HP_MID}, {9, UI_HP_LOW},
+    };
+
+    for (unsigned i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+        Clear();
+        KitHpBar(8, 8, 50, (int)cases[i].hp, 48);
+        assert(at(9, 9) == cases[i].color && at(9, 10) == cases[i].color);
+        Untouched(8, 8, 50, 4);
+    }
+    Clear();
+    KitHpBar(8, 8, 50, 0, 48);
+    assert(Count(8, 8, 50, 4, UI_HP_LOW) == 0);
+}
+
+static void disabled_row_toned(void)
+{
+    Clear();
+    KitRow(&(CtrPokeTouchRect){8, 8, 96, 16}, "BAG", 0, 0);
+    assert(Count(16, 8, 18, 16, Tone(KitInk(2), 0)) > 0 && Count(8, 8, 96, 16, KitInk(2)) == 0);
+}
+
+static void type_label_flat(void)
+{
+    Clear();
+    KitTypeLabel(&(CtrPokeTouchRect){8, 8, 40, 14}, 3, "FIRE");
+    assert(at(8, 8) == UiTypeColor(3) && at(47, 21) == UiTypeColor(3));
+    assert(Count(8, 8, 40, 14, RGB(255, 255, 255)) > 0);
+    Untouched(8, 8, 40, 14);
+}
+
 int main(int argc, char **argv)
 {
+    SyntheticFont();
     if (argc > 1 && !strcmp(argv[1], "fallback")) {
         frame_fallback_without_pack();
         printf("PASS lower kit fallback\n");
@@ -208,6 +333,13 @@ int main(int argc, char **argv)
     frame_dialogue_flip();
     frame_dialogue_tall();
     frame_type_change_redraws();
+    row_arrow_when_selected();
+    text_clipped_to_rect();
+    caption_no_overlap();
+    icon_cell_1to1();
+    hp_thresholds();
+    disabled_row_toned();
+    type_label_flat();
     printf("PASS lower kit\n");
     return 0;
 }

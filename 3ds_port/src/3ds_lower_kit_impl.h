@@ -154,3 +154,102 @@ UI_FN void KitPanel(const CtrPokeTouchRect *r, int kind, int stdType)
     else
         KitStdFrame(f, r->x, r->y, cols, rows);
 }
+
+/* Text the way FireRed's windows print it: its font, text colour 2 with shadow 3 on the white interior, a 14 px line
+ * box, and its menu arrow (charmap 0xEF, 8 px wide) left of the chosen item. */
+#define KIT_ARROW "\x01\xEF"
+#define KIT_ARROW_W 8
+#define KIT_LINE_H 14
+
+/* One line whose glyph cells start at lineTop (UiText's `top` is the capitals' top, three rows lower). */
+UI_FN void KitText(const char *s, int x, int lineTop, int limitX)
+{
+    UiText(s, x, lineTop + 3, KitInk(2), KitInk(3), 1, limitX);
+}
+
+static void KitTextOn(const char *s, int x, int lineTop, int limitX, int enabled)
+{
+    UiText(s, x, lineTop + 3, Tone(KitInk(2), enabled), Tone(KitInk(3), enabled), 1, limitX);
+}
+
+static int KitLineTop(const CtrPokeTouchRect *r)
+{
+    return r->y + (r->h - KIT_LINE_H) / 2;
+}
+
+/* A list row: the arrow at its left edge when chosen, the label 8 px to the right of it, cut at the row's end. */
+UI_FN void KitRow(const CtrPokeTouchRect *r, const char *label, int selected, int enabled)
+{
+    int top = KitLineTop(r), limit = r->x + r->w;
+
+    Fill(r->x, r->y, r->w, r->h, KitInk(1));
+    if (selected)
+        KitText(KIT_ARROW, r->x, top, limit);
+    KitTextOn(label, r->x + KIT_ARROW_W, top, limit, enabled);
+}
+
+/* A cell with an icon at 1:1 (indexed pixels, 0 clear, like Art) centred above a one-line label; the arrow left of
+ * the label when chosen, the shadow grey behind everything while pressed. */
+UI_FN void KitIconCell(const CtrPokeTouchRect *r, const uint8_t *pixels, const uint16_t *pal, int iconW, int iconH,
+                       const char *label, int selected, int pressed, int enabled)
+{
+    int lineTop = label ? r->y + r->h - 2 - KIT_LINE_H : r->y + r->h;
+
+    Fill(r->x, r->y, r->w, r->h, pressed ? KitInk(3) : KitInk(1));
+    if (pixels)
+        Art(pixels, pal, iconW, 0, 0, iconW, iconH, r->x + (r->w - iconW) / 2, r->y + (lineTop - r->y - iconH) / 2,
+            enabled);
+    if (label) {
+        int x = r->x + (r->w - UiTextWidth(label, 1)) / 2;
+
+        if (x < r->x + KIT_ARROW_W)
+            x = r->x + KIT_ARROW_W;
+        if (selected)
+            KitText(KIT_ARROW, x - KIT_ARROW_W, lineTop, r->x + r->w);
+        KitTextOn(label, x, lineTop, r->x + r->w, enabled);
+    }
+}
+
+/* One line with `left` from 4 px in and `right` ending 4 px before the end; `right` stays whole and `left` stops
+ * 4 px before it. */
+UI_FN void KitCaption(const CtrPokeTouchRect *r, const char *left, const char *right)
+{
+    int top = KitLineTop(r), end = r->x + r->w - 4, rightX = end;
+
+    Fill(r->x, r->y, r->w, r->h, KitInk(1));
+    if (right) {
+        rightX = end - UiTextWidth(right, 1);
+        if (rightX < r->x + 4)
+            rightX = r->x + 4;
+        KitText(right, rightX, top, end);
+    }
+    if (left)
+        KitText(left, r->x + 4, top, right ? rightX - 4 : end);
+}
+
+/* FireRed's HP bar: a 4 px track, 2 px of colour by its thresholds on a 48 px scale (over 24 green, over 9 yellow,
+ * else red). */
+UI_FN void KitHpBar(int x, int y, int w, int hp, int maxHp)
+{
+    int inner = w - 2, level = maxHp > 0 ? hp * 48 / maxHp : 0;
+    int fill = maxHp > 0 ? hp * inner / maxHp : 0;
+    uint16_t c = level > 24 ? UI_HP_HIGH : level > 9 ? UI_HP_MID : UI_HP_LOW;
+
+    if (hp > 0 && fill < 1)
+        fill = 1;
+    if (fill > inner)
+        fill = inner;
+    if (fill < 0)
+        fill = 0;
+    Fill(x, y, w, 4, KitInk(2));
+    Fill(x + 1, y + 1, inner, 2, KitInk(3));
+    if (fill)
+        Fill(x + 1, y + 1, fill, 2, c);
+}
+
+/* A move's type: a flat block of the type's colour with its name in white. */
+UI_FN void KitTypeLabel(const CtrPokeTouchRect *r, int type, const char *name)
+{
+    Fill(r->x, r->y, r->w, r->h, UiTypeColor(type));
+    UiTextCentered(name, r, -1, RGB(255, 255, 255), KitInk(2), 1);
+}

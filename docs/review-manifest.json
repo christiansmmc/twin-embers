@@ -6896,7 +6896,7 @@
   },
   {
    "path": "3ds_port/src/3ds_lower_kit_impl.h",
-   "sha256": "0c912a9a54e74a13941c3a99090239f2210b193b15eb3c89b482b6c50725abce",
+   "sha256": "e5f7c0c78af4510f68c98105a239b1696c5a8264742e67bd77b6a14881d0175e",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -6904,7 +6904,7 @@
   },
   {
    "path": "3ds_port/tests/lower_kit_test.c",
-   "sha256": "df3d2445a956894ea83941cf0aeccdf50fe635ba737380c9246531799d34103d",
+   "sha256": "6b00249bee25cba3a81ee4def787708c4af4371f2baea046f551acaf01666d51",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
