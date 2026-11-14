@@ -1998,7 +1998,7 @@
    "credit": "alex61194 with disclosed AI assistance; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT for original port/test contributions; external game rights unchanged",
    "basis": "Original chrome rendering and synthetic fixtures; runtime pack assets remain external; geometry and viewport preserved",
-   "sha256": "8d66b10b58c0d7ddc34ed0eec9456dc5ff0125eefa9d8f3b14ac99a3bcc0a2c2"
+   "sha256": "6b38691798c0cf894dd3dce6c686494de1060fbeead835c52449b516be0f6bea"
   },
   {
    "path": "3ds_port/tests/rex_test.c",
@@ -6936,7 +6936,7 @@
   },
   {
    "path": "3ds_port/src/3ds_home_page_impl.h",
-   "sha256": "127462184cd2e5a20993064c3548e990be6d74cbdd94a207a79df2d81f01ccd2",
+   "sha256": "09bf7a6dd9fc6b11f8244e06405961c54343eb44ba00f105c5d0bfa0e2fd05e1",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

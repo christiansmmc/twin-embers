@@ -175,11 +175,14 @@ static void HomeSpeedLabel(unsigned speed, char out[8])
 }
 
 /* A line of RUN and SPEED's window, as a menu row: the arrow while its half is held, the label (greyed while it cannot
- * be used), the value at the line's right. */
+ * be used), the value at the right ending the arrow's width before the line's end, as the label starts that far after
+ * its start: the text sits in the middle of the window. */
 static void HomeSettingLine(const CtrPokeTouchRect *line, const char *label, const char *value, int held, int on)
 {
+    int end = line->x + line->w - KIT_ARROW_W;
+
     KitRow(line, label, held, on);
-    KitTextOn(value, line->x + line->w - UiTextWidth(value, 1), KitLineTop(line), line->x + line->w, on);
+    KitTextOn(value, end - UiTextWidth(value, 1), KitLineTop(line), end, on);
 }
 
 /* RUN (whether the running mode is on) and SPEED (the turbo's multiplier) in their window. */

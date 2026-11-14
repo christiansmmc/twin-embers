@@ -203,6 +203,19 @@ static void ArrowGlyph(void)
         }
 }
 
+/* A glyph inked in the text colour in columns 0-4 over the capitals' rows 3-11, so where it is drawn shows. */
+static void SolidGlyph(unsigned code)
+{
+    for (int y = 3; y <= 11; ++y)
+        for (int x = 0; x < 5; ++x) {
+            uint8_t *src = font + code * 64 + ((y / 8) * 2 + x / 8) * 16 + (y % 8) * 2;
+            unsigned bits = ((unsigned)src[1] << 8 | src[0]) | 1u << ((7 - x % 8) * 2);
+
+            src[0] = (uint8_t)bits;
+            src[1] = (uint8_t)(bits >> 8);
+        }
+}
+
 /* Pixels of colour c in the w x h at (x, y). */
 static int ColorIn(int x, int y, int w, int h, uint16_t c)
 {
@@ -267,6 +280,31 @@ static void home_page(CtrPokeTouchView *v)
         HomeSpeedLabel(1, text); assert(!strcmp(text, "1x"));
         HomeSpeedLabel(2, text); assert(!strcmp(text, "2x"));
         HomeSpeedLabel(4, text); assert(!strcmp(text, "4x"));
+    }
+    /* home_setting_margins: RUN's and SPEED's values ("OFF", "1x" here) end the arrow's 8 px before their line's end,
+     * as the labels start 8 px after its start, so the text sits in the middle of the window (the owner saw "ON" and
+     * "2x" against the frame) */
+    {
+        static uint8_t saved[sizeof(font)];
+        const CtrPokeTouchRect *lines[2] = {&kHomeRunLine, &kHomeSpeedLine};
+
+        memcpy(saved, font, sizeof(font));
+        for (const char *c = "OF1x"; *c; ++c) {
+            const char *one = c;
+
+            SolidGlyph(GlyphCode(&one));
+        }
+        memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        CtrPokeTouch_Draw(canvas, v);
+        for (int i = 0; i < 2; ++i) {
+            int end = lines[i]->x + lines[i]->w;
+
+            assert(!ColorIn(end - KIT_ARROW_W, lines[i]->y, KIT_ARROW_W, lines[i]->h, KitInk(2)));
+            assert(ColorIn(end - KIT_ARROW_W - 5, lines[i]->y, 5, lines[i]->h, KitInk(2)) > 0);
+        }
+        memcpy(font, saved, sizeof(font));
+        memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        CtrPokeTouch_Draw(canvas, v);
     }
     /* home_arrow_on_held_row: no arrow while nothing is held; FireRed's arrow at the left of the row held, RUN's and
      * SPEED's on their line */
