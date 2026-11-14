@@ -2221,19 +2221,12 @@ static void BackPress(int mode)
         SumPlanStart(SUMPLAN_PRESS, 0, 0, K_B);
 }
 
-/* A field page is up (3ds_poketouch.h CtrPokeTouch_FieldPageShown): no sidebar, and BACK is the page's own cell. */
-static int FieldPageUp(void)
-{
-    return sHaveShown && CtrPokeTouch_FieldPageShown(&sShown.touch);
-}
-
 /* Pressed on touch-down on it, released off it: nothing; released on it: once,
- * if still enabled and no physical button is held (physical input wins). BACK is the page's cell while a field page
- * shows, else the old bar's. */
+ * if still enabled and no physical button is held (physical input wins). BACK is the cell at the bottom right of the
+ * page shown (CtrPokeTouch_BackHit; a page with a menu or a message up has none). */
 static void ProcessBack(int mode, const CtrInput *in)
 {
-    int x = (int)in->touchX, y = (int)in->touchY;
-    int on = in->touchActive && (FieldPageUp() ? CtrPokeTouch_BackHit(&sShown.touch, x, y) : CtrPokeTouch_HitBack(x, y));
+    int on = in->touchActive && sHaveShown && CtrPokeTouch_BackHit(&sShown.touch, (int)in->touchX, (int)in->touchY);
 
     if (!BackVisible(mode) || (sHaveShown && mode != sShown.mode) || (in->held & 0x3ffu)) {
         sBack.down = sBack.inside = 0;
@@ -2303,23 +2296,6 @@ static int CanRouteDestination(int target, int mode)
     if (target == PT_POKEDEX && !CtrSave_HasPokedex())
         return 0;
     return RouteScreenReady(mode, 0);
-}
-
-static void RequestDestination(int target, int mode)
-{
-    if (!CanRouteDestination(target, mode))
-        return;
-    sPendingScreen = target;
-    sRouteHold = 1;
-    sRouteFrames = sRouteWait = sRouteTries = sRouteReady = 0;
-    sRouteMode = -1;
-    sTapped = SLOT_NONE;
-    /* The screen's own exit opens the next one directly (CtrMenu_SetSwitchTarget); a Summary of the Party leaves for it
-     * too, not back to the Party. */
-    CtrMenu_SetSwitchTarget(target);
-    if (mode == MODE_SUMMARY)
-        CtrBottomSummary_RedirectExit();
-    CtrLog_Write(CTR_LOG_VIDEO, "bottom: route %s -> %s", RootName(sScreen), RootName(target));
 }
 
 static void RouteAbort(const char *why)
@@ -2445,38 +2421,6 @@ static void UpdateDestinationRoute(int mode)
         BackPress(mode);            /* (the real Trainer Card: B from its front, A from its back) */
     sRouteMode = mode;
     sRouteWait = ROUTE_COOLDOWN;
-}
-
-/* A tap on the sidebar's other root while a lower-screen session runs: pressed
- * on touch-down, cancelled by moving off, one request on release over it. A field page has no sidebar. */
-static void ProcessRouteTouch(int mode, const CtrInput *in)
-{
-    if (FieldPageUp() || sPendingScreen != PT_NONE || (in->held & 0x3ffu) || (sHaveShown && mode != sShown.mode)) {
-        sPoke.id = PT_NONE;
-        sPoke.inside = 0;
-        return;
-    }
-    if (in->touchDown) {
-        int id = CtrPokeTouch_HitTest((int)in->touchX, (int)in->touchY);
-
-        sPoke.id = (uint8_t)(CanRouteDestination(id, mode) ? id : PT_NONE);
-        sPoke.inside = sPoke.id != PT_NONE;
-        return;
-    }
-    if (sPoke.id == PT_NONE)
-        return;
-    if (in->touchActive) {
-        sPoke.inside = CtrPokeTouch_HitTest((int)in->touchX, (int)in->touchY) == sPoke.id;
-        return;
-    }
-    {
-        int id = sPoke.id, inside = sPoke.inside;
-
-        sPoke.id = PT_NONE;
-        sPoke.inside = 0;
-        if (inside)
-            RequestDestination(id, mode);
-    }
 }
 
 /* Session: TOP hold across the hidden Party menu. */
@@ -2898,18 +2842,13 @@ static void UpdateSave(void)
 
 /* Touch-down presses an enabled element, moving off releases the highlight,
  * release over it acts once. Holding never repeats. */
-/* The field's button under a touch: HOME's page has its own places (3ds_lower_layout.h), every other view the old
- * column's. */
+/* The field's button under a touch: HOME's page's own places (3ds_lower_layout.h); OPTIONS and SAVE are pages with
+ * their own touch, and nothing else has buttons. */
 static int PokeHit(int page, int x, int y)
 {
-    if (FieldPageUp())
-        return PT_NONE;                 /* OPTIONS and SAVE as pages: no column */
-    if (page) {
-        int id = CtrPokeTouch_HomeHit(&sShown.touch, x, y);
+    int id = page ? CtrPokeTouch_HomeHit(&sShown.touch, x, y) : -1;
 
-        return id < 0 ? PT_NONE : id;
-    }
-    return CtrPokeTouch_HitTest(x, y);
+    return id < 0 ? PT_NONE : id;
 }
 
 static void ProcessPokeTouch(const CtrInput *in)
@@ -4300,7 +4239,6 @@ static int ProcessTouch(int mode)
             return ProcessSummaryGbaTouch(in);
         return HIT_NONE;
     }
-    ProcessRouteTouch(mode, in);
     ProcessBack(mode, in);
     if (mode == MODE_CARD) {
         ProcessCardTouch(in);

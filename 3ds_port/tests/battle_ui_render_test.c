@@ -1340,10 +1340,7 @@ int main(int argc, char **argv)
                         fprintf(stderr, "state %d keeps the navy theme colour %04x at %d\n", states[i], navy[j], n);
                         assert(0);
                     }
-            if (states[i] == BUI_SAFARI || states[i] == BUI_TARGET || states[i] == BUI_PARTY || states[i] == BUI_BAG)
-                assert(at(1, 100) == BPageBg());    /* reworked: the page's own colour */
-            else
-                assert(at(1, 100) == EMBER_BG(1, 100) || at(1, 100) == PT_RED_BG);   /* the ember backdrop, or the flat red not yet redone */
+            assert(at(1, 100) == BPageBg());    /* every battle screen is a page: the page's own colour */
         }
         {
             CtrSummaryUiView sv;

@@ -2,8 +2,8 @@
  * "F"): FireRed's Region Map at 1:1 in a panel with the standard frame and a caption strip (the place, the region), the
  * entries as rows of a menu window like FireRed's START menu, RUN and the game's speed in a window under it, and the
  * party in a window along the bottom (the Fly's hint has it while the map has a place picked). X and Y are not on the
- * page; their buttons work as ever. Where everything is comes from 3ds_lower_layout.h. Included by 3ds_poketouch.c after Changed and Mark; HOME is this page whenever it is
- * up alone, and every other view keeps the old frame and column until it is reworked. */
+ * page; their buttons work as ever. Where everything is comes from 3ds_lower_layout.h. Included by 3ds_poketouch.c
+ * after Changed and Mark; HOME is this page whenever it is up alone (every other view is a page of its own). */
 
 #define HOME_MAP_W 192
 #define HOME_MAP_H 128

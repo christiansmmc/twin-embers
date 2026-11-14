@@ -43,48 +43,6 @@ static int PokeTouch_PackIcon24(const char *art, uint8_t pixels[24 * 24], uint16
     return 1;
 }
 
-/* The battle's icons: high-resolution native icons imported from the reference mockups,
- * with fallbacks to the game pack or 12x12 samples. */
-enum { BI_BAG, BI_POKEBALL, BI_SHOE, BI_BURST, BI_ROCK, BI_BAIT, BI_COUNT };
-static struct {
-    PtImage image;
-    uint8_t pixels[48 * 48];
-    int scale;                  /* 1 for full art, 2 for the 12x12 samples used as a fallback */
-} sBImg[BI_COUNT];
-
-static void BArt(int i, int w, int h, const uint8_t *px, const uint16_t *pal, int n)
-{
-    sBImg[i].image.w = (uint8_t)w;
-    sBImg[i].image.h = (uint8_t)h;
-    sBImg[i].image.pixels = sBImg[i].pixels;
-    memcpy(sBImg[i].image.pal, pal, (size_t)n * sizeof(uint16_t));
-    sBImg[i].scale = 1;
-    memcpy(sBImg[i].pixels, px, (size_t)w * h);
-}
-
-static void BIconsPrepare(void)
-{
-    static int ready;
-
-    if (ready)
-        return;
-    ready = 1;
-    TwinIconsPrepare();
-    BArt(BI_BAG, SBARTBAG_W, SBARTBAG_H, sBArtBagPx, sBArtBagPal, 16);
-    BArt(BI_POKEBALL, SBARTPOKEBALL_W, SBARTPOKEBALL_H, sBArtPokeBallPx, sBArtPokeBallPal, 16);
-    BArt(BI_SHOE, SBARTSHOE_W, SBARTSHOE_H, sBArtShoePx, sBArtShoePal, 16);
-    BArt(BI_BURST, SBARTBURST_W, SBARTBURST_H, sBArtBurstPx, sBArtBurstPal, 16);
-    BArt(BI_ROCK, SBARTROCK_W, SBARTROCK_H, sBArtRockPx, sBArtRockPal, 6);
-    BArt(BI_BAIT, SBARTBAIT_W, SBARTBAIT_H, sBArtBaitPx, sBArtBaitPal, 7);
-}
-
-static void BIconAt(int i, int x, int y)
-{
-    UiImage(sBImg[i].image.pixels, sBImg[i].image.pal, sBImg[i].image.w, sBImg[i].image.w, sBImg[i].image.h, x, y,
-            sBImg[i].scale, 1);
-}
-
-
 /* A soft icon: RGB565 and an 8-bit coverage per pixel, so its edge blends into whatever it is drawn on. */
 #define PT_SOFT 16
 typedef struct {

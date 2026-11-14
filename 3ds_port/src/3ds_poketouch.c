@@ -1,18 +1,10 @@
 /* PokeTouch: the bottom screen, drawn and hit-tested.
  *
- * Layout (320x240, see 3ds_poketouch.h): the frame with the 240x160 viewport
- * (the GBA picture is drawn there 1:1 by the GPU, 3ds_video.c), the
- * contextual bar under it, the side column POKeDEX / POKeMON / BAG / the
- * player's name (Trainer Card) / SAVE / OPTIONS and under it the X and Y
- * shortcuts and the Running Shoes (the running mode), icons only. With no
- * menu open the viewport is HOME: FireRed's Region Map art, drawn passively
- * with the player on it (no Map button: the map is always there).
- *
- * Art: FireRed's own item icons for the shortcuts (read from the game, so
- * they show whatever is configured), FireRed's latin_normal font for the
- * bar, a 5x7 bitmap font for buttons, and pack-backed item icons for
- * six menu entries (original shoe fallback). Drawn only when the view
- * changes.
+ * Every view is a full-screen page in FireRed's own look (phase 2 of
+ * docs/superpowers/specs/2026-11-13-lower-screen-rework-design.md): HOME, the BAG, and the field's other views (the
+ * Pokedex, OPTIONS, SAVE, the Trainer Card, the PC box, the field's choices, forgetting a move, the naming keyboard,
+ * FireRed's own picture in a frame), drawn with the kit (3ds_lower_kit_impl.h: FireRed's window frames and font from
+ * the player's pack) where 3ds_lower_layout.h puts them, and only when the view changes.
  */
 #include <stdio.h>
 #include <string.h>
@@ -160,35 +152,6 @@ static int CtrPokeTouch_PackMenuIcon(unsigned icon, uint8_t pixels[12 * 12], uin
     return 1;
 }
 
-/* The START column on the right of the GBA picture's frame (the picture ends at x = 244, its frame at 247): six raised
- * buttons, the X and Y shortcut tiles and RUN with its switch. */
-const CtrPokeTouchRect gCtrPokeTouchRects[PT_COUNT] = {
-    [PT_POKEDEX]    = {250,   4, 68, 21},
-    [PT_POKEMON]    = {250,  29, 68, 21},
-    [PT_BAG]        = {250,  54, 68, 21},
-    [PT_CARD]       = {250,  79, 68, 21},
-    [PT_SAVE]       = {250, 104, 68, 21},
-    [PT_OPTIONS]    = {250, 129, 68, 21},
-    [PT_REGISTERED] = {250, 158, 32, 40},
-    [PT_BIKE]       = {286, 158, 32, 40},
-    [PT_RUN]        = {250, 204, 68, 30},
-};
-
-/* Areas that are not buttons: the picture's frame, and under it the bar: the note card on the left and, on its
- * right, BACK (and PAGE over it) or SAVE's buttons. */
-static const CtrPokeTouchRect sMenuFrame = {0, 0, 248, 168};
-static const CtrPokeTouchRect sBar = {0, 168, 248, 72};
-const CtrPokeTouchRect gCtrPokeTouchBack = {172, 202, 72, 34};
-#define NOTE_X 4
-#define NOTE_Y 172
-#define NOTE_H 64
-#define NOTE_W_FULL 240
-#define NOTE_W_SIDE 164
-
-/* The palette and components are the lower screen's design system (3ds_ui_theme.h / .inc). The only colour of
- * its own is the empty viewport's. */
-#define C_VIEW_EMPTY UI_PANEL_LO
-
 static uint16_t *sCanvas;
 
 static void Px(int x, int y, uint16_t c)
@@ -322,62 +285,6 @@ static void Art(const uint8_t *pixels, const uint16_t *pal, int stride, int x0, 
 #include "3ds_lower_kit_impl.h"
 #include "3ds_lower_layout.h"
 
-#define BTN_DEPTH 3                    /* the lip under a big button (BACK, PAGE, SAVE's) */
-#define COL_DEPTH 2                     /* and under the column's and the rows' */
-
-/* Shortcut item icons from FireRed's icon table, decoded once per item and
- * shown as the 20x20 around their drawn part. */
-enum { ICON_REGISTERED, ICON_BIKE, ICON_BOX_HAND, ICON_BOX_NOTE, ICON_COUNT };
-
-static struct {
-    unsigned item;
-    int ok, x0, y0;
-    uint8_t pixels[24 * 24];
-    uint16_t pal[16];
-} sIcons[ICON_COUNT];
-
-static int ItemIcon(int slot, unsigned item)
-{
-    static unsigned char tiles[0x200];
-    static unsigned short pal[16];
-
-    if (item == 0)
-        return 0;
-    if (sIcons[slot].item == item)
-        return sIcons[slot].ok;
-    sIcons[slot].item = item;
-    sIcons[slot].ok = CtrPokeTouch_ItemIcon(item, tiles, pal);
-    if (!sIcons[slot].ok)
-        return 0;
-    int left = 24, right = 0, top = 24, bottom = 0;
-    for (int y = 0; y < 24; ++y)
-        for (int x = 0; x < 24; ++x) {
-            unsigned byte = tiles[(y / 8 * 3 + x / 8) * 32 + y % 8 * 4 + x % 8 / 2];
-            uint8_t v = (uint8_t)((byte >> (x & 1) * 4) & 15);
-            sIcons[slot].pixels[y * 24 + x] = v;
-            if (v) {
-                if (x < left) left = x;
-                if (x >= right) right = x + 1;
-                if (y < top) top = y;
-                if (y >= bottom) bottom = y + 1;
-            }
-        }
-    int x0 = left < right ? (left + right) / 2 - 10 : 2, y0 = top < bottom ? (top + bottom) / 2 - 10 : 2;
-    sIcons[slot].x0 = x0 < 0 ? 0 : x0 > 4 ? 4 : x0;
-    sIcons[slot].y0 = y0 < 0 ? 0 : y0 > 4 ? 4 : y0;
-    for (int i = 0; i < 16; ++i) {
-        unsigned c = pal[i];
-        sIcons[slot].pal[i] = GbaColor(c);
-    }
-    return 1;
-}
-
-static void ItemArt(int slot, unsigned item, int x, int y, int on)
-{
-    if (ItemIcon(slot, item))
-        Art(sIcons[slot].pixels, sIcons[slot].pal, 24, sIcons[slot].x0, sIcons[slot].y0, 20, 20, x, y, on);
-}
-
 /* The HOME map: the 240x160 screen of FireRed's Region Map (its tilemap,
  * tiles and palette, decoded by the game bridge) composed once per map into
  * a cache laid out like the canvas: column-major, each column bottom-to-top,
@@ -390,13 +297,6 @@ extern int CtrPokeTouch_MapArt(int group, uint16_t *tilemap, uint8_t *tiles, uin
 #define MAP_TILEMAP_H 20
 #define MAP_TILES 320
 #define MAP_COLORS 80
-
-static struct {
-    int group;                          /* the map cached, -1 none */
-    int version;                        /* and the version of its art */
-    int ok;                             /* it was usable */
-    uint16_t cols[PT_VIEW_W][PT_VIEW_H];
-} sMap = {-1, 0, 0, {{0}}};
 
 /* A GBA colour (15 bits, red lowest) as RGB565. */
 static uint16_t Gba(uint16_t c)
@@ -425,32 +325,6 @@ static unsigned MapColor(const uint16_t *tilemap, const uint8_t *tiles, const ui
             return bank * 16 + index;
     }
     return 0;
-}
-
-static void MapBuild(int group, int version)
-{
-    static uint16_t tilemap[MAP_TILEMAP_W * MAP_TILEMAP_H];
-    static uint8_t tiles[MAP_TILES * 32];
-    static uint16_t bgTilemap[MAP_TILEMAP_W * MAP_TILEMAP_H];
-    static uint8_t bgTiles[MAP_TILES * 32];
-    static uint16_t gba[MAP_COLORS];
-    uint16_t pal[MAP_COLORS];
-
-    sMap.group = group;
-    sMap.version = version;
-    sMap.ok = group >= 0 && group < PT_MAP_COUNT && CtrPokeTouch_MapArt(group, tilemap, tiles, gba, bgTilemap, bgTiles);
-    if (!sMap.ok)
-        return;
-    for (int i = 0; i < MAP_COLORS; ++i)
-        pal[i] = Gba(gba[i]);
-    /* The Region Map's 240x160 picture is sampled, nearest neighbour, over its 192x128 at (24, 28) into the
-     * viewport (exactly 5/4), once, here: what is cached is what is shown. */
-    for (int dx = 0; dx < PT_VIEW_W; ++dx)
-        for (int dy = 0; dy < PT_VIEW_H; ++dy) {
-            int sx = PT_HOME_SRC_X + dx * 4 / 5, sy = PT_HOME_SRC_Y + dy * 4 / 5;
-            sMap.cols[dx][PT_VIEW_H - 1 - dy] =
-                pal[MapColor(tilemap, tiles, bgTilemap, bgTiles, sx, sy)];
-        }
 }
 
 /* The map's two icons, FireRed's own 16x16 sprites (four 4bpp tiles in sprite
@@ -495,132 +369,10 @@ static void IconBuild(struct Icon *icon, int key, int (*art)(uint8_t *, uint16_t
             }
 }
 
-/* An icon's rectangle in the viewport; false when the cell is not on the map. */
-static int MarkerRect(int cx, int cy, int *x, int *y)
-{
-    if (cx < 0 || cy < 0 || cx >= MAP_CELLS_X || cy >= MAP_CELLS_Y)
-        return 0;
-    /* The same transform as the map: source (8 cx + 28, 8 cy + 28) minus the crop, times 5/4. */
-    *x = (8 * cx + 28 - PT_HOME_SRC_X) * 5 / 4;
-    *y = (8 * cy + 28 - PT_HOME_SRC_Y) * 5 / 4;
-    return 1;
-}
-
-static void IconDraw(const struct Icon *icon, int frame, int cx, int cy)
-{
-    int x, y;
-
-    if (!icon->ok || !MarkerRect(cx, cy, &x, &y))
-        return;
-    for (int py = 0; py < PT_HOME_ICON; ++py)
-        for (int px = 0; px < PT_HOME_ICON; ++px) {
-            uint8_t index = icon->pixels[frame % icon->frames][(py * 4 / 5) * MARKER + px * 4 / 5];
-            if (index)
-                Px(PT_VIEW_X + x + px, PT_VIEW_Y + y + py, icon->pal[index]);
-        }
-}
-
-/* The icons the view asks for, player then cursor. */
-static void IconsDraw(const CtrPokeTouchView *v)
-{
-    if (sPlayer.key != v->playerFemale)
-        IconBuild(&sPlayer, v->playerFemale, CtrPokeTouch_MapPlayerIcon);
-    IconDraw(&sPlayer, 0, v->playerX, v->playerY);
-    if (v->cursorX >= 0) {
-        if (sCursor.key != 0)
-            IconBuild(&sCursor, 0, CtrPokeTouch_MapCursorIcon);
-        IconDraw(&sCursor, v->cursorFrame, v->cursorX, v->cursorY);
-    }
-}
-
-/* The map's own pixels back over a rectangle of the viewport (where an icon
- * was). */
-static void MapRestore(int x, int y, int w, int h)
-{
-    for (int cx = x < 0 ? 0 : x; cx < x + w && cx < PT_VIEW_W; ++cx) {
-        int y0 = y < 0 ? 0 : y, y1 = y + h > PT_VIEW_H ? PT_VIEW_H : y + h;
-        memcpy(sCanvas + (size_t)(PT_VIEW_X + cx) * H + (H - PT_VIEW_Y - y1), &sMap.cols[cx][PT_VIEW_H - y1],
-               (size_t)(y1 - y0) * sizeof(uint16_t));
-    }
-}
-
-/* Draw the map's picture over the viewport; false when there is none. */
-static int MapShow(int group, int version)
-{
-    if (sMap.group != group || sMap.version != version)
-        MapBuild(group, version);
-    if (!sMap.ok)
-        return 0;
-    for (int x = 0; x < PT_VIEW_W; ++x)
-        memcpy(sCanvas + (size_t)(PT_VIEW_X + x) * H + (H - PT_VIEW_Y - PT_VIEW_H), sMap.cols[x],
-               PT_VIEW_H * sizeof(uint16_t));
-    return 1;
-}
-
-/* HOME's picture: the map, the player and the selection on it. */
-static int HomeShow(const CtrPokeTouchView *v)
-{
-    if (!MapShow(v->mapGroup, v->mapVersion))
-        return 0;
-    IconsDraw(v);
-    return 1;
-}
-
-static int TextWidth(const char *s)
-{
-    int w = 0;
-
-    while (*s)
-        w += Glyph(&s)->width;
-    return w;
-}
-
-/* The backdrop: the embers. */
-static void Frame(void)
-{
-    TsBackdrop();
-}
-
-/* Where the frame goes round the GBA picture (and the HOME map). */
-static int FrameShown(const CtrPokeTouchView *v)
-{
-    return v->viewport || (v->home && !v->options && !v->save);
-}
-
 /* The field Bag the port draws (3ds_field_bag_impl.h, included at the end). */
 static void BagPageDraw(const CtrPokeTouchView *v);
 /* The field's pages (3ds_field_page_impl.h and the views' headers, included at the end). */
 static void FieldPageDraw(const CtrPokeTouchView *v);
-
-/* The frame's area: the bezel round the GBA picture or the map, OPTIONS' rows, the save card, or the Bag, on the embers. */
-static void MenuFrame(const CtrPokeTouchView *v)
-{
-    const CtrPokeTouchRect *r = &sMenuFrame;
-
-    TsBgRect(r->x, r->y, r->w, r->h);
-    if (!FrameShown(v))
-        return;
-    EmBezel(PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H);
-    /* Covered by the GPU's picture when there is one; else the HOME map. */
-    if (v->viewport || !(v->home && HomeShow(v)))
-        Fill(PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H, v->viewport ? 0 : C_VIEW_EMPTY);
-}
-
-/* BACK: the violet button of going back, "< BACK"; pressed it sinks, disabled it is grey. */
-static void Back(const CtrPokeTouchView *v)
-{
-    const CtrPokeTouchRect *r = &gCtrPokeTouchBack;
-    const EmPal *pal = v->backEnabled ? &kEmViolet : &kEmGrey;
-    int w = TextWidth(CTR_TR("BACK", "ATR\xC3\x81S", "Zur\xC3\xBC" "ck")), x = r->x + (r->w - w - 9) / 2, fy;
-
-    TsBgRect(r->x, r->y, r->w, r->h);
-    fy = EmButton(r->x, r->y, r->w, r->h, pal, BTN_DEPTH, v->backEnabled && v->backPressed);
-    UiArrow(x, fy + (r->h - BTN_DEPTH - UI_TEXT_H) / 2, -1, pal->ink);
-    UiText(CTR_TR("BACK", "ATR\xC3\x81S", "Zur\xC3\xBC" "ck"), x + 9, fy + (r->h - BTN_DEPTH - UI_TEXT_H) / 2, pal->ink, pal->inkSh, 1, r->x + r->w);
-}
-
-/* The bar: the note card with up to three lines, 15 pixels apart and centred on it; the first line is the subject,
- * the others what is known about it (dimmer). It is narrower when BACK, PAGE or SAVE's buttons are on its right. */
 
 /* A text window's file from the pack (graphics/text_window/<base>.<ext>, raw or LZ): `want` bytes, 0 without it. */
 static int FrameLoadFile(const char *base, const char *ext, uint8_t *out, uint32_t cap, uint32_t want)
@@ -641,41 +393,6 @@ static int FrameLoadFile(const char *base, const char *ext, uint8_t *out, uint32
         return n;
     snprintf(path, sizeof(path), "graphics/text_window/%s.%s.lz", base, ext);
     return PokeTouch_LoadLz(path, out, cap) == (int)want ? (int)want : 0;
-}
-
-static void Bar(const CtrPokeTouchView *v)
-{
-    const CtrPokeTouchRect *r = &sBar;
-    int lines = 0;
-    int w = v->backVisible ? NOTE_W_SIDE : NOTE_W_FULL;
-
-    TsBgRect(r->x, r->y, r->w, r->h);
-    for (int i = 0; i < PT_BAR_LINES; ++i)
-        if (v->bar[i][0])
-            lines = i + 1;
-    {
-        int pitch = 16, top = NOTE_Y + (NOTE_H - (lines - 1) * pitch - UI_TEXT_H) / 2;
-
-        int right = NOTE_X + w - 4;
-
-        EmNote(NOTE_X, NOTE_Y, w, NOTE_H);
-        for (int i = 0; i < lines; ++i)
-            UiText(v->bar[i], NOTE_X + 12, top + i * pitch, i == 0 ? EM_DARK : EM_DIM, EM_DARK_SH, 1, right);
-    }
-    if (v->backVisible)
-        Back(v);
-}
-
-/* An element's area: its rectangle and the glow round it. */
-static CtrPokeTouchRect Area(int id)
-{
-    return UiInset(&gCtrPokeTouchRects[id], -2);
-}
-
-/* The column's icons, by button. */
-static int ColumnIcon(int id)
-{
-    return id;          /* kEmberIcon is in the order PT_POKEDEX .. PT_OPTIONS */
 }
 
 /* The label of a menu entry PT_POKEDEX .. PT_OPTIONS; the Trainer Card's is the player's name (in original case for
@@ -700,70 +417,6 @@ static const char *ColumnLabel(int id, const CtrPokeTouchView *v, char name[16])
          : id == PT_POKEMON ? CTR_TR("POK\xc3\xa9" "MON", "POK\xc3\xa9" "MON", "Pok\xc3\xa9" "mon")
          : id == PT_BAG ? CTR_TR("BAG", "MOCHILA", "Beutel")
          : id == PT_SAVE ? CTR_TR("SAVE", "GUARDAR", "Sichern") : id == PT_OPTIONS ? CTR_TR("OPTION", "AJUSTES", "Option") : "";
-}
-
-/* A button: cream, amber and glowing when selected (the screen shown, or the running mode on), sunk when pressed,
- * grey when it cannot be used. The column's carry their icon and label (the Trainer Card the player's name), the
- * shortcuts their key and their item in its well, RUN its switch. */
-static void Button(int id, const CtrPokeTouchView *v)
-{
-    const CtrPokeTouchRect *r = &gCtrPokeTouchRects[id];
-    CtrPokeTouchRect area = Area(id);
-    int on = v->enabled[id] || v->selected == id;
-    int pressed = v->enabled[id] && v->pressed == id;
-    int selected = (v->selected == id && id != PT_RUN) || (id == PT_RUN && v->enabled[id] && v->running);
-    const EmPal *pal = !on ? &kEmGrey : selected && id != PT_RUN ? &kEmAmber : &kEmCream;
-    int fy, fh = r->h - COL_DEPTH;
-
-    TsBgRect(area.x, area.y, area.w, area.h);
-    if (selected && id != PT_RUN && on)
-        EmGlowRing(r->x, r->y, r->w, r->h);
-    fy = EmButton(r->x, r->y, r->w, r->h, pal, COL_DEPTH, pressed);
-    switch (id) {
-    case PT_REGISTERED:
-        EmKeyTab(r->x + r->w / 2, fy + 2, "X");
-        EmWell(r->x + 3, fy + 15, r->w - 6, fh - 18, pal);
-        ItemArt(ICON_REGISTERED, v->registeredItem, r->x + (r->w - 20) / 2, fy + 15 + (fh - 18 - 20) / 2, on);
-        break;
-    case PT_BIKE:
-        EmKeyTab(r->x + r->w / 2, fy + 2, "Y");
-        EmWell(r->x + 3, fy + 15, r->w - 6, fh - 18, pal);
-        ItemArt(ICON_BIKE, v->bikeItem, r->x + (r->w - 20) / 2, fy + 15 + (fh - 18 - 20) / 2, on);
-        break;
-    case PT_RUN:
-        /* The battle menu's RUN shoe, small, beside the switch. */
-        for (int v2 = 0; v2 < FLATSHOESMALL_H; ++v2)
-            for (int u = 0; u < FLATSHOESMALL_W; ++u)
-                if (kFlatShoeSmall[v2 * FLATSHOESMALL_W + u])
-                    Px(r->x + 5 + u, fy + (fh - FLATSHOESMALL_H) / 2 + v2, kFlatShoeSmall[v2 * FLATSHOESMALL_W + u]);
-        EmSwitch(r->x + r->w - 33, fy + (fh - 12) / 2, selected);
-        break;
-    default: {
-        char name[16] = {0};
-        const char *label = ColumnLabel(id, v, name);
-
-        EmIcon(ColumnIcon(id), r->x + 4, fy + (fh - EMBER_ICON) / 2, on);
-        UiText(label, r->x + 23, fy + (fh - UI_TEXT_H) / 2, pal->ink, pal->inkSh, 1, r->x + r->w - 2);
-        break;
-    }
-    }
-}
-
-bool CtrPokeTouch_HitBack(int x, int y)
-{
-    const CtrPokeTouchRect *r = &gCtrPokeTouchBack;
-
-    return x >= r->x && y >= r->y && x < r->x + r->w && y < r->y + r->h;
-}
-
-int CtrPokeTouch_HitTest(int x, int y)
-{
-    for (int i = 0; i < PT_COUNT; ++i) {
-        const CtrPokeTouchRect *r = &gCtrPokeTouchRects[i];
-        if (x >= r->x && y >= r->y && x < r->x + r->w && y < r->y + r->h)
-            return i;
-    }
-    return PT_NONE;
 }
 
 /* The viewport shows the GBA picture 1:1. */
@@ -792,15 +445,7 @@ void CtrPokeTouch_Draw(uint16_t *canvas, const CtrPokeTouchView *v)
         BagPageDraw(v);
         return;
     }
-    if (CtrPokeTouch_FieldPageShown(v)) {
-        FieldPageDraw(v);
-        return;
-    }
-    Frame();
-    MenuFrame(v);
-    Bar(v);
-    for (int i = 0; i < PT_COUNT; ++i)
-        Button(i, v);
+    FieldPageDraw(v);
 }
 
 /* Whether element `id` looks different between two views. */
@@ -844,66 +489,10 @@ void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const Ct
         }
         return;
     }
-    if (CtrPokeTouch_FieldPageShown(old) || CtrPokeTouch_FieldPageShown(v)) {
-        /* A field page: drawn again whole when anything it shows changes (a selection moves its description). */
-        if (!CtrPokeTouch_FieldPageShown(old) || !CtrPokeTouch_FieldPageShown(v) || memcmp(old, v, sizeof(*v))) {
-            CtrPokeTouch_Draw(canvas, v);
-            CtrDirty_Add(dirty, 0, 0, W, H);
-        }
-        return;
-    }
-    if (memcmp(&old->bag, &v->bag, sizeof(v->bag)) || memcmp(&old->dex, &v->dex, sizeof(v->dex))
-        || memcmp(&old->card, &v->card, sizeof(v->card)) || memcmp(&old->learn, &v->learn, sizeof(v->learn))
-        || memcmp(&old->name, &v->name, sizeof(v->name)) || memcmp(&old->box, &v->box, sizeof(v->box))
-        || memcmp(&old->choice, &v->choice, sizeof(v->choice))) {
-        /* The Bag or the Pokedex: its whole area and its note (the description follows the selection). */
-        MenuFrame(v);
-        Mark(dirty, &sMenuFrame);
-        Bar(v);
-        Mark(dirty, &sBar);
-    } else if (old->viewport != v->viewport || old->home != v->home
-        || (v->home && (old->mapGroup != v->mapGroup || old->mapVersion != v->mapVersion))) {
-        MenuFrame(v);
-        Mark(dirty, &sMenuFrame);
-    } else if (v->home && !v->viewport && (old->playerX != v->playerX || old->playerY != v->playerY
-                                           || old->playerFemale != v->playerFemale || old->cursorX != v->cursorX
-                                           || old->cursorY != v->cursorY || old->cursorFrame != v->cursorFrame)) {
-        /* An icon moved, appeared or blinked: the old and the new rectangles of the icons that
-         * changed go back to the map, and both icons are drawn over them again (one may
-         * have overlapped the other). */
-        CtrPokeTouchRect r = {0, 0, PT_HOME_ICON, PT_HOME_ICON};
-        int x, y;
-        int cells[4][2] = {{old->playerX, old->playerY}, {v->playerX, v->playerY}, {old->cursorX, old->cursorY},
-                           {v->cursorX, v->cursorY}};
-        int changed[4] = {old->playerX != v->playerX || old->playerY != v->playerY || old->playerFemale != v->playerFemale,
-                          old->playerX != v->playerX || old->playerY != v->playerY || old->playerFemale != v->playerFemale,
-                          old->cursorX != v->cursorX || old->cursorY != v->cursorY || old->cursorFrame != v->cursorFrame,
-                          old->cursorX != v->cursorX || old->cursorY != v->cursorY || old->cursorFrame != v->cursorFrame};
-        for (int i = 0; i < 4; ++i)
-            if (changed[i] && MarkerRect(cells[i][0], cells[i][1], &x, &y)) {
-                MapRestore(x, y, PT_HOME_ICON, PT_HOME_ICON);
-                r.x = (int16_t)(PT_VIEW_X + x);
-                r.y = (int16_t)(PT_VIEW_Y + y);
-                Mark(dirty, &r);
-            }
-        IconsDraw(v);
-    }
-    if (memcmp(old->bar, v->bar, sizeof(v->bar)) || old->backVisible != v->backVisible) {
-        Bar(v);
-        Mark(dirty, &sBar);
-    } else if (v->backVisible && (old->backEnabled != v->backEnabled || old->backPressed != v->backPressed)) {
-        Back(v);                        /* a press or a state: only BACK's rectangle */
-        Mark(dirty, &gCtrPokeTouchBack);
-    }
-    for (int i = 0; i < PT_COUNT; ++i) {
-        if (!Changed(i, old, v))
-            continue;
-        Button(i, v);
-        {
-            CtrPokeTouchRect area = Area(i);
-
-            Mark(dirty, &area);
-        }
+    /* A field page: drawn again whole when anything it shows changes (a selection moves its description). */
+    if (memcmp(old, v, sizeof(*v))) {
+        CtrPokeTouch_Draw(canvas, v);
+        CtrDirty_Add(dirty, 0, 0, W, H);
     }
 }
 
@@ -1009,12 +598,7 @@ static void FieldPageDraw(const CtrPokeTouchView *v)
 
 bool CtrPokeTouch_BackHit(const CtrPokeTouchView *v, int x, int y)
 {
-    if (CtrPokeTouch_FieldPageShown(v)) {
-        const CtrPokeTouchRect *r = FieldPageBack(v);
+    const CtrPokeTouchRect *r = CtrPokeTouch_FieldPageShown(v) ? FieldPageBack(v) : NULL;
 
-        return r && UiIn(r, x, y);
-    }
-    if (CtrPokeTouch_HomePageShown(v) || CtrPokeTouch_BagPageShown(v))
-        return false;
-    return CtrPokeTouch_HitBack(x, y);
+    return r && UiIn(r, x, y);
 }

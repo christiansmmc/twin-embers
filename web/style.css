@@ -31,7 +31,7 @@ body {
   color: var(--ink);
   font-size: 16px;
   line-height: 1.45;
-  /* The lower screen's backdrop (tools/make_ember_skin.py): a dark red gradient with faint diagonal stripes and a
+  /* The old lower screen's ember backdrop (the port's pages left it): a dark red gradient with faint diagonal stripes and a
      fire's glow at the foot. The embers rising over it are drawn by app.js on #embers. */
   background:
     radial-gradient(ellipse 110% 22% at 50% 104%, rgba(255, 110, 30, 0.42) 0%, rgba(255, 110, 30, 0.16) 55%, transparent 100%),

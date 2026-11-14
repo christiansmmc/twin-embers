@@ -674,10 +674,13 @@ int main(void) {
 ''')
 
     def test_field_pages_leave_the_sidebar(self):
-        """While a field page shows (the Pokedex, ...) the old sidebar is gone: a touch where its buttons were routes
-        nowhere, and BACK is the page's own cell (CtrPokeTouch_BackHit), released on it once, as the bar's was."""
+        """Every view is a page now and none has the old sidebar: a touch where its buttons were is nothing (only HOME's
+        page has buttons), and BACK is the page's own cell (CtrPokeTouch_BackHit), released on it once, as the bar's
+        was; the old bar's place does nothing."""
         bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='latin-1')
-        names = ['FieldPageUp', 'ProcessBack', 'ProcessRouteTouch', 'PokeHit']
+        self.assertNotIn('ProcessRouteTouch', bottom)
+        self.assertNotIn('CtrPokeTouch_HitTest', bottom)
+        names = ['ProcessBack', 'PokeHit']
         code = '\n'.join(function(bottom, n) for n in names)
         self.run_c('''
 #include <assert.h>
@@ -687,19 +690,13 @@ int main(void) {
 #include "3ds_poketouch.h"
 enum { MODE_FIELD = 1, MODE_DEX = 7 };
 static struct { int down, inside; } sBack;
-static struct { uint8_t id, inside; } sPoke;
-static int sHaveShown = 1, sPendingScreen = PT_NONE, pageShown = 1, backAt = 0, pressed = -1, requested = -1;
+static int sHaveShown = 1, backAt = 0, pressed = -1;
 static struct { int mode; CtrPokeTouchView touch; } sShown;
 static int BackVisible(int mode) { (void)mode; return 1; }
 static int BackEnabled(int mode) { (void)mode; return 1; }
 static void BackPress(int mode) { pressed = mode; }
-static int CanRouteDestination(int id, int mode) { (void)mode; return id == PT_BAG; }
-static void RequestDestination(int id, int mode) { (void)mode; requested = id; }
-bool CtrPokeTouch_FieldPageShown(const CtrPokeTouchView *v) { (void)v; return pageShown; }
 bool CtrPokeTouch_BackHit(const CtrPokeTouchView *v, int x, int y) { (void)v; return x == backAt && y == backAt; }
-bool CtrPokeTouch_HitBack(int x, int y) { return x == 200 && y == 220; }
-int CtrPokeTouch_HitTest(int x, int y) { return x > 248 && y < 80 ? PT_BAG : PT_NONE; }
-int CtrPokeTouch_HomeHit(const CtrPokeTouchView *v, int x, int y) { (void)v; (void)x; (void)y; return -1; }
+int CtrPokeTouch_HomeHit(const CtrPokeTouchView *v, int x, int y) { (void)v; return x > 216 && y < 116 ? PT_BAG : -1; }
 ''' + code + '''
 static CtrInput in;
 static void Touch(int x, int y, int down) { in.touchActive = 1; in.touchDown = down; in.touchX = x; in.touchY = y; }
@@ -711,18 +708,13 @@ int main(void) {
     Touch(260, 260, 1); ProcessBack(MODE_DEX, &in); assert(sBack.down && pressed == -1);
     Touch(260, 260, 0); ProcessBack(MODE_DEX, &in); Lift(); ProcessBack(MODE_DEX, &in);
     assert(pressed == MODE_DEX);
-    /* the old bar's BACK is not there */
+    /* the old bar's BACK is not there; released off BACK, nothing */
     pressed = -1; Touch(200, 220, 1); ProcessBack(MODE_DEX, &in); Lift(); ProcessBack(MODE_DEX, &in);
     assert(pressed == -1);
-    /* the sidebar's BAG routes nowhere while a page shows; it does where the old shell still has it */
-    Touch(300, 60, 1); ProcessRouteTouch(MODE_DEX, &in); Lift(); ProcessRouteTouch(MODE_DEX, &in);
-    assert(requested == -1);
-    assert(PokeHit(0, 300, 60) == PT_NONE);
-    pageShown = 0;
-    Touch(300, 60, 1); ProcessRouteTouch(MODE_DEX, &in); Lift(); ProcessRouteTouch(MODE_DEX, &in);
-    assert(requested == PT_BAG && PokeHit(0, 300, 60) == PT_BAG);
-    pressed = -1; Touch(200, 220, 1); ProcessBack(MODE_DEX, &in); Lift(); ProcessBack(MODE_DEX, &in);
-    assert(pressed == MODE_DEX);
+    Touch(260, 260, 1); ProcessBack(MODE_DEX, &in); Touch(100, 100, 0); ProcessBack(MODE_DEX, &in); Lift();
+    ProcessBack(MODE_DEX, &in); assert(pressed == -1);
+    /* the old column's BAG is nothing; HOME's page has its own */
+    assert(PokeHit(0, 300, 60) == PT_NONE && PokeHit(1, 300, 60) == PT_BAG && PokeHit(1, 100, 200) == PT_NONE);
     return 0;
 }
 ''')

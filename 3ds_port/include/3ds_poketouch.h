@@ -10,13 +10,14 @@
  * PokeTouch: the bottom screen (320x240). A view over FireRed's own menu
  * and shortcuts: every button maps to the game's START menu entry or key
  * item use (3ds_bottom.c issues them); this module only lays out, draws and
- * hit-tests. The frame on the left holds the viewport, where the GBA picture
- * of the open menu is shown 1:1 (240x160) by the GPU, and the contextual bar
- * under it. Drawing goes into the bottom canvas (RGB565,
- * column-major, each column bottom-to-top) when the view changes.
+ * hit-tests. Every view is a full-screen page (HOME, the BAG, the field's
+ * other views); where FireRed's own picture is shown, the GPU draws it 1:1
+ * (240x160) in the viewport inside a framed page. Drawing goes into the
+ * bottom canvas (RGB565, column-major, each column bottom-to-top) when the
+ * view changes.
  */
 enum {
-    PT_POKEDEX, PT_POKEMON, PT_BAG, PT_CARD, PT_SAVE, PT_OPTIONS, /* side column (the map is HOME, no button) */
+    PT_POKEDEX, PT_POKEMON, PT_BAG, PT_CARD, PT_SAVE, PT_OPTIONS, /* HOME's menu entries, in its order */
     PT_REGISTERED,  /* shortcut 1, X: the registered item (SELECT) */
     PT_BIKE,        /* shortcut 2, Y: the Bicycle */
     PT_RUN,         /* Running Shoes: the running mode on and off (B runs as ever) */
@@ -379,12 +380,7 @@ typedef struct {
     CtrPokeTouchChoice choice;  /* a choice of the field, when choice.on */
 } CtrPokeTouchView;
 
-extern const CtrPokeTouchRect gCtrPokeTouchRects[PT_COUNT];
-/* BACK: a shell control in the bar's bottom-right corner, outside the viewport. It
- * stands for the B button of the open screen (3ds_bottom.c sends the real B). */
-extern const CtrPokeTouchRect gCtrPokeTouchBack;
-/* Whether a bottom-screen pixel is on the old bar's BACK, or on OPTIONS' PAGE cell (3ds_lower_layout.h kOptPage). */
-bool CtrPokeTouch_HitBack(int x, int y);
+/* Whether a bottom-screen pixel is on OPTIONS' PAGE cell (3ds_lower_layout.h kOptPage). */
 bool CtrPokeTouch_HitOptPage(int x, int y);
 
 /* The OPTIONS row and zone (PT_OPT_ZONE_*) under a bottom-screen pixel; false when none. */
@@ -396,8 +392,6 @@ int CtrPokeTouch_OptionSegment(int x, int count);
  * while confirming, OK (PT_SAVE_FIRST, anywhere) after a result, none while writing. */
 int CtrPokeTouch_SaveHit(int x, int y, int state);
 
-/* PT_* under a bottom-screen pixel, or PT_NONE. */
-int CtrPokeTouch_HitTest(int x, int y);
 /* HOME as a full-screen page (3ds_home_page_impl.h): shown when HOME is up and nothing else is; its buttons (a PT_*
  * id, or -1) and its map's cells (the 22x15 grid of FireRed's Region Map, at 1:1 in the map panel). */
 bool CtrPokeTouch_HomePageShown(const CtrPokeTouchView *view);
@@ -411,11 +405,12 @@ bool CtrPokeTouch_FrameData(int type, uint8_t tiles[9 * 32], uint16_t framePal[1
  * under lower-screen point (x, y): a PT_BAG_HIT_* code, or -1. */
 bool CtrPokeTouch_BagPageShown(const CtrPokeTouchView *view);
 int CtrPokeTouch_BagHit(const CtrPokeTouchView *view, int x, int y);
-/* The field's other views as full-screen pages (phase 2: the Pokedex, ...): drawn whole by the port in the kit's
- * look, with no sidebar (nothing there routes to another screen) and their BACK as a framed cell at the bottom right. */
+/* Every other view as a full-screen page (phase 2: the Pokedex, OPTIONS, SAVE, the Trainer Card, the PC box, the
+ * field's choices, forgetting a move, the naming keyboard, FireRed's own picture in a frame): drawn whole by the port in
+ * the kit's look, their BACK (where they have one) a framed cell at the bottom right. There is no sidebar. */
 bool CtrPokeTouch_FieldPageShown(const CtrPokeTouchView *view);
 /* Whether lower-screen point (x, y) is on the BACK the view shows: a field page's own cell (none while it has a menu or
- * a message up), or the old bar's on a view that still has the bar. HOME, the BAG and the battle's pages have none. */
+ * a message up). HOME, the BAG (its CANCEL is its own hit) and the battle's pages have none. */
 bool CtrPokeTouch_BackHit(const CtrPokeTouchView *view, int x, int y);
 /* What the Pokedex (view->dex.on) shows under lower-screen point (x, y): a PT_DEX_HIT_* code, or -1. */
 int CtrPokeTouch_DexHit(const CtrPokeTouchView *view, int x, int y);

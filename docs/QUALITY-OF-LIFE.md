@@ -130,29 +130,25 @@ returns each time and finishes once the copy completes; the GBA build is unchang
 ARM build links. NOT reproduced in an emulator or on a console: NEEDS HARDWARE VALIDATION (open the
 player's PC, WITHDRAW ITEM, withdraw and leave, also from a Pokemon Center).
 
-## The touch screen's ember look
+## The touch screen's pages
 
-The lower screen's field menus wear the owner's modern design (DS/3DS-era raised buttons on a red ember
-backdrop, from the mockups the owner approved): the START column as cream buttons with an icon
-and FireRed's lettering (amber and glowing for the screen shown), the X and Y tiles with their badge, RUN
-with a switch, the GBA picture and the HOME map in a slate frame, the bar as a note card with BACK (violet)
-and PAGE beside it, OPTIONS as raised rows with the value in a pill (a switch for ON/OFF) and SAVE as a card
-with YES and NO. The battle Summary keeps its layout on the same backdrop. The battle screens are unchanged.
+The lower screen is a set of full-screen pages in FireRed's own look (the lower screen rework, phases 1 and 2): HOME,
+the battle's screens, POKeMON, the Summary, the BAG and, in phase 2's last step, every other view (the Pokedex,
+OPTIONS, SAVE, the Trainer Card, the PC box, the field's choices, forgetting a move, the naming keyboard, the idle
+screen, and a frame round FireRed's own picture where the lower screen shows it). They are drawn with FireRed's own
+window frames and font from the player's pack (the standard frame the player picks in OPTIONS -> FRAME for lists and
+menus, the dialogue frame for messages), FireRed's arrow on the cursor or on the control held, a description band and
+a BACK cell; where they go is `3ds_port/include/3ds_lower_layout.h`, with its rules in `tests/lower_layout_test.c`.
 
-- The art is the port's own: `tools/make_ember_skin.py` draws the backdrop and the six column icons
-  (`ember_skin*.h`); the BAG icon is the port's battle Bag reduced. The text is FireRed's font at run time.
-- Embers rise slowly over the backdrop (about twenty sparks, `3ds_touch_skin_impl.h`): one step a frame,
-  drawn only on pixels that show the backdrop, so they pass behind every button and never over the GBA
-  picture; each spark puts back what it painted. OPTIONS, page 2, EMBERS: OFF, LOW or HIGH, shown side
-  by side with the chosen one lit (a touch picks one; Left and Right step through them). LOW keeps 7 of
-  the sparks and moves them once every 3 frames, as fast as before. The default is HIGH on a New 3DS and
-  LOW on an Old 3DS; once the player picks a level it is kept in `sdmc:/3ds/twinembers/settings.cfg`
-  (`embers=0..2`), not in the game save.
-- The old artwork skin (`poketouch_skin*.h`, `tools/make_touch_skin.py`) is removed.
+- FireRed's picture (the Fame Checker, Teachy TV, mail, Easy Chat, the Hall of Fame, the Pokedex's AREA, a link's
+  Trainer Card, the PC's own screens) is still 1:1, now in the middle of the page (`PT_VIEW_X`, `PT_VIEW_Y` = 40, 14).
+- The old ember look is gone: the backdrop (`ember_skin*.h`, `tools/make_ember_skin.py`), the START column on the
+  right, the bar with its BACK and PAGE, and the raised buttons. The sidebar's jump from one screen to another went
+  with it; each page leaves with its own BACK, as FireRed's B does.
 
-Checked: `tests/poketouch_render_test.c` (new hit geometry, every incremental redraw equal to a full one);
-`tests/poketouch_options_test.c` (the EMBERS row, its default and its values); the ARM build links.
-NEEDS VALIDATION in Azahar and on a console (each field menu, SAVE, OPTIONS, the embers' cost per frame).
+Checked: `tests/poketouch_render_test.c` (each page's places, hits, arrow, states, every update equal to a full draw,
+also with the real pack's frames), `tools/test_field_presentation.py` (the pages' touch paths); the ARM build links.
+NEEDS VALIDATION in Azahar and on a console (each page, and FireRed's picture's new place).
 
 ## Day and night on the outdoor field
 
