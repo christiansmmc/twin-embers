@@ -309,7 +309,7 @@
   },
   {
    "path": "3ds_port/include/3ds_battle_hud.h",
-   "sha256": "ce3f3dad4ced5c1d95f6cc13af6eba1231a8b8d4f25f7fc887b3ee293750969c",
+   "sha256": "416de2e97fe23990a6c205f778ff8c65c79dce3999d14b7f973176a3923bfef5",
    "review_status": "reviewed",
    "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -642,7 +642,7 @@
   },
   {
    "path": "3ds_port/include/3ds_poketouch.h",
-   "sha256": "95dac9b1fa307822aaf7f968e0e0c8625dc3f2d3ea95e66290b45b27ffd32083",
+   "sha256": "25d3d79bc28de8250f052a92a0e5dc463070c1eba02a9115a535c0fa9a719212",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -971,7 +971,7 @@
   },
   {
    "path": "3ds_port/src/3ds_battle_hud.c",
-   "sha256": "494aad9d1e09148ff2c66fb28c208413d74e852c3db866fbac8f8c6214fd6e13",
+   "sha256": "922938b67129bff62b7e19ec5cb96f122c55ba0b97135d5b80e2773f1dee7567",
    "review_status": "reviewed",
    "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -1034,7 +1034,7 @@
   },
   {
    "path": "3ds_port/src/3ds_bottom.c",
-   "sha256": "ccc454cc1650703af8a75681041a86ee86337d02c2f08e3285179cdd3e873b2b",
+   "sha256": "2c3d555e5dd59db35442e10cbf9a352a315e3eebe447ad12cdc0375663aced80",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -1693,7 +1693,7 @@
   },
   {
    "path": "3ds_port/tests/battle_hud_test.c",
-   "sha256": "fbffc33bec54c59327f69c0a1e1c6137c4de8c51a4054f0b75ce2e903e3dee4a",
+   "sha256": "dfe44e2602f444620d774da8f242780003b421834c8697fa96a7f2c83fe7a0a4",
    "review_status": "reviewed",
    "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -6896,7 +6896,7 @@
   },
   {
    "path": "3ds_port/src/3ds_lower_kit_impl.h",
-   "sha256": "d04683f5fa6562cd5e23909e928ccaa13c7789ee91e178d1d704b9f5f3333956",
+   "sha256": "15284a6c59bdc93892fd724cb43daa54e9172d3e70d5fa85f4147725b0d38b0c",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -6904,7 +6904,7 @@
   },
   {
    "path": "3ds_port/tests/lower_kit_test.c",
-   "sha256": "fbd329673b79384de78a1b9665cf17fc41dc4920966b0dada860f144ab422154",
+   "sha256": "bd06ea8d8c809e364a20bd01f83749a54795cf445e54b886e9403a747fffd45f",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

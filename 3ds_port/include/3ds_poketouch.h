@@ -390,6 +390,9 @@ int CtrPokeTouch_HitTest(int x, int y);
 bool CtrPokeTouch_HomePageShown(const CtrPokeTouchView *view);
 int CtrPokeTouch_HomeHit(const CtrPokeTouchView *view, int x, int y);
 bool CtrPokeTouch_HomeMapCell(int x, int y, int *cx, int *cy);
+/* A type's standard frame (OPTIONS -> FRAME) from the pack, for the top screen's healthboxes: nine 4bpp tiles, its GBA
+ * colours and stdpal_0's. False without the pack. */
+bool CtrPokeTouch_FrameData(int type, uint8_t tiles[9 * 32], uint16_t framePal[16], uint16_t textPal[16]);
 /* What the field Bag (view->bag.on) shows under lower-screen point (x, y): a PT_BAG_HIT_* code, or -1. */
 int CtrPokeTouch_BagHit(const CtrPokeTouchView *view, int x, int y);
 /* What the Pokedex (view->dex.on) shows under lower-screen point (x, y): a PT_DEX_HIT_* code, or -1. */

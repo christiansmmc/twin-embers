@@ -207,9 +207,28 @@ static void frame_type_change_redraws(void)
     assert(at(16, 16) == Color(1, TopIndex(0)));
 }
 
+/* frame_data_for_hud: a type's standard frame as the pack has it, for the top screen's healthboxes: typeN+1's tiles,
+ * its GBA colours as they are and stdpal_0's; out of range is type1, as FireRed. */
+static void frame_data_for_hud(void)
+{
+    uint8_t tiles[9 * 32], want[9 * 32];
+    uint16_t framePal[16], textPal[16];
+
+    SyntheticTiles(want, 9);
+    assert(CtrPokeTouch_FrameData(3, tiles, framePal, textPal));
+    assert(!memcmp(tiles, want, sizeof(want)));
+    for (int i = 0; i < 16; ++i)
+        assert(framePal[i] == SyntheticColor(4, i) && textPal[i] == SyntheticColor(0, i));
+    assert(CtrPokeTouch_FrameData(12, tiles, framePal, textPal) && framePal[2] == SyntheticColor(1, 2));
+}
+
 static void frame_fallback_without_pack(void)
 {
+    uint8_t tiles[9 * 32];
+    uint16_t framePal[16], textPal[16];
+
     fixtureFail = 1;
+    assert(!CtrPokeTouch_FrameData(0, tiles, framePal, textPal));     /* no pack: the boxes keep their outline look */
     Clear();
     assert(!KitFrameReady(KIT_FRAME_STD, 0) && !KitFrameReady(KIT_FRAME_DIALOGUE, 0));
     assert(KitInk(2) == EM_DARK && KitInk(3) == EM_DARK_SH && KitInk(1) == RGB(255, 255, 255));
@@ -351,6 +370,7 @@ int main(int argc, char **argv)
     frame_dialogue_flip();
     frame_dialogue_tall();
     frame_type_change_redraws();
+    frame_data_for_hud();
     row_arrow_when_selected();
     text_clipped_to_rect();
     caption_no_overlap();

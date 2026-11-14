@@ -45,6 +45,7 @@
 #include "3ds_summary.h"
 #include "3ds_poketouch.h"
 #include "3ds_poketouch_options.h"
+#include "3ds_battle_hud.h"
 #include "3ds_ui_strings.h"
 #include "3ds_perf.h"
 #include "3ds_lang.h"
@@ -1642,6 +1643,23 @@ static int BattleActiveSlot(void)
     return best;
 }
 
+/* The top screen's healthboxes take the lower screen's frame: the pack's tiles for OPTIONS -> FRAME, handed over
+ * whenever the choice changes (the outline look without the pack). */
+static void HudFrameSync(int type)
+{
+    static int shown = -1;
+    uint8_t tiles[9 * 32];
+    uint16_t framePal[16], textPal[16];
+
+    if (type == shown)
+        return;
+    shown = type;
+    if (CtrPokeTouch_FrameData(type, tiles, framePal, textPal))
+        CtrHud_SetFrame(tiles, framePal, textPal);
+    else
+        CtrHud_SetFrame(NULL, NULL, NULL);
+}
+
 /* The six ball slots and the touch held under a finger: what every battle screen shares. */
 static void BattleCommon(CtrBattleView *v)
 {
@@ -1860,6 +1878,7 @@ static void BattleFill(CtrBattleView *v)
 
     BattleCommon(v);
     v->frameType = (uint8_t)CtrPokeTouch_OptionGet(PT_OPT_FRAME);
+    HudFrameSync(v->frameType);
     v->state = state == BATTLE_ACTION ? BUI_ACTION : state == BATTLE_MOVE ? BUI_MOVE
              : state == BATTLE_TARGET ? BUI_TARGET : state == BATTLE_SAFARI ? BUI_SAFARI : BUI_IDLE;
     if (v->state == BUI_TARGET) {

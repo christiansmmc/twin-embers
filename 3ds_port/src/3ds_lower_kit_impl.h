@@ -75,6 +75,27 @@ UI_FN int KitFrameReady(int kind, int stdType)
     return sKitStd.ok;
 }
 
+/* A type's standard frame (OPTIONS -> FRAME, 0..9; out of range is type1) as the pack has it, for the top screen's
+ * healthboxes (CtrHud_SetFrame): its nine 4bpp tiles, its GBA colours and stdpal_0's. False without the pack. */
+bool CtrPokeTouch_FrameData(int type, uint8_t tiles[9 * 32], uint16_t framePal[16], uint16_t textPal[16])
+{
+    char base[16];
+    uint8_t bytes[32];
+
+    if (type < 0 || type >= KIT_STD_TYPES)
+        type = 0;
+    snprintf(base, sizeof(base), "type%d", type + 1);
+    if (!FrameLoadFile(base, "4bpp", tiles, 9 * 32, 9 * 32) || !FrameLoadFile(base, "gbapal", bytes, 32, 32))
+        return false;
+    for (int i = 0; i < 16; ++i)
+        framePal[i] = (uint16_t)(bytes[i * 2] | bytes[i * 2 + 1] << 8);
+    if (!FrameLoadFile("stdpal_0", "gbapal", bytes, 32, 32))
+        return false;
+    for (int i = 0; i < 16; ++i)
+        textPal[i] = (uint16_t)(bytes[i * 2] | bytes[i * 2 + 1] << 8);
+    return true;
+}
+
 /* One 8x8 tile at (x, y), optionally flipped vertically; index 0 is left as it is. */
 static void KitTile(const KitFrame *f, int tile, int vflip, int x, int y)
 {
