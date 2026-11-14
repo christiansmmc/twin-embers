@@ -276,6 +276,14 @@ static inline CtrPokeTouchRect BoxPartyRow(int slot)
     return r;
 }
 
+/* Forgetting a move for a new one (phase 2): FireRed's Summary in that mode, so the Summary page's places: FireRed's
+ * question across the top, the Pokemon on the left (kSumMon), its four moves and the new one as rows in the page's
+ * window (kSumPage, SumMoveRow, the new one after a rule) with the chosen move's power and accuracy under them; the
+ * move's description in the band (two lines) and BACK. */
+static const CtrPokeTouchRect kLearnTitle = { 4, 4, 312, 30 };
+static const CtrPokeTouchRect kLearnNote = { 4, 188, 248, 48 };
+static const CtrPokeTouchRect kLearnBack = { 256, 188, 60, 48 };
+
 /* A choice of the field (phase 2: a script's multichoice, YES / NO, the PC's menus): FireRed's menu window at the bottom
  * right as the Party's, as wide as its longest row needs (CHOICE_MIN_W to CHOICE_MAX_W, always 4 more than whole tiles so
  * the band beside it stays on whole tiles), the question in the band beside it; a grid (two or more columns) is a

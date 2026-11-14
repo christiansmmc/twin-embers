@@ -86,41 +86,6 @@ static void BAppend(char *line, size_t size, const char *word)
     line[n] = 0;
 }
 
-/* Running text wrapped to `width` pixels, `maxLines` at most (FireRed's line breaks are spaces here). */
-static void BDescribeN(const char *text, int x, int y, int width, int maxLines, uint16_t color)
-{
-    char word[24], line[80], joined[80];
-    int lines = 0;
-    const char *p = text;
-
-    line[0] = 0;
-    while (*p && lines < maxLines) {
-        int w = 0;
-
-        while (*p == ' ' || *p == '\n')
-            ++p;
-        while (*p && *p != ' ' && *p != '\n' && w < (int)sizeof(word) - 1)
-            word[w++] = *p++;
-        word[w] = 0;
-        if (!w)
-            break;
-        memcpy(joined, line, sizeof(joined));
-        BAppend(joined, sizeof(joined), word);
-        if (line[0] && UiTextWidth(joined, 1) > width) {
-            UiText(line, x, y + lines * UI_LINE_H, color, UIS_TEXT_SH, 1, x + width);
-            line[0] = 0;
-            if (++lines >= maxLines)
-                return;
-            BAppend(line, sizeof(line), word);
-        } else
-            memcpy(line, joined, sizeof(line));
-    }
-    if (line[0] && lines < maxLines)
-        UiText(line, x, y + lines * UI_LINE_H, color, UIS_TEXT_SH, 1, x + width);
-}
-
-
-
 /* The Party's icons (the Party page, the battle pages' party strip, HOME's party window). */
 extern int CtrBottomParty_Icon(int slot, unsigned char *tilesOut, unsigned short *palOut);
 /* Party icons: FireRed's 32x32 icon of a slot with both its frames (the second under the first), decoded once per

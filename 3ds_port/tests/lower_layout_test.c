@@ -639,6 +639,24 @@ static void choice(void)
     }
 }
 
+/* Forgetting a move: the question across the top 4 px over the Summary's two windows, the band and BACK 4 px under
+ * them; five move rows inside the page's window with room for a rule, POWER and ACCURACY under them. */
+static void learn(void)
+{
+    const CtrPokeTouchRect *view[5] = {&kLearnTitle, &kSumMon, &kSumPage, &kLearnNote, &kLearnBack};
+    CtrPokeTouchRect last = SumMoveRow(4);
+
+    Framed(&kLearnTitle);
+    assert(kLearnTitle.x == 4 && kLearnTitle.y == 4 && kLearnTitle.x + kLearnTitle.w == 316 && kLearnTitle.h - 16 >= 14);
+    assert(kSumMon.y == Bottom(&kLearnTitle) + 4 && kSumPage.y == kSumMon.y);
+    Dialogue(&kLearnNote);
+    assert(kLearnNote.h - 16 >= 2 * 14 && kLearnNote.y == Bottom(&kSumMon) + 4 && Bottom(&kLearnNote) == 236);
+    Button(&kLearnBack);
+    assert(kLearnBack.x == kLearnNote.x + kLearnNote.w + 4 && kLearnBack.x + kLearnBack.w == 316 && kLearnBack.y == kLearnNote.y);
+    Apart(view, 5);
+    assert(kSumPage.y + kSumPage.h - 8 - Bottom(&last) >= 4 + 2 * 14);
+}
+
 int main(void)
 {
     home();
@@ -651,6 +669,7 @@ int main(void)
     card();
     box();
     choice();
+    learn();
     printf("PASS lower layout%s\n", LOWER_LAYOUT_PROVISIONAL ? " (provisional values)" : "");
     return 0;
 }

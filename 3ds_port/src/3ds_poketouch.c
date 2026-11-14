@@ -591,9 +591,6 @@ static int FrameShown(const CtrPokeTouchView *v)
 static void BagPageDraw(const CtrPokeTouchView *v);
 /* The field's pages (3ds_field_page_impl.h and the views' headers, included at the end). */
 static void FieldPageDraw(const CtrPokeTouchView *v);
-/* The move to forget the port draws (3ds_field_learn_impl.h, included at the end). */
-static void FLearnFrame(const CtrPokeTouchView *v);
-static void FLearnNote(const CtrPokeTouchView *v, int w);
 /* The naming screen the port draws (3ds_field_naming_impl.h, included at the end). */
 static void FNameFrame(const CtrPokeTouchView *v);
 static void FNameNote(const CtrPokeTouchView *v, int w);
@@ -604,10 +601,6 @@ static void MenuFrame(const CtrPokeTouchView *v)
     const CtrPokeTouchRect *r = &sMenuFrame;
 
     TsBgRect(r->x, r->y, r->w, r->h);
-    if (v->learn.on && !v->viewport) {
-        FLearnFrame(v);
-        return;
-    }
     if (v->name.on && !v->viewport) {
         FNameFrame(v);
         return;
@@ -667,9 +660,7 @@ static void Bar(const CtrPokeTouchView *v)
     for (int i = 0; i < PT_BAR_LINES; ++i)
         if (v->bar[i][0])
             lines = i + 1;
-    if (v->learn.on && !v->viewport)
-        FLearnNote(v, w);
-    else if (v->name.on && !v->viewport)
+    if (v->name.on && !v->viewport)
         FNameNote(v, w);
     else {
         int pitch = 16, top = NOTE_Y + (NOTE_H - (lines - 1) * pitch - UI_TEXT_H) / 2;
@@ -966,7 +957,7 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
 /* ---- The field's pages: which view is one, its BACK, its drawing ---- */
 bool CtrPokeTouch_FieldPageShown(const CtrPokeTouchView *v)
 {
-    return !v->viewport && !CtrPokeTouch_BagPageShown(v) && (v->dex.on || v->card.on || v->box.on || v->choice.on || v->options || v->save);
+    return !v->viewport && !CtrPokeTouch_BagPageShown(v) && (v->dex.on || v->card.on || v->box.on || v->choice.on || v->learn.on || v->options || v->save);
 }
 
 /* BACK's cell on the page shown (none without the view's BACK, or while the page has no room for it). */
@@ -982,6 +973,8 @@ static const CtrPokeTouchRect *FieldPageBack(const CtrPokeTouchView *v)
         return FXBackRect(v);
     if (v->choice.on)
         return NULL;                    /* the menu's own rows, and a tap off its window, are its B */
+    if (v->learn.on)
+        return &kLearnBack;
     if (v->save)
         return NULL;                    /* NO and B leave SAVE */
     if (v->options)
@@ -999,6 +992,8 @@ static void FieldPageDraw(const CtrPokeTouchView *v)
         FBoxPageDraw(v);
     else if (v->choice.on)
         FChoicePageDraw(v);
+    else if (v->learn.on)
+        FLearnPageDraw(v);
     else if (v->save)
         SavePageDraw(v);
     else if (v->options)

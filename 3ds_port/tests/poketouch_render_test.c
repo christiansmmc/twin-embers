@@ -839,6 +839,28 @@ static void preview_pages(const CtrPokeTouchView *base)
         ShotOf(&v, "choice_3_grid");
         memset(c, 0, sizeof(*c));
     }
+    {
+        CtrPokeTouchLearn *l = &v.learn;
+        static const char *const moves[5] = {"THUNDERSHOCK", "GROWL", "THUNDER WAVE", "QUICK ATTACK", "THUNDERBOLT"};
+        static const int8_t types[5] = {13, 0, 13, 0, 13};
+
+        memset(l, 0, sizeof(*l));
+        l->on = 1; l->cursor = 1; l->pressed = -1; l->species = 25;
+        snprintf(l->nickname, sizeof(l->nickname), "PIKACHU"); snprintf(l->level, sizeof(l->level), "Lv26");
+        snprintf(l->question, sizeof(l->question), "Which move should be forgotten?");
+        for (int i = 0; i < 5; ++i) {
+            l->row[i].move = (uint16_t)(i + 1); l->row[i].type = types[i];
+            snprintf(l->row[i].name, sizeof(l->row[i].name), "%s", moves[i]);
+            snprintf(l->row[i].pp, sizeof(l->row[i].pp), "%d/30", 30 - 7 * i);
+            snprintf(l->row[i].power, sizeof(l->row[i].power), "40");
+            snprintf(l->row[i].accuracy, sizeof(l->row[i].accuracy), "100");
+            snprintf(l->row[i].typeName, sizeof(l->row[i].typeName), "%s", types[i] ? "ELECTR" : "NORMAL");
+        }
+        snprintf(l->desc, sizeof(l->desc), "Loudly roars to reduce the foe's ATTACK rating.");
+        ShotOf(&v, "learn_1");
+        l->pressed = PT_LEARN_HIT_ROW + 4; ShotOf(&v, "learn_2_held_new");
+        memset(l, 0, sizeof(*l));
+    }
 }
 
 /* The page colour round every window: the screen's 4 px margin. */
@@ -1386,6 +1408,58 @@ static void choice_page(const CtrPokeTouchView *base)
     v.frameType = base->frameType; update(&old, &v);
     CtrPokeTouch_Draw(canvas, base);
 }
+
+/* Forgetting a move as a page: FireRed's question, the Pokemon, its four moves and the new one as rows (their types),
+ * the arrow on the Summary's cursor or the row held, the chosen move's numbers and description; BACK gives up. */
+static void learn_page(const CtrPokeTouchView *base)
+{
+    CtrPokeTouchView v = *base, old;
+    CtrPokeTouchLearn *l = &v.learn;
+
+    v.home = 0; v.backVisible = 1; v.backEnabled = 1; v.backPressed = 0;
+    memset(l, 0, sizeof(*l));
+    l->on = 1; l->cursor = 1; l->pressed = -1; l->species = 25;
+    snprintf(l->nickname, sizeof(l->nickname), "PIKACHU"); snprintf(l->level, sizeof(l->level), "Lv12");
+    snprintf(l->question, sizeof(l->question), "Which move should be forgotten?");
+    for (int i = 0; i < PT_LEARN_ROWS; ++i) {
+        l->row[i].move = (uint16_t)(i + 1); l->row[i].type = (int8_t)(i == 4 ? 12 : 0);
+        snprintf(l->row[i].name, sizeof(l->row[i].name), "MOVE %d", i);
+        snprintf(l->row[i].pp, sizeof(l->row[i].pp), "10/10");
+        snprintf(l->row[i].power, sizeof(l->row[i].power), "40");
+        snprintf(l->row[i].accuracy, sizeof(l->row[i].accuracy), "100");
+        snprintf(l->row[i].typeName, sizeof(l->row[i].typeName), "TYPE");
+    }
+    l->row[2].locked = 1;
+    snprintf(l->desc, sizeof(l->desc), "A move that may cause paralysis.");
+    CtrPokeTouch_Draw(canvas, &v);
+    old = v;
+    const int outline = !KitFrameReady(KIT_FRAME_STD, v.frameType);
+    assert(CtrPokeTouch_FieldPageShown(&v));
+    PageMargin();
+    assert(!outline || (at(kLearnTitle.x, kLearnTitle.y + 15) == KitInk(2) && at(kSumMon.x, kSumMon.y + 20) == KitInk(2)
+                        && at(kSumPage.x, kSumPage.y + 20) == KitInk(2) && at(kLearnBack.x, kLearnBack.y + 20) == KitInk(2)));
+    for (int i = 0; i < PT_LEARN_ROWS; ++i) {
+        CtrPokeTouchRect r = SumMoveRow(i);
+
+        assert(CtrPokeTouch_LearnHit(&v, r.x + r.w / 2, r.y + 8) == PT_LEARN_HIT_ROW + i);
+        assert(ArrowAt(&r) == (i == 1));
+    }
+    assert(ColorIn(kSumPage.x, kSumPage.y, kSumPage.w, kSumPage.h, UiTypeColor(12)) > 0);   /* the new move's type */
+    assert(CtrPokeTouch_LearnHit(&v, kSumMon.x + 50, kSumMon.y + 50) == -1);
+    assert(CtrPokeTouch_LearnHit(&v, kLearnBack.x + 30, kLearnBack.y + 20) == -1);
+    assert(CtrPokeTouch_BackHit(&v, kLearnBack.x + 30, kLearnBack.y + 20) && !CtrPokeTouch_BackHit(&v, kLearnNote.x + 30, kLearnNote.y + 20));
+    /* a row held: the arrow with it and the grey; the cursor on the new move; an empty slot is no hit */
+    l->pressed = PT_LEARN_HIT_ROW + 3; update(&old, &v);
+    assert(ArrowAt(&(CtrPokeTouchRect){SumMoveRow(3).x, SumMoveRow(3).y, 8, 16}) && !ArrowAt(&(CtrPokeTouchRect){SumMoveRow(1).x, SumMoveRow(1).y, 8, 16}));
+    assert(at(SumMoveRow(3).x + SumMoveRow(3).w - 60, SumMoveRow(3).y + 1) == KitInk(3));
+    l->pressed = -1; l->cursor = 4; update(&old, &v);
+    l->row[3].move = 0; update(&old, &v);
+    assert(CtrPokeTouch_LearnHit(&v, SumMoveRow(3).x + 40, SumMoveRow(3).y + 8) == -1);
+    v.backPressed = 1; update(&old, &v);
+    v.backPressed = 0; v.frameType = 9; update(&old, &v);
+    v.frameType = base->frameType; update(&old, &v);
+    CtrPokeTouch_Draw(canvas, base);
+}
 #endif
 
 int main(int argc, char **argv)
@@ -1450,6 +1524,7 @@ int main(int argc, char **argv)
     card_page(&v);
     box_page(&v);
     choice_page(&v);
+    learn_page(&v);
 #else
     for(int x=4;x<244;++x) for(int y=4;y<164;++y) assert(at(x,y)==Gba(0x5ab3));
 #endif

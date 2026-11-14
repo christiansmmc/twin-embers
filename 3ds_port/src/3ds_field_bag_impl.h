@@ -8,17 +8,8 @@
  * them with its keys). */
 #include "3ds_ui_strings.h"
 
-/* The old views' pieces that other field views still use until their turn (the box, the Pokedex, the choices, the
- * forget-a-move view, the naming keyboard). */
-static const CtrPokeTouchRect sFBArea = {PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H};
+/* The old views' pieces the naming keyboard still uses until its turn. */
 #define FB_DEPTH 2
-
-/* A light card over the dimmed list. */
-static void FBCard(const CtrPokeTouchRect *r)
-{
-    UiRoundFill(r->x, r->y, r->w, r->h, 5, kEmCream.edge);
-    EmGradFill(r->x + 1, r->y + 1, r->w - 2, r->h - 2, 4, kEmCream.top, kEmCream.bottom);
-}
 
 /* ---- The page ---- */
 static const CtrUiString sFBTabLabel[3] = {UIS_BAG_ITEMS, UIS_BAG_KEY_ITEMS, UIS_BAG_BALLS};
