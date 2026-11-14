@@ -116,6 +116,36 @@ static inline CtrPokeTouchRect SumMoveRow(int i)
     return r;
 }
 
+/* The BAG, the field's and the battle's (phase 2, the owner's "3"), and the lists drawn like it (the TM Case, the Berry
+ * Pouch, a mart's BUY, the item PC, the mailbox): the pockets as three tabs across the top (a case, a mart or a PC: its
+ * title across instead), the list's rows with each item's icon, name and count (or price, or its button X / Y), the
+ * scroll cells beside it, the description band (dialogue frame, three lines) and CANCEL. A menu or YES / NO is the
+ * Party's window at the bottom right (PartyMenuWindow), the band narrower beside it; the quantity box is a count window,
+ * up and down, OK and CANCEL in that corner; a message that waits for A takes the whole band. */
+static const CtrPokeTouchRect kBagTab[3] = { { 4, 4, 101, 30 }, { 109, 4, 102, 30 }, { 215, 4, 101, 30 } };
+static const CtrPokeTouchRect kBagTitle = { 4, 4, 312, 30 };
+static const CtrPokeTouchRect kBagList = { 4, 38, 284, 138 };
+static const CtrPokeTouchRect kBagUp = { 292, 38, 24, 67 };
+static const CtrPokeTouchRect kBagDown = { 292, 109, 24, 67 };
+static const CtrPokeTouchRect kBagNote = { 4, 180, 248, 56 };
+static const CtrPokeTouchRect kBagNoteMenu = { 4, 180, 192, 56 };
+static const CtrPokeTouchRect kBagNoteWide = { 4, 180, 312, 56 };
+static const CtrPokeTouchRect kBagCancel = { 256, 180, 60, 56 };
+static const CtrPokeTouchRect kBagQtyCount = { 200, 92, 116, 40 };
+static const CtrPokeTouchRect kBagQtyUp = { 200, 136, 56, 40 };
+static const CtrPokeTouchRect kBagQtyDown = { 260, 136, 56, 40 };
+static const CtrPokeTouchRect kBagQtyOk = { 200, 180, 56, 56 };
+static const CtrPokeTouchRect kBagQtyCancel = { 260, 180, 56, 56 };
+#define BAG_PAGE_ROWS 4
+#define BAG_ROW_H 30
+
+static inline CtrPokeTouchRect BagRow(int i)
+{
+    CtrPokeTouchRect r = { (int16_t)(kBagList.x + 8), (int16_t)(kBagList.y + 8 + BAG_ROW_H * i), (int16_t)(kBagList.w - 16), BAG_ROW_H };
+
+    return r;
+}
+
 /* The party menu's window for `rows` rows (1 to PARTY_MENU_ROWS), and its row i: 8 px in from the frame, 16 px tall. */
 static inline CtrPokeTouchRect PartyMenuWindow(int rows)
 {

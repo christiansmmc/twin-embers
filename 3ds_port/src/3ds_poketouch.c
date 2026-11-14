@@ -874,8 +874,7 @@ static int FrameShown(const CtrPokeTouchView *v)
 }
 
 /* The field Bag the port draws (3ds_field_bag_impl.h, included at the end). */
-static void FBagFrame(const CtrPokeTouchView *v);
-static void FBagNote(const CtrPokeTouchView *v, int w);
+static void BagPageDraw(const CtrPokeTouchView *v);
 /* The Pokedex the port draws (3ds_field_dex_impl.h, included at the end). */
 static void FDexFrame(const CtrPokeTouchView *v);
 static void FDexNote(const CtrPokeTouchView *v, int w);
@@ -923,10 +922,6 @@ static void MenuFrame(const CtrPokeTouchView *v)
     }
     if (v->box.on && !v->viewport) {
         FBoxFrame(v);
-        return;
-    }
-    if (v->bag.on && !v->viewport) {
-        FBagFrame(v);
         return;
     }
     if (v->save && !v->viewport) {
@@ -1072,8 +1067,6 @@ static void Bar(const CtrPokeTouchView *v)
         FNameNote(v, w);
     else if (v->box.on && !v->viewport)
         FBoxNote(v, w);
-    else if (v->bag.on && !v->viewport)
-        FBagNote(v, w);
     else {
         int pitch = 16, top = NOTE_Y + (NOTE_H - (lines - 1) * pitch - UI_TEXT_H) / 2;
 
@@ -1223,6 +1216,10 @@ void CtrPokeTouch_Draw(uint16_t *canvas, const CtrPokeTouchView *v)
         HomePageDraw(v);
         return;
     }
+    if (CtrPokeTouch_BagPageShown(v)) {
+        BagPageDraw(v);
+        return;
+    }
     Frame();
     MenuFrame(v);
     Bar(v);
@@ -1260,6 +1257,15 @@ void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const Ct
         if (CtrPokeTouch_HomePageShown(old) && CtrPokeTouch_HomePageShown(v)) {
             HomePageUpdate(old, v, dirty);
         } else {
+            CtrPokeTouch_Draw(canvas, v);
+            CtrDirty_Add(dirty, 0, 0, W, H);
+        }
+        return;
+    }
+    if (CtrPokeTouch_BagPageShown(old) || CtrPokeTouch_BagPageShown(v)) {
+        /* The Bag's page: drawn again whole when anything on it changes (the description follows the selection). */
+        if (!CtrPokeTouch_BagPageShown(old) || !CtrPokeTouch_BagPageShown(v) || old->frameType != v->frameType
+            || memcmp(&old->bag, &v->bag, sizeof(v->bag))) {
             CtrPokeTouch_Draw(canvas, v);
             CtrDirty_Add(dirty, 0, 0, W, H);
         }

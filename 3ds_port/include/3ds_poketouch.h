@@ -99,7 +99,7 @@ enum { PT_SAVE_NONE, PT_SAVE_FIRST, PT_SAVE_SECOND };  /* the button: YES or OK,
  * as tabs, the rows of the list it shows (items, then CLOSE BAG), the item's description in the note, and over the
  * list the menu, the quantity box, the question or the message it has open. Everything is the Bag's own state.
  * The TM Case and the Berry Pouch it opens are drawn the same way, with their title in place of the pockets. */
-#define PT_BAG_ROWS 5
+#define PT_BAG_ROWS 4                       /* the page's rows (3ds_lower_layout.h BAG_PAGE_ROWS) */
 #define PT_BAG_MENU_MAX 6
 enum { PT_BAG_KIND_BAG = 0, PT_BAG_KIND_TMCASE, PT_BAG_KIND_POUCH, PT_BAG_KIND_SHOP,   /* SHOP: a mart's BUY list */
        PT_BAG_KIND_ITEMPC };                                                          /* ITEMPC: the PC's WITHDRAW ITEM */
@@ -108,7 +108,8 @@ enum { PT_BAG_STATE_BUSY = 0, PT_BAG_STATE_LIST, PT_BAG_STATE_ACTIONS, PT_BAG_ST
        PT_BAG_STATE_MESSAGE };
 /* Hit codes (CtrPokeTouch_BagHit). */
 enum { PT_BAG_HIT_TAB = 100, PT_BAG_HIT_ROW = 200, PT_BAG_HIT_MENU = 300, PT_BAG_HIT_MESSAGE = 500, PT_BAG_HIT_UP = 600,
-       PT_BAG_HIT_DOWN, PT_BAG_HIT_QTY_UP = 610, PT_BAG_HIT_QTY_DOWN, PT_BAG_HIT_QTY_OK, PT_BAG_HIT_QTY_CANCEL };
+       PT_BAG_HIT_DOWN, PT_BAG_HIT_QTY_UP = 610, PT_BAG_HIT_QTY_DOWN, PT_BAG_HIT_QTY_OK, PT_BAG_HIT_QTY_CANCEL,
+       PT_BAG_HIT_BACK /* the page's CANCEL, or a tap off the menu: the Bag's B */ };
 typedef struct {
     uint8_t on;                     /* the viewport shows this Bag (no GBA picture) */
     uint8_t kind;                   /* PT_BAG_KIND_*: the Bag, or a case it opens */
@@ -405,7 +406,10 @@ bool CtrPokeTouch_HomeMapCell(int x, int y, int *cx, int *cy);
 /* A type's standard frame (OPTIONS -> FRAME) from the pack, for the top screen's healthboxes: nine 4bpp tiles, its GBA
  * colours and stdpal_0's. False without the pack. */
 bool CtrPokeTouch_FrameData(int type, uint8_t tiles[9 * 32], uint16_t framePal[16], uint16_t textPal[16]);
-/* What the field Bag (view->bag.on) shows under lower-screen point (x, y): a PT_BAG_HIT_* code, or -1. */
+/* The field Bag (view->bag.on: the Bag, a case, a mart's BUY, the item PC, the mailbox) as a full-screen page
+ * (3ds_field_bag_impl.h, phase 2): shown whenever the Bag is, without FireRed's picture in the viewport. What it shows
+ * under lower-screen point (x, y): a PT_BAG_HIT_* code, or -1. */
+bool CtrPokeTouch_BagPageShown(const CtrPokeTouchView *view);
 int CtrPokeTouch_BagHit(const CtrPokeTouchView *view, int x, int y);
 /* What the Pokedex (view->dex.on) shows under lower-screen point (x, y): a PT_DEX_HIT_* code, or -1. */
 int CtrPokeTouch_DexHit(const CtrPokeTouchView *view, int x, int y);

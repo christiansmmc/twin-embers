@@ -44,6 +44,7 @@
 #include "3ds_log.h"
 #include "3ds_summary.h"
 #include "3ds_poketouch.h"
+#include "3ds_lower_layout.h"
 #include "3ds_poketouch_options.h"
 #include "3ds_battle_hud.h"
 #include "3ds_ui_strings.h"
@@ -3222,8 +3223,9 @@ static void ProcessBattleBagTouch(const CtrInput *in)
 /* The field Bag's touch: press, track, release, one action, on what the lower screen showed (CtrPokeTouch_BagHit).
  * A row selects its item, a tap on the selected one (or on CLOSE BAG) sends A; a tab presses LEFT / RIGHT until the
  * Bag is in that pocket; the arrows move the cursor a page; the menu's rows and YES / NO are walked to and taken; the
- * quantity box counts with UP / DOWN and takes A or B; a tap off the menu is B; a message takes A. All through the
- * Bag's own keys, so FireRed decides what each does. A held physical button cancels it. */
+ * quantity box counts with UP / DOWN and takes A or B; CANCEL, and a tap off the menu, is B; a message takes A; a drag
+ * over the rows moves the selection a row per BAG_ROW_H. All through the Bag's own keys, so FireRed decides what each
+ * does. A held physical button cancels it. */
 static void ProcessFieldBagTouch(const FieldList *f, const CtrInput *in)
 {
     const ListScreen *list = f->list;
@@ -3261,7 +3263,7 @@ static void ProcessFieldBagTouch(const FieldList *f, const CtrInput *in)
 
         if (state == BAG_LIST && sFieldBag.code >= PT_BAG_HIT_ROW && sFieldBag.code < PT_BAG_HIT_ROW + PT_BAG_ROWS
             && (sFieldBag.scrolling || dy >= LIST_DRAG_SLOP || -dy >= LIST_DRAG_SLOP)) {
-            int target = sFieldBag.cursor0 - (dy + (dy < 0 ? -LIST_DRAG_ROW / 2 : LIST_DRAG_ROW / 2)) / LIST_DRAG_ROW;
+            int target = sFieldBag.cursor0 - (dy + (dy < 0 ? -BAG_ROW_H / 2 : BAG_ROW_H / 2)) / BAG_ROW_H;
 
             sFieldBag.scrolling = 1;
             sFieldBag.pocketTarget = -1;
@@ -3290,9 +3292,9 @@ static void ProcessFieldBagTouch(const FieldList *f, const CtrInput *in)
         else if (code == PT_BAG_HIT_DOWN)
             BagPlanStart(list, BAGPLAN_LIST, b->cursor + page > b->count ? b->count : b->cursor + page, 0, 0);
         else if (code == PT_BAG_HIT_QTY_UP || code == PT_BAG_HIT_QTY_DOWN || code == PT_BAG_HIT_QTY_OK
-                 || code == PT_BAG_HIT_QTY_CANCEL || code == PT_BAG_HIT_MESSAGE)
+                 || code == PT_BAG_HIT_QTY_CANCEL || code == PT_BAG_HIT_BACK || code == PT_BAG_HIT_MESSAGE)
             BagPlanStart(list, BAGPLAN_PRESS, 0, 0, code == PT_BAG_HIT_QTY_UP ? K_UP : code == PT_BAG_HIT_QTY_DOWN ? K_DOWN
-                                                  : code == PT_BAG_HIT_QTY_CANCEL ? K_B : K_A);
+                                                  : code == PT_BAG_HIT_QTY_CANCEL || code == PT_BAG_HIT_BACK ? K_B : K_A);
     }
     sFieldBag.down = sFieldBag.inside = 0;
 }
@@ -4146,8 +4148,19 @@ static int ProcessTouch(int mode)
         sBack.down = sBack.inside = 0;
         return ProcessSummaryTouch(in);
     }
+    if (FieldListFor(mode) != NULL && sHaveShown && sShown.mode == mode && CtrPokeTouch_BagPageShown(&sShown.touch)) {
+        /* The Bag's page (the Bag, a case, a mart, the item PC, the mailbox): the whole screen, its own CANCEL; no sidebar
+         * to route from, no bar's BACK. */
+        sPoke.id = PT_NONE;
+        sPoke.inside = 0;
+        sTouch.active = 0;
+        sBack.down = sBack.inside = 0;
+        ProcessFieldBagTouch(FieldListFor(mode), in);
+        return HIT_NONE;
+    }
     if (mode == MODE_SHOP || mode == MODE_ITEMPC || mode == MODE_MAILBOX) {
-        /* A mart's BUY list, the item PC's WITHDRAW ITEM, the mailbox: modal, nothing on the sidebar routes away. */
+        /* A mart's BUY list, the item PC's WITHDRAW ITEM, the mailbox before its page shows: modal, nothing on the
+         * sidebar routes away. */
         sPoke.id = PT_NONE;
         sPoke.inside = 0;
         sTouch.active = 0;

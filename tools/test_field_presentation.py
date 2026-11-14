@@ -270,6 +270,64 @@ int main(void) {
 }
 ''')
 
+    def test_bag_page_cancel_and_drag(self):
+        """The BAG's page: its CANCEL (and a tap off the item menu) is the Bag's B, sent through the Bag's plan as the
+        old bar's BACK was; a drag over the rows moves the selection a row per BAG_ROW_H (the page's 30 px rows)."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        touch = function(bottom, 'ProcessFieldBagTouch')
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include "3ds_input.h"
+#include "3ds_poketouch.h"
+#include "3ds_lower_layout.h"
+#define K_A (1u << 0)
+#define K_B (1u << 1)
+#define K_RIGHT (1u << 4)
+#define K_LEFT (1u << 5)
+#define K_UP (1u << 6)
+#define K_DOWN (1u << 7)
+#define LIST_DRAG_SLOP 8
+#define LIST_DRAG_ROW 26
+enum { BAG_BUSY = 0, BAG_LIST, BAG_ACTIONS };
+enum { BAGPLAN_NONE = 0, BAGPLAN_LIST, BAGPLAN_MENU, BAGPLAN_PRESS };
+enum { MODE_BAG = 3 };
+typedef struct { int (*state)(void); int (*count)(void); int (*maxShowed)(void); int (*cursor)(void); } ListScreen;
+typedef struct { int mode, kind; const ListScreen *list; } FieldList;
+static int cursorNow = 0;
+static int State(void) { return BAG_LIST; }
+static int Count(void) { return 9; }
+static int Cursor(void) { return cursorNow; }
+static const ListScreen sList = {State, Count, Count, Cursor};
+static const FieldList sF = {MODE_BAG, PT_BAG_KIND_BAG, &sList};
+static struct { int down, inside, code; int pocketTarget, pocketWait; int y0, cursor0, scrolling; } sFieldBag = {0, 0, -1, -1, 0, 0, 0, 0};
+static struct { int kind; } sBagPlan;
+static int sHaveShown = 1;
+static struct { int mode; CtrPokeTouchView touch; } sShown;
+static int planKind = -1, planTarget = -1, planKeys = 0, hitCode = -1;
+static void BagPlanStart(const ListScreen *l, int kind, int target, int activate, unsigned short keys)
+{ (void)l; (void)activate; planKind = kind; planTarget = target; planKeys = keys; }
+int CtrBottomBag_Pocket(void) { return 0; }
+bool CtrBottom_IsFading(void) { return 0; }
+int CtrPokeTouch_BagHit(const CtrPokeTouchView *v, int x, int y) { (void)v; (void)x; (void)y; return hitCode; }
+''' + touch + '''
+static CtrInput in;
+int main(void) {
+    sShown.mode = MODE_BAG; sShown.touch.bag.on = 1; sShown.touch.bag.state = BAG_LIST; sShown.touch.bag.count = 9;
+    /* CANCEL: on release, the Bag's B */
+    hitCode = PT_BAG_HIT_BACK; in.touchActive = in.touchDown = 1; ProcessFieldBagTouch(&sF, &in);
+    assert(planKind == -1);
+    in.touchDown = 0; in.touchActive = 0; ProcessFieldBagTouch(&sF, &in);
+    assert(planKind == BAGPLAN_PRESS && planKeys == K_B);
+    /* a drag from a row: 3 rows down the list per 3 * BAG_ROW_H up */
+    planKind = -1; hitCode = PT_BAG_HIT_ROW + 1; cursorNow = 4;
+    in.touchActive = in.touchDown = 1; in.touchY = 150; ProcessFieldBagTouch(&sF, &in);
+    in.touchDown = 0; in.touchY = 150 - 3 * BAG_ROW_H; ProcessFieldBagTouch(&sF, &in);
+    assert(planKind == BAGPLAN_LIST && planTarget == 7);
+    return 0;
+}
+''')
+
     def test_pages_take_the_frame(self):
         """OPTIONS -> FRAME reaches every page drawn in the kit: the battle's views (commands, moves, the Party, the
         Bag) through BattleCommon, and the Summary through SummaryFill. The Party and the Summary used to stay on the

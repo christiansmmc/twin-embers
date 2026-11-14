@@ -128,6 +128,7 @@ static void FieldBagFill(CtrPokeTouchView *v, int pressed, const FieldList *f)
         return;
     }
     memset(b, 0, sizeof(*b));
+    v->frameType = (uint8_t)CtrPokeTouch_OptionGet(PT_OPT_FRAME);     /* the page's windows: the player's FRAME */
     b->on = 1;
     b->kind = (uint8_t)f->kind;
     b->moveType = -1;
@@ -168,7 +169,7 @@ static void FieldBagFill(CtrPokeTouchView *v, int pressed, const FieldList *f)
     b->count = (int16_t)(count = list->count());
     b->cursor = (int16_t)list->cursor();
     total = count + 1;
-    b->first = (int16_t)(b->cursor - 2 < 0 ? 0 : b->cursor - 2);
+    b->first = (int16_t)(b->cursor - (PT_BAG_ROWS - 1) / 2 < 0 ? 0 : b->cursor - (PT_BAG_ROWS - 1) / 2);
     if (b->first > total - PT_BAG_ROWS)
         b->first = (int16_t)(total - PT_BAG_ROWS < 0 ? 0 : total - PT_BAG_ROWS);
     for (int i = 0; i < PT_BAG_ROWS; ++i) {

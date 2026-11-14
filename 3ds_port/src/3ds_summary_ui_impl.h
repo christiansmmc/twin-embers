@@ -191,23 +191,6 @@ static void SLine(int x, int right, int lineTop, const char *label, const char *
     KitText(value, right - UiTextWidth(value, 1), lineTop, right);
 }
 
-/* A triangle pointing `dir` (0 up, 1 down, 2 left, 3 right), 9 px across, centred on (cx, cy). */
-static void STriangle(int cx, int cy, int dir, uint16_t colour)
-{
-    for (int i = 0; i < 5; ++i) {
-        int len = 9 - 2 * i;
-
-        if (dir == 0)
-            Fill(cx - len / 2, cy + 2 - i, len, 1, colour);
-        else if (dir == 1)
-            Fill(cx - len / 2, cy - 2 + i, len, 1, colour);
-        else if (dir == 2)
-            Fill(cx + 2 - i, cy - len / 2, 1, len, colour);
-        else
-            Fill(cx - 2 + i, cy - len / 2, 1, len, colour);
-    }
-}
-
 /* A framed cell with a triangle: the light grey inside while held, the triangle toned while it cannot be used. */
 static void SArrowCell(const CtrSummaryUiView *v, const CtrPokeTouchRect *r, int dir, int on, int pressed)
 {
@@ -215,7 +198,7 @@ static void SArrowCell(const CtrSummaryUiView *v, const CtrPokeTouchRect *r, int
     KitPanel(r, KIT_FRAME_STD, v->frameType);
     if (pressed)
         Fill(r->x + 8, r->y + 8, r->w - 16, r->h - 16, KitInk(3));
-    STriangle(r->x + r->w / 2, r->y + r->h / 2, dir, Tone(KitInk(2), on));
+    KitTriangle(r->x + r->w / 2, r->y + r->h / 2, dir, Tone(KitInk(2), on));
 }
 
 /* The page's title, its dots (the one shown dark) and the arrows that turn the pages. */

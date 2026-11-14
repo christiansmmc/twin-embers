@@ -655,6 +655,8 @@ static void BBag(const CtrBattleView *v)
 #include "3ds_battle_page_impl.h"
 /* POKeMON, field and battle, as a page. */
 #include "3ds_party_page_impl.h"
+/* The BAG's pieces as a page (the field's Bag and the battle's). */
+#include "3ds_bag_page_impl.h"
 
 /* Every state but the Bag and the Party: a page (3ds_battle_page_impl.h). */
 static void BScreen(const CtrBattleView *v)

@@ -328,12 +328,74 @@ static void summary(void)
     }
 }
 
+/* The BAG: three tabs across (or the title), the list and its two scroll cells 4 px under them, the band and CANCEL
+ * 4 px under those; the rows inside the list's frame, each tall enough for an item icon; the quantity box's five in the
+ * bottom right corner, apart, over where the menu goes; the band's widths for a menu (beside the Party's window) and
+ * a message. */
+static void bag(void)
+{
+    const CtrPokeTouchRect *view[10];
+    int n = 0;
+
+    for (int i = 0; i < 3; ++i) {
+        Button(&kBagTab[i]);
+        assert(kBagTab[i].y == 4 && kBagTab[i].h - 16 >= 14);
+        if (i)
+            assert(kBagTab[i].x == kBagTab[i - 1].x + kBagTab[i - 1].w + 4);
+        view[n++] = &kBagTab[i];
+    }
+    assert(kBagTab[0].x == 4 && kBagTab[2].x + kBagTab[2].w == 316);
+    Framed(&kBagTitle);
+    assert(kBagTitle.x == 4 && kBagTitle.x + kBagTitle.w == 316 && kBagTitle.h == kBagTab[0].h);
+    Framed(&kBagList);
+    Button(&kBagUp);
+    Button(&kBagDown);
+    assert(kBagList.y == Bottom(&kBagTab[0]) + 4 && kBagUp.x == kBagList.x + kBagList.w + 4 && kBagUp.x + kBagUp.w == 316);
+    assert(kBagUp.y == kBagList.y && kBagDown.y == Bottom(&kBagUp) + 4 && Bottom(&kBagDown) == Bottom(&kBagList));
+    view[n++] = &kBagList;
+    view[n++] = &kBagUp;
+    view[n++] = &kBagDown;
+    Dialogue(&kBagNote);
+    assert(kBagNote.h >= 56 && kBagNote.y == Bottom(&kBagList) + 4 && Bottom(&kBagNote) == 236);  /* three lines, as the moves' note */
+    Button(&kBagCancel);
+    assert(kBagCancel.x == kBagNote.x + kBagNote.w + 4 && kBagCancel.x + kBagCancel.w == 316 && kBagCancel.y == kBagNote.y);
+    view[n++] = &kBagNote;
+    view[n++] = &kBagCancel;
+    Apart(view, n);
+    for (int i = 0; i < BAG_PAGE_ROWS; ++i) {
+        CtrPokeTouchRect r = BagRow(i);
+
+        Row(&r);
+        InFrame(&r, &kBagList);
+        assert(r.h >= 24 + 4);                          /* an item's 24x24 icon */
+    }
+    /* a menu: the band beside the Party's window */
+    Dialogue(&kBagNoteMenu);
+    assert(kBagNoteMenu.x + kBagNoteMenu.w + 4 == PARTY_MENU_X && kBagNoteMenu.y == kBagNote.y);
+    Dialogue(&kBagNoteWide);
+    assert(kBagNoteWide.x == 4 && kBagNoteWide.x + kBagNoteWide.w == 316 && kBagNoteWide.y == kBagNote.y);
+    /* the quantity box */
+    {
+        const CtrPokeTouchRect *qty[6] = {&kBagQtyCount, &kBagQtyUp, &kBagQtyDown, &kBagQtyOk, &kBagQtyCancel, &kBagNoteMenu};
+
+        Framed(&kBagQtyCount);
+        assert(kBagQtyCount.h - 16 >= 14);
+        for (int i = 1; i < 5; ++i) {
+            Button(qty[i]);
+            assert(qty[i]->x >= PARTY_MENU_X && qty[i]->x + qty[i]->w <= 316);
+        }
+        assert(kBagQtyOk.y == kBagNote.y && Bottom(&kBagQtyOk) == 236);
+        Apart(qty, 6);
+    }
+}
+
 int main(void)
 {
     home();
     battle();
     party();
     summary();
+    bag();
     printf("PASS lower layout%s\n", LOWER_LAYOUT_PROVISIONAL ? " (provisional values)" : "");
     return 0;
 }

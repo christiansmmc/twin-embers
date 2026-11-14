@@ -292,6 +292,24 @@ UI_FN void KitTypeLabel(const CtrPokeTouchRect *r, int type, const char *name)
     UiTextCentered(name, r, -1, RGB(255, 255, 255), KitInk(2), 1);
 }
 
+/* A triangle pointing `dir` (0 up, 1 down, 2 left, 3 right), 9 px across, centred on (cx, cy): the arrows of the
+ * cells that turn pages, Pokemon and lists. */
+UI_FN void KitTriangle(int cx, int cy, int dir, uint16_t colour)
+{
+    for (int i = 0; i < 5; ++i) {
+        int len = 9 - 2 * i;
+
+        if (dir == 0)
+            Fill(cx - len / 2, cy + 2 - i, len, 1, colour);
+        else if (dir == 1)
+            Fill(cx - len / 2, cy - 2 + i, len, 1, colour);
+        else if (dir == 2)
+            Fill(cx + 2 - i, cy - len / 2, 1, len, colour);
+        else
+            Fill(cx - 2 + i, cy - len / 2, 1, len, colour);
+    }
+}
+
 /* The first n bytes of s as one line, a line break drawn as the space it stands for. */
 static void KitWrapCopy(char *line, const char *s, int n)
 {

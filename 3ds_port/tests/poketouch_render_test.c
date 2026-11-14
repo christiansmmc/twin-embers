@@ -488,6 +488,139 @@ static void home_frame_change(CtrPokeTouchView *v)
     v->frameType = type;
     CtrPokeTouch_Draw(canvas, v);
 }
+
+/* The field BAG as a page (phase 2, the owner's "3"): the pockets' tabs, the rows with their items' icons, the scroll
+ * cells, CANCEL; a case's title; the menu, YES / NO, the quantity box and a message; every step an update equal to a full
+ * draw. The item icon stub is a solid square, red for item 1 and blue for the others; the font is blank but for the
+ * arrow. */
+static int BagInk(int x, int y, int w, int h)
+{
+    int n = 0;
+
+    for (int px = x; px < x + w; ++px)
+        for (int py = y; py < y + h; ++py)
+            n += at(px, py) == KitInk(2);
+    return n;
+}
+
+static void bag_page(const CtrPokeTouchView *base)
+{
+    CtrPokeTouchView v = *base, old;
+    CtrPokeTouchBag *b = &v.bag;
+    static const char *const names[4] = {"POTION", "ANTIDOTE", "REPEL", "ETHER"};
+
+    v.home = 0;
+    memset(b, 0, sizeof(*b));
+    b->on = 1; b->kind = PT_BAG_KIND_BAG; b->pocket = 0; b->state = PT_BAG_STATE_LIST; b->count = 6; b->cursor = 1;
+    b->first = 0; b->moveType = -1; b->pressed = -1;
+    for (int i = 0; i < 4; ++i) {
+        b->row[i].item = (uint16_t)(i + 1); b->row[i].qty = (uint16_t)(5 - i);
+        snprintf(b->row[i].name, sizeof(b->row[i].name), "%s", names[i]);
+    }
+    b->selItem = 2; snprintf(b->selName, sizeof(b->selName), "ANTIDOTE");
+    snprintf(b->selDesc, sizeof(b->selDesc), "A spray-type medicine. It heals one POKEMON from a poisoning.");
+    CtrPokeTouch_Draw(canvas, &v);
+    old = v;
+    assert(CtrPokeTouch_BagPageShown(&v) && !CtrPokeTouch_HomePageShown(&v));
+    /* the outline checks hold without the pack (the kit's outline); with FIRERED_TEST_PAK the frames are its tiles */
+    const int outline = !KitFrameReady(KIT_FRAME_STD, v.frameType);
+    /* bag_page_bg: the page's colour round the windows */
+    for (int y = 0; y < H; ++y)
+        assert(at(0, y) == KitInk(3) && at(3, y) == KitInk(3));
+    /* bag_tabs: three framed tabs, FireRed's arrow in the pocket shown; each a hit */
+    for (int i = 0; i < 3; ++i) {
+        const CtrPokeTouchRect *t = &kBagTab[i];
+
+        assert(!outline || at(t->x, t->y + 15) == KitInk(2));
+        assert((BagInk(t->x + 8, t->y + 8, t->w - 16, t->h - 16) > 0) == (i == 0));
+        assert(CtrPokeTouch_BagHit(&v, t->x + t->w / 2, t->y + t->h / 2) == PT_BAG_HIT_TAB + i);
+    }
+    /* bag_rows: each item's icon at 1:1 (red for item 1, blue for the others), the arrow on the Bag's selection; each row a
+     * hit */
+    for (int i = 0; i < 4; ++i) {
+        CtrPokeTouchRect r = BagRow(i);
+
+        assert(at(r.x + 8 + 12, r.y + 3 + 12) == GbaColor(i == 0 ? 31 : 31 << 10));
+        assert((BagInk(r.x, r.y + 8, 8, 14) > 20) == (i == 1));     /* the arrow: 5 px wide in this font */
+        assert(CtrPokeTouch_BagHit(&v, r.x + r.w / 2, r.y + r.h / 2) == PT_BAG_HIT_ROW + i);
+    }
+    /* bag_scroll_and_cancel: up has nothing above the first row, down has more; CANCEL is the Bag's B */
+    assert(CtrPokeTouch_BagHit(&v, kBagUp.x + 12, kBagUp.y + 30) == -1);
+    assert(CtrPokeTouch_BagHit(&v, kBagDown.x + 12, kBagDown.y + 30) == PT_BAG_HIT_DOWN);
+    assert(CtrPokeTouch_BagHit(&v, kBagCancel.x + 30, kBagCancel.y + 28) == PT_BAG_HIT_BACK);
+    assert(CtrPokeTouch_BagHit(&v, kBagNote.x + 30, kBagNote.y + 28) == -1);
+    assert(!outline || (at(kBagCancel.x, kBagCancel.y + 20) == KitInk(2) && at(kBagList.x, kBagList.y + 20) == KitInk(2)));
+    /* a row held: the light grey under it and the arrow with it; the selection moves; the list scrolls */
+    b->pressed = PT_BAG_HIT_ROW + 2; update(&old, &v);
+    {
+        CtrPokeTouchRect r = BagRow(2);
+
+        assert(at(r.x + 120, r.y + 2) == KitInk(3) && BagInk(r.x, r.y + 8, 8, 14) > 20);
+        assert(BagInk(BagRow(1).x, BagRow(1).y + 8, 8, 14) == 0);
+    }
+    b->pressed = -1; b->cursor = 2; update(&old, &v);
+    b->first = 1; b->cursor = 3; update(&old, &v);
+    assert(CtrPokeTouch_BagHit(&v, kBagUp.x + 12, kBagUp.y + 30) == PT_BAG_HIT_UP);
+    /* CLOSE BAG, the row after the last item */
+    b->first = 3; b->cursor = 6; b->row[3].item = 0; update(&old, &v);
+    assert(CtrPokeTouch_BagHit(&v, BagRow(3).x + 40, BagRow(3).y + 10) == PT_BAG_HIT_ROW + 3);
+    b->first = 0; b->cursor = 1; b->row[3].item = 4; update(&old, &v);
+    /* a key item registered on X: its button in its row */
+    b->pocket = 1; b->regX = 3; update(&old, &v);
+    b->pocket = 0; b->regX = 0; update(&old, &v);
+    /* a case: its title across, no tabs */
+    b->kind = PT_BAG_KIND_TMCASE; snprintf(b->title, sizeof(b->title), "TM CASE"); b->moveType = 10;
+    snprintf(b->typeName, sizeof(b->typeName), "FIRE"); update(&old, &v);
+    assert(!outline || (at(kBagTitle.x, kBagTitle.y + 15) == KitInk(2) && at(kBagTab[1].x - 2, kBagTab[1].y + 15) != BPageBg()));
+    assert(CtrPokeTouch_BagHit(&v, kBagTab[1].x + 40, kBagTab[1].y + 15) == -1);
+    assert(ColorIn(kBagNote.x, kBagNote.y, kBagNote.w, kBagNote.h, UiTypeColor(10)) > 0);   /* the TM's move type */
+    b->kind = PT_BAG_KIND_SHOP; snprintf(b->title, sizeof(b->title), "POKe MART"); b->money = 3000; b->moveType = -1;
+    b->row[0].price = 200; update(&old, &v);
+    b->kind = PT_BAG_KIND_BAG; update(&old, &v);
+    /* the menu: the Party's window at the bottom right, the band narrower; a row, or B off the window */
+    b->state = PT_BAG_STATE_ACTIONS; b->menuCount = 4; b->menuCursor = 0;
+    for (int i = 0; i < 4; ++i)
+        snprintf(b->menuName[i], sizeof(b->menuName[i]), "%s", (const char *[]){"USE", "GIVE", "TOSS", "CANCEL"}[i]);
+    update(&old, &v);
+    {
+        CtrPokeTouchRect w = PartyMenuWindow(4);
+
+        assert((!outline || at(w.x, w.y + 20) == KitInk(2)) && at(kBagNoteMenu.x + kBagNoteMenu.w + 1, kBagNote.y + 20) == BPageBg());
+        for (int i = 0; i < 4; ++i) {
+            CtrPokeTouchRect r = PartyMenuRow(4, i);
+
+            assert(CtrPokeTouch_BagHit(&v, r.x + r.w / 2, r.y + r.h / 2) == PT_BAG_HIT_MENU + i);
+            assert((BagInk(r.x, r.y, 8, 16) > 20) == (i == 0));
+        }
+        assert(CtrPokeTouch_BagHit(&v, BagRow(0).x + 30, BagRow(0).y + 10) == PT_BAG_HIT_BACK);
+    }
+    b->pressed = PT_BAG_HIT_MENU + 2; update(&old, &v);
+    b->pressed = -1; update(&old, &v);
+    /* YES / NO */
+    b->state = PT_BAG_STATE_YESNO; b->menuCount = 2; b->menuCursor = 1;
+    snprintf(b->prompt, sizeof(b->prompt), "Throw away 2 POTIONS?"); update(&old, &v);
+    assert(CtrPokeTouch_BagHit(&v, PartyMenuRow(2, 0).x + 20, PartyMenuRow(2, 0).y + 8) == PT_BAG_HIT_MENU);
+    assert(CtrPokeTouch_BagHit(&v, PartyMenuRow(2, 1).x + 20, PartyMenuRow(2, 1).y + 8) == PT_BAG_HIT_MENU + 1);
+    /* the quantity box */
+    b->state = PT_BAG_STATE_QUANTITY; b->tossCount = 2; b->tossMax = 5; update(&old, &v);
+    assert(!outline || at(kBagQtyCount.x, kBagQtyCount.y + 20) == KitInk(2));
+    assert(CtrPokeTouch_BagHit(&v, kBagQtyUp.x + 28, kBagQtyUp.y + 20) == PT_BAG_HIT_QTY_UP);
+    assert(CtrPokeTouch_BagHit(&v, kBagQtyDown.x + 28, kBagQtyDown.y + 20) == PT_BAG_HIT_QTY_DOWN);
+    assert(CtrPokeTouch_BagHit(&v, kBagQtyOk.x + 28, kBagQtyOk.y + 28) == PT_BAG_HIT_QTY_OK);
+    assert(CtrPokeTouch_BagHit(&v, kBagQtyCancel.x + 28, kBagQtyCancel.y + 28) == PT_BAG_HIT_QTY_CANCEL);
+    b->pressed = PT_BAG_HIT_QTY_UP; update(&old, &v);
+    b->pressed = -1; b->tossCount = 3; update(&old, &v);
+    /* a message that waits for A: the whole band, CANCEL gone, anywhere goes on */
+    b->state = PT_BAG_STATE_MESSAGE; snprintf(b->prompt, sizeof(b->prompt), "Threw away 2 POTIONS."); update(&old, &v);
+    assert(at(kBagCancel.x + 30, kBagCancel.y + 28) == KitInk(1));
+    assert(CtrPokeTouch_BagHit(&v, 10, 10) == PT_BAG_HIT_MESSAGE && CtrPokeTouch_BagHit(&v, 300, 230) == PT_BAG_HIT_MESSAGE);
+    b->state = PT_BAG_STATE_LIST; b->menuCount = 0; update(&old, &v);
+    /* the FRAME the player chose */
+    v.frameType = 6; update(&old, &v);
+    v.frameType = base->frameType; update(&old, &v);
+    /* leaving: the page goes and the field's view is drawn whole */
+    CtrPokeTouch_Draw(canvas, base);
+}
 #endif
 
 int main(int argc, char **argv)
@@ -537,6 +670,7 @@ int main(int argc, char **argv)
 #ifndef PT_BASELINE
     home_page(&v);
     home_frame_change(&v);
+    bag_page(&v);
 #else
     for(int x=4;x<244;++x) for(int y=4;y<164;++y) assert(at(x,y)==Gba(0x5ab3));
 #endif
