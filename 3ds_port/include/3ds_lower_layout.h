@@ -276,6 +276,55 @@ static inline CtrPokeTouchRect BoxPartyRow(int slot)
     return r;
 }
 
+/* A choice of the field (phase 2: a script's multichoice, YES / NO, the PC's menus): FireRed's menu window at the bottom
+ * right as the Party's, as wide as its longest row needs (CHOICE_MIN_W to CHOICE_MAX_W, always 4 more than whole tiles so
+ * the band beside it stays on whole tiles), the question in the band beside it; a grid (two or more columns) is a
+ * window across the page over the whole band. */
+#define CHOICE_MIN_W PARTY_MENU_W
+#define CHOICE_MAX_W 196
+
+static inline CtrPokeTouchRect ChoiceWindow(int count, int cols, int width)
+{
+    CtrPokeTouchRect r;
+
+    if (cols > 1) {
+        int rows = (count + cols - 1) / cols;
+
+        r.x = 4; r.w = 312; r.h = (int16_t)(16 + 16 * rows); r.y = (int16_t)(176 - r.h);
+        return r;
+    }
+    if (width < CHOICE_MIN_W)
+        width = CHOICE_MIN_W;
+    if (width > CHOICE_MAX_W)
+        width = CHOICE_MAX_W;
+    width += (12 - width % 8) % 8;
+    r.x = (int16_t)(316 - width); r.w = (int16_t)width; r.h = (int16_t)(16 + 16 * count); r.y = (int16_t)(236 - r.h);
+    return r;
+}
+
+static inline CtrPokeTouchRect ChoiceRow(int count, int cols, int width, int i)
+{
+    CtrPokeTouchRect w = ChoiceWindow(count, cols, width), r;
+
+    if (cols > 1) {
+        int cw = (w.w - 16) / cols;
+
+        r.x = (int16_t)(w.x + 8 + cw * (i % cols)); r.y = (int16_t)(w.y + 8 + 16 * (i / cols)); r.w = (int16_t)cw; r.h = 16;
+        return r;
+    }
+    r.x = (int16_t)(w.x + 8); r.y = (int16_t)(w.y + 8 + 16 * i); r.w = (int16_t)(w.w - 16); r.h = 16;
+    return r;
+}
+
+static inline CtrPokeTouchRect ChoiceNote(int count, int cols, int width)
+{
+    CtrPokeTouchRect w = ChoiceWindow(count, cols, width), n = { 4, 180, 312, 56 };
+
+    if (cols <= 1)
+        n.w = (int16_t)(w.x - 4 - 4);
+    return n;
+}
+
 /* The party menu's window for `rows` rows (1 to PARTY_MENU_ROWS), and its row i: 8 px in from the frame, 16 px tall. */
 static inline CtrPokeTouchRect PartyMenuWindow(int rows)
 {

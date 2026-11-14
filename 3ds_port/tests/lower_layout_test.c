@@ -602,6 +602,43 @@ static void box(void)
     }
 }
 
+/* A choice of the field: for every size and width, the window framed on the screen, its rows inside its frame; one
+ * column: the Party's window corner (its bottom and right), the band beside it on whole tiles; a grid: across the
+ * page, 4 px over the whole band. */
+static void choice(void)
+{
+    static const int widths[5] = {0, 100, 130, 180, 400};
+
+    for (int cols = 0; cols <= 3; ++cols)
+        for (int count = 1; count <= PT_CHOICE_MAX; ++count)
+            for (int k = 0; k < 5; ++k) {
+                CtrPokeTouchRect w = ChoiceWindow(count, cols, widths[k]), n = ChoiceNote(count, cols, widths[k]);
+                const CtrPokeTouchRect *view[2] = {&w, &n};
+
+                Framed(&w);
+                Dialogue(&n);
+                assert(n.y == 180 && n.h == 56 && n.x == 4);
+                Apart(view, 2);
+                for (int i = 0; i < count; ++i) {
+                    CtrPokeTouchRect r = ChoiceRow(count, cols, widths[k], i);
+
+                    Row(&r);
+                    InFrame(&r, &w);
+                }
+                if (cols > 1) {
+                    assert(w.x == 4 && w.x + w.w == 316 && Bottom(&w) + 4 == n.y && n.w == 312);
+                } else {
+                    assert(w.x + w.w == 316 && Bottom(&w) == 236 && n.x + n.w + 4 == w.x);
+                    assert(w.w >= CHOICE_MIN_W && w.w <= CHOICE_MAX_W && (w.w >= widths[k] || w.w == CHOICE_MAX_W));
+                }
+            }
+    {
+        CtrPokeTouchRect party = PartyMenuWindow(3), w = ChoiceWindow(3, 1, 0);
+
+        assert(party.x == w.x && party.y == w.y && party.w == w.w && party.h == w.h);   /* the Party's window itself */
+    }
+}
+
 int main(void)
 {
     home();
@@ -613,6 +650,7 @@ int main(void)
     options();
     card();
     box();
+    choice();
     printf("PASS lower layout%s\n", LOWER_LAYOUT_PROVISIONAL ? " (provisional values)" : "");
     return 0;
 }

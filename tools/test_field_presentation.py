@@ -820,6 +820,42 @@ int main(void) {
 }
 ''')
 
+    def test_choice_page_tap_off_is_b(self):
+        """A choice of the field as a page: a row is asked of FireRed's menu and taken with its A on release; a tap off the
+        menu's window is the menu's B on release (as off the Bag's menu), and nothing when the touch slid onto a row."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='latin-1')
+        touch = function(bottom, 'ProcessChoiceTouch')
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include "3ds_input.h"
+#include "3ds_poketouch.h"
+#define K_A (1u << 0)
+#define K_B (1u << 1)
+enum { MODE_CHOICE = 9 };
+static struct { int down, inside, code; } sChoiceTap = {0, 0, -1};
+static int sHaveShown = 1, hitCode = -1, asked = -2;
+static unsigned short sRouteKey;
+static struct { int mode; CtrPokeTouchView touch; } sShown;
+int CtrFieldChoice_Ready(void) { return 1; }
+void CtrMenu_Ask(int row) { asked = row; }
+int CtrPokeTouch_ChoiceHit(const CtrPokeTouchView *v, int x, int y) { (void)v; (void)x; (void)y; return hitCode; }
+''' + touch + '''
+static CtrInput in;
+static void Touch(int down) { in.touchActive = 1; in.touchDown = down; ProcessChoiceTouch(&in); }
+static void Lift(void) { in.touchActive = in.touchDown = 0; ProcessChoiceTouch(&in); }
+int main(void) {
+    sShown.mode = MODE_CHOICE; sShown.touch.choice.on = 1;
+    hitCode = PT_CHOICE_HIT_BACK; Touch(1); assert(!sRouteKey);
+    Lift(); assert(sRouteKey == K_B && asked == -2);
+    sRouteKey = 0; hitCode = PT_CHOICE_HIT_ROW + 2; Touch(1); Lift();
+    assert(sRouteKey == K_A && asked == 2);
+    sRouteKey = 0; asked = -2; hitCode = PT_CHOICE_HIT_BACK; Touch(1); hitCode = PT_CHOICE_HIT_ROW; Touch(0); Lift();
+    assert(!sRouteKey && asked == -2);
+    return 0;
+}
+''')
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -3795,7 +3795,8 @@ static void RunLearnPlan(void)
     sLearnPlan.release = 1;
 }
 
-/* A row of the field's choice: asked of FireRed's menu (CtrMenu_Ask) and taken with its A on the same frame. */
+/* A row of the field's choice: asked of FireRed's menu (CtrMenu_Ask) and taken with its A on the same frame; a tap off
+ * the menu's window is its B (CANCEL, NO, or nothing where the menu takes none), as off the Bag's menu. */
 static void ProcessChoiceTouch(const CtrInput *in)
 {
     int hit = -1, ready = sHaveShown && sShown.mode == MODE_CHOICE && sShown.touch.choice.on && CtrFieldChoice_Ready();
@@ -3817,7 +3818,9 @@ static void ProcessChoiceTouch(const CtrInput *in)
         sChoiceTap.inside = hit == sChoiceTap.code;
         return;
     }
-    if (sChoiceTap.inside) {
+    if (sChoiceTap.inside && sChoiceTap.code == PT_CHOICE_HIT_BACK)
+        sRouteKey = K_B;
+    else if (sChoiceTap.inside) {
         CtrMenu_Ask(sChoiceTap.code - PT_CHOICE_HIT_ROW);
         sRouteKey = K_A;
     }

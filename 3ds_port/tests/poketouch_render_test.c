@@ -819,6 +819,26 @@ static void preview_pages(const CtrPokeTouchView *base)
         wallOk = monIconOk = 0; sFXWallId = -1;
         memset(b, 0, sizeof(*b));
     }
+    {
+        CtrPokeTouchChoice *c = &v.choice;
+        static const char *const pc[4] = {"SOMEONE'S PC", "BILL'S PC", "PROF. OAK'S PC", "LOG OFF"};
+
+        memset(c, 0, sizeof(*c));
+        c->on = 1; c->count = 2; c->cursor = 0; c->pressed = -1;
+        snprintf(c->label[0], sizeof(c->label[0]), "YES"); snprintf(c->label[1], sizeof(c->label[1]), "NO");
+        snprintf(c->prompt, sizeof(c->prompt), "Would you like to give a nickname to the received BULBASAUR?");
+        ShotOf(&v, "choice_1_yesno");
+        c->count = 4; c->cursor = 2;
+        for (int i = 0; i < 4; ++i)
+            snprintf(c->label[i], sizeof(c->label[i]), "%s", pc[i]);
+        snprintf(c->prompt, sizeof(c->prompt), "Which PC should be accessed?");
+        ShotOf(&v, "choice_2_pc");
+        c->cols = 3; c->count = 6;
+        for (int i = 0; i < 6; ++i)
+            snprintf(c->label[i], sizeof(c->label[i]), "GRID %d", i);
+        ShotOf(&v, "choice_3_grid");
+        memset(c, 0, sizeof(*c));
+    }
 }
 
 /* The page colour round every window: the screen's 4 px margin. */
@@ -1305,6 +1325,67 @@ static void box_page(const CtrPokeTouchView *base)
     wallOk = monIconOk = 0; sFXWallId = -1;
     CtrPokeTouch_Draw(canvas, base);
 }
+
+/* A choice of the field as a page: FireRed's menu window at the bottom right as wide as its rows need, the question in
+ * the band beside it, the arrow on the cursor or the row held, a tap off the window its B; a grid across the page. */
+static void choice_page(const CtrPokeTouchView *base)
+{
+    CtrPokeTouchView v = *base, old;
+    CtrPokeTouchChoice *c = &v.choice;
+    int width;
+
+    v.home = 0; v.backVisible = 1; v.backEnabled = 1;
+    memset(c, 0, sizeof(*c));
+    c->on = 1; c->count = 3; c->cols = 0; c->cursor = 1; c->pressed = -1;
+    snprintf(c->label[0], sizeof(c->label[0]), "YES"); snprintf(c->label[1], sizeof(c->label[1]), "NO");
+    snprintf(c->label[2], sizeof(c->label[2]), "INFO");
+    snprintf(c->prompt, sizeof(c->prompt), "Would you like to battle?");
+    CtrPokeTouch_Draw(canvas, &v);
+    old = v;
+    width = 0;
+    {
+        const int outline = !KitFrameReady(KIT_FRAME_STD, v.frameType);
+        CtrPokeTouchRect w = ChoiceWindow(3, 0, width), n = ChoiceNote(3, 0, width);
+
+        assert(CtrPokeTouch_FieldPageShown(&v));
+        PageMargin();
+        assert(!outline || at(w.x, w.y + 20) == KitInk(2));
+        for (int i = 0; i < 3; ++i) {
+            CtrPokeTouchRect r = ChoiceRow(3, 0, width, i);
+
+            assert(CtrPokeTouch_ChoiceHit(&v, r.x + r.w / 2, r.y + 8) == PT_CHOICE_HIT_ROW + i);
+            assert(ArrowAt(&r) == (i == 1));
+        }
+        /* a tap off the window is the menu's B; the window's frame nothing; no BACK cell */
+        assert(CtrPokeTouch_ChoiceHit(&v, 40, 40) == PT_CHOICE_HIT_BACK);
+        assert(CtrPokeTouch_ChoiceHit(&v, n.x + 30, n.y + 20) == PT_CHOICE_HIT_BACK);
+        assert(CtrPokeTouch_ChoiceHit(&v, w.x + 2, w.y + 2) == -1);
+        assert(!CtrPokeTouch_BackHit(&v, 290, 220) && !CtrPokeTouch_BackHit(&v, 40, 40));
+    }
+    c->pressed = PT_CHOICE_HIT_ROW + 2; update(&old, &v);
+    assert(ArrowAt(&(CtrPokeTouchRect){ChoiceRow(3, 0, 0, 2).x, ChoiceRow(3, 0, 0, 2).y, 8, 16}));
+    c->pressed = -1; c->cursor = 0; update(&old, &v);
+    /* a long row widens the window, the band narrower */
+    snprintf(c->label[2], sizeof(c->label[2]), "WWWWWWWWWWWWWWWWWWWWWWW"); update(&old, &v);
+    width = UiTextWidth(c->label[2], 1) + KIT_ARROW_W + 16;
+    assert(CtrPokeTouch_ChoiceHit(&v, ChoiceRow(3, 0, width, 2).x + 4, ChoiceRow(3, 0, width, 2).y + 8) == PT_CHOICE_HIT_ROW + 2);
+    /* eight rows; a grid */
+    c->count = 8;
+    for (int i = 3; i < 8; ++i)
+        snprintf(c->label[i], sizeof(c->label[i]), "ROW %d", i);
+    snprintf(c->label[2], sizeof(c->label[2]), "INFO"); update(&old, &v);
+    c->cols = 2; c->count = 5; update(&old, &v);
+    for (int i = 0; i < 5; ++i) {
+        CtrPokeTouchRect r = ChoiceRow(5, 2, 0, i);
+
+        assert(CtrPokeTouch_ChoiceHit(&v, r.x + r.w / 2, r.y + 8) == PT_CHOICE_HIT_ROW + i);
+    }
+    assert(CtrPokeTouch_ChoiceHit(&v, 40, 200) == PT_CHOICE_HIT_BACK);
+    c->pressed = PT_CHOICE_HIT_BACK; update(&old, &v);
+    c->pressed = -1; v.frameType = 8; update(&old, &v);
+    v.frameType = base->frameType; update(&old, &v);
+    CtrPokeTouch_Draw(canvas, base);
+}
 #endif
 
 int main(int argc, char **argv)
@@ -1368,6 +1449,7 @@ int main(int argc, char **argv)
     save_page(&v);
     card_page(&v);
     box_page(&v);
+    choice_page(&v);
 #else
     for(int x=4;x<244;++x) for(int y=4;y<164;++y) assert(at(x,y)==Gba(0x5ab3));
 #endif

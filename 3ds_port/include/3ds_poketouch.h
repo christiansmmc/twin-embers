@@ -190,7 +190,7 @@ typedef struct {
  * (3ds_field_choice_impl.h), a remote for FireRed's menu: its rows as buttons (cols > 0: a grid of that many columns),
  * the cursor's, and the question of the message box. A row is asked of the menu and taken with its A; BACK is its B. */
 #define PT_CHOICE_MAX 8
-enum { PT_CHOICE_HIT_ROW = 100 };
+enum { PT_CHOICE_HIT_ROW = 100, PT_CHOICE_HIT_BACK = 200 /* a tap off the menu's window: its B */ };
 typedef struct {
     uint8_t on;
     uint8_t count, cols;

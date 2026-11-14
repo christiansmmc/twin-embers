@@ -20,13 +20,6 @@ static void FBCard(const CtrPokeTouchRect *r)
     EmGradFill(r->x + 1, r->y + 1, r->w - 2, r->h - 2, 4, kEmCream.top, kEmCream.bottom);
 }
 
-static void FBButton(const CtrPokeTouchRect *r, const EmPal *p, const char *label, int pressed)
-{
-    int fy = EmButton(r->x, r->y, r->w, r->h, p, FB_DEPTH, pressed);
-
-    EmLabel(label, r->x, r->w, fy, r->h - FB_DEPTH, p);
-}
-
 /* ---- The page ---- */
 static const CtrUiString sFBTabLabel[3] = {UIS_BAG_ITEMS, UIS_BAG_KEY_ITEMS, UIS_BAG_BALLS};
 
