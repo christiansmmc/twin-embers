@@ -364,6 +364,24 @@ static void wrap_lines(void)
     Clear();
     assert(KitWrap("", 8, 8, 80, 3) == 0);
     Untouched(0, 0, 0, 0);
+    /* wrap_newlines: FireRed's move descriptions keep their "\n" (the final review found the note cutting 153 of
+     * them): a break like a space, drawn as a space, never glued into one long word */
+    {
+        static uint16_t spaced[W * H];
+
+        Clear();
+        assert(KitWrap("AAA\nBBB CCC", 8, 8, 40, 3) == 3);
+        assert(Count(8, 36, 40, 14, KitInk(2)) > 0);
+        Clear();
+        assert(KitWrap("AA BB", 8, 8, 80, 1) == 1);
+        memcpy(spaced, canvas, sizeof(spaced));
+        Clear();
+        assert(KitWrap("AA\nBB", 8, 8, 80, 1) == 1);
+        assert(!memcmp(spaced, canvas, sizeof(spaced)));
+        Clear();
+        assert(KitWrap("\n\nAA", 8, 8, 80, 2) == 1);
+        Untouched(8, 8, 80, 14);
+    }
 }
 
 static void type_label_flat(void)

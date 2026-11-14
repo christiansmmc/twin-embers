@@ -1465,6 +1465,23 @@ void CtrBottom_BeginFlyPick(void)
     sHome.valid = 0;
 }
 
+/* The map's picks given up, HOME's place and the Party's FLY, and with them the hint over the party's window. */
+static void HomePickDrop(void)
+{
+    sFlyPick = 0;
+    sHome.valid = 0;
+}
+
+/* Each frame: a button in the field gives up both picks (the player walked on); a battle, a native screen or START's
+ * menu (`elsewhere`) gives up FLY, HOME's place going with the field's screen. */
+static void HomePicksExpire(int mode, unsigned down, int elsewhere)
+{
+    if (mode == MODE_FIELD && (down & 0x3ffu))
+        HomePickDrop();
+    else if (elsewhere)
+        sFlyPick = 0;
+}
+
 /* The map section a tap at cell (cx, cy) means: the cell's own, else (the
  * cities are one cell) a Fly destination right beside it. */
 static int HomeFind(int group, int cx, int cy, int *fx, int *fy, int *mapsec, int *dungeon)
@@ -3513,12 +3530,14 @@ static void PokeTouchActivate(int id)
     }
 }
 
-/* HOME's own touch places (3ds_poketouch.h PT_HOME_*): SPEED where START could change the speed, a Pokemon of the
- * party where POKeMON could open. -1 for any other id. */
+/* HOME's own touch places (3ds_poketouch.h PT_HOME_*): SPEED where START could change the speed, the map's hint
+ * always, a Pokemon of the party where POKeMON could open. -1 for any other id. */
 static int HomeTouchEnabled(int id)
 {
     if (id == PT_HOME_SPEED)
         return CtrBottom_TurboCanCycle() ? 1 : 0;
+    if (id == PT_HOME_HINT)
+        return 1;
     if (id >= PT_HOME_PARTY && id < PT_HOME_PARTY + 6)
         return FieldEnabled(PT_POKEMON) ? 1 : 0;
     return -1;
@@ -3526,12 +3545,16 @@ static int HomeTouchEnabled(int id)
 
 static int sTurboTap;               /* SPEED was tapped: the game bridge takes it as a START press for the turbo */
 
-/* A tap on HOME's own places: SPEED asks for the next speed, a Pokemon of the party opens POKeMON. 0 for any other
- * id (a button: PokeTouchActivate's). */
+/* A tap on HOME's own places: SPEED asks for the next speed, the hint gives up the map's pick (the party comes back),
+ * a Pokemon of the party opens POKeMON. 0 for any other id (a button: PokeTouchActivate's). */
 static int HomeTouchActivate(int id)
 {
     if (id == PT_HOME_SPEED) {
         sTurboTap = 1;
+        return 1;
+    }
+    if (id == PT_HOME_HINT) {
+        HomePickDrop();
         return 1;
     }
     if (id >= PT_HOME_PARTY && id < PT_HOME_PARTY + 6) {
@@ -5477,9 +5500,7 @@ void CtrBottom_Frame(void)
         StorePlanClear();
     }
     UpdateStorageOwner(mode);
-    if (sFlyPick && (mode == MODE_BATTLE || NativeActive() || CtrPokeTouch_StartMenuOpen()
-                     || (mode == MODE_FIELD && (CtrInput_Get()->down & 0x3ffu))))
-        sFlyPick = 0;                   /* the Party's FLY given up */
+    HomePicksExpire(mode, CtrInput_Get()->down, mode == MODE_BATTLE || NativeActive() || CtrPokeTouch_StartMenuOpen());
     if (mode != MODE_FIELD && !(mode == MODE_OFF && CtrBottom_IsFieldTransition())) {
         sHome.valid = 0;                /* a menu or a battle has the screen: no selection */
         sHome.down = 0;

@@ -28,8 +28,8 @@ static const CtrPokeTouchRect *HomeRect(int id)
     return id == PT_RUN ? &kHomeRun : NULL;
 }
 
-/* A button, SPEED (PT_HOME_SPEED), a Pokemon of the party (PT_HOME_PARTY + its slot; not while the hint has the
- * window), or -1. */
+/* A button, SPEED (PT_HOME_SPEED), the hint while it has the party's window (PT_HOME_HINT), else a Pokemon of the
+ * party (PT_HOME_PARTY + its slot), or -1. */
 int CtrPokeTouch_HomeHit(const CtrPokeTouchView *v, int x, int y)
 {
     for (int i = 0; i < PT_COUNT; ++i) {
@@ -40,10 +40,11 @@ int CtrPokeTouch_HomeHit(const CtrPokeTouchView *v, int x, int y)
     }
     if (UiIn(&kHomeSpeed, x, y))
         return PT_HOME_SPEED;
-    if (!v->homeHint)
-        for (int i = 0; i < 6; ++i)
-            if (v->party[i] && UiIn(&kHomePartySlot[i], x, y))
-                return PT_HOME_PARTY + i;
+    if (v->homeHint)
+        return UiIn(&kHomeParty, x, y) ? PT_HOME_HINT : -1;
+    for (int i = 0; i < 6; ++i)
+        if (v->party[i] && UiIn(&kHomePartySlot[i], x, y))
+            return PT_HOME_PARTY + i;
     return -1;
 }
 
@@ -176,13 +177,16 @@ static void HomeSpeedLabel(unsigned speed, char out[8])
 
 /* A line of RUN and SPEED's window, as a menu row: the arrow while its half is held, the label (greyed while it cannot
  * be used), the value at the right ending the arrow's width before the line's end, as the label starts that far after
- * its start: the text sits in the middle of the window. */
+ * its start: the text sits in the middle of the window. A label too long for the line stops 4 px short of the value. */
 static void HomeSettingLine(const CtrPokeTouchRect *line, const char *label, const char *value, int held, int on)
 {
-    int end = line->x + line->w - KIT_ARROW_W;
+    int end = line->x + line->w - KIT_ARROW_W, valueX = end - UiTextWidth(value, 1);
+    CtrPokeTouchRect room = *line;
 
-    KitRow(line, label, held, on);
-    KitTextOn(value, end - UiTextWidth(value, 1), KitLineTop(line), end, on);
+    room.w = (int16_t)(valueX - 4 - line->x);
+    KitRow(&room, label, held, on);
+    Fill(room.x + room.w, line->y, line->w - room.w, line->h, KitInk(1));
+    KitTextOn(value, valueX, KitLineTop(line), end, on);
 }
 
 /* RUN (whether the running mode is on) and SPEED (the turbo's multiplier) in their window. */
@@ -196,7 +200,7 @@ static void HomeSettings(const CtrPokeTouchView *v)
     HomeSpeedLabel(v->speed, speed);
     HomeSettingLine(&kHomeRunLine, CTR_TR("RUN", "CORRER", "Rennen"), run, v->enabled[PT_RUN] && v->pressed == PT_RUN,
                     v->enabled[PT_RUN]);
-    HomeSettingLine(&kHomeSpeedLine, CTR_TR("SPEED", "VELOCIDAD", "Tempo"), speed,
+    HomeSettingLine(&kHomeSpeedLine, CTR_TR("SPEED", "VELOC.", "Tempo"), speed,
                     v->speedEnabled && v->pressed == PT_HOME_SPEED, v->speedEnabled);
 }
 

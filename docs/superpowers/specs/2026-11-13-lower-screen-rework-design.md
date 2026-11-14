@@ -126,6 +126,14 @@ upper screen has nothing for it (title, shop, evolution, trade).
 No new states: FireRed lets the player pick RUN in a trainer battle or a disabled move and answers with its own
 message, and the rework adds nothing for them (no new game logic, no new bridge reads).
 
+**Changed by the owner after this inventory (2026-11-13/14, on the layout canvas): phase 2 does not bring these back.**
+- HOME: the X and Y cells left the page (the physical buttons still use the registered items); RUN moved to a
+  RUN / SPEED window with the turbo's speed, a SPEED tap stepping it like START; the party's six with their HP bars
+  have the window the contextual message had. The idle "Tap a destination" is gone; the map's other hints (a place
+  picked, the Party's FLY) take the party's window until a tap on it or a button gives the party back.
+- Battle moves: the note shows accuracy, STAB and the description; the effect chance is no longer shown.
+- The top screen's turbo badge is gone: HOME's SPEED line shows the speed.
+
 Both battle views keep the D-pad and A/B in step with the touch screen (the arrow follows the game's cursor).
 
 ## Component kit (phase 1)

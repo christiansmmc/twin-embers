@@ -27,9 +27,9 @@ enum {
 };
 
 /* HOME's own touch places beyond the buttons (CtrPokeTouch_HomeHit, a view's `pressed`): the game's speed (a tap is a
- * START press for the turbo) and a Pokemon of the party (PT_HOME_PARTY + its slot, a tap opens POKeMON). Never START
- * menu entries or field commands. */
-enum { PT_HOME_SPEED = 0x40, PT_HOME_PARTY = 0x48 };
+ * START press for the turbo), the map's hint while it has the party's window (a tap puts the party back), and a
+ * Pokemon of the party (PT_HOME_PARTY + its slot, a tap opens POKeMON). Never START menu entries or field commands. */
+enum { PT_HOME_SPEED = 0x40, PT_HOME_HINT = 0x41, PT_HOME_PARTY = 0x48 };
 
 /* What Fly does at a map section (CtrPokeTouch_FlyStatus): not a destination, or
  * one, and why it cannot be used (unvisited, no party member that knows Fly, no

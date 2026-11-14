@@ -292,9 +292,17 @@ UI_FN void KitTypeLabel(const CtrPokeTouchRect *r, int type, const char *name)
     UiTextCentered(name, r, -1, RGB(255, 255, 255), KitInk(2), 1);
 }
 
-/* Text wrapped at spaces into at most maxLines lines `width` wide from lineTop, KIT_LINE_H apart; a word wider than
- * a line is cut at its end. Breaking only at spaces keeps UTF-8 and the raw-code escapes whole. Returns the lines
- * drawn. */
+/* The first n bytes of s as one line, a line break drawn as the space it stands for. */
+static void KitWrapCopy(char *line, const char *s, int n)
+{
+    for (int i = 0; i < n; ++i)
+        line[i] = s[i] == '\n' ? ' ' : s[i];
+    line[n] = 0;
+}
+
+/* Text wrapped at spaces and line breaks into at most maxLines lines `width` wide from lineTop, KIT_LINE_H apart; a
+ * word wider than a line is cut at its end. A line break (FireRed's descriptions keep the ones of its own window) is a
+ * space here. Breaking only there keeps UTF-8 and the raw-code escapes whole. Returns the lines drawn. */
 UI_FN int KitWrap(const char *s, int x, int lineTop, int width, int maxLines)
 {
     char line[128];
@@ -303,15 +311,14 @@ UI_FN int KitWrap(const char *s, int x, int lineTop, int width, int maxLines)
     while (lines < maxLines) {
         int fit = 0, end = 0;
 
-        while (*s == ' ')
+        while (*s == ' ' || *s == '\n')
             ++s;
         if (!*s)
             break;
         for (;;) {
-            while (s[end] && s[end] != ' ' && end < (int)sizeof(line) - 1)
+            while (s[end] && s[end] != ' ' && s[end] != '\n' && end < (int)sizeof(line) - 1)
                 ++end;
-            memcpy(line, s, (size_t)end);
-            line[end] = 0;
+            KitWrapCopy(line, s, end);
             if (fit > 0 && UiTextWidth(line, 1) > width)
                 break;
             fit = end;
@@ -319,8 +326,7 @@ UI_FN int KitWrap(const char *s, int x, int lineTop, int width, int maxLines)
                 break;
             ++end;                          /* past the space, to the next word */
         }
-        memcpy(line, s, (size_t)fit);
-        line[fit] = 0;
+        KitWrapCopy(line, s, fit);
         KitText(line, x, lineTop + lines * KIT_LINE_H, x + width);
         ++lines;
         s += fit;

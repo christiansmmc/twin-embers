@@ -642,7 +642,7 @@
   },
   {
    "path": "3ds_port/include/3ds_poketouch.h",
-   "sha256": "55f90e5a8d91c4056d94de79151c2318e91ab6e54959da19f4579db825daa6e6",
+   "sha256": "cdc3675458f0d76e0dcbf88500a18f3b0b2b10499dfaf03f67dcd31a3cb2781b",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -1034,7 +1034,7 @@
   },
   {
    "path": "3ds_port/src/3ds_bottom.c",
-   "sha256": "1aedc82068b0b58f08edba1902fc6eda9bd2de14934fb7ef808775c8128bcc1a",
+   "sha256": "ad0c709ef0d912bab76597bacaea09bb5af47384182854363b0b4a545748d9b0",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -1998,7 +1998,7 @@
    "credit": "alex61194 with disclosed AI assistance; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT for original port/test contributions; external game rights unchanged",
    "basis": "Original chrome rendering and synthetic fixtures; runtime pack assets remain external; geometry and viewport preserved",
-   "sha256": "6b38691798c0cf894dd3dce6c686494de1060fbeead835c52449b516be0f6bea"
+   "sha256": "2f2b6ef28dd4c4b4e9b993e229e8b667f2b0fb4132f20282e563e6bdaa65ee3f"
   },
   {
    "path": "3ds_port/tests/rex_test.c",
@@ -6470,7 +6470,7 @@
   },
   {
    "path": "tools/test_field_presentation.py",
-   "sha256": "20da4bfd1fd4ba0cb503e89d6c2fa6fce51d0b38afc36b44df89f77de4c6d612",
+   "sha256": "a05ba1183128b1873a0cd74f2de27d16af5c0e0863f138223c9a8c90d3cff3da",
    "review_status": "reviewed",
    "credit": "alex61194; Twin Embers Port contributors; inherited/adapted upstream portions as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; external game/dependency rights excluded",
@@ -6864,7 +6864,7 @@
   },
   {
    "path": "docs/superpowers/specs/2026-11-13-lower-screen-rework-design.md",
-   "sha256": "fd5a84e86e316aa3f2e603b103906ef779f4b1d5ef8feb8514877b5835d79d8e",
+   "sha256": "7cd0beac30d35156330e0cab36d78c22aa87e737873f7d8d400f1bc6fcbc1810",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork design with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -6896,7 +6896,7 @@
   },
   {
    "path": "3ds_port/src/3ds_lower_kit_impl.h",
-   "sha256": "5c0b5994ad197e3ba21d09be1f61d0b00d2233d746576e1da98c69b0b7441ae3",
+   "sha256": "5c25e3b053b277cab7f3eddbe7df246893b60b4cc4e9c178f9d41721582aeac1",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -6904,7 +6904,7 @@
   },
   {
    "path": "3ds_port/tests/lower_kit_test.c",
-   "sha256": "0efd3ba3887e3f46abfbdeead362a34a78cfe14f09339fd656e576fc41428a13",
+   "sha256": "3dcb9e286d02559d1df751dc1e9b748d4ccdff3663521c91079796d55abff3f5",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -6936,7 +6936,7 @@
   },
   {
    "path": "3ds_port/src/3ds_home_page_impl.h",
-   "sha256": "09bf7a6dd9fc6b11f8244e06405961c54343eb44ba00f105c5d0bfa0e2fd05e1",
+   "sha256": "74e89cdf2b8c1969f00e2adffb0d26df61e9145d9d06c045b6dca8aa1412cdd2",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
