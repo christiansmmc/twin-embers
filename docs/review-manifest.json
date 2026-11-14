@@ -1701,7 +1701,7 @@
   },
   {
    "path": "3ds_port/tests/battle_ui_render_test.c",
-   "sha256": "bd0c2b85692235fa2dd61a0472f3427c0db149f45d7288cdabbf2e77da59664e",
+   "sha256": "e0518dc9d78d028c03a84aba539bf7769ee29e4fc602a61e9179619fee091735",
    "review_status": "reviewed",
    "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -1998,7 +1998,7 @@
    "credit": "alex61194 with disclosed AI assistance; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT for original port/test contributions; external game rights unchanged",
    "basis": "Original chrome rendering and synthetic fixtures; runtime pack assets remain external; geometry and viewport preserved",
-   "sha256": "df4526389a5e1cf357f5ab68d17f33eb7f4dfaa8176830f2f74a303c839d4c22"
+   "sha256": "643f51b2e787e7c3e70b9b9e1caa89c43b4bf0936c2bb67ce9d92c407b29b277"
   },
   {
    "path": "3ds_port/tests/rex_test.c",
@@ -6920,7 +6920,7 @@
   },
   {
    "path": "3ds_port/include/3ds_lower_layout.h",
-   "sha256": "b031bfff67ea14037ae7e4e2c4d4b1e317ce5d9d934e214186a7fc372f5d42b8",
+   "sha256": "11a4d666a43f5d2e5940996cead5dde7f37a6674aaf572a392e464b6d1f0aa88",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -6928,7 +6928,7 @@
   },
   {
    "path": "3ds_port/tests/lower_layout_test.c",
-   "sha256": "bb093596d42d2a69467e715d4af6397e7bd0b14c257c004aad444db9f8d28402",
+   "sha256": "1c508522184fd43db17cd86f1c38b4a333cdc9a8473706dec1820c8989670350",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -6936,7 +6936,7 @@
   },
   {
    "path": "3ds_port/src/3ds_home_page_impl.h",
-   "sha256": "04a48c7ec79ba9973d5b830116ccbc444f13e1851252e203039a9bdf02359bc5",
+   "sha256": "03331d0ba7d087e05df671f946ffae261fff3124815ee5bf4690bf6d40d5608d",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -6944,7 +6944,7 @@
   },
   {
    "path": "3ds_port/src/3ds_battle_page_impl.h",
-   "sha256": "d66c7dc7924f9b4b8085af7ff8977f618c220396a8512c0894fec7cab94b5b63",
+   "sha256": "83ab19e360d5eae061b31db1e588f4f6f625af5da2542e29995c87c95502be37",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

@@ -182,6 +182,30 @@ static void decoder(void)
 #endif
 }
 #ifndef PT_BASELINE
+/* FireRed's menu arrow (raw code 0xEF) as a solid glyph, so where it is drawn shows in the text colour. */
+static void ArrowGlyph(void)
+{
+    for (int y = 0; y < 14; ++y)
+        for (int x = 0; x < 8; ++x) {
+            uint8_t *src = font + 0xEF * 64 + ((y / 8) * 2 + x / 8) * 16 + (y % 8) * 2;
+            unsigned bits = ((unsigned)src[1] << 8 | src[0]) | 1u << ((7 - x % 8) * 2);
+
+            src[0] = (uint8_t)bits;
+            src[1] = (uint8_t)(bits >> 8);
+        }
+}
+
+/* Pixels of colour c in the w x h at (x, y). */
+static int ColorIn(int x, int y, int w, int h, uint16_t c)
+{
+    int n = 0;
+
+    for (int i = x; i < x + w; ++i)
+        for (int j = y; j < y + h; ++j)
+            n += at(i, j) == c;
+    return n;
+}
+
 /* HOME as a full-screen page (3ds_home_page_impl.h): its hits, the map at 1:1 and its cells, the page only when
  * nothing else is open, and every partial redraw equal to a full one. `v` is the HOME view just drawn. */
 static void home_page(CtrPokeTouchView *v)
@@ -201,9 +225,38 @@ static void home_page(CtrPokeTouchView *v)
         assert(CtrPokeTouch_HomeHit(v, r->x + r->w / 2, r->y + r->h / 2) == i);
         assert(CtrPokeTouch_HomeHit(v, r->x, r->y) == i && CtrPokeTouch_HomeHit(v, r->x + r->w - 1, r->y + r->h - 1) == i);
     }
-    /* home_hit_gaps: between two entries, on the map, off the screen */
+    /* home_hit_gaps: the menu window's frame beside a row and above the first, on the map, off the screen */
     assert(CtrPokeTouch_HomeHit(v, kHomeEntry[0].x + kHomeEntry[0].w, kHomeEntry[0].y + 4) == -1);
+    assert(CtrPokeTouch_HomeHit(v, kHomeMenu.x + 2, kHomeMenu.y + 2) == -1);
+    assert(CtrPokeTouch_HomeHit(v, kHomeRegistered.x + 20, kHomeRegistered.y - 2) == -1);
     assert(CtrPokeTouch_HomeHit(v, mx + 50, my + 50) == -1 && CtrPokeTouch_HomeHit(v, -1, -1) == -1);
+    /* home_menu_window: the entries and RUN are rows of one framed window (without the pack, the kit's outline), each
+     * row the window's white; X, Y and the message band are framed too */
+    assert(at(kHomeMenu.x, kHomeMenu.y + 20) == KitInk(2) && at(kHomeMenu.x + kHomeMenu.w - 1, kHomeMenu.y + 60) == KitInk(2));
+    for (int i = 0; i < 6; ++i)
+        assert(at(kHomeEntry[i].x + 2, kHomeEntry[i].y + 1) == KitInk(1));
+    assert(at(kHomeRun.x + 2, kHomeRun.y + 1) == KitInk(1));
+    assert(at(kHomeRegistered.x, kHomeRegistered.y + 20) == KitInk(2) && at(kHomeBike.x, kHomeBike.y + 20) == KitInk(2));
+    assert(at(kHomeMessage.x, kHomeMessage.y + 20) == KitInk(2));
+    /* home_key_tabs: X's and Y's letter sit on a dark tab over the frame's top edge, centred */
+    assert(at(kHomeRegistered.x + kHomeRegistered.w / 2, kHomeRegistered.y - 2) == KitInk(2));
+    assert(at(kHomeBike.x + kHomeBike.w / 2, kHomeBike.y - 2) == KitInk(2));
+    /* home_arrow_on_held_row: no arrow while nothing is held; FireRed's arrow at the left of the row held */
+    for (int i = 0; i < 6; ++i)
+        assert(!ColorIn(kHomeEntry[i].x, kHomeEntry[i].y, 8, 16, KitInk(2)));
+    {
+        CtrPokeTouchView old = *v;
+
+        v->pressed = PT_BAG; update(&old, v);
+        assert(ColorIn(kHomeEntry[2].x, kHomeEntry[2].y, 8, 16, KitInk(2)) > 20);
+        assert(!ColorIn(kHomeEntry[1].x, kHomeEntry[1].y, 8, 16, KitInk(2)));
+        v->pressed = PT_RUN; update(&old, v);
+        assert(ColorIn(kHomeRun.x, kHomeRun.y, 8, 16, KitInk(2)) > 20 && !ColorIn(kHomeEntry[2].x, kHomeEntry[2].y, 8, 16, KitInk(2)));
+        v->running = 1; update(&old, v);
+        v->enabled[PT_SAVE] = 0; update(&old, v);
+        v->pressed = PT_REGISTERED; update(&old, v);
+        v->pressed = PT_NONE; v->running = 0; v->enabled[PT_SAVE] = 1; update(&old, v);
+    }
     /* home_map_cell_bounds: cell (cx, cy) is the 8x8 at (mx + 8 + 8 cx, my + 4 + 8 cy) */
     assert(CtrPokeTouch_HomeMapCell(mx + 8 + 3, my + 4 + 3, &cx, &cy) && cx == 0 && cy == 0);
     assert(CtrPokeTouch_HomeMapCell(mx + 8 + 8 * 21 + 7, my + 4 + 8 * 14 + 7, &cx, &cy) && cx == 21 && cy == 14);
@@ -274,6 +327,9 @@ int main(int argc, char **argv)
     v.registeredItem=1; v.bikeItem=2;
     strcpy(v.playerName,"Trades"); strcpy(v.bar[0],"TEST MAP");
     for(int i=0;i<PT_COUNT;++i) v.enabled[i]=1;
+#ifndef PT_BASELINE
+    ArrowGlyph();
+#endif
     CtrPokeTouch_Draw(canvas,&v);
 #ifndef PT_BASELINE
     home_page(&v);

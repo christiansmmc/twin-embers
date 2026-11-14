@@ -1,6 +1,7 @@
 /* HOME as a full-screen page (phase 1 of docs/superpowers/specs/2026-11-13-lower-screen-rework-design.md): FireRed's
- * Region Map at 1:1 in a panel with the standard frame and a caption strip (the place, the region), the message panel
- * with the dialogue frame, the menu entries with FireRed's item icons, X, Y and the running mode. Where everything is
+ * Region Map at 1:1 in a panel with the standard frame and a caption strip (the place, the region), the entries and the
+ * running mode as rows of a menu window like FireRed's START menu, X and Y as framed cells with the items' icons, and
+ * the message band with the dialogue frame. Where everything is
  * comes from 3ds_lower_layout.h. Included by 3ds_poketouch.c after Changed and Mark; HOME is this page whenever it is
  * up alone, and every other view keeps the old frame and column until it is reworked. */
 
@@ -148,61 +149,87 @@ static const uint8_t *HomeEntryIcon(int i, const uint16_t **pal)
     return sHomeIcon[i].ok ? sHomeIcon[i].pixels : NULL;
 }
 
-/* The running mode: the port's own shoe (FireRed has no icon for it) and whether it is on. */
-static void HomeRun(const CtrPokeTouchRect *r, const CtrPokeTouchView *v, int pressed, int on)
-{
-    int running = v->enabled[PT_RUN] && v->running, sy = r->y + (r->h - FLATSHOESMALL_H) / 2;
-
-    Fill(r->x, r->y, r->w, r->h, pressed ? KitInk(3) : KitInk(1));
-    for (int py = 0; py < FLATSHOESMALL_H; ++py)
-        for (int px = 0; px < FLATSHOESMALL_W; ++px)
-            if (kFlatShoeSmall[py * FLATSHOESMALL_W + px])
-                Px(r->x + 4 + px, sy + py, Tone(kFlatShoeSmall[py * FLATSHOESMALL_W + px], on));
-    KitTextOn(running ? CTR_TR("ON", "S\xc3\x8d", "AN") : CTR_TR("OFF", "NO", "AUS"), r->x + 8 + FLATSHOESMALL_W,
-              r->y + (r->h - KIT_LINE_H) / 2, r->x + r->w, on);
-}
-
-/* An element of the page, as the old column's Button decides its state: usable or the screen shown, pressed under a
- * held touch, selected when it is the screen shown. */
-static void HomeButton(int id, const CtrPokeTouchView *v)
+/* A row of the menu window, as FireRed's START menu draws it: the arrow on the row held under a touch (or the screen
+ * shown), the label greyed while it cannot be used. RUN says whether the running mode is on at the row's right. */
+static void HomeRow(int id, const CtrPokeTouchView *v)
 {
     const CtrPokeTouchRect *r = HomeRect(id);
     int on = v->enabled[id] || v->selected == id;
-    int pressed = v->enabled[id] && v->pressed == id;
-    int selected = v->selected == id && id != PT_RUN;
+    int chosen = (v->enabled[id] && v->pressed == id) || v->selected == id;
+    char name[16];
 
-    if (id == PT_REGISTERED || id == PT_BIKE) {
-        int slot = id == PT_REGISTERED ? ICON_REGISTERED : ICON_BIKE;
-        int ok = ItemIcon(slot, id == PT_REGISTERED ? v->registeredItem : v->bikeItem);
-
-        KitIconCell(r, ok ? sIcons[slot].pixels : NULL, sIcons[slot].pal, 24, 24, id == PT_REGISTERED ? "X" : "Y",
-                    selected, pressed, on);
-    } else if (id == PT_RUN) {
-        HomeRun(r, v, pressed, on);
-    } else {
-        char name[16];
-        const uint16_t *pal;
-        const uint8_t *pixels = HomeEntryIcon(id - PT_POKEDEX, &pal);
-
-        KitIconCell(r, pixels, pal, 24, 24, ColumnLabel(id, v, name), selected, pressed, on);
+    if (id != PT_RUN) {
+        KitRow(r, ColumnLabel(id, v, name), chosen, on);
+        return;
     }
+    {
+        const char *state = v->enabled[PT_RUN] && v->running ? CTR_TR("ON", "S\xc3\x8d", "AN") : CTR_TR("OFF", "NO", "AUS");
+        int w = UiTextWidth(state, 1);
+
+        KitRow(r, CTR_TR("RUN", "CORRER", "Rennen"), chosen, on);
+        KitTextOn(state, r->x + r->w - w, KitLineTop(r), r->x + r->w, on);
+    }
+}
+
+/* The menu window: its frame (the player's FRAME type) and every row. The page's colour goes under it first: the
+ * frame's clear pixels show it. */
+static void HomeMenu(const CtrPokeTouchView *v)
+{
+    Fill(kHomeMenu.x, kHomeMenu.y, kHomeMenu.w, kHomeMenu.h, HomeBg());
+    KitPanel(&kHomeMenu, KIT_FRAME_STD, v->frameType);
+    for (int id = PT_POKEDEX; id <= PT_OPTIONS; ++id)
+        HomeRow(id, v);
+    HomeRow(PT_RUN, v);
+}
+
+/* X or Y: a framed cell with the item's icon (none when nothing is registered), shaded while held, and the key's
+ * letter on a dark tab over the frame's top edge (4 px above the cell, in the gap under the menu window; it never
+ * changes, so redrawing the cell alone leaves it whole). */
+static void HomeKeyCell(int id, const CtrPokeTouchView *v)
+{
+    const CtrPokeTouchRect *r = HomeRect(id);
+    CtrPokeTouchRect in = {(int16_t)(r->x + 8), (int16_t)(r->y + 8), (int16_t)(r->w - 16), (int16_t)(r->h - 16)};
+    int slot = id == PT_REGISTERED ? ICON_REGISTERED : ICON_BIKE;
+    int ok = ItemIcon(slot, id == PT_REGISTERED ? v->registeredItem : v->bikeItem);
+    int on = v->enabled[id] || v->selected == id;
+    const char *key = id == PT_REGISTERED ? "X" : "Y";
+    int tx = r->x + (r->w - 12) / 2, ty = r->y - 4;
+
+    Fill(r->x, r->y, r->w, r->h, HomeBg());
+    KitPanel(r, KIT_FRAME_STD, v->frameType);
+    KitIconCell(&in, ok ? sIcons[slot].pixels : NULL, sIcons[slot].pal, 24, 24, NULL, 0, v->enabled[id] && v->pressed == id,
+                on);
+    Fill(tx, ty, 12, 12, KitInk(2));
+    UiText(key, tx + (12 - UiTextWidth(key, 1)) / 2, ty + 1, KitInk(1), KitInk(2), 1, tx + 12);
+}
+
+static void HomeButton(int id, const CtrPokeTouchView *v)
+{
+    if (id == PT_REGISTERED || id == PT_BIKE)
+        HomeKeyCell(id, v);
+    else
+        HomeRow(id, v);
 }
 
 static void HomePageDraw(const CtrPokeTouchView *v)
 {
     Fill(0, 0, W, H, HomeBg());
     HomeMapPanel(v);
+    HomeMenu(v);
+    HomeKeyCell(PT_REGISTERED, v);
+    HomeKeyCell(PT_BIKE, v);
     HomeMessage(v);
-    for (int i = 0; i < PT_COUNT; ++i)
-        HomeButton(i, v);
 }
 
-/* Only what changed: the map panel for the frame or the caption, the map alone for its icons, the message, and the
- * elements whose state changed. Each repaints its whole rectangle, so the result equals HomePageDraw. */
+/* Only what changed: the framed windows when the FRAME type changes, the map panel for the caption, the map alone for
+ * its icons, the message, and the rows and cells whose state changed. Each repaints its whole rectangle, so the result
+ * equals HomePageDraw. */
 static void HomePageUpdate(const CtrPokeTouchView *old, const CtrPokeTouchView *v, CtrDirtyList *dirty)
 {
-    if (old->frameType != v->frameType || old->mapGroup != v->mapGroup || old->mapVersion != v->mapVersion
-        || strcmp(old->bar[0], v->bar[0]) || strcmp(old->bar[1], v->bar[1])) {
+    int framed = old->frameType != v->frameType;
+
+    if (framed || old->mapGroup != v->mapGroup || old->mapVersion != v->mapVersion || strcmp(old->bar[0], v->bar[0])
+        || strcmp(old->bar[1], v->bar[1])) {
         HomeMapPanel(v);
         Mark(dirty, &kHomeMapPanel);
     } else if (old->playerX != v->playerX || old->playerY != v->playerY || old->playerFemale != v->playerFemale
@@ -212,12 +239,16 @@ static void HomePageUpdate(const CtrPokeTouchView *old, const CtrPokeTouchView *
         HomeMap(v);
         Mark(dirty, &map);
     }
+    if (framed) {
+        HomeMenu(v);
+        Mark(dirty, &kHomeMenu);
+    }
     if (strcmp(old->bar[2], v->bar[2])) {
         HomeMessage(v);
         Mark(dirty, &kHomeMessage);
     }
     for (int i = 0; i < PT_COUNT; ++i)
-        if (Changed(i, old, v)) {
+        if ((framed && (i == PT_REGISTERED || i == PT_BIKE)) || (!framed && Changed(i, old, v))) {
             HomeButton(i, v);
             Mark(dirty, HomeRect(i));
         }

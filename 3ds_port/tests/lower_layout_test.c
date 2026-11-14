@@ -43,9 +43,15 @@ static void Apart(const CtrPokeTouchRect *const *rects, int n)
             assert(!Overlap(rects[i], rects[j]));
 }
 
+/* r lies inside the window f, clear of its 8 px frame. */
+static void InFrame(const CtrPokeTouchRect *r, const CtrPokeTouchRect *f)
+{
+    assert(r->x >= f->x + 8 && r->y >= f->y + 8 && r->x + r->w <= f->x + f->w - 8 && r->y + r->h <= f->y + f->h - 8);
+}
+
 static void home(void)
 {
-    const CtrPokeTouchRect *view[6 + 5];
+    const CtrPokeTouchRect *view[5], *rows[6 + 1];
     int n = 0;
 
     Framed(&kHomeMapPanel);
@@ -54,19 +60,30 @@ static void home(void)
     assert(kHomeCaption.y >= kHomeMapPanel.y + 8 + 128 && kHomeCaption.x >= kHomeMapPanel.x + 8);
     assert(kHomeCaption.x + kHomeCaption.w <= kHomeMapPanel.x + kHomeMapPanel.w - 8);
     assert(kHomeCaption.y + kHomeCaption.h <= kHomeMapPanel.y + kHomeMapPanel.h - 8);
+    /* The message band holds two lines in the dialogue frame. */
     Framed(&kHomeMessage);
+    assert(kHomeMessage.h >= 48);
+    /* The entries and RUN are rows of one menu window (FireRed's START menu), top to bottom in that order. */
+    Framed(&kHomeMenu);
     assert(COUNT(kHomeEntry) == PT_OPTIONS - PT_POKEDEX + 1);
-    for (int i = 0; i < COUNT(kHomeEntry); ++i) {
-        Button(&kHomeEntry[i]);
-        view[n++] = &kHomeEntry[i];
+    for (int i = 0; i < COUNT(kHomeEntry); ++i)
+        rows[n++] = &kHomeEntry[i];
+    rows[n++] = &kHomeRun;
+    for (int i = 0; i < n; ++i) {
+        Row(rows[i]);
+        InFrame(rows[i], &kHomeMenu);
+        assert(i == 0 || rows[i]->y >= rows[i - 1]->y + rows[i - 1]->h);
     }
+    /* X and Y are framed cells. */
+    Framed(&kHomeRegistered);
+    Framed(&kHomeBike);
     Button(&kHomeRegistered);
     Button(&kHomeBike);
-    Button(&kHomeRun);
+    n = 0;
+    view[n++] = &kHomeMapPanel;
+    view[n++] = &kHomeMenu;
     view[n++] = &kHomeRegistered;
     view[n++] = &kHomeBike;
-    view[n++] = &kHomeRun;
-    view[n++] = &kHomeMapPanel;
     view[n++] = &kHomeMessage;
     Apart(view, n);
 }
@@ -118,22 +135,30 @@ static void battle(void)
     }
     view[n++] = &kBatParty;
     Apart(view, n);
+    /* The moves: the party's balls on top as on the commands, four cards apart from each other (8 px at least, as the
+     * owner asked), the note in the dialogue frame with three lines (ACC and STAB, two of description), CANCEL. */
     n = 0;
     for (int i = 0; i < 4; ++i) {
         Button(&kBatMove[i]);
         view[n++] = &kBatMove[i];
     }
+    assert(kBatMove[1].x - (kBatMove[0].x + kBatMove[0].w) >= 8 && kBatMove[3].x - (kBatMove[2].x + kBatMove[2].w) >= 8);
+    assert(kBatMove[2].y - (kBatMove[0].y + kBatMove[0].h) >= 8 && kBatMove[3].y - (kBatMove[1].y + kBatMove[1].h) >= 8);
     Framed(&kBatMoveNote);
+    assert(kBatMoveNote.h >= 56);
     Button(&kBatCancel);
     view[n++] = &kBatMoveNote;
     view[n++] = &kBatCancel;
+    view[n++] = &kBatParty;
     Apart(view, n);
     n = 0;
     for (int i = 0; i < 4; ++i) {
         Button(&kBatTarget[i]);
         view[n++] = &kBatTarget[i];
     }
+    view[n++] = &kBatMoveNote;
     view[n++] = &kBatCancel;
+    view[n++] = &kBatParty;
     Apart(view, n);
 }
 

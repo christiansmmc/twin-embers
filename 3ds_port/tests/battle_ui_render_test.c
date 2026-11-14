@@ -363,7 +363,20 @@ static int ArrowAtLine(const CtrPokeTouchRect *r)
     return n;
 }
 
-/* move_hit_centres, empty_move_slot and the arrow on the moves and the targets. */
+/* The five PP pips on a move card's third line: pixels of colour c in their 29x5. */
+static int PipsIn(const CtrPokeTouchRect *r, uint16_t c)
+{
+    CtrPokeTouchRect in = BPageInside(r);
+    int n = 0, x0 = in.x + KIT_ARROW_W, y0 = BPAGE_LINE(in, 2) + 6;
+
+    for (int x = x0; x < x0 + 29; ++x)
+        for (int y = y0; y < y0 + 5; ++y)
+            n += at(x, y) == c;
+    return n;
+}
+
+/* move_hit_centres, empty_move_slot, the arrow on the moves and the targets, the PP pips, the note's STAB, the party's
+ * balls on both pages. */
 static void moves_and_targets(const CtrBattleView *base)
 {
     CtrBattleView v = *base, old = *base;
@@ -380,13 +393,25 @@ static void moves_and_targets(const CtrBattleView *base)
     assert(ColorIn(&kBatMove[3], BPageBg()) == kBatMove[3].w * kBatMove[3].h);
     for (int i = 0; i < 3; ++i)
         assert(ArrowAtLine(&kBatMove[i]) == (i == 1 ? 8 * 14 : 0));
+    /* pp_pips: a fifth of the PP each, rounded up; green over half, yellow down to a quarter, red below (FireRed's HP
+     * colours); the unlit ones the light grey. 15/15, 7/15, 3/15 here. */
+    assert(PipsIn(&kBatMove[0], UI_HP_HIGH) == 5 * 21 && PipsIn(&kBatMove[0], KitInk(3)) == 0);
+    assert(PipsIn(&kBatMove[1], UI_HP_MID) == 3 * 21 && PipsIn(&kBatMove[1], KitInk(3)) == 2 * 21);
+    assert(PipsIn(&kBatMove[2], UI_HP_LOW) == 1 * 21 && PipsIn(&kBatMove[2], KitInk(3)) == 4 * 21);
     v.pressed = 2; settle(&old, &v); old = v;
     for (int i = 0; i < 3; ++i)
         assert(ArrowAtLine(&kBatMove[i]) == (i == 2 ? 8 * 14 : 0));
     v.pressed = -1; v.cursor = 0; settle(&old, &v); old = v;
+    /* note_stab_tag: the note shows the STAB tag only for a move with it (the one under the cursor) */
+    v.move[0].stab = 1; settle(&old, &v); old = v;
+    assert(ColorIn(&kBatMoveNote, kBStabColor) > 0);
+    v.move[0].stab = 0; settle(&old, &v); old = v;
+    assert(ColorIn(&kBatMoveNote, kBStabColor) == 0);
     v.pressed = BUI_CANCEL; settle(&old, &v); old = v;
     v.pressed = -1; settle(&old, &v); old = v;
     v.move[3].present = 1; settle(&old, &v); old = v;
+    /* 0/15: five unlit pips */
+    assert(PipsIn(&kBatMove[3], KitInk(3)) == 5 * 21 && !PipsIn(&kBatMove[3], UI_HP_HIGH) && !PipsIn(&kBatMove[3], UI_HP_LOW));
 
     v.state = BUI_TARGET; v.cursor = 2;
     for (int i = 0; i < 4; ++i)
@@ -402,17 +427,39 @@ static void moves_and_targets(const CtrBattleView *base)
     v.pressed = 0; settle(&old, &v); old = v;
     for (int i = 0; i < 3; ++i)
         assert(ArrowAtLine(&kBatTarget[i]) == (i == 0 ? 8 * 14 : 0));
+    {
+        /* party_on_moves: the party's balls on the targets and the moves pages, the same pixels as on the commands */
+        static uint16_t commands[W * H];
+        CtrBattleView a = v;
+        const CtrPokeTouchRect *s = &kBatParty;
+        int drawn = 0;
+
+        a.state = BUI_ACTION; a.ball = CTR_QUICK_BALL_NONE; a.pressed = -1;
+        CtrBattleUi_Draw(canvas, &a);
+        memcpy(commands, canvas, sizeof(commands));
+        for (int page = 0; page < 2; ++page) {
+            v.state = page ? BUI_MOVE : BUI_TARGET;
+            CtrBattleUi_Draw(canvas, &v);
+            for (int x = s->x; x < s->x + s->w; ++x)
+                for (int y = s->y; y < s->y + s->h; ++y) {
+                    assert(at(x, y) == commands[x * H + H - 1 - y]);
+                    drawn += at(x, y) != BPageBg();
+                }
+        }
+        assert(drawn > 0);
+    }
     CtrBattleUi_Draw(canvas, base);         /* the canvas back to the caller's view, for its next settle */
 }
 
-/* no_pp_toned (its own process, BATTLE_UI_PP: the digits get synthetic glyphs here and nowhere else): a move with no
- * PP left draws its PP in the toned grey, never in the plain text colour. */
+/* no_pp_toned (its own process, BATTLE_UI_PP: the digits and capitals get synthetic glyphs here and nowhere else): a
+ * move with no PP left draws its PP in the toned grey, never in the plain text colour; labels_light: POW, ACC and PP
+ * are in the toned ink, their values in the text colour. */
 static void no_pp_toned(void)
 {
     CtrBattleView v;
 
-    for (unsigned code = 0xA1; code <= 0xAA; ++code)     /* 0-9: ink on the capitals' rows */
-        for (int y = 3; y <= 11; ++y)
+    for (unsigned code = 0xA1; code <= 0xD4; ++code)     /* 0-9 and A-Z: ink on the capitals' rows */
+        for (int y = 3; y <= 11 && (code <= 0xAA || code >= 0xBB); ++y)
             for (int x = 0; x <= 4; ++x) {
                 uint8_t *src = font + code * 64 + ((y / 8) * 2 + x / 8) * 16 + (y % 8) * 2;
                 unsigned bits = ((unsigned)src[1] << 8 | src[0]) | 1u << ((7 - x % 8) * 2);
@@ -424,13 +471,20 @@ static void no_pp_toned(void)
     v.state = BUI_MOVE; v.pressed = -1; v.cursor = 1;
     v.move[0].present = 1; v.move[0].pp = 0; v.move[0].maxPp = 25;
     names(v.move[0].name, BUI_NAME_LEN, "SURF"); names(v.move[0].typeName, 10, "WATER");
+    names(v.move[0].power, sizeof(v.move[0].power), "90");
     CtrBattleUi_Draw(canvas, &v);
     {
-        /* the PP sits at the end of the cell's first line */
+        /* the PP sits at the end of the cell's third line */
         const CtrPokeTouchRect *r = &kBatMove[0];
-        CtrPokeTouchRect pp = {(int16_t)(r->x + r->w - 8 - 32), (int16_t)(r->y + 8), 32, 16};
+        CtrPokeTouchRect in = BPageInside(r);
+        CtrPokeTouchRect pp = {(int16_t)(r->x + r->w - 8 - 32), (int16_t)BPAGE_LINE(in, 2), 32, 16};
+        int labelW = UiTextWidth("POW", 1), space = UiTextWidth(" ", 1);
+        CtrPokeTouchRect label = {(int16_t)(in.x + KIT_ARROW_W), (int16_t)BPAGE_LINE(in, 1), (int16_t)labelW, 16};
+        CtrPokeTouchRect value = {(int16_t)(label.x + labelW + space), (int16_t)BPAGE_LINE(in, 1), 12, 16};
 
         assert(ColorIn(&pp, Tone(KitInk(2), 0)) > 0 && ColorIn(&pp, KitInk(2)) == 0);
+        assert(ColorIn(&label, Tone(KitInk(2), 0)) > 0 && ColorIn(&label, KitInk(2)) == 0);
+        assert(ColorIn(&value, KitInk(2)) > 0);
     }
     printf("PASS battle ui no-PP\n");
 }

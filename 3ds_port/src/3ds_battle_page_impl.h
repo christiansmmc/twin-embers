@@ -209,6 +209,9 @@ static void BPageSafari(const CtrBattleView *v, int i)
 static const uint16_t kBFxColor[] = {0, UI_RGB(110, 100, 110), UI_RGB(204, 84, 24), UI_RGB(214, 112, 30),
                                      UI_RGB(40, 150, 70), UI_RGB(30, 170, 60), UI_RGB(100, 106, 132)};
 
+/* The note's STAB tag: the frames' slate, flat. */
+static const uint16_t kBStabColor = UI_RGB(90, 100, 120);
+
 static const char *BFxText(uint8_t matchup)
 {
     static const char *const kText[] = {"", CTR_TR("NO EFFECT", "NO AFECTA", "Wirkungslos"),
@@ -236,48 +239,101 @@ static void BPageFxTag(uint8_t matchup, int right, int lineTop)
 /* The three lines of a move or target cell, 16 px apart from the top of its interior. */
 #define BPAGE_LINE(in, n) ((in).y + 1 + 16 * (n))
 
-/* A move: the arrow and its name, its PP (grey at none left); its type and what it does to the foe; power, accuracy.
- * An empty slot is the page only. */
+/* A label in the toned ink, then its value in the text colour a space later; returns where the value ends. */
+static int BPageField(const char *label, const char *value, int x, int lineTop, int limit)
+{
+    int vx = x + UiTextWidth(label, 1) + UiTextWidth(" ", 1);
+
+    KitTextOn(label, x, lineTop, limit, 0);
+    KitText(value, vx, lineTop, limit);
+    return vx + UiTextWidth(value, 1);
+}
+
+/* PP as five pips from x, a fifth of the move's PP each (rounded up), in FireRed's HP colours by what is left (over
+ * half, down to a quarter, below); the unlit ones the light grey. */
+static void BPagePips(int x, int lineTop, unsigned pp, unsigned maxPp)
+{
+    int lit = maxPp ? (int)((pp * 5 + maxPp - 1) / maxPp) : 0;
+    uint16_t on = pp * 4 <= maxPp ? UI_HP_LOW : pp * 2 <= maxPp ? UI_HP_MID : UI_HP_HIGH;
+
+    if (lit > 5)
+        lit = 5;
+    for (int k = 0; k < 5; ++k) {
+        uint16_t c = k < lit ? on : KitInk(3);
+        int px = x + 6 * k, py = lineTop + 6;
+
+        Fill(px + 1, py, 3, 1, c);
+        Fill(px, py + 1, 5, 3, c);
+        Fill(px + 1, py + 4, 3, 1, c);
+    }
+}
+
+/* A move card, three lines: the arrow, its name and its type; POW and what it does to the foe (STATUS for a status move
+ * when no tag says it); its PP as pips, ACC and PP (grey at none left). Labels in the toned ink. Where ACC's label does
+ * not fit between the pips and PP, only its number shows. An empty slot is the page only. */
 static void BPageMove(const CtrBattleView *v, int i)
 {
     const CtrPokeTouchRect *r = &kBatMove[i];
     const CtrBattleMove *m = &v->move[i];
     CtrPokeTouchRect in = BPageInside(r);
-    int right = in.x + in.w, ppw;
-    char text[24];
+    int right = in.x + in.w, x = in.x + KIT_ARROW_W, line;
+    const char *acc = m->accuracy[0] && m->accuracy[0] != '-' ? m->accuracy : "--";
+    const char *accLabel = CTR_TR("ACC", "PRE", "Gen");
+    char pp[16];
 
     Fill(r->x, r->y, r->w, r->h, BPageBg());
     if (!m->present)
         return;
     KitPanel(r, KIT_FRAME_STD, v->frameType);
     Fill(in.x, in.y, in.w, in.h, v->pressed == i ? KitInk(3) : KitInk(1));
+
+    line = BPAGE_LINE(in, 0);
     if (BPageChosen(v, i, i))
-        KitText(KIT_ARROW, in.x, BPAGE_LINE(in, 0), right);
-    snprintf(text, sizeof(text), "%u/%u", m->pp, m->maxPp);
-    ppw = UiTextWidth(text, 1);
-    UiText(text, right - ppw, BPAGE_LINE(in, 0) + 3, Tone(KitInk(2), m->pp > 0), Tone(KitInk(3), m->pp > 0), 1, right);
-    KitText(m->name, in.x + KIT_ARROW_W, BPAGE_LINE(in, 0), right - ppw - 4);
+        KitText(KIT_ARROW, in.x, line, right);
     {
-        CtrPokeTouchRect type = {(int16_t)(in.x + KIT_ARROW_W), (int16_t)BPAGE_LINE(in, 1), 40, KIT_LINE_H - 1};
+        CtrPokeTouchRect type = {(int16_t)(right - 40), (int16_t)line, 40, KIT_LINE_H - 1};
 
         KitTypeLabel(&type, m->type, m->typeName);
     }
-    BPageFxTag(m->matchup, right, BPAGE_LINE(in, 1));
-    snprintf(text, sizeof(text), "%s %s", CTR_TR("POW", "POT", "St\xC3\xA4"), m->power[0] ? m->power : "-");
-    KitText(text, in.x + KIT_ARROW_W, BPAGE_LINE(in, 2), right);
-    snprintf(text, sizeof(text), "%s %s", CTR_TR("ACC", "PRE", "Gen"),
-             m->accuracy[0] && m->accuracy[0] != '-' ? m->accuracy : "--");
-    KitText(text, right - UiTextWidth(text, 1), BPAGE_LINE(in, 2), right);
+    KitText(m->name, x, line, right - 40 - 4);
+
+    line = BPAGE_LINE(in, 1);
+    BPageField(CTR_TR("POW", "POT", "St\xC3\xA4"), m->power[0] ? m->power : "-", x, line, right);
+    if (m->matchup != CTR_FX_NONE) {
+        BPageFxTag(m->matchup, right, line);
+    } else if (!m->power[0] || m->power[0] == '-') {
+        const char *status = CTR_TR("STATUS", "ESTADO", "Status");
+
+        KitTextOn(status, right - UiTextWidth(status, 1), line, right, 0);
+    }
+
+    line = BPAGE_LINE(in, 2);
+    BPagePips(x, line, m->pp, m->maxPp);
+    snprintf(pp, sizeof(pp), "%u/%u", m->pp, m->maxPp);
+    {
+        int ppw = UiTextWidth(pp, 1), space = UiTextWidth(" ", 1);
+        int ppLabelX = right - ppw - space - UiTextWidth("PP", 1);
+        int accRight = ppLabelX - 8, accW = UiTextWidth(acc, 1);
+        int accStart = accRight - accW - space - UiTextWidth(accLabel, 1);
+
+        UiText(pp, right - ppw, line + 3, Tone(KitInk(2), m->pp > 0), Tone(KitInk(3), m->pp > 0), 1, right);
+        KitTextOn("PP", ppLabelX, line, right, 0);
+        if (accStart >= x + 29 + 4)
+            BPageField(accLabel, acc, accStart, line, accRight);
+        else
+            KitText(acc, accRight - accW, line, accRight);
+    }
 }
 
-/* The note under the moves, in the dialogue frame: accuracy, effect chance and STAB of the move under the controller's
- * cursor, then its description (or whether it is physical or special). */
+/* The note under the moves, in the dialogue frame: the accuracy of the move under the controller's cursor and its STAB
+ * tag, then its description in two lines (or whether it is physical or special). Three 14 px lines from 6 px in keep
+ * the glyphs inside the frame's 40 px interior. */
 static void BPageMoveNote(const CtrBattleView *v)
 {
     const CtrPokeTouchRect *n = &kBatMoveNote;
     int sel = v->cursor >= 0 && v->cursor < 4 && v->move[v->cursor].present ? v->cursor : 0;
     const CtrBattleMove *m = &v->move[sel];
-    int x = n->x + 16, top = n->y + 8, right = n->x + n->w - 16;
+    int x = n->x + 16, top = n->y + 6, right = n->x + n->w - 16;
     char text[24];
 
     Fill(n->x, n->y, n->w, n->h, BPageBg());
@@ -287,19 +343,19 @@ static void BPageMoveNote(const CtrBattleView *v)
     {
         const char *acc = m->accuracy[0] && m->accuracy[0] != '-' ? m->accuracy : "--";
 
-        snprintf(text, sizeof(text), "%s %s%s", CTR_TR("ACC", "PRE", "Gen"), acc, acc[0] == '-' ? "" : "%");
-        KitText(text, x, top, right);
+        snprintf(text, sizeof(text), "%s%s", acc, acc[0] == '-' ? "" : "%");
+        BPageField(CTR_TR("ACC", "PRE", "Gen"), text, x, top, right);
     }
-    if (m->effectChance) {
-        snprintf(text, sizeof(text), "%s %u%%", CTR_TR("EFFECT", "EFECTO", "Effekt"), m->effectChance);
-        KitText(text, x + 80, top, right);
+    if (m->stab) {
+        int w = UiTextWidth("STAB", 1) + 8;
+
+        Fill(right - w, top + 2, w, KIT_LINE_H - 3, kBStabColor);
+        UiText("STAB", right - w + 4, top + 3, RGB(255, 255, 255), KitInk(2), 1, right);
     }
-    if (m->stab)
-        KitText("STAB", right - UiTextWidth("STAB", 1), top, right);
     KitWrap(m->desc[0] ? m->desc
                        : m->type < 10 ? CTR_TR("Physical move", "Ataque f\xC3\xADsico", "Physischer Angriff")
                                       : CTR_TR("Special move", "Ataque especial", "Spezialangriff"),
-            x, top + KIT_LINE_H, right - x, (n->h - 16) / KIT_LINE_H - 1);
+            x, top + KIT_LINE_H, right - x, 2);
 }
 
 /* A target: the arrow and its name, FOE or ALLY; its level and what the move does to it; its HP (and the numbers for
@@ -357,6 +413,7 @@ static void BPageCancel(const CtrBattleView *v)
 static void BPageScreen(const CtrBattleView *v)
 {
     Fill(0, 0, W, H, BPageBg());
+    BPageParty(v);                      /* the party's balls on every battle page, in one place */
     if (v->state == BUI_MOVE || v->state == BUI_TARGET) {
         for (int i = 0; i < 4; ++i) {
             if (v->state == BUI_MOVE)
@@ -371,7 +428,6 @@ static void BPageScreen(const CtrBattleView *v)
         BPageCancel(v);
         return;
     }
-    BPageParty(v);
     if (v->state == BUI_IDLE)
         return;                         /* a message or an animation: the party's balls only */
     if (v->state == BUI_SAFARI) {
