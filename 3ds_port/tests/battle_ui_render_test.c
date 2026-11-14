@@ -615,6 +615,73 @@ static void summary_page(const CtrSummaryUiView *base)
     CtrSummaryUi_Draw(canvas, base);    /* the canvas back to the caller's view, for its next settle */
 }
 
+/* The battle BAG as a page (phase 2, the owner's "3"): the ITEMS tab (and BERRIES with the Berry Pouch), the rows with
+ * their items' icons, the scroll cells, CANCEL; the menu and a message; every step through settle. The item icon stub is
+ * a solid square, red for item 1, green for 2, blue for the others; the test font is blank but for the arrow. */
+static int ArrowIn(int x, int y)
+{
+    CtrPokeTouchRect r = {(int16_t)x, (int16_t)y, 8, 14};
+
+    return ColorIn(&r, KitInk(2));
+}
+
+static void battle_bag_page(CtrBattleView *v, CtrBattleView *old)
+{
+    CtrBattleBag *b = &v->bag;
+    CtrPokeTouchRect margin = {0, 0, 4, H};
+
+    settle(old, v); *old = *v;
+    assert(ColorIn(&margin, BPageBg()) == 4 * H);
+    /* battle_bag_tabs: ITEMS with FireRed's arrow; no BERRIES without the Berry Pouch */
+    assert(InkIn(&kBagTab[0]) == 8 * 14);
+    assert(at(kBagTab[1].x + 50, kBagTab[1].y + 15) == BPageBg());
+    assert(CtrBattleUi_Hit(v, kBagTab[1].x + 50, kBagTab[1].y + 15) == -1);
+    /* battle_bag_rows: each item's icon at 1:1, the arrow on the Bag's selection, each row a hit */
+    for (int i = 0; i < BUI_BAG_ROWS; ++i) {
+        CtrPokeTouchRect r = BagRow(i);
+        uint16_t c = GbaColor(b->row[i].item == 1 ? 31 : b->row[i].item == 2 ? 31 << 5 : 31 << 10);
+
+        assert(at(r.x + 8 + 12, r.y + 3 + 12) == c);
+        assert(ArrowIn(r.x, r.y + 8) == (b->first + i == b->cursor ? 8 * 14 : 0));
+        assert(CtrBattleUi_Hit(v, r.x + r.w / 2, r.y + r.h / 2) == BUI_BAG_ROW + i);
+    }
+    /* scroll, CANCEL */
+    assert(CtrBattleUi_Hit(v, kBagUp.x + 12, kBagUp.y + 30) == -1);
+    assert(CtrBattleUi_Hit(v, kBagDown.x + 12, kBagDown.y + 30) == BUI_BAG_DOWN);
+    assert(CtrBattleUi_Hit(v, kBagCancel.x + 30, kBagCancel.y + 28) == BUI_BAG_CANCEL);
+    assert(CtrBattleUi_Hit(v, kBagNote.x + 30, kBagNote.y + 28) == -1);
+    /* a row held: the arrow with it */
+    v->pressed = BUI_BAG_ROW + 2; settle(old, v); *old = *v;
+    assert(ArrowIn(BagRow(2).x, BagRow(2).y + 8) == 8 * 14 && ArrowIn(BagRow(1).x, BagRow(1).y + 8) == 0);
+    v->pressed = -1; settle(old, v); *old = *v;
+    /* BERRIES: the second tab with the Berry Pouch */
+    b->berries = 365; settle(old, v); *old = *v;
+    assert(CtrBattleUi_Hit(v, kBagTab[1].x + 50, kBagTab[1].y + 15) == BUI_BAG_BERRIES);
+    v->pressed = BUI_BAG_BERRIES; settle(old, v); *old = *v;
+    v->pressed = -1; b->berries = 0; settle(old, v); *old = *v;
+    /* the menu: the Party's window at the bottom right; a row, or B off the window */
+    b->menuCount = 2; b->menuCursor = 0; names(b->menuName[0], 12, "USE"); names(b->menuName[1], 12, "CANCEL");
+    settle(old, v); *old = *v;
+    for (int i = 0; i < 2; ++i) {
+        CtrPokeTouchRect r = PartyMenuRow(2, i);
+
+        assert(CtrBattleUi_Hit(v, r.x + r.w / 2, r.y + r.h / 2) == BUI_BAG_MENU + i);
+        assert(ArrowIn(r.x, r.y + 1) == (i == 0 ? 8 * 14 : 0));
+    }
+    assert(CtrBattleUi_Hit(v, BagRow(0).x + 30, BagRow(0).y + 10) == BUI_BAG_CANCEL);
+    v->pressed = BUI_BAG_MENU + 1; settle(old, v); *old = *v;
+    v->pressed = -1; b->menuCount = 0; settle(old, v); *old = *v;
+    /* a message: the whole band, CANCEL gone; anywhere goes on */
+    names(b->message, sizeof(b->message), "The POKeMON's HP was restored by 50 points."); settle(old, v); *old = *v;
+    assert(at(kBagCancel.x + 30, kBagCancel.y + 28) == KitInk(1));
+    assert(CtrBattleUi_Hit(v, 10, 10) == BUI_BAG_MESSAGE && CtrBattleUi_Hit(v, 300, 230) == BUI_BAG_MESSAGE);
+    b->message[0] = 0; settle(old, v); *old = *v;
+    /* the player's FRAME */
+    v->frameType = 3; settle(old, v); *old = *v;
+    assert(sKitStd.type == 3);
+    v->frameType = 0; settle(old, v); *old = *v;
+}
+
 /* arrow_follows_cursor_and_press: the arrow (a solid 8x14 here) is in the cell of FireRed's cursor, or in the one held
  * under a touch; never in two. */
 static void arrow_follows_cursor_and_press(const CtrBattleView *base)
@@ -1137,21 +1204,21 @@ int main(int argc, char **argv)
     v.state = BUI_BAG;
     {
         CtrBattleBag *b = &v.bag;
-        static const char *const nm[5] = {"POTION", "SUPER POTION", "ANTIDOTE", "REVIVE", "FULL HEAL"};
+        static const char *const nm[BUI_BAG_ROWS] = {"POTION", "SUPER POTION", "ANTIDOTE", "REVIVE"};
 
+        memset(b, 0, sizeof(*b));
         b->pocket = 0; b->count = 9; b->cursor = 1; b->first = 0;
-        for (k = 0; k < 5; ++k) { b->row[k].item = (uint16_t)(k + 1); b->row[k].qty = (uint16_t)(20 - 3 * k); names(b->row[k].name, BUI_ITEM_LEN, nm[k]); }
+        for (k = 0; k < BUI_BAG_ROWS; ++k) { b->row[k].item = (uint16_t)(k + 1); b->row[k].qty = (uint16_t)(20 - 3 * k); names(b->row[k].name, BUI_ITEM_LEN, nm[k]); }
         b->selItem = 2; names(b->selName, BUI_ITEM_LEN, "SUPER POTION");
         names(b->selDesc, BUI_DESC_LEN, "Restores the HP of one POKeMON by 50 points.");
     }
+    v.pressed = -1;
+#ifndef BATTLE_UI_BEFORE
+    battle_bag_page(&v, &old);
+#endif
     settle(&old, &v); old = v; put(out, "07_bag"); hits(&v);
-    v.pressed = BUI_BAG_ROW + 2; settle(&old, &v); old = v; v.pressed = -1; settle(&old, &v); old = v;
-    /* The Berry Pouch in the Bag: BERRIES beside the title, which takes the whole width without it. */
-    v.bag.berries = 365; settle(&old, &v); old = v;
-    assert(CtrBattleUi_Hit(&v, 260, 16) == BUI_BAG_BERRIES);
-    v.pressed = BUI_BAG_BERRIES; settle(&old, &v); old = v; put(out, "08_bag_berries_pressed"); v.pressed = -1; settle(&old, &v); old = v;
-    v.bag.berries = 0; settle(&old, &v); old = v;
-    assert(CtrBattleUi_Hit(&v, 260, 16) == -1);
+    v.bag.berries = 365; v.pressed = BUI_BAG_BERRIES; settle(&old, &v); old = v; put(out, "08_bag_berries_pressed");
+    v.pressed = -1; v.bag.berries = 0; settle(&old, &v); old = v;
     v.bag.menuCount = 2; v.bag.menuCursor = 0; names(v.bag.menuName[0], 12, "USE"); names(v.bag.menuName[1], 12, "CANCEL");
     settle(&old, &v); old = v; put(out, "09_bag_menu"); hits(&v);
     v.bag.menuCount = 0; names(v.bag.message, sizeof(v.bag.message), "The POKeMON's HP was restored by 50 points.");
@@ -1273,7 +1340,7 @@ int main(int argc, char **argv)
                         fprintf(stderr, "state %d keeps the navy theme colour %04x at %d\n", states[i], navy[j], n);
                         assert(0);
                     }
-            if (states[i] == BUI_SAFARI || states[i] == BUI_TARGET || states[i] == BUI_PARTY)
+            if (states[i] == BUI_SAFARI || states[i] == BUI_TARGET || states[i] == BUI_PARTY || states[i] == BUI_BAG)
                 assert(at(1, 100) == BPageBg());    /* reworked: the page's own colour */
             else
                 assert(at(1, 100) == EMBER_BG(1, 100) || at(1, 100) == PT_RED_BG);   /* the ember backdrop, or the flat red not yet redone */

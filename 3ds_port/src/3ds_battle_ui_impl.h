@@ -19,32 +19,11 @@ static const CtrPokeTouchRect *BActRect(const CtrBattleView *v, int i)
         return &kBatBall;
     return &(v->ball == CTR_QUICK_BALL_NONE ? kBatAction : kBatActionBall)[i];
 }
-/* The battle Bag's note and CANCEL. */
-static const CtrPokeTouchRect sBNote = {4, 176, 236, 60};
-static const CtrPokeTouchRect sBCancel = {244, 180, 72, 52};
-/* The battle Bag: its title (the Items pocket, the only one it shows) and BERRIES for the Berry Pouch, the item list
- * on the left with its scroll arrows, the selected item's card on the right, the description's note and CANCEL. */
-static const CtrPokeTouchRect sBTitle = {6, 4, 204, 26}, sBTitleWide = {6, 4, 308, 26}, sBBerries = {214, 4, 100, 26};
+/* The battle Bag's pocket order once shown as tabs (CtrBattleUi_TabPocket). */
 static const int sBTabPocket[3] = {0, 2, 1};            /* FireRed's pockets in the order the tabs once showed them */
-static const CtrPokeTouchRect sBList = {6, 36, 190, 138};
-static const CtrPokeTouchRect sBDetail = {200, 36, 114, 138};
-static const CtrPokeTouchRect sBUse = {210, 136, 94, 30};
-static const CtrPokeTouchRect sBUpArrow = {176, 36, 20, 66}, sBDownArrow = {176, 108, 20, 66};
-#define B_DEPTH 3
-
-static CtrPokeTouchRect BRow(int i)
-{
-    CtrPokeTouchRect r = {6, (int16_t)(36 + 28 * i), 166, 26};
-    return r;
-}
-
-static CtrPokeTouchRect BMenuRow(int i)
-{
-    CtrPokeTouchRect r = {208, (int16_t)(84 + 30 * i), 98, 27};
-    return r;
-}
-/* The Party is a page (3ds_party_page_impl.h, included further down). */
+/* The Party and the Bag are pages (3ds_party_page_impl.h, and BBagHit after the BAG's pieces further down). */
 static int PPageHit(const CtrBattleView *v, int x, int y);
+static int BBagHit(const CtrBattleView *v, int x, int y);
 
 static int BIn(const CtrPokeTouchRect *r, int x, int y)
 {
@@ -56,14 +35,6 @@ int CtrBattleUi_TabPocket(int tab)
     return tab >= 0 && tab < 3 ? sBTabPocket[tab] : -1;
 }
 
-
-/* The row of the Bag's selected item when it is on screen (USE stands for it), else -1. */
-static int BBagSelRow(const CtrBattleBag *b)
-{
-    int i = b->cursor - b->first;
-
-    return i >= 0 && i < BUI_BAG_ROWS && b->row[i].item ? i : -1;
-}
 
 int CtrBattleUi_Hit(const CtrBattleView *v, int x, int y)
 {
@@ -98,35 +69,8 @@ int CtrBattleUi_Hit(const CtrBattleView *v, int x, int y)
     }
     if (v->state == BUI_PARTY)
         return PPageHit(v, x, y);
-    if (v->state == BUI_BAG) {
-        const CtrBattleBag *b = &v->bag;
-
-        if (b->message[0])
-            return BUI_BAG_MESSAGE;                         /* anywhere: the message waits for A */
-        if (BIn(&sBCancel, x, y))
-            return BUI_BAG_CANCEL;
-        if (b->berries && BIn(&sBBerries, x, y))
-            return BUI_BAG_BERRIES;
-        if (b->menuCount > 0 && BIn(&sBDetail, x, y)) {
-            for (int i = 0; i < b->menuCount && i < 3; ++i) {
-                CtrPokeTouchRect r = BMenuRow(i);
-                if (BIn(&r, x, y))
-                    return BUI_BAG_MENU + i;
-            }
-            return -1;
-        }
-        if (b->menuCount == 0 && BBagSelRow(b) >= 0 && BIn(&sBUse, x, y))
-            return BUI_BAG_ROW + BBagSelRow(b);             /* USE: the selected row again, which uses it */
-        if (b->count > BUI_BAG_ROWS && BIn(&sBUpArrow, x, y) && b->first > 0)
-            return BUI_BAG_UP;
-        if (b->count > BUI_BAG_ROWS && BIn(&sBDownArrow, x, y) && b->first + BUI_BAG_ROWS < b->count)
-            return BUI_BAG_DOWN;
-        for (int i = 0; i < BUI_BAG_ROWS; ++i) {
-            CtrPokeTouchRect r = BRow(i);
-            if (b->row[i].item && BIn(&r, x, y))
-                return BUI_BAG_ROW + i;
-        }
-    }
+    if (v->state == BUI_BAG)
+        return BBagHit(v, x, y);
     return -1;
 }
 
@@ -470,16 +414,6 @@ UI_FN void BDiscIcon(int icon, int cx, int cy, int r, const EmPal *p)
     }
 }
 
-/* CANCEL: violet, as BACK and the Party's. */
-static void BEmCancel(const CtrPokeTouchRect *r, int pressed)
-{
-    int fy;
-
-    TsBgRect(r->x, r->y, r->w, r->h);
-    fy = EmButton(r->x, r->y, r->w, r->h, &kEmViolet, B_DEPTH, pressed);
-    EmLabel(CTR_TR("CANCEL", "CANCELAR", "Zur\xC3\xBC" "ck"), r->x, r->w, fy, r->h - B_DEPTH, &kEmViolet);
-}
-
 /* A Poke Ball of the party strip, 15 pixels across: red and white for a Pokemon that can fight, grey for one that
  * fainted (kind 2), a hollow ring for no Pokemon (kind 0); an amber dot for a status condition. */
 static void BBall(int cx, int cy, int kind, int status)
@@ -520,143 +454,103 @@ static int BBallPart(int code)
 }
 
 /* ---- The Safari Zone: BALL, BAIT, ROCK, RUN (the words of FireRed's gText_SafariZoneMenu) ---- */
-/* ---- The battle Bag ---- */
-/* Its title (the items: the balls have their button on the action screen) and, with the Berry Pouch, BERRIES. */
-static void BTabs(const CtrBattleView *v)
-{
-    const CtrPokeTouchRect *t = v->bag.berries ? &sBTitle : &sBTitleWide;
-    int fy = EmButton(t->x, t->y, t->w, t->h, &kEmAmber, 2, 0);
-
-    EmLabel(CTR_TR("ITEMS", "OBJETOS", "Items"), t->x, t->w, fy, t->h - 2, &kEmAmber);
-    if (v->bag.berries) {
-        const CtrPokeTouchRect *r = &sBBerries;
-
-        fy = EmButton(r->x, r->y, r->w, r->h, &kEmCream, 2, v->pressed == BUI_BAG_BERRIES);
-        EmLabel(CTR_TR("BERRIES", "BAYAS", "Beeren"), r->x, r->w, fy, r->h - 2, &kEmCream);
-    }
-}
-
-/* A list row: the icon, the name and (but for key items) the quantity; the Bag's selection amber. */
-static void BBagRow(int i, const CtrBattleView *v)
-{
-    const CtrBattleBag *b = &v->bag;
-    CtrPokeTouchRect r = BRow(i);
-    const EmPal *p = b->first + i == b->cursor ? &kEmAmber : &kEmCream;
-    int fy;
-
-    if (!b->row[i].item)
-        return;
-    fy = EmButton(r.x, r.y, r.w, r.h, p, 2, v->pressed == BUI_BAG_ROW + i);
-    BItemDraw(b->row[i].item, r.x + 3, fy, 1);
-    UiText(b->row[i].name, r.x + 30, fy + 8, p->ink, p->inkSh, 1, r.x + r.w - 34);
-    if (b->pocket != 1) {                       /* key items are one of each: no count */
-        char qty[8];
-
-        snprintf(qty, sizeof(qty), "x%u", b->row[i].qty > 999 ? 999 : b->row[i].qty);
-        UiTextRight(qty, r.x + r.w - 8, fy + 8, p->ink, p->inkSh, 1);
-    }
-}
-
-/* A scroll arrow: a dark pill, its arrow lit while the list can go that way. */
-static void BBagArrow(const CtrPokeTouchRect *r, int dir, int on)
-{
-    UiRoundFill(r->x, r->y, r->w, r->h, 5, UI_RGB(24, 8, 10));
-    EmGradFill(r->x + 1, r->y + 1, r->w - 2, r->h - 2, 4, UI_RGB(72, 26, 26), UI_RGB(44, 14, 16));
-    UiArrow(r->x + 7, r->y + r->h / 2 - 3, dir, on ? EM_GLOW : UI_RGB(110, 50, 44));
-}
-
-static void BBagList(const CtrBattleView *v)
-{
-    const CtrBattleBag *b = &v->bag;
-
-    for (int i = 0; i < BUI_BAG_ROWS; ++i)
-        BBagRow(i, v);
-    if (b->count > BUI_BAG_ROWS) {
-        BBagArrow(&sBUpArrow, -2, b->first > 0);
-        BBagArrow(&sBDownArrow, 2, b->first + BUI_BAG_ROWS < b->count);
-    }
-}
-
-/* The selected item's card: its icon on a plate, name, quantity and USE; with FireRed's menu open, the menu. */
-static void BBagDetail(const CtrBattleView *v)
-{
-    const CtrBattleBag *b = &v->bag;
-    const CtrPokeTouchRect *d = &sBDetail;
-    CtrPokeTouchRect name = {d->x, 0, d->w, 13};
-
-    UiRoundFill(d->x, d->y, d->w, d->h, 5, kEmCream.edge);
-    EmGradFill(d->x + 1, d->y + 1, d->w - 2, d->h - 2, 4, kEmCream.top, kEmCream.bottom);
-    if (b->menuCount > 0) {
-        if (b->selItem) {
-            BItemDraw(b->selItem, d->x + 6, d->y + 8, 1);
-            UiText(b->selName, d->x + 34, d->y + 14, EM_DARK, EM_DARK_SH, 1, d->x + d->w - 4);
-        }
-        for (int i = 0; i < b->menuCount && i < 3; ++i) {
-            CtrPokeTouchRect r = BMenuRow(i);
-            const EmPal *p = b->menuCursor == i ? &kEmAmber : i == b->menuCount - 1 ? &kEmViolet : &kEmCream;
-            int fy = EmButton(r.x, r.y, r.w, r.h, p, B_DEPTH, v->pressed == BUI_BAG_MENU + i);
-
-            EmLabel(b->menuName[i], r.x, r.w, fy, r.h - B_DEPTH, p);
-        }
-        return;
-    }
-    if (!b->selItem) {
-        UiTextCentered(CTR_TR("Close the Bag", "Cerrar la MOCHILA", "Beutel schlie\xC3\x9F" "en"), &name, d->y + 60, EM_DIM, EM_DARK_SH, 1);
-        return;
-    }
-    UiDisc(d->x + d->w / 2, d->y + 34, 27, UiMix(kEmCream.bottom, kEmCream.edge, 2));
-    UiDisc(d->x + d->w / 2, d->y + 34, 26, UI_RGB(255, 226, 196));
-    BItemDraw(b->selItem, d->x + d->w / 2 - 24, d->y + 10, 2);
-    UiTextCentered(b->selName, &name, d->y + 66, EM_DARK, EM_DARK_SH, 1);
-    if (b->pocket != 1) {
-        char qty[8];
-
-        snprintf(qty, sizeof(qty), "x%u", b->selItem && BBagSelRow(b) >= 0 ? b->row[BBagSelRow(b)].qty : 0);
-        if (BBagSelRow(b) >= 0)
-            UiTextCentered(qty, &name, d->y + 81, UI_RGB(52, 104, 220), EM_DARK_SH, 1);
-    }
-    if (BBagSelRow(b) >= 0) {
-        int fy = EmButton(sBUse.x, sBUse.y, sBUse.w, sBUse.h, &kEmAmber, B_DEPTH, v->pressed == BUI_BAG_ROW + BBagSelRow(b));
-
-        EmLabel(CTR_TR("USE", "USAR", "Benutzen"), sBUse.x, sBUse.w, fy, sBUse.h - B_DEPTH, &kEmAmber);
-    }
-}
-
-/* The Bag's message over the dimmed Bag, in a card (A, or a tap anywhere, goes on). */
-static void BBagMessage(const CtrBattleView *v)
-{
-    CtrPokeTouchRect all = {0, 0, W, H}, box = {20, 70, 280, 76};
-
-    UiDim(&all);
-    EmNote(box.x, box.y, box.w, box.h);
-    BPWrap(v->bag.message, box.x + 14, box.y + 10, box.w - 24, 3, EM_DARK, EM_DARK_SH);
-    UiText(CTR_TR("Tap to continue", "Toca para seguir", "Tippen zum Fortfahren"), box.x + box.w - 14 - UiTextWidth(CTR_TR("Tap to continue", "Toca para seguir", "Tippen zum Fortfahren"), 1) - 9, box.y + box.h - 16,
-           EM_DIM, EM_DARK_SH, 1, box.x + box.w);
-    UiArrow(box.x + box.w - 18, box.y + box.h - 16, 1, EM_STRIPE);
-}
-
-static void BBag(const CtrBattleView *v)
-{
-    const CtrPokeTouchRect *n = &sBNote;
-
-    TsBackdrop();
-    BTabs(v);
-    BBagList(v);
-    BBagDetail(v);
-    EmNote(n->x, n->y, n->w, n->h);
-    if (v->bag.selItem && v->bag.menuCount == 0)
-        BDescribeN(v->bag.selDesc, n->x + 12, n->y + 9, n->w - 18, 4, EM_DARK);
-    BEmCancel(&sBCancel, v->pressed == BUI_BAG_CANCEL);
-    if (v->bag.message[0])
-        BBagMessage(v);
-}
-
 /* A screen with the party's balls on top. */
 #include "3ds_battle_page_impl.h"
 /* POKeMON, field and battle, as a page. */
 #include "3ds_party_page_impl.h"
 /* The BAG's pieces as a page (the field's Bag and the battle's). */
 #include "3ds_bag_page_impl.h"
+
+/* ---- The battle Bag as a page (phase 2, the owner's "3"): the Items pocket's tab (and BERRIES beside it, which opens
+ * the Berry Pouch), the list's rows with their icons, the scroll cells, the band and CANCEL; FireRed's menu in the
+ * Party's window, a message in the whole band. ---- */
+static int BBagScrolls(const CtrBattleBag *b)
+{
+    return b->count > BUI_BAG_ROWS;
+}
+
+static int BBagHit(const CtrBattleView *v, int x, int y)
+{
+    const CtrBattleBag *b = &v->bag;
+
+    if (b->message[0])
+        return BUI_BAG_MESSAGE;                         /* anywhere: the message waits for A */
+    if (b->menuCount > 0) {
+        int n = b->menuCount > 3 ? 3 : b->menuCount;
+        CtrPokeTouchRect w = PartyMenuWindow(n);
+
+        for (int i = 0; i < n; ++i) {
+            CtrPokeTouchRect r = PartyMenuRow(n, i);
+
+            if (UiIn(&r, x, y))
+                return BUI_BAG_MENU + i;
+        }
+        return UiIn(&w, x, y) ? -1 : BUI_BAG_CANCEL;     /* off the menu: B */
+    }
+    if (UiIn(&kBagCancel, x, y))
+        return BUI_BAG_CANCEL;
+    if (b->berries && UiIn(&kBagTab[1], x, y))
+        return BUI_BAG_BERRIES;
+    if (BBagScrolls(b)) {
+        if (UiIn(&kBagUp, x, y))
+            return b->first > 0 ? BUI_BAG_UP : -1;
+        if (UiIn(&kBagDown, x, y))
+            return b->first + BUI_BAG_ROWS < b->count ? BUI_BAG_DOWN : -1;
+    }
+    for (int i = 0; i < BUI_BAG_ROWS; ++i) {
+        CtrPokeTouchRect r = BagRow(i);
+
+        if (b->row[i].item && UiIn(&r, x, y))
+            return BUI_BAG_ROW + i;
+    }
+    return -1;
+}
+
+static void BBagPage(const CtrBattleView *v)
+{
+    const CtrBattleBag *b = &v->bag;
+    int held = v->pressed >= BUI_BAG_ROW && v->pressed < BUI_BAG_ROW + BUI_BAG_ROWS ? v->pressed - BUI_BAG_ROW : -1;
+    int scrolls = BBagScrolls(b);
+    char text[128];
+
+    Fill(0, 0, W, H, BPageBg());
+    BagCell(&kBagTab[0], v->frameType, CTR_TR("ITEMS", "OBJETOS", "Items"), 1, 0, 1);
+    if (b->berries)
+        BagCell(&kBagTab[1], v->frameType, CTR_TR("BERRIES", "BAYAS", "Beeren"), 0, v->pressed == BUI_BAG_BERRIES, 1);
+    Fill(kBagList.x, kBagList.y, kBagList.w, kBagList.h, BPageBg());
+    KitPanel(&kBagList, KIT_FRAME_STD, v->frameType);
+    for (int i = 0; i < BUI_BAG_ROWS; ++i) {
+        CtrPokeTouchRect r = BagRow(i);
+        char qty[8] = "";
+
+        if (!b->row[i].item)
+            continue;
+        if (b->pocket != 1)                             /* key items are one of each: no count */
+            snprintf(qty, sizeof(qty), "x%u", b->row[i].qty > 999 ? 999 : b->row[i].qty);
+        BagRowDraw(&r, b->row[i].item, b->row[i].name, qty, held >= 0 ? held == i : b->first + i == b->cursor, held == i);
+    }
+    BagArrowCell(&kBagUp, v->frameType, 0, scrolls && b->first > 0, v->pressed == BUI_BAG_UP);
+    BagArrowCell(&kBagDown, v->frameType, 1, scrolls && b->first + BUI_BAG_ROWS < b->count, v->pressed == BUI_BAG_DOWN);
+    if (b->message[0]) {
+        BagNote(&kBagNoteWide, b->message, NULL, -1, NULL, 1);
+        return;
+    }
+    if (b->menuCount > 0) {
+        const char *names[3];
+        int n = b->menuCount > 3 ? 3 : b->menuCount;
+        int menuHeld = v->pressed >= BUI_BAG_MENU && v->pressed < BUI_BAG_MENU + n ? v->pressed - BUI_BAG_MENU : -1;
+
+        snprintf(text, sizeof(text), CTR_TR("%s is selected.", "%s seleccionado.", "%s gew\xC3\xA4hlt."), b->selName);
+        BagNote(&kBagNoteMenu, text, NULL, -1, NULL, 0);
+        for (int i = 0; i < n; ++i)
+            names[i] = b->menuName[i];
+        BagMenu(v->frameType, names, n, menuHeld >= 0 ? menuHeld : b->menuCursor);
+        return;
+    }
+    BagNote(&kBagNote, b->selItem ? b->selDesc : CTR_TR("Close the Bag", "Cerrar la MOCHILA", "Beutel schlie\xC3\x9F" "en"),
+            NULL, -1, NULL, 0);
+    BagCell(&kBagCancel, v->frameType, CTR_TR("CANCEL", "CANCELAR", "Zur\xC3\xBC" "ck"), 0, v->pressed == BUI_BAG_CANCEL, 1);
+}
 
 /* Every state but the Bag and the Party: a page (3ds_battle_page_impl.h). */
 static void BScreen(const CtrBattleView *v)
@@ -671,7 +565,7 @@ void CtrBattleUi_Draw(uint16_t *canvas, const CtrBattleView *v)
     if (v->state == BUI_PARTY)
         PPageScreen(v);
     else if (v->state == BUI_BAG)
-        BBag(v);
+        BBagPage(v);
     else
         BScreen(v);
     sUiS = &sUiNavy;
@@ -715,7 +609,8 @@ void CtrBattleUi_Update(uint16_t *canvas, const CtrBattleView *old, const CtrBat
         EmSurface();
         BMark(dirty, &all);
     } else if (v->state == BUI_BAG || old->state == BUI_BAG) {
-        if (old->state != v->state || memcmp(&old->bag, &v->bag, sizeof(v->bag)) || old->pressed != v->pressed) {
+        if (old->state != v->state || old->frameType != v->frameType || memcmp(&old->bag, &v->bag, sizeof(v->bag))
+            || old->pressed != v->pressed) {
             CtrBattleUi_Draw(canvas, v);
             EmSurface();
             BMark(dirty, &all);

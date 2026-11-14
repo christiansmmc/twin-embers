@@ -504,7 +504,7 @@ typedef struct {
 } CtrBattleMove;
 enum { BUI_BAG_TAB = 100, BUI_BAG_ROW = 200, BUI_BAG_MENU = 300, BUI_BAG_CANCEL = 400, BUI_BAG_MESSAGE = 500,
        BUI_BAG_UP = 600, BUI_BAG_DOWN = 601, BUI_BAG_BERRIES = 602 };
-#define BUI_BAG_ROWS 5
+#define BUI_BAG_ROWS 4                      /* the page's rows (3ds_lower_layout.h BAG_PAGE_ROWS) */
 #define BUI_ITEM_LEN 20
 typedef struct {
     uint8_t pocket;                 /* FireRed's pocket: 0 Items, 1 Key Items, 2 Poke Balls */

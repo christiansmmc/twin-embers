@@ -90,7 +90,7 @@ static void BattleBagFill(CtrBattleView *v)
     b->count = (int16_t)(count = CtrBottomBag_Count());
     b->cursor = (int16_t)CtrBottomBag_Cursor();
     shown = b->cursor >= count ? count - 1 : b->cursor;
-    b->first = (int16_t)(shown - 2 < 0 ? 0 : shown - 2);
+    b->first = (int16_t)(shown - (BUI_BAG_ROWS - 1) / 2 < 0 ? 0 : shown - (BUI_BAG_ROWS - 1) / 2);
     if (b->first > count - BUI_BAG_ROWS)
         b->first = (int16_t)(count - BUI_BAG_ROWS < 0 ? 0 : count - BUI_BAG_ROWS);
     for (int i = 0; i < BUI_BAG_ROWS; ++i) {
