@@ -168,6 +168,25 @@ static void frame_std_layout(void)
     Untouched(16, 16, 64, 40);
 }
 
+/* frame_std_any_size: a standard frame whose sides are not whole tiles (HOME's windows end on the map's bottom and 4 px
+ * over the screen's): the corners at the far ends, the edge tiles repeated from the near corner and the last one cut
+ * short where the far corner starts, the interior inside. 60x44: corners at x 16 and 68, y 16 and 52. */
+static void frame_std_any_size(void)
+{
+    Clear();
+    KitPanel(&(CtrPokeTouchRect){16, 16, 60, 44}, KIT_FRAME_STD, 0);
+    assert(at(16, 16) == Color(1, TopIndex(0)));
+    assert(at(68, 16) == Color(1, TopIndex(2)) && at(75, 16) == Color(1, TopIndex(2)));
+    assert(at(24, 16) == Color(1, TopIndex(1)) && at(67, 16) == Color(1, TopIndex(1)));
+    assert(at(16, 24) == Color(1, TopIndex(3)) && at(16, 47) == Color(1, BottomIndex(3)) && at(16, 51) == Color(1, TopIndex(3)));
+    assert(at(75, 24) == Color(1, TopIndex(5)) && at(75, 51) == Color(1, TopIndex(5)));
+    assert(at(16, 52) == Color(1, TopIndex(6)) && at(16, 59) == Color(1, BottomIndex(6)));
+    assert(at(40, 52) == Color(1, TopIndex(7)) && at(67, 59) == Color(1, BottomIndex(7)));
+    assert(at(68, 52) == Color(1, TopIndex(8)) && at(75, 59) == Color(1, BottomIndex(8)));
+    assert(at(24, 24) == Color(1, 1) && at(67, 51) == Color(1, 1));
+    Untouched(16, 16, 60, 44);
+}
+
 static void frame_dialogue_flip(void)
 {
     Clear();
@@ -367,6 +386,7 @@ int main(int argc, char **argv)
     assert(KitFrameReady(KIT_FRAME_STD, 0) && KitFrameReady(KIT_FRAME_DIALOGUE, 0));
     assert(KitInk(2) == Color(0, 2) && KitInk(1) == Color(0, 1));
     frame_std_layout();
+    frame_std_any_size();
     frame_dialogue_flip();
     frame_dialogue_tall();
     frame_type_change_redraws();

@@ -1,5 +1,6 @@
 /* The lower screen's layout table (3ds_lower_layout.h) keeps the rules of the design: everything on the 320x240
- * screen, touch sizes, frames on the 8 px grid, room for the map, and nothing on top of anything else in a view. */
+ * screen, touch sizes, dialogue frames on the 8 px grid, room for the map, and nothing on top of anything else in a
+ * view. */
 #include <assert.h>
 #include <stdio.h>
 #include "3ds_poketouch.h"
@@ -24,7 +25,16 @@ static void Row(const CtrPokeTouchRect *r)
     assert(r->h >= 16);
 }
 
+/* A window with the standard frame: at least three tiles each way (its corners and an edge between them); its sides
+ * need not be whole tiles (the kit cuts the last edge tile short). */
 static void Framed(const CtrPokeTouchRect *r)
+{
+    Inside(r);
+    assert(r->w >= 24 && r->h >= 24);
+}
+
+/* A panel with the dialogue frame: whole tiles (its tiles flip and repeat by tile rows). */
+static void Dialogue(const CtrPokeTouchRect *r)
 {
     Inside(r);
     assert(r->w % 8 == 0 && r->h % 8 == 0);
@@ -49,9 +59,20 @@ static void InFrame(const CtrPokeTouchRect *r, const CtrPokeTouchRect *f)
     assert(r->x >= f->x + 8 && r->y >= f->y + 8 && r->x + r->w <= f->x + f->w - 8 && r->y + r->h <= f->y + f->h - 8);
 }
 
+/* r lies inside f (touch places may cover a window's frame). */
+static void Within(const CtrPokeTouchRect *r, const CtrPokeTouchRect *f)
+{
+    assert(r->x >= f->x && r->y >= f->y && r->x + r->w <= f->x + f->w && r->y + r->h <= f->y + f->h);
+}
+
+static int Bottom(const CtrPokeTouchRect *r)
+{
+    return r->y + r->h;
+}
+
 static void home(void)
 {
-    const CtrPokeTouchRect *view[5], *rows[6 + 1];
+    const CtrPokeTouchRect *view[4], *slots[6];
     int n = 0;
 
     Framed(&kHomeMapPanel);
@@ -60,31 +81,48 @@ static void home(void)
     assert(kHomeCaption.y >= kHomeMapPanel.y + 8 + 128 && kHomeCaption.x >= kHomeMapPanel.x + 8);
     assert(kHomeCaption.x + kHomeCaption.w <= kHomeMapPanel.x + kHomeMapPanel.w - 8);
     assert(kHomeCaption.y + kHomeCaption.h <= kHomeMapPanel.y + kHomeMapPanel.h - 8);
-    /* The message band holds two lines in the dialogue frame. */
-    Framed(&kHomeMessage);
-    assert(kHomeMessage.h >= 48);
-    /* The entries and RUN are rows of one menu window (FireRed's START menu), top to bottom in that order. */
+    /* The entries are rows of one menu window (FireRed's START menu), top to bottom in that order; RUN has left it. */
     Framed(&kHomeMenu);
+    assert(kHomeMenu.y == kHomeMapPanel.y);
     assert(COUNT(kHomeEntry) == PT_OPTIONS - PT_POKEDEX + 1);
-    for (int i = 0; i < COUNT(kHomeEntry); ++i)
-        rows[n++] = &kHomeEntry[i];
-    rows[n++] = &kHomeRun;
-    for (int i = 0; i < n; ++i) {
-        Row(rows[i]);
-        InFrame(rows[i], &kHomeMenu);
-        assert(i == 0 || rows[i]->y >= rows[i - 1]->y + rows[i - 1]->h);
+    for (int i = 0; i < COUNT(kHomeEntry); ++i) {
+        Row(&kHomeEntry[i]);
+        InFrame(&kHomeEntry[i], &kHomeMenu);
+        assert(i == 0 || kHomeEntry[i].y >= kHomeEntry[i - 1].y + kHomeEntry[i - 1].h);
     }
-    /* X and Y are framed cells. */
-    Framed(&kHomeRegistered);
-    Framed(&kHomeBike);
-    Button(&kHomeRegistered);
-    Button(&kHomeBike);
-    n = 0;
+    /* RUN and the game's speed (the owner's "F"): a window 4 px under the menu whose bottom is the map panel's, a line
+     * each inside its frame, each line's touch place the half of the window it is in (RUN on top). */
+    Framed(&kHomeSettings);
+    assert(kHomeSettings.x == kHomeMenu.x && kHomeSettings.w == kHomeMenu.w);
+    assert(kHomeSettings.y - Bottom(&kHomeMenu) == 4 && Bottom(&kHomeSettings) == Bottom(&kHomeMapPanel));
+    InFrame(&kHomeRunLine, &kHomeSettings);
+    InFrame(&kHomeSpeedLine, &kHomeSettings);
+    assert(kHomeSpeedLine.y >= Bottom(&kHomeRunLine));
+    Row(&kHomeRun);
+    Row(&kHomeSpeed);
+    Within(&kHomeRun, &kHomeSettings);
+    Within(&kHomeSpeed, &kHomeSettings);
+    Within(&kHomeRunLine, &kHomeRun);
+    Within(&kHomeSpeedLine, &kHomeSpeed);
+    assert(kHomeRun.y == kHomeSettings.y && kHomeSpeed.y == Bottom(&kHomeRun) && Bottom(&kHomeSpeed) == Bottom(&kHomeSettings));
+    /* The party where the message was: a window 4 px under the map and 4 px over the screen's bottom, as wide as the
+     * page; six touch places side by side inside its frame, each holding a 32 px icon over FireRed's HP bar, at the
+     * battle's party bar's x. */
+    Framed(&kHomeParty);
+    assert(kHomeParty.x == kHomeMapPanel.x && Bottom(&kHomeParty) == 236 && kHomeParty.x + kHomeParty.w == 316);
+    assert(kHomeParty.y - Bottom(&kHomeMapPanel) == 4);
+    assert(COUNT(kHomePartySlot) == 6);
+    for (int i = 0; i < 6; ++i) {
+        Button(&kHomePartySlot[i]);
+        InFrame(&kHomePartySlot[i], &kHomeParty);
+        assert(kHomePartySlot[i].h >= 32 + 6 && kHomePartySlot[i].x + 8 == kBatParty.x + 48 * i + 8);
+        slots[i] = &kHomePartySlot[i];
+    }
+    Apart(slots, 6);
     view[n++] = &kHomeMapPanel;
     view[n++] = &kHomeMenu;
-    view[n++] = &kHomeRegistered;
-    view[n++] = &kHomeBike;
-    view[n++] = &kHomeMessage;
+    view[n++] = &kHomeSettings;
+    view[n++] = &kHomeParty;
     Apart(view, n);
 }
 
@@ -162,7 +200,7 @@ static void battle(void)
         assert(kBatCancel.x - (kBatMoveNote.x + kBatMoveNote.w) == across);
     }
     assert(kBatMoveNote.x == kBatMove[0].x && kBatCancel.x + kBatCancel.w == kBatMove[1].x + kBatMove[1].w);
-    Framed(&kBatMoveNote);
+    Dialogue(&kBatMoveNote);
     assert(kBatMoveNote.h >= 56);
     Button(&kBatCancel);
     view[n++] = &kBatMoveNote;

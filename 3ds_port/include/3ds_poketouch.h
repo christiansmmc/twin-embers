@@ -26,6 +26,11 @@ enum {
     PT_NONE = 0xff
 };
 
+/* HOME's own touch places beyond the buttons (CtrPokeTouch_HomeHit, a view's `pressed`): the game's speed (a tap is a
+ * START press for the turbo) and a Pokemon of the party (PT_HOME_PARTY + its slot, a tap opens POKeMON). Never START
+ * menu entries or field commands. */
+enum { PT_HOME_SPEED = 0x40, PT_HOME_PARTY = 0x48 };
+
 /* What Fly does at a map section (CtrPokeTouch_FlyStatus): not a destination, or
  * one, and why it cannot be used (unvisited, no party member that knows Fly, no
  * badge for it, not outdoors, the field busy), or can. */
@@ -313,6 +318,13 @@ typedef struct {
     uint8_t pressed;            /* element under a held touch, or PT_NONE */
     uint8_t selected;           /* the active destination, or PT_NONE */
     uint8_t running;            /* the running mode is on (Running Shoes) */
+    uint8_t speed;              /* the turbo chosen (3ds_fast_forward.h): 0 or 1 off, 2..4 the multiplier */
+    uint8_t speedEnabled;       /* a tap on SPEED can change it now (where START could) */
+    uint8_t homeHint;           /* HOME's map has a place picked: the Fly's hint (bar[2]) shows where the party is */
+    uint8_t party[6];           /* HOME's party: 0 no Pokemon, 1 able, 2 fainted, 3 a status (as CtrBattleView) */
+    uint8_t partyHp[6];         /* HP left as a percentage (an egg: 100) */
+    uint8_t partyStatus[6];     /* 0 none, else 1..6 PSN PAR SLP FRZ BRN PKRS */
+    uint16_t partyIcon[6];      /* each slot's party icon (a species number, as CtrBottomParty_IconSpecies) */
     uint8_t viewport;           /* the GPU shows a GBA picture in the viewport */
     uint8_t home;               /* the HOME map fills the viewport (no GBA picture) */
     uint8_t frameType;          /* OPTIONS -> FRAME, 0..9: the standard frame of the reworked views' lists and menus */

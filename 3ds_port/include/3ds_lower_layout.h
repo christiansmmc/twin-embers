@@ -3,9 +3,9 @@
 
 /* Where things are on the reworked lower screen (320x240, phase 1 of
  * docs/superpowers/specs/2026-11-13-lower-screen-rework-design.md). Drawing and hit tests both read these, so a
- * layout change is a change here. The owner's picks on the design canvas: HOME "A" (a START-like menu window),
- * commands "2" (framed icon cells), moves "7" (the upstream port's arrangement in FireRed's style). The rules they
- * keep are tests/lower_layout_test.c. */
+ * layout change is a change here. The owner's picks on the design canvas: HOME "F" (a START-like menu window, RUN
+ * and the game's speed under it, the party at the bottom), commands "2" (framed icon cells), moves "7" (the upstream
+ * port's arrangement in FireRed's style). The rules they keep are tests/lower_layout_test.c. */
 #include "3ds_poketouch.h"
 
 #define LOWER_LAYOUT_PROVISIONAL 0
@@ -14,18 +14,28 @@
  * the caption strip (the place on the left, the region on the right). */
 static const CtrPokeTouchRect kHomeMapPanel = { 4, 4, 208, 160 };
 static const CtrPokeTouchRect kHomeCaption = { 12, 140, 192, 16 };
-/* The menu window, as FireRed's START menu: a row per entry, PT_POKEDEX .. PT_OPTIONS in that order, then RUN. */
-static const CtrPokeTouchRect kHomeMenu = { 216, 4, 96, 128 };
+/* The menu window, as FireRed's START menu: a row per entry, PT_POKEDEX .. PT_OPTIONS in that order. */
+static const CtrPokeTouchRect kHomeMenu = { 216, 4, 96, 112 };
 static const CtrPokeTouchRect kHomeEntry[6] = {
     { 224, 12, 80, 16 }, { 224, 28, 80, 16 }, { 224, 44, 80, 16 },
     { 224, 60, 80, 16 }, { 224, 76, 80, 16 }, { 224, 92, 80, 16 },
 };
-static const CtrPokeTouchRect kHomeRun = { 224, 108, 80, 16 };
-/* X and Y: framed cells with the item's icon, the key's letter on the frame's top edge. */
-static const CtrPokeTouchRect kHomeRegistered = { 216, 136, 40, 40 };
-static const CtrPokeTouchRect kHomeBike = { 264, 136, 40, 40 };
-/* The message band at the bottom, in the dialogue frame. */
-static const CtrPokeTouchRect kHomeMessage = { 4, 180, 312, 56 };
+/* RUN and the game's speed (X and Y left the page; their buttons still work): a window 4 px under the menu whose bottom
+ * is the map panel's, one text line each (the arrow, the label, the value on the right); a touch anywhere on a line's
+ * half of the window is that line's. */
+static const CtrPokeTouchRect kHomeSettings = { 216, 120, 96, 44 };
+static const CtrPokeTouchRect kHomeRunLine = { 224, 128, 80, 14 };
+static const CtrPokeTouchRect kHomeSpeedLine = { 224, 142, 80, 14 };
+static const CtrPokeTouchRect kHomeRun = { 216, 120, 96, 22 };
+static const CtrPokeTouchRect kHomeSpeed = { 216, 142, 96, 22 };
+/* The party where the message band was: a framed window 4 px under the map, each slot a 32x32 party icon at
+ * (x + 8, y + 7) over FireRed's HP bar at (x + 10, y + 40), at the battle party bar's x; the slot is its touch place.
+ * While the map has a place picked, the Fly's hint (bar[2]) has the window instead. */
+static const CtrPokeTouchRect kHomeParty = { 4, 168, 312, 68 };
+static const CtrPokeTouchRect kHomePartySlot[6] = {
+    { 16, 176, 48, 52 }, { 64, 176, 48, 52 }, { 112, 176, 48, 52 },
+    { 160, 176, 48, 52 }, { 208, 176, 48, 52 }, { 256, 176, 48, 52 },
+};
 
 /* The party on top of every battle page: six slots 48 px apart, each Pokemon's own party icon (32x32) with FireRed's
  * HP bar under it (the owner's "B"). */

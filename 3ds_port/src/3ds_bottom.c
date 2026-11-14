@@ -49,6 +49,7 @@
 #include "3ds_ui_strings.h"
 #include "3ds_perf.h"
 #include "3ds_lang.h"
+#include "3ds_settings.h"
 
 int CtrBattleAction_Next(int cursor, int dir)
 {
@@ -641,6 +642,7 @@ static struct {
 static int BackVisible(int mode);
 static int BackEnabled(int mode);
 static int FieldEnabled(int id);
+static int HomeTouchEnabled(int id);
 
 /* Plan + injected keys. */
 static Plan sPlan;
@@ -1564,14 +1566,49 @@ static void HomeSelectionBar(CtrPokeTouchView *v)
     }
 }
 
-/* HOME, the field's lower screen: FireRed's own map of where the player is,
- * and the location's name and region on the bar. */
+/* The party as the lower screen's strips show it (CtrBattleView's fields, HOME's): per slot 0 no Pokemon, 1 able,
+ * 2 fainted, 3 a status condition; the HP left as a percentage (an egg: 100; 1 while any is left); the status (1..6,
+ * 0 for an egg); the party icon. */
+static void PartyFill(uint8_t kind[6], uint8_t hp[6], uint8_t status[6], uint16_t icon[6])
+{
+    for (int i = 0; i < 6; ++i) {
+        kind[i] = hp[i] = status[i] = 0;
+        icon[i] = 0;
+        if (CtrBottomParty_SlotEmpty(i))
+            continue;
+        if (CtrBottomParty_HP(i) == 0 && !CtrBottomParty_IsEgg(i))
+            kind[i] = 2;
+        else if (CtrBottomParty_Status(i) != 0 && !CtrBottomParty_IsEgg(i))
+            kind[i] = 3;
+        else
+            kind[i] = 1;
+        {
+            unsigned left = CtrBottomParty_HP(i), max = CtrBottomParty_MaxHP(i);
+            unsigned st = CtrBottomParty_IsEgg(i) ? 0 : CtrBottomParty_Status(i);
+
+            hp[i] = (uint8_t)(CtrBottomParty_IsEgg(i) || !max ? 100 : left >= max ? 100 : left ? (left * 100 / max ? left * 100 / max : 1) : 0);
+            status[i] = (uint8_t)(st > 6 ? 0 : st);
+            icon[i] = (uint16_t)CtrBottomParty_IconSpecies(i);
+        }
+    }
+}
+
+/* HOME, the field's lower screen: FireRed's own map of where the player is, and the location's name and region on
+ * the bar; the party and the game's speed in their windows. While a place is picked (or Fly waits for one) the Fly's
+ * hint (bar[2]) has the party's window. */
 static void HomeMapState(Snapshot *s)
 {
     static const char *const sRegions[PT_MAP_COUNT] = {CTR_TR("Main region", "Regi\xc3\xb3n principal", "Kanto"), CTR_TR("Island region", "Islas Sete", "Sevii-Eilande"), CTR_TR("Island region", "Islas Sete", "Sevii-Eilande"), CTR_TR("Island region", "Islas Sete", "Sevii-Eilande")};
     int group = CtrPokeTouch_MapGroup(), px, py, mapsec;
 
     s->touch.home = 1;
+    PartyFill(s->touch.party, s->touch.partyHp, s->touch.partyStatus, s->touch.partyIcon);
+    {
+        unsigned turbo = CtrSettings_Turbo();
+
+        s->touch.speed = (uint8_t)(turbo >= 2 && turbo <= 4 ? turbo : 1);
+        s->touch.speedEnabled = (uint8_t)(HomeTouchEnabled(PT_HOME_SPEED) == 1);
+    }
     s->touch.mapGroup = (uint8_t)(group >= 0 && group < PT_MAP_COUNT ? group : PT_MAP_KANTO);
     s->touch.mapVersion = (uint8_t)CtrPokeTouch_MapVersion();
     s->touch.playerFemale = (uint8_t)(CtrPokeTouch_PlayerFemale() != 0);
@@ -1588,9 +1625,11 @@ static void HomeMapState(Snapshot *s)
         s->touch.cursorY = (int8_t)sHome.y;
         s->touch.cursorFrame = (uint8_t)((sHome.frames / 20) & 1);
         HomeSelectionBar(&s->touch);
+        s->touch.homeHint = (uint8_t)(s->touch.bar[2][0] != 0);
         return;
     }
     if (sFlyPick) {
+        s->touch.homeHint = 1;
         snprintf(s->touch.bar[0], PT_BAR_LEN, CTR_TR("FLY", "VUELO", "Fliegen"));
         snprintf(s->touch.bar[1], PT_BAR_LEN, CTR_TR("Tap a town to go there.", "Toca un pueblo para ir.", "Ort antippen zum Hinfliegen."));
         snprintf(s->touch.bar[2], PT_BAR_LEN, CTR_TR("Any button: cancel", "Cualquier bot\xc3\xb3n: cancelar", "Beliebige Taste: Zur\xC3\xBC" "ck"));
@@ -1666,24 +1705,7 @@ static void BattleCommon(CtrBattleView *v)
     memset(v, 0, sizeof(*v));
     v->pressed = (int16_t)(sBat.down && sBat.inside ? sBat.btn : -1);
     v->cursor = -1;
-    for (int i = 0; i < 6; ++i) {
-        if (CtrBottomParty_SlotEmpty(i))
-            v->party[i] = 0;
-        else if (CtrBottomParty_HP(i) == 0 && !CtrBottomParty_IsEgg(i))
-            v->party[i] = 2;
-        else if (CtrBottomParty_Status(i) != 0 && !CtrBottomParty_IsEgg(i))
-            v->party[i] = 3;
-        else
-            v->party[i] = 1;
-        if (v->party[i]) {
-            unsigned hp = CtrBottomParty_HP(i), max = CtrBottomParty_MaxHP(i);
-            unsigned st = CtrBottomParty_IsEgg(i) ? 0 : CtrBottomParty_Status(i);
-
-            v->partyHp[i] = (uint8_t)(CtrBottomParty_IsEgg(i) || !max ? 100 : hp >= max ? 100 : hp ? (hp * 100 / max ? hp * 100 / max : 1) : 0);
-            v->partyStatus[i] = (uint8_t)(st > 6 ? 0 : st);
-            v->partyIcon[i] = (uint16_t)CtrBottomParty_IconSpecies(i);
-        }
-    }
+    PartyFill(v->party, v->partyHp, v->partyStatus, v->partyIcon);
     {                                   /* the Pokemon in the field: the action screen's footer and icon */
         int slot = BattleActiveSlot();
 
@@ -3491,12 +3513,52 @@ static void PokeTouchActivate(int id)
     }
 }
 
+/* HOME's own touch places (3ds_poketouch.h PT_HOME_*): SPEED where START could change the speed, a Pokemon of the
+ * party where POKeMON could open. -1 for any other id. */
+static int HomeTouchEnabled(int id)
+{
+    if (id == PT_HOME_SPEED)
+        return CtrBottom_TurboCanCycle() ? 1 : 0;
+    if (id >= PT_HOME_PARTY && id < PT_HOME_PARTY + 6)
+        return FieldEnabled(PT_POKEMON) ? 1 : 0;
+    return -1;
+}
+
+static int sTurboTap;               /* SPEED was tapped: the game bridge takes it as a START press for the turbo */
+
+/* A tap on HOME's own places: SPEED asks for the next speed, a Pokemon of the party opens POKeMON. 0 for any other
+ * id (a button: PokeTouchActivate's). */
+static int HomeTouchActivate(int id)
+{
+    if (id == PT_HOME_SPEED) {
+        sTurboTap = 1;
+        return 1;
+    }
+    if (id >= PT_HOME_PARTY && id < PT_HOME_PARTY + 6) {
+        PokeTouchActivate(PT_POKEMON);
+        return 1;
+    }
+    return 0;
+}
+
+bool CtrBottom_TakeTurboTap(void)
+{
+    bool tap = sTurboTap != 0;
+
+    sTurboTap = 0;
+    return tap;
+}
+
 /* What the field's sidebar can do now. OPTIONS is the native screen: never
  * with FireRed's own START menu up (its entry would open FireRed's Options),
  * and no-op once open; while it is open the entries that have no destination
- * of their own yet are off. */
+ * of their own yet are off. HOME's own places follow HomeTouchEnabled. */
 static int FieldEnabled(int id)
 {
+    int home = HomeTouchEnabled(id);
+
+    if (home >= 0)
+        return home;
     /* While SAVE is up the field is locked (so FireRed's own checks say no to everything) and the
      * sidebar is off: SAVE's NO, its B and its OK are the ways out. */
     if (SaveActive() || !CtrPokeTouch_Enabled(id))
@@ -3738,7 +3800,7 @@ static void ProcessPokeTouch(const CtrInput *in)
     int id = sPoke.id, inside = sPoke.inside;
     sPoke.id = PT_NONE;
     sPoke.inside = 0;
-    if (inside && FieldEnabled(id))
+    if (inside && FieldEnabled(id) && !HomeTouchActivate(id))
         PokeTouchActivate(id);
 }
 

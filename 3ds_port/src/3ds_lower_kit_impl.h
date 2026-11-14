@@ -97,14 +97,15 @@ bool CtrPokeTouch_FrameData(int type, uint8_t tiles[9 * 32], uint16_t framePal[1
 }
 
 /* One 8x8 tile at (x, y), optionally flipped vertically; index 0 is left as it is. */
-static void KitTile(const KitFrame *f, int tile, int vflip, int x, int y)
+/* A tile's first w columns and h rows (a whole tile: 8 and 8). */
+static void KitTilePart(const KitFrame *f, int tile, int vflip, int x, int y, int w, int h)
 {
     const uint8_t *src = f->tiles + tile * 32;
 
-    for (int py = 0; py < 8; ++py) {
+    for (int py = 0; py < h; ++py) {
         const uint8_t *row = src + (vflip ? 7 - py : py) * 4;
 
-        for (int px = 0; px < 8; ++px) {
+        for (int px = 0; px < w; ++px) {
             uint8_t b = row[px / 2];
             uint8_t v = (px & 1) ? b >> 4 : b & 15;
 
@@ -114,19 +115,34 @@ static void KitTile(const KitFrame *f, int tile, int vflip, int x, int y)
     }
 }
 
-/* The standard frame: a ring one tile wide, FireRed's DrawStdFrameWithCustomTileAndPalette. */
-static void KitStdFrame(const KitFrame *f, int x, int y, int cols, int rows)
+static void KitTile(const KitFrame *f, int tile, int vflip, int x, int y)
 {
-    for (int c = 0; c < cols; ++c) {
-        int edge = c == 0 ? 0 : c == cols - 1 ? 2 : 1;
+    KitTilePart(f, tile, vflip, x, y, 8, 8);
+}
 
-        KitTile(f, edge, 0, x + c * 8, y);
-        KitTile(f, 6 + edge, 0, x + c * 8, y + (rows - 1) * 8);
+/* The standard frame: a ring one tile wide, FireRed's DrawStdFrameWithCustomTileAndPalette, around the w x h at (x, y).
+ * The corners sit at its ends; the edge tiles repeat from the near corner, the last one cut short where the far corner
+ * starts when a side is not whole tiles (on whole tiles, FireRed's ring exactly). */
+static void KitStdFrame(const KitFrame *f, int x, int y, int w, int h)
+{
+    int right = x + w - 8, bottom = y + h - 8;
+
+    for (int cx = x + 8; cx < right; cx += 8) {
+        int part = right - cx < 8 ? right - cx : 8;
+
+        KitTilePart(f, 1, 0, cx, y, part, 8);
+        KitTilePart(f, 7, 0, cx, bottom, part, 8);
     }
-    for (int r = 1; r < rows - 1; ++r) {
-        KitTile(f, 3, 0, x, y + r * 8);
-        KitTile(f, 5, 0, x + (cols - 1) * 8, y + r * 8);
+    for (int cy = y + 8; cy < bottom; cy += 8) {
+        int part = bottom - cy < 8 ? bottom - cy : 8;
+
+        KitTilePart(f, 3, 0, x, cy, 8, part);
+        KitTilePart(f, 5, 0, right, cy, 8, part);
     }
+    KitTile(f, 0, 0, x, y);
+    KitTile(f, 2, 0, right, y);
+    KitTile(f, 6, 0, x, bottom);
+    KitTile(f, 8, 0, right, bottom);
 }
 
 /* The dialogue frame: two tile columns on each side, FireRed's WindowFunc_DrawDialogueFrame. Its height there is six
@@ -157,7 +173,8 @@ static void KitDialogueFrame(const KitFrame *f, int x, int y, int cols, int rows
     }
 }
 
-/* A panel whose outer edge is r (its width and height multiples of 8), the interior in palette index 1. */
+/* A panel whose outer edge is r, the interior in palette index 1: the standard frame at any size of three tiles or more
+ * each way, the dialogue frame on whole tiles (its width and height multiples of 8). */
 UI_FN void KitPanel(const CtrPokeTouchRect *r, int kind, int stdType)
 {
     int cols = r->w / 8, rows = r->h / 8;
@@ -173,7 +190,7 @@ UI_FN void KitPanel(const CtrPokeTouchRect *r, int kind, int stdType)
     if (kind == KIT_FRAME_DIALOGUE)
         KitDialogueFrame(f, r->x, r->y, cols, rows);
     else
-        KitStdFrame(f, r->x, r->y, cols, rows);
+        KitStdFrame(f, r->x, r->y, r->w, r->h);
 }
 
 /* Text the way FireRed's windows print it: its font, text colour 2 with shadow 3 on the white interior, a 14 px line

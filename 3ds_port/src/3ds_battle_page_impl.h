@@ -163,36 +163,44 @@ static void BPageBallArrow(const CtrBattleView *v, int next)
     }
 }
 
-/* The party: in each slot the Pokemon's own party icon (frame 0, from the pack), toned when it has fainted, with an
- * amber dot at its corner for a status condition, and FireRed's HP bar under it. Without its icon a slot shows the
- * port's ball mark instead; an empty slot shows the empty ring. */
+/* A party strip, six slots 48 px apart from (x, y) (kind, hp, status and icon as CtrBattleView's party fields): in
+ * each slot the Pokemon's own party icon (frame 0, from the pack), toned when it has fainted, with an amber dot at its
+ * corner for a status condition, and FireRed's HP bar under it (y + 33). Without its icon a slot shows the port's ball
+ * mark instead; an empty slot shows the empty ring. The battle's party bar and HOME's party window. */
+static void PartyStrip(int x, int y, const uint8_t kind[6], const uint8_t hp[6], const uint8_t status[6],
+                       const uint16_t icon[6])
+{
+    for (int i = 0; i < 6; ++i) {
+        int sx = x + 48 * i, k = kind[i];
+        int sick = k == 3 || (status[i] >= 1 && status[i] <= 6);
+
+        if (k && icon[i] && BPartyIcon(i, icon[i])) {
+            for (int py = 0; py < 32; ++py)
+                for (int px = 0; px < 32; ++px) {
+                    uint8_t index = sBPIcon[i].pixels[py * 32 + px];
+
+                    if (index)
+                        Px(sx + px, y + py, Tone(sBPIcon[i].pal[index], k != 2));
+                }
+            if (sick) {
+                UiDisc(sx + 28, y + 4, 3, UI_RGB(110, 40, 6));
+                UiDisc(sx + 28, y + 4, 2, UI_RGB(255, 200, 60));
+            }
+        } else {
+            BBall(sx + 16, y + 16, k, sick);
+        }
+        if (k)
+            KitHpBar(sx + 2, y + 33, 28, k == 2 ? 0 : hp[i], 100);
+    }
+}
+
+/* The party on top of every battle page. */
 static void BPageParty(const CtrBattleView *v)
 {
     const CtrPokeTouchRect *s = &kBatParty;
 
     Fill(s->x, s->y, s->w, s->h, BPageBg());
-    for (int i = 0; i < 6; ++i) {
-        int x = s->x + 48 * i + 8, kind = v->party[i];
-        int status = kind == 3 || (v->partyStatus[i] >= 1 && v->partyStatus[i] <= 6);
-
-        if (kind && v->partyIcon[i] && BPartyIcon(i, v->partyIcon[i])) {
-            for (int y = 0; y < 32; ++y)
-                for (int px = 0; px < 32; ++px) {
-                    uint8_t index = sBPIcon[i].pixels[y * 32 + px];
-
-                    if (index)
-                        Px(x + px, s->y + y, Tone(sBPIcon[i].pal[index], kind != 2));
-                }
-            if (status) {
-                UiDisc(x + 28, s->y + 4, 3, UI_RGB(110, 40, 6));
-                UiDisc(x + 28, s->y + 4, 2, UI_RGB(255, 200, 60));
-            }
-        } else {
-            BBall(x + 16, s->y + 16, kind, status);
-        }
-        if (kind)
-            KitHpBar(x + 2, s->y + 33, 28, kind == 2 ? 0 : v->partyHp[i], 100);
-    }
+    PartyStrip(s->x + 8, s->y, v->party, v->partyHp, v->partyStatus, v->partyIcon);
 }
 
 /* The Safari Zone's BALL: FireRed's Safari Ball icon, read once. */

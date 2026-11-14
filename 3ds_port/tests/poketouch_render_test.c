@@ -85,8 +85,16 @@ int CtrPokeTouch_MapPlayerIcon(uint8_t *tiles, uint16_t *pal)
 { (void)tiles; (void)pal; return 0; }
 int CtrPokeTouch_MapCursorIcon(uint8_t *tiles, uint16_t *pal)
 { (void)tiles; (void)pal; return 0; }
+/* A party icon: none, or (partyIconOk) a solid one in palette colour 1, pure red. */
+static int partyIconOk;
 int CtrBottomParty_Icon(int slot, unsigned char *tiles, unsigned short *pal)
-{ (void)slot; (void)tiles; (void)pal; return 0; }
+{
+    (void)slot;
+    if (!partyIconOk)
+        return 0;
+    memset(tiles, 0x11, 1024); memset(pal, 0, 32); pal[1] = 0x001F;
+    return 1;
+}
 
 unsigned CtrBottomSummary_IconSpecies(void) { return 0; }
 int CtrBottomSummary_Icon(unsigned char *tiles, unsigned short *pal)
@@ -211,39 +219,60 @@ static int ColorIn(int x, int y, int w, int h, uint16_t c)
 static void home_page(CtrPokeTouchView *v)
 {
     const int mx = kHomeMapPanel.x + 8, my = kHomeMapPanel.y + 8;
-    const CtrPokeTouchRect *buttons[PT_COUNT];
+    const CtrPokeTouchRect *buttons[PT_COUNT] = {0};
     int cx, cy;
 
     /* home_map_1to1: the stub map is one colour; at 1:1 it covers exactly the 192x128 at (mx, my). */
     for (int x = mx; x < mx + 192; ++x) for (int y = my; y < my + 128; ++y) assert(at(x, y) == Gba(0x5ab3));
     assert(at(mx - 1, my + 10) != Gba(0x5ab3) && at(mx + 192, my + 10) != Gba(0x5ab3));
-    /* home_hit_centres */
+    /* home_hit_centres: the entries; RUN and SPEED, each the half of their window it is in */
     for (int i = PT_POKEDEX; i <= PT_OPTIONS; ++i) buttons[i] = &kHomeEntry[i - PT_POKEDEX];
-    buttons[PT_REGISTERED] = &kHomeRegistered; buttons[PT_BIKE] = &kHomeBike; buttons[PT_RUN] = &kHomeRun;
+    buttons[PT_RUN] = &kHomeRun;
     for (int i = 0; i < PT_COUNT; ++i) {
         const CtrPokeTouchRect *r = buttons[i];
+        if (!r)
+            continue;
         assert(CtrPokeTouch_HomeHit(v, r->x + r->w / 2, r->y + r->h / 2) == i);
         assert(CtrPokeTouch_HomeHit(v, r->x, r->y) == i && CtrPokeTouch_HomeHit(v, r->x + r->w - 1, r->y + r->h - 1) == i);
     }
-    /* home_hit_gaps: the menu window's frame beside a row and above the first, on the map, off the screen */
+    assert(CtrPokeTouch_HomeHit(v, kHomeSpeed.x, kHomeSpeed.y) == PT_HOME_SPEED);
+    assert(CtrPokeTouch_HomeHit(v, kHomeSpeed.x + kHomeSpeed.w - 1, kHomeSpeed.y + kHomeSpeed.h - 1) == PT_HOME_SPEED);
+    /* home_no_xy: X and Y have left the page (their buttons still work): nothing on it answers with them */
+    for (int x = 0; x < W; x += 2)
+        for (int y = 0; y < H; y += 2) {
+            int hit = CtrPokeTouch_HomeHit(v, x, y);
+            assert(hit != PT_REGISTERED && hit != PT_BIKE);
+        }
+    /* home_hit_gaps: the menu window's frame beside a row and above the first, the gap under it, on the map, off the
+     * screen */
     assert(CtrPokeTouch_HomeHit(v, kHomeEntry[0].x + kHomeEntry[0].w, kHomeEntry[0].y + 4) == -1);
     assert(CtrPokeTouch_HomeHit(v, kHomeMenu.x + 2, kHomeMenu.y + 2) == -1);
-    assert(CtrPokeTouch_HomeHit(v, kHomeRegistered.x + 20, kHomeRegistered.y - 2) == -1);
+    assert(CtrPokeTouch_HomeHit(v, kHomeMenu.x + 20, kHomeMenu.y + kHomeMenu.h + 1) == -1);
     assert(CtrPokeTouch_HomeHit(v, mx + 50, my + 50) == -1 && CtrPokeTouch_HomeHit(v, -1, -1) == -1);
-    /* home_menu_window: the entries and RUN are rows of one framed window (without the pack, the kit's outline), each
-     * row the window's white; X, Y and the message band are framed too */
+    /* home_menu_window: the entries are rows of one framed window (without the pack, the kit's outline), each row the
+     * window's white; RUN and SPEED's window and the party's are framed too, the first ending on the map's last row */
     assert(at(kHomeMenu.x, kHomeMenu.y + 20) == KitInk(2) && at(kHomeMenu.x + kHomeMenu.w - 1, kHomeMenu.y + 60) == KitInk(2));
     for (int i = 0; i < 6; ++i)
         assert(at(kHomeEntry[i].x + 2, kHomeEntry[i].y + 1) == KitInk(1));
-    assert(at(kHomeRun.x + 2, kHomeRun.y + 1) == KitInk(1));
-    assert(at(kHomeRegistered.x, kHomeRegistered.y + 20) == KitInk(2) && at(kHomeBike.x, kHomeBike.y + 20) == KitInk(2));
-    assert(at(kHomeMessage.x, kHomeMessage.y + 20) == KitInk(2));
-    /* home_key_tabs: X's and Y's letter sit on a dark tab over the frame's top edge, centred */
-    assert(at(kHomeRegistered.x + kHomeRegistered.w / 2, kHomeRegistered.y - 2) == KitInk(2));
-    assert(at(kHomeBike.x + kHomeBike.w / 2, kHomeBike.y - 2) == KitInk(2));
-    /* home_arrow_on_held_row: no arrow while nothing is held; FireRed's arrow at the left of the row held */
+    assert(at(kHomeSettings.x, kHomeSettings.y + 20) == KitInk(2));
+    assert(at(kHomeSettings.x + 20, kHomeSettings.y + kHomeSettings.h - 1) == KitInk(2));
+    assert(at(kHomeSettings.x + 20, kHomeSettings.y + kHomeSettings.h) != KitInk(2));
+    assert(at(kHomeRunLine.x + 2, kHomeRunLine.y + 1) == KitInk(1) && at(kHomeSpeedLine.x + 2, kHomeSpeedLine.y + 1) == KitInk(1));
+    assert(at(kHomeParty.x, kHomeParty.y + 20) == KitInk(2) && at(kHomeParty.x + 20, kHomeParty.y + kHomeParty.h - 1) == KitInk(2));
+    /* home_speed_label: the multiplier the game runs the field at, "1x" with the turbo off */
+    {
+        char text[8];
+
+        HomeSpeedLabel(0, text); assert(!strcmp(text, "1x"));
+        HomeSpeedLabel(1, text); assert(!strcmp(text, "1x"));
+        HomeSpeedLabel(2, text); assert(!strcmp(text, "2x"));
+        HomeSpeedLabel(4, text); assert(!strcmp(text, "4x"));
+    }
+    /* home_arrow_on_held_row: no arrow while nothing is held; FireRed's arrow at the left of the row held, RUN's and
+     * SPEED's on their line */
     for (int i = 0; i < 6; ++i)
         assert(!ColorIn(kHomeEntry[i].x, kHomeEntry[i].y, 8, 16, KitInk(2)));
+    assert(!ColorIn(kHomeRunLine.x, kHomeRunLine.y, 8, kHomeRunLine.h, KitInk(2)));
     {
         CtrPokeTouchView old = *v;
 
@@ -251,11 +280,53 @@ static void home_page(CtrPokeTouchView *v)
         assert(ColorIn(kHomeEntry[2].x, kHomeEntry[2].y, 8, 16, KitInk(2)) > 20);
         assert(!ColorIn(kHomeEntry[1].x, kHomeEntry[1].y, 8, 16, KitInk(2)));
         v->pressed = PT_RUN; update(&old, v);
-        assert(ColorIn(kHomeRun.x, kHomeRun.y, 8, 16, KitInk(2)) > 20 && !ColorIn(kHomeEntry[2].x, kHomeEntry[2].y, 8, 16, KitInk(2)));
+        assert(ColorIn(kHomeRunLine.x, kHomeRunLine.y, 8, kHomeRunLine.h, KitInk(2)) > 20);
+        assert(!ColorIn(kHomeEntry[2].x, kHomeEntry[2].y, 8, 16, KitInk(2)));
+        v->pressed = PT_HOME_SPEED; update(&old, v);
+        assert(ColorIn(kHomeSpeedLine.x, kHomeSpeedLine.y, 8, kHomeSpeedLine.h, KitInk(2)) > 20);
+        assert(!ColorIn(kHomeRunLine.x, kHomeRunLine.y, 8, kHomeRunLine.h, KitInk(2)));
         v->running = 1; update(&old, v);
+        v->speed = 3; update(&old, v);
+        v->speedEnabled = 0; update(&old, v);
         v->enabled[PT_SAVE] = 0; update(&old, v);
         v->pressed = PT_REGISTERED; update(&old, v);
-        v->pressed = PT_NONE; v->running = 0; v->enabled[PT_SAVE] = 1; update(&old, v);
+        v->pressed = PT_NONE; v->running = 0; v->speed = 1; v->speedEnabled = 1; v->enabled[PT_SAVE] = 1; update(&old, v);
+    }
+    /* home_party: each Pokemon's party icon at (slot x + 8, slot y + 7) over its HP bar at (slot x + 10, slot y + 40),
+     * as the battle's bar: toned when fainted, the empty ring and no bar for an empty slot. A touch on a Pokemon is
+     * PT_HOME_PARTY + its slot; on an empty slot nothing. */
+    {
+        CtrPokeTouchView old = *v;
+        const CtrPokeTouchRect *s0 = &kHomePartySlot[0], *s1 = &kHomePartySlot[1], *s2 = &kHomePartySlot[2];
+
+        partyIconOk = 1;
+        v->party[0] = 1; v->partyHp[0] = 100; v->partyIcon[0] = 25;
+        v->party[1] = 2; v->partyHp[1] = 0; v->partyIcon[1] = 26;
+        update(&old, v);
+        assert(at(s0->x + 8 + 16, s0->y + 7 + 16) == GbaColor(0x001F));
+        assert(at(s1->x + 8 + 16, s1->y + 7 + 16) == Tone(GbaColor(0x001F), 0));
+        assert(at(s0->x + 11, s0->y + 41) == UI_HP_HIGH && at(s0->x + 10, s0->y + 40) == KitInk(2));
+        assert(at(s1->x + 11, s1->y + 41) == KitInk(3));
+        assert(at(s2->x + 11, s2->y + 41) == KitInk(1) && at(s2->x + 10, s2->y + 40) == KitInk(1));
+        assert(CtrPokeTouch_HomeHit(v, s0->x + s0->w / 2, s0->y + s0->h / 2) == PT_HOME_PARTY + 0);
+        assert(CtrPokeTouch_HomeHit(v, s1->x, s1->y) == PT_HOME_PARTY + 1);
+        assert(CtrPokeTouch_HomeHit(v, s2->x + 10, s2->y + 10) == -1);
+        /* home_hint_over_party: while the map has a place picked (the Fly's hints), the hint has the window and the party
+         * waits: no icon, no bar, no touch on it; then the party comes back */
+        v->homeHint = 1; strcpy(v->bar[2], "Tap again to Fly"); update(&old, v);
+        assert(at(s0->x + 8 + 16, s0->y + 7 + 16) == KitInk(1) && at(s0->x + 11, s0->y + 41) == KitInk(1));
+        assert(CtrPokeTouch_HomeHit(v, s0->x + s0->w / 2, s0->y + s0->h / 2) == -1);
+        strcpy(v->bar[2], "Not visited yet"); update(&old, v);
+        v->homeHint = 0; update(&old, v);
+        assert(at(s0->x + 8 + 16, s0->y + 7 + 16) == GbaColor(0x001F));
+        /* every change of the party redraws it as a full draw would */
+        v->partyHp[0] = 30; update(&old, v);
+        v->party[0] = 3; v->partyStatus[0] = 1; update(&old, v);
+        v->partyIcon[0] = 27; update(&old, v);
+        v->party[2] = 1; v->partyHp[2] = 5; v->partyIcon[2] = 28; update(&old, v);
+        v->pressed = PT_HOME_PARTY + 2; update(&old, v);
+        v->pressed = PT_NONE; memset(v->party, 0, sizeof(v->party)); update(&old, v);
+        partyIconOk = 0;
     }
     /* home_map_cell_bounds: cell (cx, cy) is the 8x8 at (mx + 8 + 8 cx, my + 4 + 8 cy) */
     assert(CtrPokeTouch_HomeMapCell(mx + 8 + 3, my + 4 + 3, &cx, &cy) && cx == 0 && cy == 0);
@@ -327,6 +398,7 @@ int main(int argc, char **argv)
     v.registeredItem=1; v.bikeItem=2;
     strcpy(v.playerName,"Trades"); strcpy(v.bar[0],"TEST MAP");
     for(int i=0;i<PT_COUNT;++i) v.enabled[i]=1;
+    v.speed=1; v.speedEnabled=1;
 #ifndef PT_BASELINE
     ArrowGlyph();
 #endif

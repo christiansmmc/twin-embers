@@ -235,6 +235,40 @@ int main(void) {
 }
 ''')
 
+    def test_home_speed_and_party_taps(self):
+        """HOME's SPEED line and its party (the owner's "F"): SPEED is usable where START would change the speed and a
+        tap is one START press for the turbo, taken once; a Pokemon is usable when POKeMON is and opens it."""
+        source = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        enabled = function(source, 'HomeTouchEnabled')
+        activate = function(source, 'HomeTouchActivate')
+        take = function(source, 'CtrBottom_TakeTurboTap')
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include "3ds_poketouch.h"
+static int canCycle, partyOpens, activated = -1;
+static bool CtrBottom_TurboCanCycle(void) { return canCycle; }
+static int FieldEnabled(int id) { return id == PT_POKEMON && partyOpens; }
+static void PokeTouchActivate(int id) { activated = id; }
+static int sTurboTap;
+''' + enabled + '\n' + activate + '\n' + take + '''
+int main(void) {
+    assert(!HomeTouchEnabled(PT_HOME_SPEED)); canCycle = 1; assert(HomeTouchEnabled(PT_HOME_SPEED) == 1);
+    assert(!CtrBottom_TakeTurboTap());
+    assert(HomeTouchActivate(PT_HOME_SPEED) && activated == -1);
+    assert(CtrBottom_TakeTurboTap() && !CtrBottom_TakeTurboTap());
+    for (int i = 0; i < 6; ++i) {
+        partyOpens = 0; assert(!HomeTouchEnabled(PT_HOME_PARTY + i));
+        partyOpens = 1; assert(HomeTouchEnabled(PT_HOME_PARTY + i) == 1);
+    }
+    assert(HomeTouchActivate(PT_HOME_PARTY + 5) && activated == PT_POKEMON);
+    activated = -1;
+    assert(HomeTouchEnabled(PT_BAG) == -1 && HomeTouchEnabled(PT_HOME_PARTY + 6) == -1);
+    assert(!HomeTouchActivate(PT_BAG) && !HomeTouchActivate(PT_RUN) && activated == -1 && !CtrBottom_TakeTurboTap());
+    return 0;
+}
+''')
+
 
 if __name__ == '__main__':
     unittest.main()
