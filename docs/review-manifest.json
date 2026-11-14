@@ -7431,6 +7431,38 @@
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
    "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "docs/superpowers/plans/2026-11-14-rework2-01-base-and-touch-fixes.md",
+   "sha256": "f5bd4c54941304bbe08450b03f95fcae3adf8c4b9fa1bf5bd6f5deff9259325a",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "docs/superpowers/specs/2026-11-14-lower-screen-rework2-design.md",
+   "sha256": "375e97fa6c41fb39be14be3dce66289290c42bde41cb42a92e06076c1416282c",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "tools/make_recipe.py",
+   "sha256": "05552148a35233cff5db986d7faffa9b3a2534dd83858073d4ef333ec9903942",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "tools/manifest_update.py",
+   "sha256": "6a319dbb4c2a7cd37214e79907fe3eac44e95678569a30683c493f4922aea2d4",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
   }
  ],
  "historical_reviews": [
