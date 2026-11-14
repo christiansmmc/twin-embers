@@ -878,6 +878,8 @@ static void preview_pages(const CtrPokeTouchView *base)
         n->curCol = 8; n->curRow = 0; ShotOf(&v, "name_2_page_button");
         memset(n, 0, sizeof(*n));
     }
+    CtrPokeTouch_DrawIdle(canvas, 1);
+    Shot("idle");
 }
 
 /* The page colour round every window: the screen's 4 px margin. */
@@ -1478,6 +1480,28 @@ static void learn_page(const CtrPokeTouchView *base)
     CtrPokeTouch_Draw(canvas, base);
 }
 
+/* The idle screen: the page's colour; with the logo, the logo in its panel (the dialogue frame) in the middle, the
+ * page's colour round it. */
+static void idle_page(const CtrPokeTouchView *base)
+{
+    int drawn = 0;
+
+    CtrPokeTouch_DrawIdle(canvas, 0);
+    for (int x = 0; x < W; ++x)
+        for (int y = 0; y < H; ++y)
+            assert(at(x, y) == KitInk(3));
+    CtrPokeTouch_DrawIdle(canvas, 1);
+    PageMargin();
+    for (int x = 0; x < kIdlePanel.x; ++x)
+        assert(at(x, H / 2) == KitInk(3) && at(W - 1 - x, H / 2) == KitInk(3));
+    for (int x = kIdlePanel.x + 16; x < kIdlePanel.x + kIdlePanel.w - 16; ++x)
+        for (int y = kIdlePanel.y + 8; y < kIdlePanel.y + kIdlePanel.h - 8; ++y)
+            drawn += at(x, y) != KitInk(1) && at(x, y) != KitInk(3);
+    assert(drawn > 1000);                                      /* the logo */
+    assert(at(kIdlePanel.x + 40, kIdlePanel.y + 8) == KitInk(1));    /* the panel's white, over the logo's first row */
+    CtrPokeTouch_Draw(canvas, base);
+}
+
 /* The naming keyboard as a page: the name's window, the three tabs (capitals, small letters, symbols, left to right;
  * the page shown underlined), the page's keys, DELETE and OK; FireRed's arrow on its cursor (a key, the tab its page
  * button turns to, DELETE or OK) or what is held. No BACK: DELETE is its B. */
@@ -1608,6 +1632,7 @@ int main(int argc, char **argv)
     choice_page(&v);
     learn_page(&v);
     name_page(&v);
+    idle_page(&v);
 #else
     for(int x=4;x<244;++x) for(int y=4;y<164;++y) assert(at(x,y)==Gba(0x5ab3));
 #endif

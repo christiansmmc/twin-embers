@@ -909,13 +909,17 @@ void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const Ct
 
 #include "idle_logo.h"
 
-/* The lower screen while FireRed's screen above has nothing for it: the ember backdrop and the project's logo. */
+/* The lower screen while FireRed's screen above has nothing for it (phase 2): the pages' colour and, with `logo`, the
+ * project's logo in a panel with FireRed's dialogue frame in the middle (3ds_lower_layout.h kIdlePanel). */
 void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
 {
-    int x0 = (W - IDLE_LOGO_W) / 2, y0 = (H - IDLE_LOGO_H_PX) / 2 - 6;
+    const CtrPokeTouchRect *p = &kIdlePanel;
+    int x0 = p->x + (p->w - IDLE_LOGO_W) / 2, y0 = p->y + (p->h - IDLE_LOGO_H_PX) / 2;
 
     sCanvas = canvas;
-    TsBackdrop();
+    Fill(0, 0, W, H, KitInk(3));
+    if (logo)
+        KitPanel(p, KIT_FRAME_DIALOGUE, 0);
     for (int y = 0; logo && y < IDLE_LOGO_H_PX; ++y)
         for (int x = 0; x < IDLE_LOGO_W; ++x) {
             int k = kIdleLogo[y * IDLE_LOGO_W + x], a = kIdleLogoAlpha[k];
@@ -923,8 +927,8 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
 
             if (a == 0)
                 continue;
-            if (a < 15) {                          /* a/15 of the logo over the backdrop, channel by channel */
-                b = TsGet(x0 + x, y0 + y);
+            if (a < 15) {                          /* a/15 of the logo over the panel, channel by channel */
+                b = sCanvas[(size_t)(x0 + x) * H + (H - 1 - (size_t)(y0 + y))];
                 c = ((((c >> 11) * a + (b >> 11) * (15 - a)) / 15) << 11)
                   | (((((c >> 5) & 63) * a + ((b >> 5) & 63) * (15 - a)) / 15) << 5)
                   | (((c & 31) * a + (b & 31) * (15 - a)) / 15);

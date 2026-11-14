@@ -313,6 +313,10 @@ static inline CtrPokeTouchRect NameKey(int cols, int row, int col)
     return r;
 }
 
+/* The idle screen (while FireRed's screen above needs nothing from this one): the page's colour, and the project's logo
+ * in a panel with the dialogue frame in its middle when there is one to show. */
+static const CtrPokeTouchRect kIdlePanel = { 32, 48, 256, 144 };
+
 /* A choice of the field (phase 2: a script's multichoice, YES / NO, the PC's menus): FireRed's menu window at the bottom
  * right as the Party's, as wide as its longest row needs (CHOICE_MIN_W to CHOICE_MAX_W, always 4 more than whole tiles so
  * the band beside it stays on whole tiles), the question in the band beside it; a grid (two or more columns) is a

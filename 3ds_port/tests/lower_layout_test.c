@@ -694,8 +694,17 @@ static void naming(void)
             }
 }
 
+/* The idle screen: the logo's panel in the middle of the screen, whole tiles, the logo (224x126) inside its frame. */
+static void idle(void)
+{
+    Dialogue(&kIdlePanel);
+    assert(kIdlePanel.x * 2 + kIdlePanel.w == 320 && kIdlePanel.y * 2 + kIdlePanel.h == 240);
+    assert(kIdlePanel.w - 32 >= 224 && kIdlePanel.h - 16 >= 126);
+}
+
 int main(void)
 {
+    idle();
     home();
     battle();
     party();
