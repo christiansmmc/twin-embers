@@ -1,61 +1,32 @@
-/* A PC box in the viewport (3ds_poketouch.h CtrPokeTouchBox), included at the end of 3ds_poketouch.c after the naming
- * screen, whose FireRed text it shares, and the Pokedex, whose picture helpers it shares. A remote for FireRed's own
- * box: its name between the arrows on an amber band, its thirty places as light cells with the Pokemon's icons, PARTY
- * and CLOSE BOX on the right with the Pokemon in hand under them, the Party over the cells while the cursor is in it,
- * and over them the box's menu, YES/NO, box chooser or marking card. FireRed's cursor is amber. The box's message and the Pokemon
- * under the cursor (FireRed's lines about it and its picture) are in the note. Every word is FireRed's (CtrBottomStorage_
- * BoxFill) but for the buttons' labels (3ds_ui_strings.h). MOVE ITEMS is the same box: an amber tag on every Pokemon
- * that holds an item, the item in hand on the plate under the buttons, and in the note the item under the cursor. */
+/* A PC box as a page (3ds_poketouch.h CtrPokeTouchBox; phase 2, FireRed's own arrangement at 1:1), included at the end
+ * of 3ds_poketouch.c after the naming screen, whose FireRed text it shares, and the Pokedex, whose picture helpers it
+ * shares. A remote for FireRed's own box: its wallpaper at 1:1 in the box's window (the box's name between the arrows on
+ * its header, the thirty places on its body, each Pokemon's icon over its place, FireRed's cursor a white place),
+ * PARTY and CLOSE BOX beside it over the picture of the Pokemon under the cursor, the Pokemon (or MOVE ITEMS' item) in
+ * hand over the cursor, the Party's panel in the box's window while the cursor is in it; the box's menu, YES / NO and
+ * marks in the Party's window at the bottom right, the box chooser as three cells over the wallpaper. The band says
+ * what the box says (a message that waits for A takes it whole), else the lines FireRed shows about the Pokemon under
+ * the cursor (MOVE ITEMS: the item it holds). Every word is FireRed's (CtrBottomStorage_BoxFill) but for the cells'
+ * labels (3ds_ui_strings.h). */
 #include "3ds_storage_touch.h"
 
-static const CtrPokeTouchRect sFXPrev = {4, 4, 26, 24}, sFXTitle = {32, 4, 120, 24}, sFXNext = {154, 4, 26, 24};
-static const CtrPokeTouchRect sFXParty = {184, 32, 60, 38}, sFXClose = {184, 74, 60, 38};
-static const CtrPokeTouchRect sFXHand = {184, 116, 60, 46};
-static const CtrPokeTouchRect sFXGrid = {4, 32, 176, 132};
-static const CtrPokeTouchRect sFXSlot0 = {10, 38, 70, 74}, sFXCancel = {10, 118, 70, 40};
-static const CtrPokeTouchRect sFXYes = {20, 96, 70, 30}, sFXNo = {94, 96, 70, 30};
-static const CtrPokeTouchRect sFXAsk = {12, 56, 160, 82};
-static const CtrPokeTouchRect sFXChoosePrev = {22, 86, 30, 32}, sFXChooseNext = {132, 86, 30, 32};
-static const CtrPokeTouchRect sFXChooseName = {56, 86, 72, 32};
-static const CtrPokeTouchRect sFXMarkCard = {12, 46, 160, 110};
-static const CtrPokeTouchRect sFXMarkOk = {20, 118, 70, 30}, sFXMarkCancel = {94, 118, 70, 30};
-
-/* The marking card's four marks, in a row under the Pokemon's icon. */
-static CtrPokeTouchRect FXMark(int i)
+/* The rows of the menu-like window the box has open: its menu, YES / NO, or the marks with OK and CANCEL. */
+static int FXMenuRows(const CtrPokeTouchBox *b)
 {
-    CtrPokeTouchRect r = {(int16_t)(18 + 38 * i), 80, 34, 30};
-    return r;
+    int n = b->state == PT_BOX_STATE_YESNO ? 2 : b->state == PT_BOX_STATE_MARKS ? 6 : b->menuCount;
+
+    return n > PARTY_MENU_ROWS ? PARTY_MENU_ROWS : n;
 }
 
-static CtrPokeTouchRect FXCell(int pos)
+static int FXMenuOpen(const CtrPokeTouchBox *b)
 {
-    CtrPokeTouchRect r = {(int16_t)(4 + 29 * (pos % 6)), (int16_t)(32 + 26 * (pos / 6)), 28, 25};
-    return r;
+    return b->state == PT_BOX_STATE_MENU || b->state == PT_BOX_STATE_YESNO || b->state == PT_BOX_STATE_MARKS;
 }
 
-static CtrPokeTouchRect FXPartyRow(int slot)
+/* BACK (the box's B through ProcessBack) shows where nothing covers it: not under a menu, nor while a message waits. */
+static const CtrPokeTouchRect *FXBackRect(const CtrPokeTouchView *v)
 {
-    CtrPokeTouchRect r = {84, (int16_t)(36 + 25 * (slot - 1)), 92, 24};
-    return r;
-}
-
-/* The menu's rows: 24 pixels apart, closer for six or seven (the card then takes the frame's whole height). */
-static int FXMenuPitch(const CtrPokeTouchBox *b)
-{
-    return b->menuCount > 5 ? 21 : 24;
-}
-
-static CtrPokeTouchRect FXMenuCard(const CtrPokeTouchBox *b)
-{
-    int h = 8 + FXMenuPitch(b) * b->menuCount, top = b->menuCount > 5 ? 4 + (160 - h) / 2 : sFXGrid.y + (sFXGrid.h - h) / 2;
-    CtrPokeTouchRect r = {30, (int16_t)top, 124, (int16_t)h};
-    return r;
-}
-
-static CtrPokeTouchRect FXMenuRow(const CtrPokeTouchBox *b, int i)
-{
-    CtrPokeTouchRect c = FXMenuCard(b), r = {38, (int16_t)(c.y + 5 + FXMenuPitch(b) * i), 108, (int16_t)(FXMenuPitch(b) - 2)};
-    return r;
+    return FXMenuOpen(&v->box) || v->box.state == PT_BOX_STATE_MESSAGE ? NULL : &kBoxBack;
 }
 
 int CtrPokeTouch_BoxHit(const CtrPokeTouchView *v, int x, int y)
@@ -66,63 +37,56 @@ int CtrPokeTouch_BoxHit(const CtrPokeTouchView *v, int x, int y)
         return ST_HIT_NONE;
     switch (b->state) {
     case PT_BOX_STATE_MESSAGE:
-        return y < NOTE_Y + NOTE_H && x < 248 ? PT_BOX_HIT_MESSAGE : ST_HIT_NONE;
+        return x >= 0 && y >= 0 && x < W && y < H ? PT_BOX_HIT_MESSAGE : ST_HIT_NONE;   /* anywhere: it waits for A */
     case PT_BOX_STATE_MENU:
-        for (int i = 0; i < b->menuCount; ++i) {
-            CtrPokeTouchRect r = FXMenuRow(b, i);
+    case PT_BOX_STATE_YESNO:
+    case PT_BOX_STATE_MARKS:
+        for (int i = 0; i < FXMenuRows(b); ++i) {
+            CtrPokeTouchRect r = PartyMenuRow(FXMenuRows(b), i);
+
             if (UiIn(&r, x, y))
                 return ST_HIT_MENU_BASE + i;
         }
         return ST_HIT_NONE;
-    case PT_BOX_STATE_YESNO:
-        return UiIn(&sFXYes, x, y) ? ST_HIT_MENU_BASE : UiIn(&sFXNo, x, y) ? ST_HIT_MENU_BASE + 1 : ST_HIT_NONE;
     case PT_BOX_STATE_CHOOSE:
-        return UiIn(&sFXChoosePrev, x, y) ? ST_HIT_PREV : UiIn(&sFXChooseNext, x, y) ? ST_HIT_NEXT
-             : UiIn(&sFXChooseName, x, y) ? ST_HIT_TITLE : ST_HIT_NONE;
-    case PT_BOX_STATE_MARKS:
-        for (int i = 0; i < 4; ++i) {
-            CtrPokeTouchRect r = FXMark(i);
-            if (UiIn(&r, x, y))
-                return ST_HIT_MENU_BASE + i;
-        }
-        return UiIn(&sFXMarkOk, x, y) ? ST_HIT_MENU_BASE + 4 : UiIn(&sFXMarkCancel, x, y) ? ST_HIT_MENU_BASE + 5
-             : ST_HIT_NONE;
+        return UiIn(&kBoxChoosePrev, x, y) ? ST_HIT_PREV : UiIn(&kBoxChooseNext, x, y) ? ST_HIT_NEXT
+             : UiIn(&kBoxChooseName, x, y) ? ST_HIT_TITLE : ST_HIT_NONE;
     case PT_BOX_STATE_BOX:
         break;
     default:
         return ST_HIT_NONE;
     }
     if (b->area == ST_AREA_PARTY) {
-        if (UiIn(&sFXSlot0, x, y))
+        if (UiIn(&kBoxLead, x, y))
             return ST_HIT_PARTY_BASE;
         for (int i = 1; i < 6; ++i) {
-            CtrPokeTouchRect r = FXPartyRow(i);
+            CtrPokeTouchRect r = BoxPartyRow(i);
+
             if (UiIn(&r, x, y))
                 return ST_HIT_PARTY_BASE + i;
         }
-        return UiIn(&sFXCancel, x, y) ? ST_HIT_PARTY_BASE + 6 : ST_HIT_NONE;
+        return UiIn(&kBoxPartyCancel, x, y) ? ST_HIT_PARTY_BASE + 6 : ST_HIT_NONE;
     }
-    if (UiIn(&sFXPrev, x, y))
+    if (UiIn(&kBoxPrev, x, y))
         return ST_HIT_PREV;
-    if (UiIn(&sFXNext, x, y))
+    if (UiIn(&kBoxNext, x, y))
         return ST_HIT_NEXT;
-    if (UiIn(&sFXTitle, x, y))
+    if (UiIn(&kBoxTitle, x, y))
         return ST_HIT_TITLE;
-    if (UiIn(&sFXParty, x, y))
+    if (UiIn(&kBoxPartyButton, x, y))
         return ST_HIT_BUTTON_PARTY;
-    if (UiIn(&sFXClose, x, y))
+    if (UiIn(&kBoxClose, x, y))
         return ST_HIT_BUTTON_CLOSE;
     for (int i = 0; i < PT_BOX_SLOTS; ++i) {
-        CtrPokeTouchRect r = FXCell(i);
+        CtrPokeTouchRect r = BoxCell(i);
+
         if (UiIn(&r, x, y))
             return i;
     }
     return ST_HIT_NONE;
 }
 
-/* The box's wallpaper, FireRed's own picture of it (160x144) in the lower screen's colours; decoded once per wallpaper.
- * Its body (the frame's inside) sits behind the cells and its header strip behind the box's name, so choosing another
- * wallpaper changes the box's whole look, as it does in the game. */
+/* The box's wallpaper, FireRed's own picture of it (160x144) in the lower screen's colours; decoded once per wallpaper. */
 static uint16_t sFXWall[160 * 144];
 static int sFXWallId = -1, sFXWallOk;
 
@@ -141,23 +105,7 @@ static int FXWallpaper(unsigned id)
     return sFXWallOk;
 }
 
-/* The wallpaper's pixel behind lower-screen point (x, y) of the grid (sFXGrid: the picture's body, 160x120 from its row
- * 24, stretched to the grid) or of the title (its header strip, 128x24 from column 16, stretched to the title). */
-static uint16_t FXWallBody(int x, int y)
-{
-    int sx = (x - sFXGrid.x) * 160 / sFXGrid.w, sy = 24 + (y - sFXGrid.y) * 120 / sFXGrid.h;
-
-    return sFXWall[sy * 160 + sx];
-}
-
-static uint16_t FXWallHead(int x, int y)
-{
-    int sx = 16 + (x - sFXTitle.x) * 128 / sFXTitle.w, sy = (y - sFXTitle.y) * 24 / sFXTitle.h;
-
-    return sFXWall[sy * 160 + sx];
-}
-
-/* A Pokemon's icon (FireRed's, its first frame), its centre at (cx, cy). */
+/* A Pokemon's icon (FireRed's, its first frame), its 32x32 centred on (cx, cy). */
 static void FXIcon(const CtrPokeTouchBoxMon *m, int cx, int cy)
 {
     static unsigned char tiles[1024];
@@ -169,329 +117,286 @@ static void FXIcon(const CtrPokeTouchBoxMon *m, int cx, int cy)
         return;
     FDTiles(tiles, 32, 32, px);
     FDPal(pal, pal565);
-    UiImage(px, pal565, 32, 32, 32, cx - 16, cy - 18, 1, 1);
+    UiImage(px, pal565, 32, 32, 32, cx - 16, cy - 16, 1, 1);
 }
 
-/* MOVE ITEMS: the tag of a Pokemon that holds an item, centred on (cx, cy). */
+/* MOVE ITEMS: the tag of a Pokemon that holds an item, its 7x7 centred on (cx, cy), in FireRed's red. */
 static void FXItemTag(int cx, int cy)
 {
-    UiRoundFill(cx - 5, cy - 5, 11, 11, 3, kEmAmber.lip);
-    EmGradFill(cx - 4, cy - 4, 9, 9, 2, kEmAmber.top, kEmAmber.bottom);
-    UiRoundFill(cx - 1, cy - 2, 3, 5, 1, EM_WHITE);
+    Fill(cx - 3, cy - 3, 7, 7, KitInk(4));
+    Fill(cx - 1, cy - 1, 3, 3, KitInk(1));
 }
 
-static void FXText(const uint8_t *raw, int n, int x, int y, uint16_t ink, uint16_t sh, int right)
+/* A FireRed text (codes, 0xff ended) on a line. */
+static void FXLine(const uint8_t *raw, int n, int x, int lineTop, int limit)
 {
     char text[64];
 
     FNText(raw, n, text, (int)sizeof(text));
-    UiText(text, x, y, ink, sh, 1, right);
+    KitText(text, x, lineTop, limit);
 }
 
-static void FXButton(const CtrPokeTouchRect *r, const char *label, const EmPal *p, int pressed)
+/* The arrow's place among controls: the one held under a touch, else FireRed's cursor. */
+static int FXChosen(const CtrPokeTouchBox *b, int code, int cursorHere)
 {
-    int fy = EmButton(r->x, r->y, r->w, r->h, p, FB_DEPTH, pressed);
-
-    EmLabel(label, r->x, r->w, fy, r->h - FB_DEPTH, p);
+    return b->pressed >= 0 ? b->pressed == code : cursorHere;
 }
 
-static void FXArrowButton(const CtrPokeTouchRect *r, int dir, int selected, int pressed)
+/* The box's window: the wallpaper at 1:1, the name between the arrows on its header (the arrow before the name while
+ * FireRed's cursor is there), the places (FireRed's cursor a white place, one held light grey), the icons, MOVE ITEMS'
+ * tags. Without a wallpaper the header is the light grey and the body white. */
+static void FXBoxWindow(const CtrPokeTouchView *v)
 {
-    const EmPal *p = selected ? &kEmAmber : &kEmCream;
-    int fy = EmButton(r->x, r->y, r->w, r->h, p, FB_DEPTH, pressed);
-
-    UiArrow(r->x + r->w / 2 - 3, fy + (r->h - FB_DEPTH) / 2 - 4, dir, selected ? EM_WHITE : EM_STRIPE);
-}
-
-static void FXTitle(const CtrPokeTouchBox *b)
-{
-    int onTitle = b->state == PT_BOX_STATE_BOX && b->area == ST_AREA_TITLE;
-    const CtrPokeTouchRect *t = &sFXTitle;
-    CtrPokeTouchRect line = {t->x, 0, t->w, 13};
+    const CtrPokeTouchBox *b = &v->box;
+    int ready = b->state != PT_BOX_STATE_BUSY, top = kBoxTitle.y + (kBoxTitle.h - KIT_LINE_H) / 2;
     char name[32];
-    int fy;
 
-    FXArrowButton(&sFXPrev, -1, 0, b->pressed == ST_HIT_PREV);
-    FXArrowButton(&sFXNext, 1, 0, b->pressed == ST_HIT_NEXT);
-    fy = EmButton(t->x, t->y, t->w, t->h, onTitle ? &kEmAmber : &kEmCream, FB_DEPTH, b->pressed == ST_HIT_TITLE);
-    FNText(b->boxName, (int)sizeof(b->boxName), name, (int)sizeof(name));
+    FPageWindow(&kBoxWin, v->frameType);
     if (FXWallpaper(b->wallpaper)) {
-        /* The wallpaper's own header strip is the name's plate, its text FireRed's white on shadow. */
-        for (int y = fy + 2; y < fy + t->h - FB_DEPTH - 2; ++y)
-            for (int x = t->x + 3; x < t->x + t->w - 3; ++x)
-                Px(x, y, FXWallHead(x, y));
-        UiTextCentered(name, &line, fy + 6, EM_WHITE, UI_RGB(56, 56, 56), 1);
-        if (onTitle)
-            EmGlowRing(t->x, fy, t->w, t->h - FB_DEPTH);
-        return;
+        for (int y = 0; y < 144; ++y)
+            for (int x = 0; x < 160; ++x)
+                Px(BOX_WALL_X + x, BOX_WALL_Y + y, sFXWall[y * 160 + x]);
+    } else
+        Fill(BOX_WALL_X, BOX_WALL_Y, 160, 24, KitInk(3));
+    if (b->pressed == ST_HIT_PREV || b->pressed == ST_HIT_NEXT || b->pressed == ST_HIT_TITLE) {
+        const CtrPokeTouchRect *r = b->pressed == ST_HIT_PREV ? &kBoxPrev : b->pressed == ST_HIT_NEXT ? &kBoxNext : &kBoxTitle;
+
+        Fill(r->x, r->y, r->w, r->h, KitInk(3));
     }
-    UiTextCentered(name, &line, fy + 6, onTitle ? kEmAmber.ink : EM_DARK, onTitle ? kEmAmber.inkSh : EM_DARK_SH, 1);
-}
+    KitTriangle(kBoxPrev.x + kBoxPrev.w / 2, kBoxPrev.y + kBoxPrev.h / 2, 2, KitInk(2));
+    KitTriangle(kBoxNext.x + kBoxNext.w / 2, kBoxNext.y + kBoxNext.h / 2, 3, KitInk(2));
+    FNText(b->boxName, (int)sizeof(b->boxName), name, (int)sizeof(name));
+    {
+        int w = UiTextWidth(name, 1), x = kBoxTitle.x + (kBoxTitle.w - w) / 2;
 
-static void FXGrid(const CtrPokeTouchBox *b)
-{
-    int wall = FXWallpaper(b->wallpaper);
-
-    if (wall) {
-        /* The wallpaper's picture behind the cells, in a frame of its own border colour. */
-        UiRoundFill(sFXGrid.x - 1, sFXGrid.y - 1, sFXGrid.w + 2, sFXGrid.h + 2, 4, sFXWall[70 * 160 + 4]);
-        for (int y = sFXGrid.y; y < sFXGrid.y + sFXGrid.h; ++y)
-            for (int x = sFXGrid.x; x < sFXGrid.x + sFXGrid.w; ++x)
-                Px(x, y, FXWallBody(x, y));
+        if (FXChosen(b, ST_HIT_TITLE, ready && b->area == ST_AREA_TITLE))
+            KitText(KIT_ARROW, x - KIT_ARROW_W, top, x);
+        KitText(name, x, top, kBoxTitle.x + kBoxTitle.w);
     }
     for (int i = 0; i < PT_BOX_SLOTS; ++i) {
-        CtrPokeTouchRect r = FXCell(i);
-        int cursor = b->area == ST_AREA_BOX && b->pos == i && b->state != PT_BOX_STATE_BUSY;
+        CtrPokeTouchRect r = BoxCell(i);
 
-        /* Over a wallpaper only the cursor's cell is drawn: the other places show the picture itself, as in FireRed. */
-        if (wall && !cursor)
-            continue;
-        UiRoundFill(r.x, r.y, r.w, r.h, 4, cursor ? kEmAmber.lip : UI_RGB(150, 136, 126));
-        EmGradFill(r.x + 1, r.y + 1, r.w - 2, r.h - 2, 3, cursor ? kEmAmber.top : UI_RGB(255, 250, 240),
-                   cursor ? kEmAmber.bottom : UI_RGB(234, 226, 212));
-    }
-    for (int i = 0; i < PT_BOX_SLOTS; ++i) {
-        CtrPokeTouchRect r = FXCell(i);
-        FXIcon(&b->slot[i], r.x + r.w / 2, r.y + r.h / 2 + 2);
-        if (b->items && b->slot[i].species && b->slotItem[i])
-            FXItemTag(r.x + r.w - 6, r.y + r.h - 6);
-    }
-}
-
-static void FXSide(const CtrPokeTouchBox *b)
-{
-    int buttons = b->state == PT_BOX_STATE_BOX && b->area == ST_AREA_BUTTONS;
-    const CtrPokeTouchRect *h = &sFXHand;
-
-    FXButton(&sFXParty, CtrUiText(UIS_BOX_PARTY), buttons && b->pos == 0 ? &kEmAmber : &kEmCream,
-             b->pressed == ST_HIT_BUTTON_PARTY);
-    FXButton(&sFXClose, CtrUiText(UIS_BOX_CLOSE), buttons && b->pos == 1 ? &kEmAmber : &kEmViolet,
-             b->pressed == ST_HIT_BUTTON_CLOSE);
-    /* The Pokemon in hand, on a sunk plate; MOVE ITEMS: the item in hand. */
-    UiRoundFill(h->x, h->y, h->w, h->h, 5, UI_RGB(24, 8, 10));
-    EmGradFill(h->x + 1, h->y + 1, h->w - 2, h->h - 2, 4, UI_RGB(72, 26, 26), UI_RGB(44, 14, 16));
-    if (b->items && b->handItem) {
-        CtrPokeTouchRect line = {h->x, 0, h->w, 13};
-
-        ItemArt(ICON_BOX_HAND, b->handItem, h->x + h->w / 2 - 10, h->y + 8, 1);
-        UiTextCentered(CtrUiText(UIS_BOX_IN_HAND), &line, h->y + h->h - 15, UI_RGB(240, 200, 170), UI_RGB(30, 8, 8), 1);
-    } else if (b->holding)
-        FXIcon(&b->held, h->x + h->w / 2, h->y + h->h / 2 + 2);
-}
-
-static void FXParty(const CtrPokeTouchBox *b)
-{
-    CtrPokeTouchRect dim = sFXGrid;
-
-    UiDim(&dim);
-    FBCard(&sFXGrid);
-    for (int i = 0; i < 6; ++i) {
-        CtrPokeTouchRect r = i == 0 ? sFXSlot0 : FXPartyRow(i);
-        int cursor = b->pos == i;
-        const EmPal *p = cursor ? &kEmAmber : &kEmCream;
-        int fy = EmButton(r.x, r.y, r.w, r.h, p, FB_DEPTH, b->pressed == ST_HIT_PARTY_BASE + i);
-        char level[8];
-
-        if (!b->party[i].species)
-            continue;
-        if (i == 0) {
-            FXIcon(&b->party[0], r.x + r.w / 2, fy + 24);
-            if (b->items && b->partyItem[0])
-                FXItemTag(r.x + r.w - 10, fy + 32);
-            FXText(b->partyName[0], (int)sizeof(b->partyName[0]), r.x + 6, fy + 44, p->ink, p->inkSh, r.x + r.w - 4);
-            if (!b->party[0].egg) {
-                snprintf(level, sizeof(level), "Lv%u", (unsigned)b->partyLevel[0]);
-                UiText(level, r.x + 6, fy + 57, p->ink, p->inkSh, 1, r.x + r.w - 4);
-            }
-            continue;
+        if (b->pressed == i)
+            Fill(r.x, r.y, r.w, r.h, KitInk(3));
+        else if (ready && b->area == ST_AREA_BOX && b->pos == i) {
+            Fill(r.x, r.y, r.w, r.h, KitInk(2));
+            Fill(r.x + 1, r.y + 1, r.w - 2, r.h - 2, KitInk(1));
         }
-        FXIcon(&b->party[i], r.x + 14, fy + 11);
-        if (b->items && b->partyItem[i])
-            FXItemTag(r.x + 24, fy + 15);
-        FXText(b->partyName[i], (int)sizeof(b->partyName[i]), r.x + 30, fy + 6, p->ink, p->inkSh, r.x + r.w - 4);
     }
-    FXButton(&sFXCancel, CtrUiText(UIS_CANCEL), b->pos == 6 ? &kEmAmber : &kEmViolet,
-             b->pressed == ST_HIT_PARTY_BASE + 6);
-}
+    for (int i = 0; i < PT_BOX_SLOTS; ++i) {
+        CtrPokeTouchRect r = BoxCell(i);
 
-static void FXMenu(const CtrPokeTouchBox *b)
-{
-    CtrPokeTouchRect card = FXMenuCard(b), dim = {0, 0, 182, 168};
-    char text[40];
-
-    UiDim(&dim);
-    FBCard(&card);
-    for (int i = 0; i < b->menuCount; ++i) {
-        CtrPokeTouchRect r = FXMenuRow(b, i);
-        const EmPal *p = b->menuCursor == i ? &kEmAmber : i == b->menuCount - 1 ? &kEmViolet : &kEmCream;
-
-        FNText(b->menu[i], (int)sizeof(b->menu[i]), text, (int)sizeof(text));
-        FXButton(&r, text, p, b->pressed == ST_HIT_MENU_BASE + i);
+        FXIcon(&b->slot[i], r.x + r.w / 2, r.y + r.h / 2);
+        if (b->items && b->slot[i].species && b->slotItem[i])
+            FXItemTag(r.x + r.w - 4, r.y + r.h - 4);
     }
 }
 
-static void FXYesNo(const CtrPokeTouchBox *b)
+/* The Party's panel in the box's window, as FireRed's: the lead's place on the left, five rows, CANCEL across; each
+ * Pokemon's icon (its lines are in the band while the cursor is on it), FireRed's arrow on the cursor or the one held. */
+static void FXPartyPanel(const CtrPokeTouchView *v)
 {
-    CtrPokeTouchRect dim = sFXGrid;
+    const CtrPokeTouchBox *b = &v->box;
 
-    UiDim(&dim);
-    FBCard(&sFXAsk);
-    FXIcon(&b->mon, sFXAsk.x + sFXAsk.w / 2, sFXAsk.y + 22);
-    FXButton(&sFXYes, CtrUiText(UIS_YES), b->menuCursor == 0 ? &kEmAmber : &kEmCream, b->pressed == ST_HIT_MENU_BASE);
-    FXButton(&sFXNo, CtrUiText(UIS_NO), b->menuCursor == 1 ? &kEmAmber : &kEmViolet, b->pressed == ST_HIT_MENU_BASE + 1);
+    FPageWindow(&kBoxWin, v->frameType);
+    for (int i = 0; i < 6; ++i) {
+        CtrPokeTouchRect r = i == 0 ? kBoxLead : BoxPartyRow(i);
+        int cx = i == 0 ? r.x + r.w / 2 + 4 : r.x + KIT_ARROW_W + 4 + 16, cy = r.y + r.h / 2;
+
+        Fill(r.x, r.y, r.w, r.h, b->pressed == ST_HIT_PARTY_BASE + i ? KitInk(3) : KitInk(1));
+        if (FXChosen(b, ST_HIT_PARTY_BASE + i, b->pos == i))
+            KitText(KIT_ARROW, r.x, cy - KIT_LINE_H / 2, r.x + KIT_ARROW_W);
+        FXIcon(&b->party[i], cx, cy);
+        if (b->items && b->party[i].species && b->partyItem[i])
+            FXItemTag(cx + 12, cy + 10);
+    }
+    FPageRow(&kBoxPartyCancel, CtrUiText(UIS_CANCEL), FXChosen(b, ST_HIT_PARTY_BASE + 6, b->pos == 6),
+             b->pressed == ST_HIT_PARTY_BASE + 6, 1);
 }
 
-static void FXChoose(const CtrPokeTouchBox *b)
+/* PARTY and CLOSE BOX (the arrow while FireRed's cursor is on one, or it is held), and the picture of the Pokemon under
+ * the cursor (an Egg: its icon); MOVE ITEMS: the item it holds under the picture. */
+static void FXSide(const CtrPokeTouchView *v)
 {
-    CtrPokeTouchRect dim = sFXGrid, line = {sFXChooseName.x, 0, sFXChooseName.w, 13};
+    const CtrPokeTouchBox *b = &v->box;
+    const CtrPokeTouchRect *m = &kBoxMon;
+    int buttons = b->state == PT_BOX_STATE_BOX && b->area == ST_AREA_BUTTONS;
+
+    BagCell(&kBoxPartyButton, v->frameType, CtrUiText(UIS_BOX_PARTY),
+            FXChosen(b, ST_HIT_BUTTON_PARTY, buttons && b->pos == 0), b->pressed == ST_HIT_BUTTON_PARTY, 1);
+    BagCell(&kBoxClose, v->frameType, CtrUiText(UIS_BOX_CLOSE),
+            FXChosen(b, ST_HIT_BUTTON_CLOSE, buttons && b->pos == 1), b->pressed == ST_HIT_BUTTON_CLOSE, 1);
+    FPageWindow(m, v->frameType);
+    if (b->mon.species && b->mon.egg)
+        FXIcon(&b->mon, m->x + m->w / 2, m->y + m->h / 2);
+    else if (b->mon.species)
+        FDPicDraw(b->mon.species, m->x + (m->w - 64) / 2, m->y + (b->items ? 8 : (m->h - 64) / 2), 0);
+    if (b->items && b->monItem)
+        BItemDraw(b->monItem, m->x + 8, m->y + m->h - 8 - 24, 1);
+}
+
+/* The Pokemon (or MOVE ITEMS' item) in hand, over the cursor's place and a little above it, as FireRed's hand holds it. */
+static void FXHand(const CtrPokeTouchView *v)
+{
+    const CtrPokeTouchBox *b = &v->box;
+    CtrPokeTouchRect r;
+
+    if (!b->holding && !(b->items && b->handItem))
+        return;
+    switch (b->area) {
+    case ST_AREA_BOX:
+        r = BoxCell(b->pos >= 0 && b->pos < PT_BOX_SLOTS ? b->pos : 0);
+        break;
+    case ST_AREA_PARTY:
+        r = b->pos <= 0 ? kBoxLead : b->pos >= 6 ? kBoxPartyCancel : BoxPartyRow(b->pos);
+        break;
+    case ST_AREA_BUTTONS:
+        r = b->pos == 1 ? kBoxClose : kBoxPartyButton;
+        break;
+    default:
+        r = kBoxTitle;
+        break;
+    }
+    if (b->items && b->handItem)
+        BItemDraw(b->handItem, r.x + r.w / 2 - 12, r.y + r.h / 2 - 22, 1);
+    else
+        FXIcon(&b->held, r.x + r.w / 2, r.y + r.h / 2 - 10);
+}
+
+/* The box chooser over the wallpaper: its arrows and the box shown, with how many it holds. */
+static void FXChoose(const CtrPokeTouchView *v)
+{
+    const CtrPokeTouchBox *b = &v->box;
+    const CtrPokeTouchRect *n = &kBoxChooseName;
     char name[32], count[12];
-    int fy;
+    int top = n->y + (n->h - 2 * KIT_LINE_H) / 2;
 
-    UiDim(&dim);
-    FBCard(&sFXAsk);
-    FXArrowButton(&sFXChoosePrev, -1, 0, b->pressed == ST_HIT_PREV);
-    FXArrowButton(&sFXChooseNext, 1, 0, b->pressed == ST_HIT_NEXT);
-    fy = EmButton(sFXChooseName.x, sFXChooseName.y, sFXChooseName.w, sFXChooseName.h, &kEmAmber, FB_DEPTH,
-                  b->pressed == ST_HIT_TITLE);
+    BagArrowCell(&kBoxChoosePrev, v->frameType, 2, 1, b->pressed == ST_HIT_PREV);
+    BagArrowCell(&kBoxChooseNext, v->frameType, 3, 1, b->pressed == ST_HIT_NEXT);
+    FPageWindow(n, v->frameType);
+    if (b->pressed == ST_HIT_TITLE)
+        Fill(n->x + 8, n->y + 8, n->w - 16, n->h - 16, KitInk(3));
     FNText(b->chooseName, (int)sizeof(b->chooseName), name, (int)sizeof(name));
-    UiTextCentered(name, &line, fy + 4, kEmAmber.ink, kEmAmber.inkSh, 1);
     snprintf(count, sizeof(count), "%u/%u", (unsigned)b->chooseCount, (unsigned)PT_BOX_SLOTS);
-    UiTextCentered(count, &line, fy + 16, kEmAmber.ink, kEmAmber.inkSh, 1);
+    KitText(name, n->x + (n->w - UiTextWidth(name, 1)) / 2, top, n->x + n->w - 8);
+    KitText(count, n->x + (n->w - UiTextWidth(count, 1)) / 2, top + KIT_LINE_H, n->x + n->w - 8);
 }
 
-/* FireRed's own mark (its 8x8 shape, twice the size) centred at (cx, cy): white while on, slate while off. */
-static void FXMarkShape(int mark, int on, int cx, int cy)
+/* FireRed's own mark (its 8x8 shape at twice its size) at (x, y): ink while on, the light grey while off. */
+static void FXMarkShape(int mark, int on, int x, int y)
 {
     unsigned char px[64];
-    uint16_t ink = on ? EM_WHITE : UI_RGB(112, 116, 136), edge = on ? UI_RGB(255, 226, 170) : UI_RGB(170, 168, 178);
 
     if (!CtrPokeTouch_MarkShape(mark, px))
         return;
     for (int i = 0; i < 64; ++i)
         if (px[i] == 3 || px[i] == 4)
-            Fill(cx - 8 + 2 * (i % 8), cy - 8 + 2 * (i / 8), 2, 2, px[i] == 3 ? ink : edge);
+            Fill(x + 2 * (i % 8), y + 2 * (i / 8), 2, 2, on && px[i] == 3 ? KitInk(2) : KitInk(3));
 }
 
-/* The marking card: the Pokemon's icon, its four marks as switches (amber while on) and OK and CANCEL. FireRed's cursor
- * glows round its piece. */
-static void FXMarks(const CtrPokeTouchBox *b)
-{
-    CtrPokeTouchRect dim = sFXGrid;
-
-    UiDim(&dim);
-    FBCard(&sFXMarkCard);
-    FXIcon(&b->mon, sFXMarkCard.x + sFXMarkCard.w / 2, sFXMarkCard.y + 18);
-    for (int i = 0; i < 4; ++i) {
-        CtrPokeTouchRect r = FXMark(i);
-        int on = (b->marks >> i) & 1;
-        int fy = EmButton(r.x, r.y, r.w, r.h, on ? &kEmAmber : &kEmCream, FB_DEPTH, b->pressed == ST_HIT_MENU_BASE + i);
-
-        FXMarkShape(i, on, r.x + r.w / 2, fy + (r.h - FB_DEPTH) / 2);
-        if (b->menuCursor == i)
-            EmGlowRing(r.x, fy, r.w, r.h - FB_DEPTH);
-    }
-    FXButton(&sFXMarkOk, CtrUiText(UIS_OK), &kEmAmber, b->pressed == ST_HIT_MENU_BASE + 4);
-    FXButton(&sFXMarkCancel, CtrUiText(UIS_CANCEL), &kEmViolet, b->pressed == ST_HIT_MENU_BASE + 5);
-    if (b->menuCursor == 4 || b->menuCursor == 5) {
-        const CtrPokeTouchRect *r = b->menuCursor == 4 ? &sFXMarkOk : &sFXMarkCancel;
-        int fy = b->pressed == ST_HIT_MENU_BASE + b->menuCursor ? r->y + FB_DEPTH : r->y;
-
-        EmGlowRing(r->x, fy, r->w, r->h - FB_DEPTH);
-    }
-}
-
-static void FBoxFrame(const CtrPokeTouchView *v)
+/* The window the box has open in the Party's place: its menu, YES / NO, or the four marks (on or off) with OK and CANCEL;
+ * FireRed's arrow on its cursor or the row held. */
+static void FXMenu(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchBox *b = &v->box;
+    int n = FXMenuRows(b), held = b->pressed >= ST_HIT_MENU_BASE && b->pressed < ST_HIT_MENU_BASE + n
+                                ? b->pressed - ST_HIT_MENU_BASE : -1;
+    int chosen = held >= 0 ? held : b->menuCursor;
+    char text[PT_BOX_MENU_MAX][40];
+    const char *names[PARTY_MENU_ROWS];
 
-    EmSurface();
-    TsBgRect(PT_VIEW_X - 4, PT_VIEW_Y - 4, PT_VIEW_W + 8, PT_VIEW_H + 8);
-    FXTitle(b);
-    FXGrid(b);
-    FXSide(b);
-    if (b->area == ST_AREA_PARTY && b->state != PT_BOX_STATE_MENU && b->state != PT_BOX_STATE_YESNO
-        && b->state != PT_BOX_STATE_MARKS)
-        FXParty(b);
-    if (b->state == PT_BOX_STATE_MENU)
-        FXMenu(b);
-    else if (b->state == PT_BOX_STATE_YESNO)
-        FXYesNo(b);
-    else if (b->state == PT_BOX_STATE_CHOOSE)
-        FXChoose(b);
-    else if (b->state == PT_BOX_STATE_MARKS)
-        FXMarks(b);
-    sUiS = &sUiNavy;
+    for (int i = 0; i < n; ++i) {
+        if (b->state == PT_BOX_STATE_YESNO)
+            snprintf(text[i], sizeof(text[i]), "%s", CtrUiText(i ? UIS_NO : UIS_YES));
+        else if (b->state == PT_BOX_STATE_MARKS)
+            snprintf(text[i], sizeof(text[i]), "%s", i == 4 ? CtrUiText(UIS_OK) : i == 5 ? CtrUiText(UIS_CANCEL) : "");
+        else
+            FNText(b->menu[i], (int)sizeof(b->menu[i]), text[i], (int)sizeof(text[i]));
+        names[i] = text[i];
+    }
+    FPageMenu(v->frameType, names, n, chosen, held);
+    for (int i = 0; b->state == PT_BOX_STATE_MARKS && i < 4; ++i) {
+        CtrPokeTouchRect r = PartyMenuRow(n, i);
+
+        FXMarkShape(i, (b->marks >> i) & 1, r.x + KIT_ARROW_W, r.y);
+    }
 }
 
-/* The note's gender and level line ("<gender> Lv5"): FireRed colours the sign, so it is blue or red here too. */
-static void FXGenderLevel(const uint8_t *raw, int n, int x, int y, int right)
-{
-    char text[32], sign[3];
-    const char *rest = text;
-    int g = 0;
-
-    FNText(raw, n, text, (int)sizeof(text));
-    if (text[0] == 0x01 && (text[1] == (char)0xb5 || text[1] == (char)0xb6)) {
-        g = text[1] == (char)0xb6 ? 2 : 1;
-        rest += 2;
-    }
-    while (*rest == ' ')
-        ++rest;
-    if (g) {
-        FNChar(g == 2 ? 0xb6 : 0xb5, sign);
-        UiText(sign, x, y, g == 2 ? UI_RGB(225, 70, 80) : UI_RGB(60, 120, 230), EM_DARK_SH, 1, right);
-        x += UiTextWidth(sign, 1) + 4;
-    }
-    UiText(rest, x, y, EM_DIM, EM_DARK_SH, 1, right);
-}
-
-/* The note: the box's message while it shows one, else the Pokemon under the cursor and its picture. */
-static void FBoxNote(const CtrPokeTouchView *v, int w)
+/* The band: the box's message (a message that waits for A takes the whole band, beside an open window it is narrower),
+ * else the Pokemon under the cursor (its name, gender sign and level; its species; its item), MOVE ITEMS' item and its
+ * description, or the box's name. */
+static void FXBand(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchBox *b = &v->box;
-    char text[100];
+    const CtrPokeTouchRect *n = b->state == PT_BOX_STATE_MESSAGE ? &kBoxNoteWide : FXMenuOpen(b) ? &kBoxNoteMenu : &kBoxNote;
+    int x = n->x + 16, right = n->x + n->w - 16, top = n->y + 6;
+    char text[200];
 
-    EmSurface();
-    EmNote(NOTE_X, NOTE_Y, w, NOTE_H);
     if (b->message[0] != 0xff) {
         FNText(b->message, (int)sizeof(b->message), text, (int)sizeof(text));
-        BPWrap(text, NOTE_X + 12, NOTE_Y + 8, w - 20, b->state == PT_BOX_STATE_MESSAGE ? 2 : 3, EM_DARK, EM_DARK_SH);
-        if (b->state == PT_BOX_STATE_MESSAGE) {
-            const char *tap = CtrUiText(UIS_TAP_TO_CONTINUE);
-
-            UiText(tap, NOTE_X + w - 14 - UiTextWidth(tap, 1) - 9, NOTE_Y + NOTE_H - 16, EM_DIM, EM_DARK_SH, 1, NOTE_X + w);
-            UiArrow(NOTE_X + w - 18, NOTE_Y + NOTE_H - 16, 1, EM_STRIPE);
+        FPageBand(n, NULL, text, b->state == PT_BOX_STATE_MESSAGE);
+        return;
+    }
+    FPageBand(n, NULL, NULL, 0);
+    if (b->items && b->mon.species) {
+        if (!b->monItem) {
+            FXLine(b->monText[0], (int)sizeof(b->monText[0]), x, top, right);
+            KitText(CtrUiText(UIS_BOX_NO_ITEM), x, top + KIT_LINE_H, right);
+            return;
         }
-    } else if (b->items && b->mon.species) {
-        /* MOVE ITEMS: the item the Pokemon holds, its name by its icon, the Pokemon's on the right, its description. */
-        char name[32], desc[200];   /* two bytes a FireRed character */
+        FXLine(b->itemName, (int)sizeof(b->itemName), x, top, right);
+        FNText(b->itemDesc, (int)sizeof(b->itemDesc), text, (int)sizeof(text));
+        KitWrap(text, x, top + KIT_LINE_H, right - x, 2);
+        return;
+    }
+    if (!b->mon.species) {
+        FXLine(b->boxName, (int)sizeof(b->boxName), x, top, right);
+        return;
+    }
+    {
+        /* FireRed's "<gender> Lv5" line after the name, its sign blue or red. */
+        char name[32], line[32], sign[3];
+        const char *rest = line;
+        int g = 0, at;
 
         FNText(b->monText[0], (int)sizeof(b->monText[0]), name, (int)sizeof(name));
-        if (b->monItem) {
-            int nameX = NOTE_X + w - 10 - UiTextWidth(name, 1);
-
-            /* Three lines of description: FireRed's are up to three (the note beside BACK is narrow). */
-            ItemArt(ICON_BOX_NOTE, b->monItem, NOTE_X + 10, NOTE_Y + 1, 1);
-            FXText(b->itemName, (int)sizeof(b->itemName), NOTE_X + 36, NOTE_Y + 5, EM_DARK, EM_DARK_SH, nameX - 6);
-            UiText(name, nameX, NOTE_Y + 5, EM_DIM, EM_DARK_SH, 1, NOTE_X + w);
-            FNText(b->itemDesc, (int)sizeof(b->itemDesc), desc, (int)sizeof(desc));
-            BPWrap(desc, NOTE_X + 12, NOTE_Y + 21, w - 22, 3, EM_DIM, EM_DARK_SH);
-        } else {
-            UiText(name, NOTE_X + 12, NOTE_Y + 8, EM_DARK, EM_DARK_SH, 1, NOTE_X + w - 8);
-            UiText(CtrUiText(UIS_BOX_NO_ITEM), NOTE_X + 12, NOTE_Y + 28, EM_DIM, EM_DARK_SH, 1, NOTE_X + w - 8);
+        FNText(b->monText[2], (int)sizeof(b->monText[2]), line, (int)sizeof(line));
+        if (line[0] == 0x01 && (line[1] == (char)0xb5 || line[1] == (char)0xb6)) {
+            g = line[1] == (char)0xb6 ? 2 : 1;
+            rest += 2;
         }
-    } else if (b->mon.species) {
-        int right = NOTE_X + w - (b->mon.egg ? 8 : 72);
-
-        FXText(b->monText[0], (int)sizeof(b->monText[0]), NOTE_X + 12, NOTE_Y + 6, EM_DARK, EM_DARK_SH, right);
-        FXGenderLevel(b->monText[2], (int)sizeof(b->monText[2]), NOTE_X + 12, NOTE_Y + 21, right);
-        FXText(b->monText[1], (int)sizeof(b->monText[1]), NOTE_X + 12, NOTE_Y + 36, EM_DIM, EM_DARK_SH, right);
-        FXText(b->monText[3], (int)sizeof(b->monText[3]), NOTE_X + 12, NOTE_Y + 49, EM_VALUE, EM_DARK_SH, right);
-        if (!b->mon.egg)
-            FDPicDraw(b->mon.species, NOTE_X + w - 68, NOTE_Y, 0);
-    } else {
-        FXText(b->boxName, (int)sizeof(b->boxName), NOTE_X + 12, NOTE_Y + (NOTE_H - UI_TEXT_H) / 2, EM_DIM, EM_DARK_SH,
-               NOTE_X + w - 4);
+        while (*rest == ' ')
+            ++rest;
+        KitText(name, x, top, right);
+        at = x + UiTextWidth(name, 1) + 6;
+        if (g) {
+            FNChar(g == 2 ? 0xb6 : 0xb5, sign);
+            UiText(sign, at, top + 3, g == 2 ? kPPageFemale : kPPageMale, KitInk(3), 1, right);
+            at += UiTextWidth(sign, 1) + 4;
+        }
+        KitText(rest, at, top, right);
     }
-    sUiS = &sUiNavy;
+    FXLine(b->monText[1], (int)sizeof(b->monText[1]), x, top + KIT_LINE_H, right);
+    FXLine(b->monText[3], (int)sizeof(b->monText[3]), x, top + 2 * KIT_LINE_H, right);
+}
+
+static void FBoxPageDraw(const CtrPokeTouchView *v)
+{
+    const CtrPokeTouchBox *b = &v->box;
+    const CtrPokeTouchRect *back = FXBackRect(v);
+
+    Fill(0, 0, W, H, BPageBg());
+    FXSide(v);
+    if (b->area == ST_AREA_PARTY)
+        FXPartyPanel(v);
+    else
+        FXBoxWindow(v);
+    if (b->state == PT_BOX_STATE_CHOOSE)
+        FXChoose(v);
+    FXHand(v);
+    FXBand(v);
+    if (FXMenuOpen(b))
+        FXMenu(v);
+    if (back && v->backVisible)
+        FPageBack(v, back);
 }

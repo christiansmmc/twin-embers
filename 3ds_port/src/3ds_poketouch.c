@@ -600,9 +600,6 @@ static void FChoiceNote(const CtrPokeTouchView *v, int w);
 /* The naming screen the port draws (3ds_field_naming_impl.h, included at the end). */
 static void FNameFrame(const CtrPokeTouchView *v);
 static void FNameNote(const CtrPokeTouchView *v, int w);
-/* The PC box the port draws (3ds_field_box_impl.h, included at the end). */
-static void FBoxFrame(const CtrPokeTouchView *v);
-static void FBoxNote(const CtrPokeTouchView *v, int w);
 
 /* The frame's area: the bezel round the GBA picture or the map, OPTIONS' rows, the save card, or the Bag, on the embers. */
 static void MenuFrame(const CtrPokeTouchView *v)
@@ -620,10 +617,6 @@ static void MenuFrame(const CtrPokeTouchView *v)
     }
     if (v->name.on && !v->viewport) {
         FNameFrame(v);
-        return;
-    }
-    if (v->box.on && !v->viewport) {
-        FBoxFrame(v);
         return;
     }
     if (!FrameShown(v))
@@ -687,8 +680,6 @@ static void Bar(const CtrPokeTouchView *v)
         FChoiceNote(v, w);
     else if (v->name.on && !v->viewport)
         FNameNote(v, w);
-    else if (v->box.on && !v->viewport)
-        FBoxNote(v, w);
     else {
         int pitch = 16, top = NOTE_Y + (NOTE_H - (lines - 1) * pitch - UI_TEXT_H) / 2;
 
@@ -984,7 +975,7 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
 /* ---- The field's pages: which view is one, its BACK, its drawing ---- */
 bool CtrPokeTouch_FieldPageShown(const CtrPokeTouchView *v)
 {
-    return !v->viewport && !CtrPokeTouch_BagPageShown(v) && (v->dex.on || v->card.on || v->options || v->save);
+    return !v->viewport && !CtrPokeTouch_BagPageShown(v) && (v->dex.on || v->card.on || v->box.on || v->options || v->save);
 }
 
 /* BACK's cell on the page shown (none without the view's BACK, or while the page has no room for it). */
@@ -996,6 +987,8 @@ static const CtrPokeTouchRect *FieldPageBack(const CtrPokeTouchView *v)
         return FDexBackRect(v);
     if (v->card.on)
         return &kCardBack;
+    if (v->box.on)
+        return FXBackRect(v);
     if (v->save)
         return NULL;                    /* NO and B leave SAVE */
     if (v->options)
@@ -1009,6 +1002,8 @@ static void FieldPageDraw(const CtrPokeTouchView *v)
         FDexPageDraw(v);
     else if (v->card.on)
         FCardPageDraw(v);
+    else if (v->box.on)
+        FBoxPageDraw(v);
     else if (v->save)
         SavePageDraw(v);
     else if (v->options)

@@ -98,10 +98,15 @@ int CtrPokeTouch_CardBadges(unsigned char *tiles, unsigned short *palette)
     memset(tiles, 0x11, 0x400); memset(palette, 0, 32); palette[1] = 0x03E0;
     return 1;
 }
+/* A Pokemon's box icon: none, or (monIconOk) a solid 32x32 one in palette colour 1, yellow. */
+static int monIconOk;   /* yellow: apart from the item icons' red and blue */
 int CtrPokeTouch_MonIcon(unsigned species, unsigned personality, int egg, unsigned char *tiles, unsigned short *palette)
 {
-    (void)species; (void)personality; (void)egg; (void)tiles; (void)palette;
-    return 0;
+    (void)personality; (void)egg;
+    if (!monIconOk || !species)
+        return 0;
+    memset(tiles, 0x11, 512); memset(palette, 0, 32); palette[1] = 0x03FF;
+    return 1;
 }
 int CtrPokeTouch_ItemIcon(unsigned item, unsigned char *tiles, unsigned short *palette)
 {
@@ -140,8 +145,16 @@ int CtrBottomSummary_Pic(unsigned char *tiles, unsigned short *pal, int *flip)
 { (void)tiles; (void)pal; (void)flip; return 0; }
 int CtrBottomSummary_Pic80(unsigned char *pixels, unsigned short *pal, int *flip)
 { (void)pixels; (void)pal; (void)flip; return 0; }
+/* A box wallpaper: none, or (wallOk) one flat colour. */
+static int wallOk;
 int CtrPokeTouch_Wallpaper(unsigned id, unsigned short *rgb555)
-{ (void)id; (void)rgb555; return 0; }
+{
+    (void)id;
+    if (!wallOk)
+        return 0;
+    for (int i = 0; i < 160 * 144; ++i) rgb555[i] = 0x5294;
+    return 1;
+}
 int CtrPokeTouch_MarkShape(int mark, unsigned char *indexes)
 { (void)mark; (void)indexes; return 0; }
 
@@ -698,6 +711,8 @@ static void DexSample(CtrPokeTouchDex *d)
              "colors if it gets plenty of nutrition and sunlight.");
 }
 
+static void BoxText(uint8_t *out, int size, const char *s);
+
 static void preview_pages(const CtrPokeTouchView *base)
 {
     CtrPokeTouchView v = *base;
@@ -769,6 +784,40 @@ static void preview_pages(const CtrPokeTouchView *base)
         c->back = 1; ShotOf(&v, "card_2_back");
         cardArtOk = 0;
         memset(c, 0, sizeof(*c));
+    }
+    {
+        CtrPokeTouchBox *b = &v.box;
+
+        memset(b, 0, sizeof(*b));
+        b->on = 1; b->state = PT_BOX_STATE_BOX; b->area = ST_AREA_BOX; b->pos = 7; b->pressed = -1;
+        BoxText(b->boxName, sizeof(b->boxName), "BOX A");
+        for (int i = 0; i < 30; i += 4)
+            b->slot[i].species = (uint16_t)(i + 1);
+        b->party[0].species = 25; b->party[1].species = 7; b->party[2].species = 1;
+        b->mon = b->slot[8];
+        BoxText(b->monText[0], sizeof(b->monText[0]), "PIDGEY");
+        BoxText(b->monText[1], sizeof(b->monText[1]), "PIDGEY");
+        BoxText(b->monText[2], sizeof(b->monText[2]), "LV");
+        BoxText(b->monText[3], sizeof(b->monText[3]), "NO ITEM");
+        memset(b->message, 0xff, sizeof(b->message));
+        wallOk = monIconOk = 1; sFXWallId = -1;
+        ShotOf(&v, "box_1_box");
+        b->holding = 1; b->held.species = 3; b->pos = 9; ShotOf(&v, "box_2_holding");
+        b->holding = 0; b->area = ST_AREA_PARTY; b->pos = 1; ShotOf(&v, "box_3_party");
+        b->area = ST_AREA_BOX; b->pos = 8; b->state = PT_BOX_STATE_MENU; b->menuCount = 5; b->menuCursor = 0;
+        for (int i = 0; i < 5; ++i)
+            BoxText(b->menu[i], sizeof(b->menu[i]), (const char *[]){"MOVE", "SUMMARY", "WITHDRAW", "MARK", "CANCEL"}[i]);
+        BoxText(b->message, sizeof(b->message), "PIDGEY IS SELECTED");
+        ShotOf(&v, "box_4_menu");
+        b->state = PT_BOX_STATE_CHOOSE; BoxText(b->chooseName, sizeof(b->chooseName), "BOX B"); b->chooseCount = 12;
+        BoxText(b->message, sizeof(b->message), "JUMP TO WHICH BOX");
+        ShotOf(&v, "box_5_choose");
+        b->state = PT_BOX_STATE_MARKS; b->menuCount = 6; b->menuCursor = 1; b->marks = 5;
+        ShotOf(&v, "box_6_marks");
+        b->state = PT_BOX_STATE_MESSAGE; BoxText(b->message, sizeof(b->message), "PIDGEY WAS RELEASED");
+        ShotOf(&v, "box_7_message");
+        wallOk = monIconOk = 0; sFXWallId = -1;
+        memset(b, 0, sizeof(*b));
     }
 }
 
@@ -1124,6 +1173,138 @@ static void card_page(const CtrPokeTouchView *base)
     cardArtOk = 0;
     CtrPokeTouch_Draw(canvas, base);
 }
+
+/* FireRed codes for a text field: the letters A-Z, 0xff ended (the rest 0xff). */
+static void BoxText(uint8_t *out, int size, const char *s)
+{
+    memset(out, 0xff, (size_t)size);
+    for (int i = 0; s[i] && i < size - 1; ++i)
+        out[i] = (uint8_t)(s[i] == ' ' ? 0 : 0xbb + s[i] - 'A');
+}
+
+/* The PC box as a page: FireRed's wallpaper at 1:1 in the box's window, its header's places and the thirty places
+ * (24 px), the icons over them, PARTY and CLOSE BOX, the Pokemon in hand over the cursor; the Party's panel; the menu,
+ * YES / NO and marks in the Party's window; the chooser; a message; BACK where the box takes its B. */
+static void box_page(const CtrPokeTouchView *base)
+{
+    CtrPokeTouchView v = *base, old;
+    CtrPokeTouchBox *b = &v.box;
+    const uint16_t wall = GbaColor(0x5294), icon = GbaColor(0x03FF);
+
+    v.home = 0; v.backVisible = 1; v.backEnabled = 1; v.backPressed = 0;
+    memset(b, 0, sizeof(*b));
+    b->on = 1; b->state = PT_BOX_STATE_BOX; b->area = ST_AREA_BOX; b->pos = 7; b->pressed = -1;
+    BoxText(b->boxName, sizeof(b->boxName), "BOX A");
+    b->slot[0].species = 1; b->slot[8].species = 4; b->party[0].species = 25; b->party[1].species = 7;
+    b->mon = b->slot[0];
+    BoxText(b->monText[0], sizeof(b->monText[0]), "BULBASAUR");
+    BoxText(b->monText[1], sizeof(b->monText[1]), "BULBASAUR");
+    BoxText(b->monText[2], sizeof(b->monText[2]), "LV");
+    BoxText(b->monText[3], sizeof(b->monText[3]), "");
+    memset(b->message, 0xff, sizeof(b->message));
+    wallOk = monIconOk = 1;
+    CtrPokeTouch_Draw(canvas, &v);
+    old = v;
+    const int outline = !KitFrameReady(KIT_FRAME_STD, v.frameType);
+    assert(CtrPokeTouch_FieldPageShown(&v));
+    PageMargin();
+    /* box_wallpaper_1to1: its 160x144 exactly at (BOX_WALL_X, BOX_WALL_Y) */
+    assert(at(BOX_WALL_X, BOX_WALL_Y + 30) == wall && at(BOX_WALL_X + 159, BOX_WALL_Y + 143) == wall);
+    assert(at(BOX_WALL_X - 1, BOX_WALL_Y + 30) != wall && at(BOX_WALL_X + 160, BOX_WALL_Y + 30) != wall);
+    assert(at(BOX_WALL_X + 80, BOX_WALL_Y - 1) != wall && at(BOX_WALL_X + 80, BOX_WALL_Y + 144) != wall);
+    assert(!outline || (at(kBoxWin.x, kBoxWin.y + 20) == KitInk(2) && at(kBoxMon.x, kBoxMon.y + 20) == KitInk(2)));
+    /* box_hits: the places, the header's three, PARTY and CLOSE BOX; the picture's window nothing */
+    for (int i = 0; i < 30; ++i) {
+        CtrPokeTouchRect c = BoxCell(i);
+
+        assert(CtrPokeTouch_BoxHit(&v, c.x + 12, c.y + 12) == i && CtrPokeTouch_BoxHit(&v, c.x, c.y) == i);
+    }
+    assert(CtrPokeTouch_BoxHit(&v, kBoxPrev.x + 16, kBoxPrev.y + 12) == ST_HIT_PREV);
+    assert(CtrPokeTouch_BoxHit(&v, kBoxTitle.x + 48, kBoxTitle.y + 12) == ST_HIT_TITLE);
+    assert(CtrPokeTouch_BoxHit(&v, kBoxNext.x + 16, kBoxNext.y + 12) == ST_HIT_NEXT);
+    assert(CtrPokeTouch_BoxHit(&v, kBoxPartyButton.x + 60, kBoxPartyButton.y + 15) == ST_HIT_BUTTON_PARTY);
+    assert(CtrPokeTouch_BoxHit(&v, kBoxClose.x + 60, kBoxClose.y + 15) == ST_HIT_BUTTON_CLOSE);
+    assert(CtrPokeTouch_BoxHit(&v, kBoxMon.x + 60, kBoxMon.y + 50) == ST_HIT_NONE);
+    assert(CtrPokeTouch_BoxHit(&v, kBoxBack.x + 30, kBoxBack.y + 28) == ST_HIT_NONE);
+    assert(CtrPokeTouch_BackHit(&v, kBoxBack.x + 30, kBoxBack.y + 28));
+    /* box_icons: each Pokemon's icon over its place; the cursor's empty place marked */
+    assert(at(BoxCell(0).x + 12, BoxCell(0).y + 12) == icon && at(BoxCell(1).x + 12, BoxCell(1).y + 12) == wall);
+    assert(at(BoxCell(7).x + 12, BoxCell(7).y + 12) != wall);
+    /* a place held: its grey; the Pokemon in hand drawn over the cursor */
+    b->pressed = 3; update(&old, &v);
+    assert(at(BoxCell(3).x + 12, BoxCell(3).y + 12) == KitInk(3));
+    b->pressed = -1; b->holding = 1; b->held.species = 9; update(&old, &v);
+    assert(at(BoxCell(7).x + 12, BoxCell(7).y + 2) == icon);
+    b->holding = 0; b->area = ST_AREA_TITLE; b->pos = 0; update(&old, &v);
+    b->area = ST_AREA_BUTTONS; b->pos = 1; update(&old, &v);
+    /* the Party's panel: the lead, five rows, CANCEL; the box's places are under it */
+    b->area = ST_AREA_PARTY; b->pos = 1; b->mon = b->party[1]; update(&old, &v);
+    assert(CtrPokeTouch_BoxHit(&v, kBoxLead.x + 36, kBoxLead.y + 60) == ST_HIT_PARTY_BASE);
+    for (int i = 1; i < 6; ++i) {
+        CtrPokeTouchRect r = BoxPartyRow(i);
+
+        assert(CtrPokeTouch_BoxHit(&v, r.x + 40, r.y + 13) == ST_HIT_PARTY_BASE + i);
+    }
+    assert(CtrPokeTouch_BoxHit(&v, kBoxPartyCancel.x + 80, kBoxPartyCancel.y + 12) == ST_HIT_PARTY_BASE + 6);
+    assert(ArrowAt(&(CtrPokeTouchRect){BoxPartyRow(1).x, BoxPartyRow(1).y, 8, BoxPartyRow(1).h}));
+    assert(at(BoxCell(0).x + 12, BoxCell(0).y + 12) != icon || at(kBoxLead.x + 36, kBoxLead.y + 60) == icon);
+    b->pos = 6; b->pressed = ST_HIT_PARTY_BASE + 6; update(&old, &v);
+    b->pressed = -1; b->area = ST_AREA_BOX; b->pos = 0; b->mon = b->slot[0]; update(&old, &v);
+    /* the menu: the Party's window at the bottom right, the band narrower; no BACK under it */
+    b->state = PT_BOX_STATE_MENU; b->menuCount = 4; b->menuCursor = 1;
+    for (int i = 0; i < 4; ++i)
+        BoxText(b->menu[i], sizeof(b->menu[i]), (const char *[]){"MOVE", "SUMMARY", "MARK", "CANCEL"}[i]);
+    update(&old, &v);
+    for (int i = 0; i < 4; ++i) {
+        CtrPokeTouchRect r = PartyMenuRow(4, i);
+
+        assert(CtrPokeTouch_BoxHit(&v, r.x + 30, r.y + 8) == ST_HIT_MENU_BASE + i);
+        assert(ArrowAt(&r) == (i == 1));
+    }
+    assert(CtrPokeTouch_BoxHit(&v, BoxCell(0).x + 12, BoxCell(0).y + 12) == ST_HIT_NONE);
+    assert(!CtrPokeTouch_BackHit(&v, kBoxBack.x + 30, kBoxBack.y + 50));
+    b->pressed = ST_HIT_MENU_BASE + 3; update(&old, &v);
+    b->pressed = -1; b->menuCount = 7; update(&old, &v);
+    /* YES / NO */
+    b->state = PT_BOX_STATE_YESNO; b->menuCount = 2; b->menuCursor = 0;
+    BoxText(b->message, sizeof(b->message), "RELEASE IT");
+    update(&old, &v);
+    assert(CtrPokeTouch_BoxHit(&v, PartyMenuRow(2, 1).x + 30, PartyMenuRow(2, 1).y + 8) == ST_HIT_MENU_BASE + 1);
+    /* the chooser */
+    b->state = PT_BOX_STATE_CHOOSE; BoxText(b->chooseName, sizeof(b->chooseName), "BOX B"); b->chooseCount = 12;
+    update(&old, &v);
+    assert(CtrPokeTouch_BoxHit(&v, kBoxChoosePrev.x + 16, kBoxChoosePrev.y + 28) == ST_HIT_PREV);
+    assert(CtrPokeTouch_BoxHit(&v, kBoxChooseName.x + 40, kBoxChooseName.y + 28) == ST_HIT_TITLE);
+    assert(CtrPokeTouch_BoxHit(&v, kBoxChooseNext.x + 16, kBoxChooseNext.y + 28) == ST_HIT_NEXT);
+    assert(CtrPokeTouch_BackHit(&v, kBoxBack.x + 30, kBoxBack.y + 28));
+    assert(!outline || at(kBoxChooseName.x, kBoxChooseName.y + 20) == KitInk(2));
+    /* the marks: four marks, OK and CANCEL in the Party's window */
+    b->state = PT_BOX_STATE_MARKS; b->menuCount = 6; b->menuCursor = 4; b->marks = 0x5; update(&old, &v);
+    for (int i = 0; i < 6; ++i) {
+        CtrPokeTouchRect r = PartyMenuRow(6, i);
+
+        assert(CtrPokeTouch_BoxHit(&v, r.x + 30, r.y + 8) == ST_HIT_MENU_BASE + i);
+        assert(ArrowAt(&r) == (i == 4));
+    }
+    /* a message that waits for A: the whole band, anywhere goes on, no BACK */
+    b->state = PT_BOX_STATE_MESSAGE; update(&old, &v);
+    assert(CtrPokeTouch_BoxHit(&v, 10, 10) == PT_BOX_HIT_MESSAGE && CtrPokeTouch_BoxHit(&v, 300, 230) == PT_BOX_HIT_MESSAGE);
+    assert(!CtrPokeTouch_BackHit(&v, kBoxBack.x + 30, kBoxBack.y + 28));
+    /* MOVE ITEMS: a tag on a Pokemon that holds an item, the item in hand over the cursor, the item's lines */
+    b->state = PT_BOX_STATE_BOX; memset(b->message, 0xff, sizeof(b->message));
+    b->items = 1; b->slotItem[0] = 1; b->handItem = 2; b->monItem = 1; b->pos = 7;
+    BoxText(b->itemName, sizeof(b->itemName), "POTION"); BoxText(b->itemDesc, sizeof(b->itemDesc), "HEALS");
+    update(&old, &v);
+    assert(ColorIn(BoxCell(7).x, BoxCell(7).y - 12, 24, 24, GbaColor(31 << 10)) > 0);
+    b->items = 0; b->handItem = b->monItem = 0; b->slotItem[0] = 0; update(&old, &v);
+    /* no wallpaper: the box's window white; BUSY */
+    wallOk = 0; b->wallpaper = 3; update(&old, &v);    /* another wallpaper, which the pack lacks */
+    b->state = PT_BOX_STATE_BUSY; update(&old, &v);
+    v.frameType = 1; update(&old, &v);
+    v.frameType = base->frameType; update(&old, &v);
+    wallOk = monIconOk = 0; sFXWallId = -1;
+    CtrPokeTouch_Draw(canvas, base);
+}
 #endif
 
 int main(int argc, char **argv)
@@ -1186,6 +1367,7 @@ int main(int argc, char **argv)
     options_page(&v);
     save_page(&v);
     card_page(&v);
+    box_page(&v);
 #else
     for(int x=4;x<244;++x) for(int y=4;y<164;++y) assert(at(x,y)==Gba(0x5ab3));
 #endif

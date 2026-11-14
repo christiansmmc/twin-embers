@@ -534,6 +534,74 @@ static void card(void)
     assert(kCard.h - 16 >= 16 + 4 * 18 + 8 + CARD_BADGE && kCard.w - 16 >= 200 + 64);
 }
 
+/* The PC box: the wallpaper (160x144) whole inside the box window's frame, its header's three places and the thirty
+ * places inside it at 24 px; PARTY, CLOSE BOX and the picture's window beside it, 4 px apart; the band and BACK; the
+ * Party's panel and the chooser inside the box window's frame; the menu's window beside the narrower band. */
+static void box(void)
+{
+    const CtrPokeTouchRect *view[8] = {&kBoxWin, &kBoxPartyButton, &kBoxClose, &kBoxMon, &kBoxNote, &kBoxBack};
+    CtrPokeTouchRect wall = {BOX_WALL_X, BOX_WALL_Y, 160, 144}, body = {BOX_WALL_X, BOX_WALL_Y + 24, 160, 120};
+
+    Framed(&kBoxWin);
+    assert(kBoxWin.x == 4 && kBoxWin.y == 4);
+    InFrame(&wall, &kBoxWin);
+    Button(&kBoxPrev);
+    Button(&kBoxTitle);
+    Button(&kBoxNext);
+    assert(kBoxPrev.y == wall.y && kBoxPrev.h == 24 && kBoxTitle.x == kBoxPrev.x + kBoxPrev.w && kBoxNext.x == kBoxTitle.x + kBoxTitle.w);
+    assert(kBoxPrev.x == wall.x && kBoxNext.x + kBoxNext.w == wall.x + wall.w);
+    for (int i = 0; i < 30; ++i) {
+        CtrPokeTouchRect c = BoxCell(i);
+
+        Button(&c);
+        Within(&c, &body);
+    }
+    Button(&kBoxPartyButton);
+    Button(&kBoxClose);
+    Framed(&kBoxMon);
+    assert(kBoxPartyButton.x == kBoxWin.x + kBoxWin.w + 4 && kBoxPartyButton.x + kBoxPartyButton.w == 316 && kBoxPartyButton.y == 4);
+    assert(kBoxClose.x == kBoxPartyButton.x && kBoxClose.y == Bottom(&kBoxPartyButton) + 4 && kBoxMon.y == Bottom(&kBoxClose) + 4);
+    assert(kBoxMon.x == kBoxClose.x && kBoxMon.w == kBoxClose.w && Bottom(&kBoxMon) == Bottom(&kBoxWin) && kBoxMon.h - 16 >= 64);
+    BandAndBack(&kBoxNote, &kBoxBack, Bottom(&kBoxWin));
+    Apart(view, 6);
+    Dialogue(&kBoxNoteMenu);
+    assert(kBoxNoteMenu.x + kBoxNoteMenu.w + 4 == PARTY_MENU_X && kBoxNoteMenu.y == kBoxNote.y && PT_BOX_MENU_MAX <= PARTY_MENU_ROWS);
+    Dialogue(&kBoxNoteWide);
+    assert(kBoxNoteWide.x == 4 && kBoxNoteWide.x + kBoxNoteWide.w == 316 && kBoxNoteWide.y == kBoxNote.y);
+    /* the Party's panel */
+    {
+        const CtrPokeTouchRect *panel[7];
+        CtrPokeTouchRect rows[5];
+
+        Button(&kBoxLead);
+        InFrame(&kBoxLead, &kBoxWin);
+        panel[0] = &kBoxLead;
+        for (int i = 1; i < 6; ++i) {
+            rows[i - 1] = BoxPartyRow(i);
+            Button(&rows[i - 1]);
+            InFrame(&rows[i - 1], &kBoxWin);
+            panel[i] = &rows[i - 1];
+        }
+        Button(&kBoxPartyCancel);
+        InFrame(&kBoxPartyCancel, &kBoxWin);
+        panel[6] = &kBoxPartyCancel;
+        Apart(panel, 7);
+    }
+    /* the chooser */
+    {
+        const CtrPokeTouchRect *choose[3] = {&kBoxChoosePrev, &kBoxChooseName, &kBoxChooseNext};
+
+        Button(&kBoxChoosePrev);
+        Framed(&kBoxChooseName);
+        Button(&kBoxChooseNext);
+        for (int i = 0; i < 3; ++i)
+            InFrame(choose[i], &kBoxWin);
+        assert(kBoxChooseName.h - 16 >= 2 * 14 && kBoxChooseName.x == kBoxChoosePrev.x + kBoxChoosePrev.w + 4);
+        assert(kBoxChooseNext.x == kBoxChooseName.x + kBoxChooseName.w + 4);
+        Apart(choose, 3);
+    }
+}
+
 int main(void)
 {
     home();
@@ -544,6 +612,7 @@ int main(void)
     dex();
     options();
     card();
+    box();
     printf("PASS lower layout%s\n", LOWER_LAYOUT_PROVISIONAL ? " (provisional values)" : "");
     return 0;
 }

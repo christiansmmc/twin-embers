@@ -234,6 +234,48 @@ static const CtrPokeTouchRect kCardBack = { 256, 180, 60, 56 };
 #define CARD_BADGE 32
 #define CARD_BADGE_GAP 4
 
+/* The PC box (phase 2, FireRed's own arrangement at 1:1): the box's window holds FireRed's wallpaper, its 160x24 header
+ * with the box's name between the arrows and its 160x120 body with the thirty places, 24 px each (the icons 32 px over
+ * them, as FireRed draws them). PARTY and CLOSE BOX are cells beside it, over a window with the picture of the Pokemon
+ * under the cursor; the band (what the box says, or that Pokemon's lines) and BACK under them. The Party's panel takes
+ * the box's window (the lead on the left, five rows, CANCEL across); the box's menu, YES / NO and marks are the Party's
+ * window at the bottom right; the box chooser is three cells over the wallpaper. */
+static const CtrPokeTouchRect kBoxWin = { 4, 4, 176, 172 };
+#define BOX_WALL_X 12
+#define BOX_WALL_Y 18
+static const CtrPokeTouchRect kBoxPrev = { 12, 18, 32, 24 };
+static const CtrPokeTouchRect kBoxTitle = { 44, 18, 96, 24 };
+static const CtrPokeTouchRect kBoxNext = { 140, 18, 32, 24 };
+static const CtrPokeTouchRect kBoxPartyButton = { 184, 4, 132, 30 };
+static const CtrPokeTouchRect kBoxClose = { 184, 38, 132, 30 };
+static const CtrPokeTouchRect kBoxMon = { 184, 72, 132, 104 };
+static const CtrPokeTouchRect kBoxNote = { 4, 180, 248, 56 };
+static const CtrPokeTouchRect kBoxNoteMenu = { 4, 180, 192, 56 };
+static const CtrPokeTouchRect kBoxNoteWide = { 4, 180, 312, 56 };
+static const CtrPokeTouchRect kBoxBack = { 256, 180, 60, 56 };
+static const CtrPokeTouchRect kBoxLead = { 12, 12, 72, 128 };
+static const CtrPokeTouchRect kBoxPartyCancel = { 12, 144, 160, 24 };
+static const CtrPokeTouchRect kBoxChoosePrev = { 12, 64, 32, 56 };
+static const CtrPokeTouchRect kBoxChooseName = { 48, 64, 88, 56 };
+static const CtrPokeTouchRect kBoxChooseNext = { 140, 64, 32, 56 };
+#define BOX_CELL 24
+
+/* The box's place `pos` (0-29), six to a row over the wallpaper's body. */
+static inline CtrPokeTouchRect BoxCell(int pos)
+{
+    CtrPokeTouchRect r = { (int16_t)(BOX_WALL_X + 8 + BOX_CELL * (pos % 6)), (int16_t)(BOX_WALL_Y + 24 + BOX_CELL * (pos / 6)), BOX_CELL, BOX_CELL };
+
+    return r;
+}
+
+/* The Party's panel: slots 1-5 as rows right of the lead's place. */
+static inline CtrPokeTouchRect BoxPartyRow(int slot)
+{
+    CtrPokeTouchRect r = { (int16_t)(kBoxLead.x + kBoxLead.w + 4), (int16_t)(kBoxLead.y + 26 * (slot - 1)), 84, 26 };
+
+    return r;
+}
+
 /* The party menu's window for `rows` rows (1 to PARTY_MENU_ROWS), and its row i: 8 px in from the frame, 16 px tall. */
 static inline CtrPokeTouchRect PartyMenuWindow(int rows)
 {
