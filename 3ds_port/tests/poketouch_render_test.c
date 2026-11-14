@@ -626,6 +626,260 @@ static void bag_page(const CtrPokeTouchView *base)
     /* leaving: the page goes and the field's view is drawn whole */
     CtrPokeTouch_Draw(canvas, base);
 }
+
+/* For a look at the pages (a local viewing aid, never a ROM screenshot): with PT_SHOTS naming a directory, Shot writes
+ * the canvas there as <name>.ppm, and PT_SHOTS_FONT names a 256x64-byte glyph file to draw the text with. */
+static void Shot(const char *name)
+{
+    const char *dir = getenv("PT_SHOTS");
+    char path[512];
+    FILE *f;
+
+    if (!dir)
+        return;
+    snprintf(path, sizeof(path), "%s/%s.ppm", dir, name);
+    f = fopen(path, "wb");
+    assert(f);
+    fprintf(f, "P6\n320 240\n255\n");
+    for (int y = 0; y < H; ++y)
+        for (int x = 0; x < W; ++x) {
+            uint16_t c = at(x, y);
+            uint8_t p[3] = {(uint8_t)((c >> 11) * 255 / 31), (uint8_t)(((c >> 5) & 63) * 255 / 63), (uint8_t)((c & 31) * 255 / 31)};
+
+            fwrite(p, 1, 3, f);
+        }
+    fclose(f);
+}
+
+static void ShotOf(const CtrPokeTouchView *v, const char *name)
+{
+    CtrPokeTouch_Draw(canvas, v);
+    Shot(name);
+}
+
+/* The dex page's states with names and numbers, for Shot. */
+static void DexSample(CtrPokeTouchDex *d)
+{
+    static const int8_t ids[19] = {PT_DEX_ID_HEADER, PT_DEX_ID_KANTO, PT_DEX_ID_NATIONAL, PT_DEX_ID_HEADER,
+                                   0, 1, 2, 3, 4, 5, 6, 7, 8, PT_DEX_ID_HEADER, 10, 11, 12, 13, PT_DEX_ID_CANCEL};
+    static const char *const names[19] = {"POKeMON LIST", "NUMERICAL MODE", "NUMERICAL MODE", "POKeMON HABITATS",
+        "GRASSLAND POKeMON", "FOREST POKeMON", "WATERS-EDGE POKeMON", "SEA POKeMON", "CAVE POKeMON",
+        "MOUNTAIN POKeMON", "ROUGH-TERRAIN POKeMON", "URBAN POKeMON", "RARE POKeMON", "SEARCH", "A TO Z MODE",
+        "TYPE MODE", "LIGHTEST MODE", "SMALLEST MODE", "CLOSE POKeDEX"};
+    static const char *const mons[5] = {"BULBASAUR", "IVYSAUR", "VENUSAUR", "CHARMANDER", "CHARMELEON"};
+
+    memset(d, 0, sizeof(*d));
+    d->on = 1; d->state = PT_DEX_STATE_MENU; d->pressed = -1; d->menuCount = 19; d->menuCursor = 1;
+    d->type[0] = d->type[1] = -1; d->seen[0] = 40; d->owned[0] = 12; d->seen[1] = 60; d->owned[1] = 20;
+    for (int i = 0; i < 19; ++i) {
+        d->menu[i].id = ids[i];
+        snprintf(d->menu[i].name, sizeof(d->menu[i].name), "%s", names[i]);
+    }
+    d->menu[8].locked = 1;
+    d->listCount = 151; d->listCursor = 2; d->listFirst = 0;
+    for (int i = 0; i < PT_DEX_ROWS; ++i) {
+        d->row[i].species = (uint16_t)(i + 1); d->row[i].number = (uint16_t)(i + 1); d->row[i].flags = (uint8_t)(i < 3 ? 3 : 1);
+        snprintf(d->row[i].name, sizeof(d->row[i].name), "%s", mons[i]);
+        d->mon[i < 4 ? i : 3] = d->row[i];
+    }
+    d->sel = d->row[2]; d->type[0] = 11; d->type[1] = 3;
+    snprintf(d->typeName[0], sizeof(d->typeName[0]), "GRASS"); snprintf(d->typeName[1], sizeof(d->typeName[1]), "POISON");
+    d->slots = 4; d->slot = 1; d->page = 1; d->pages = 3; d->canNext = 1;
+    d->height = 20; d->weight = 1000;
+    snprintf(d->kind, sizeof(d->kind), "SEED");
+    snprintf(d->desc, sizeof(d->desc), "There is a large flower on VENUSAUR's back. The flower is said to take on vivid "
+             "colors if it gets plenty of nutrition and sunlight.");
+}
+
+static void preview_pages(const CtrPokeTouchView *base)
+{
+    CtrPokeTouchView v = *base;
+    CtrPokeTouchDex *d = &v.dex;
+
+    v.home = 0; v.backVisible = 1; v.backEnabled = 1;
+    DexSample(d);
+    ShotOf(&v, "dex_1_menu");
+    d->menuCursor = 6; ShotOf(&v, "dex_2_habitats");
+    d->menuCursor = 15; d->pressed = PT_DEX_HIT_ITEM + 16; ShotOf(&v, "dex_3_search_held");
+    d->pressed = -1; d->state = PT_DEX_STATE_LIST; ShotOf(&v, "dex_4_list");
+    d->state = PT_DEX_STATE_CATEGORY; d->sel = d->mon[1]; ShotOf(&v, "dex_5_habitat_page");
+    d->state = PT_DEX_STATE_PAGE; d->sel = d->row[2]; ShotOf(&v, "dex_6_mon_page");
+    d->added = 1; ShotOf(&v, "dex_7_added");
+}
+
+/* The page colour round every window: the screen's 4 px margin. */
+static void PageMargin(void)
+{
+    for (int y = 0; y < H; ++y)
+        assert(at(0, y) == KitInk(3) && at(3, y) == KitInk(3) && at(W - 1, y) == KitInk(3));
+    for (int x = 0; x < W; ++x)
+        assert(at(x, 0) == KitInk(3) && at(x, H - 1) == KitInk(3));
+}
+
+/* The arrow (5 px wide in this font) at the left of r, under a 14 px line centred in it. */
+static int ArrowAt(const CtrPokeTouchRect *r)
+{
+    return BagInk(r->x, r->y, 8, r->h) > 20;
+}
+
+/* The POKeDEX as a page: the top menu's tabs and rows (six a page, CLOSE in LISTS), the side window, the scroll cells;
+ * an ordered list; a habitat page with its arrows; a Pokemon's page with AREA and CRY, and the one a catch adds; BACK
+ * everywhere but there. Every step an update equal to a full draw. */
+static void dex_page(const CtrPokeTouchView *base)
+{
+    CtrPokeTouchView v = *base, old;
+    CtrPokeTouchDex *d = &v.dex;
+    static const int8_t ids[19] = {PT_DEX_ID_HEADER, PT_DEX_ID_KANTO, PT_DEX_ID_NATIONAL, PT_DEX_ID_HEADER,
+                                   0, 1, 2, 3, 4, 5, 6, 7, 8, PT_DEX_ID_HEADER, 10, 11, 12, 13, PT_DEX_ID_CANCEL};
+
+    v.home = 0;
+    v.backVisible = 1; v.backEnabled = 1; v.backPressed = 0;
+    memset(d, 0, sizeof(*d));
+    d->on = 1; d->state = PT_DEX_STATE_MENU; d->pressed = -1; d->menuCount = 19; d->menuCursor = 1;
+    d->type[0] = d->type[1] = -1;
+    d->seen[0] = 40; d->owned[0] = 12; d->seen[1] = 60; d->owned[1] = 20;
+    for (int i = 0; i < 19; ++i) {
+        d->menu[i].id = ids[i];
+        snprintf(d->menu[i].name, sizeof(d->menu[i].name), "ROW %d", i);
+    }
+    CtrPokeTouch_Draw(canvas, &v);
+    old = v;
+    const int outline = !KitFrameReady(KIT_FRAME_STD, v.frameType);
+    assert(!CtrPokeTouch_HomePageShown(&v) && !CtrPokeTouch_BagPageShown(&v));
+    PageMargin();
+    /* dex_tabs: the BAG's three tabs, the arrow in the section shown; each a hit */
+    for (int i = 0; i < 3; ++i) {
+        const CtrPokeTouchRect *t = &kDexTab[i];
+
+        assert(!outline || at(t->x, t->y + 15) == KitInk(2));
+        assert((BagInk(t->x + 8, t->y + 8, t->w - 16, t->h - 16) > 0) == (i == 0));
+        assert(CtrPokeTouch_DexHit(&v, t->x + t->w / 2, t->y + t->h / 2) == PT_DEX_HIT_TAB + i);
+    }
+    /* dex_lists_rows: KANTO, NATIONAL and CLOSE as rows of the list window; the arrow on the cursor's */
+    {
+        static const int rows[3] = {1, 2, 18};
+
+        for (int i = 0; i < 3; ++i) {
+            CtrPokeTouchRect r = DexMenuRow(i);
+
+            assert(CtrPokeTouch_DexHit(&v, r.x + r.w / 2, r.y + r.h / 2) == PT_DEX_HIT_ITEM + rows[i]);
+            assert(ArrowAt(&r) == (i == 0));
+        }
+        assert(CtrPokeTouch_DexHit(&v, DexMenuRow(3).x + 20, DexMenuRow(3).y + 10) == -1);
+        assert(!outline || (at(kDexList.x, kDexList.y + 20) == KitInk(2) && at(kDexSide.x, kDexSide.y + 20) == KitInk(2)));
+        assert(CtrPokeTouch_DexHit(&v, kDexUp.x + 12, kDexUp.y + 30) == -1);
+        assert(CtrPokeTouch_DexHit(&v, kDexDown.x + 12, kDexDown.y + 30) == -1);
+    }
+    /* dex_back: BACK's cell at the bottom right is the Pokedex's B (ProcessBack), the band is nothing */
+    assert(CtrPokeTouch_BackHit(&v, kDexBack.x + 30, kDexBack.y + 28));
+    assert(!CtrPokeTouch_BackHit(&v, kDexNote.x + 30, kDexNote.y + 28) && !CtrPokeTouch_BackHit(&v, 200, 220));
+    assert(!outline || at(kDexBack.x, kDexBack.y + 20) == KitInk(2));
+    assert(CtrPokeTouch_DexHit(&v, kDexBack.x + 30, kDexBack.y + 28) == -1);
+    v.backPressed = 1; update(&old, &v);
+    assert(ArrowAt(&(CtrPokeTouchRect){(int16_t)(kDexBack.x + 8 + (kDexBack.w - 16 - UiTextWidth(CTR_TR("BACK", "ATR\xC3\x81S", "Zur\xC3\xBC" "ck"), 1)) / 2 - 8),
+                                       (int16_t)(kDexBack.y + 8), 8, (int16_t)(kDexBack.h - 16)}));
+    v.backPressed = 0; v.backEnabled = 0; update(&old, &v);
+    v.backEnabled = 1; update(&old, &v);
+    /* dex_habitats: the section's second page (rows 10-12), the arrow on the cursor; up has a page, down none */
+    d->menuCursor = 10; update(&old, &v);
+    assert(BagInk(kDexTab[1].x + 8, kDexTab[1].y + 8, kDexTab[1].w - 16, 14) > 0);
+    assert(BagInk(kDexTab[0].x + 8, kDexTab[0].y + 8, kDexTab[0].w - 16, 14) == 0);
+    for (int i = 0; i < DEX_MENU_ROWS; ++i) {
+        CtrPokeTouchRect r = DexMenuRow(i);
+
+        assert(CtrPokeTouch_DexHit(&v, r.x + r.w / 2, r.y + r.h / 2) == (i < 3 ? PT_DEX_HIT_ITEM + 10 + i : -1));
+        assert(ArrowAt(&r) == (i == 0));
+    }
+    assert(CtrPokeTouch_DexHit(&v, kDexUp.x + 12, kDexUp.y + 30) == PT_DEX_HIT_UP);
+    assert(CtrPokeTouch_DexHit(&v, kDexDown.x + 12, kDexDown.y + 30) == -1);
+    assert(CtrPokeTouch_DexGridPageRow(&v, -1) == 4 && CtrPokeTouch_DexGridPageRow(&v, 1) == -1);
+    assert(CtrPokeTouch_DexTabRow(&v, 0) == 1 && CtrPokeTouch_DexTabRow(&v, 1) == 4 && CtrPokeTouch_DexTabRow(&v, 2) == 14);
+    d->menuCursor = 5; update(&old, &v);
+    assert(CtrPokeTouch_DexHit(&v, kDexDown.x + 12, kDexDown.y + 30) == PT_DEX_HIT_DOWN);
+    assert(CtrPokeTouch_DexGridPageRow(&v, 1) == 10 && CtrPokeTouch_DexGridPageRow(&v, -1) == -1);
+    assert(CtrPokeTouch_DexHit(&v, DexMenuRow(5).x + 20, DexMenuRow(5).y + 10) == PT_DEX_HIT_ITEM + 9);
+    /* a locked habitat is toned (still a hit: the touch path refuses it); a row held: the arrow with it, the grey */
+    d->menu[6].locked = 1; update(&old, &v);
+    d->pressed = PT_DEX_HIT_ITEM + 7; update(&old, &v);
+    assert(ArrowAt(&(CtrPokeTouchRect){DexMenuRow(3).x, DexMenuRow(3).y, 8, DEX_MENU_ROW_H}));
+    assert(!ArrowAt(&(CtrPokeTouchRect){DexMenuRow(1).x, DexMenuRow(1).y, 8, DEX_MENU_ROW_H}));
+    assert(at(DexMenuRow(3).x + 100, DexMenuRow(3).y + 1) == KitInk(3));
+    d->pressed = PT_DEX_HIT_TAB + 2; update(&old, &v);
+    assert(BagInk(kDexTab[2].x + 8, kDexTab[2].y + 8, kDexTab[2].w - 16, 14) > 0);
+    d->pressed = -1; update(&old, &v);
+    /* CLOSE: the cursor on it shows LISTS */
+    d->menuCursor = 18; update(&old, &v);
+    assert(BagInk(kDexTab[0].x + 8, kDexTab[0].y + 8, kDexTab[0].w - 16, 14) > 0);
+    assert(ArrowAt(&(CtrPokeTouchRect){DexMenuRow(2).x, DexMenuRow(2).y, 8, DEX_MENU_ROW_H}));
+    /* dex_list: the order's title, five rows (the arrow on the cursor's), the scroll cells; the Pokemon's picture */
+    d->state = PT_DEX_STATE_LIST; d->listCount = 151; d->listCursor = 3; d->listFirst = 1; d->order = 0;
+    for (int i = 0; i < PT_DEX_ROWS; ++i) {
+        d->row[i].species = (uint16_t)(i + 2); d->row[i].number = (uint16_t)(i + 2); d->row[i].flags = (uint8_t)(i & 1 ? 3 : 1);
+        snprintf(d->row[i].name, sizeof(d->row[i].name), "MON %d", i);
+    }
+    d->sel = d->row[2]; d->type[0] = 11; snprintf(d->typeName[0], sizeof(d->typeName[0]), "GRASS");
+    update(&old, &v);
+    PageMargin();
+    assert(!outline || at(kDexTitle.x, kDexTitle.y + 15) == KitInk(2));
+    for (int i = 0; i < PT_DEX_ROWS; ++i) {
+        CtrPokeTouchRect r = DexListRow(i);
+
+        assert(CtrPokeTouch_DexHit(&v, r.x + r.w / 2, r.y + r.h / 2) == PT_DEX_HIT_ROW + i);
+        assert(ArrowAt(&r) == (i == 2));
+    }
+    assert(CtrPokeTouch_DexHit(&v, kDexUp.x + 12, kDexUp.y + 30) == PT_DEX_HIT_UP);
+    assert(CtrPokeTouch_DexHit(&v, kDexDown.x + 12, kDexDown.y + 30) == PT_DEX_HIT_DOWN);
+    assert(ColorIn(kDexSide.x + 8, kDexSide.y + 8, kDexSide.w - 16, kDexSide.h - 16, UiTypeColor(11)) > 0);
+    assert(CtrPokeTouch_BackHit(&v, kDexBack.x + 30, kDexBack.y + 28));
+    d->pressed = PT_DEX_HIT_ROW + 4; update(&old, &v);
+    assert(ArrowAt(&(CtrPokeTouchRect){DexListRow(4).x, DexListRow(4).y, 8, DEX_LIST_ROW_H}));
+    d->pressed = -1; d->listFirst = 0; d->listCursor = 0; d->sel.flags = 0; update(&old, &v);
+    assert(CtrPokeTouch_DexHit(&v, kDexUp.x + 12, kDexUp.y + 30) == -1);
+    d->order = 5; update(&old, &v);
+    /* dex_habitat_page: four places two by two, the arrow on the page's cursor; PREV and NEXT beside the band */
+    d->state = PT_DEX_STATE_CATEGORY; d->slots = 3; d->slot = 1; d->page = 2; d->pages = 3; d->canPrev = 1; d->canNext = 0;
+    for (int i = 0; i < 4; ++i)
+        d->mon[i] = d->row[i];
+    d->sel = d->mon[1]; update(&old, &v);
+    PageMargin();
+    assert(!outline || at(kDexHabitat.x, kDexHabitat.y + 20) == KitInk(2));
+    for (int i = 0; i < 4; ++i) {
+        CtrPokeTouchRect r = DexSlot(i);
+
+        assert(CtrPokeTouch_DexHit(&v, r.x + r.w / 2, r.y + r.h / 2) == (i < 3 ? PT_DEX_HIT_SLOT + i : -1));
+    }
+    assert(CtrPokeTouch_DexHit(&v, kDexPrev.x + 14, kDexPrev.y + 28) == PT_DEX_HIT_PREV);
+    assert(CtrPokeTouch_DexHit(&v, kDexNext.x + 14, kDexNext.y + 28) == -1);
+    assert(CtrPokeTouch_BackHit(&v, kDexBack.x + 30, kDexBack.y + 28));
+    d->canNext = 1; d->pressed = PT_DEX_HIT_SLOT + 2; update(&old, &v);
+    assert(CtrPokeTouch_DexHit(&v, kDexNext.x + 14, kDexNext.y + 28) == PT_DEX_HIT_NEXT);
+    d->pressed = PT_DEX_HIT_NEXT; update(&old, &v);
+    d->pressed = -1; update(&old, &v);
+    /* dex_mon_page: the picture and the data, the entry, AREA and CRY */
+    d->state = PT_DEX_STATE_PAGE; d->sel = d->row[1]; d->height = 7; d->weight = 69; d->type[1] = 3;
+    snprintf(d->typeName[1], sizeof(d->typeName[1]), "POISON");
+    snprintf(d->kind, sizeof(d->kind), "SEED"); snprintf(d->desc, sizeof(d->desc), "A strange seed was planted on its back at birth.");
+    update(&old, &v);
+    PageMargin();
+    assert(!outline || (at(kDexPic.x, kDexPic.y + 20) == KitInk(2) && at(kDexInfo.x, kDexInfo.y + 20) == KitInk(2)));
+    assert(ColorIn(kDexInfo.x, kDexInfo.y, kDexInfo.w, kDexInfo.h, UiTypeColor(3)) > 0);
+    assert(CtrPokeTouch_DexHit(&v, kDexArea.x + 60, kDexArea.y + 28) == PT_DEX_HIT_AREA);
+    assert(CtrPokeTouch_DexHit(&v, kDexCry.x + 60, kDexCry.y + 28) == PT_DEX_HIT_CRY);
+    assert(CtrPokeTouch_DexHit(&v, kDexEntry.x + 60, kDexEntry.y + 28) == -1);
+    assert(CtrPokeTouch_BackHit(&v, kDexBack.x + 30, kDexBack.y + 28));
+    d->pressed = PT_DEX_HIT_CRY; update(&old, &v);
+    d->pressed = -1; update(&old, &v);
+    /* dex_added: the page a catch adds: the whole band, no BACK, anywhere goes on */
+    d->added = 1; update(&old, &v);
+    assert(CtrPokeTouch_DexHit(&v, 10, 10) == PT_DEX_HIT_CONTINUE && CtrPokeTouch_DexHit(&v, 300, 230) == PT_DEX_HIT_CONTINUE);
+    assert(!CtrPokeTouch_BackHit(&v, kDexBack.x + 30, kDexBack.y + 28));
+    assert(at(kDexBack.x + 30, kDexBack.y + 28) == KitInk(1));
+    d->added = 0; update(&old, &v);
+    /* the FRAME the player chose; leaving */
+    v.frameType = 5; update(&old, &v);
+    v.frameType = base->frameType; update(&old, &v);
+    CtrPokeTouch_Draw(canvas, base);
+}
 #endif
 
 int main(int argc, char **argv)
@@ -670,12 +924,21 @@ int main(int argc, char **argv)
     v.speed=1; v.speedEnabled=1;
 #ifndef PT_BASELINE
     ArrowGlyph();
+    if (getenv("PT_SHOTS")) {
+        const char *fp = getenv("PT_SHOTS_FONT");
+
+        if (fp) { FILE *ff = fopen(fp, "rb"); assert(ff); assert(fread(font, 1, sizeof(font), ff) == sizeof(font)); fclose(ff); }
+        memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        preview_pages(&v);
+        return 0;
+    }
 #endif
     CtrPokeTouch_Draw(canvas,&v);
 #ifndef PT_BASELINE
     home_page(&v);
     home_frame_change(&v);
     bag_page(&v);
+    dex_page(&v);
 #else
     for(int x=4;x<244;++x) for(int y=4;y<164;++y) assert(at(x,y)==Gba(0x5ab3));
 #endif

@@ -566,6 +566,16 @@ static struct {
     int press;                      /* a tap's plan: A once the cursor is there, so the tapped row opens */
 } sDexPlan;
 
+/* The cursor the Pokedex's page shows: the row or place a touch's plan is taking FireRed's cursor to, as soon as it is
+ * asked (a tab's section at once, never the old row first), else the Pokedex's own. A habitat page's turn is not a
+ * cursor. */
+static int DexShownCursor(int state, int cursor)
+{
+    if (sDexPlan.active && sDexPlan.kind != DEXPLAN_FLIP && sDexPlan.state == state)
+        return sDexPlan.target;
+    return cursor;
+}
+
 /* Storage touch belongs to the screen the finger first pressed. The source
  * cursor/state is queried afresh for every step, never mirrored in the port.
  * An animation or the game's own menu must finish before another key. */
@@ -743,11 +753,11 @@ static struct {
     int down, inside;
 } sCardTap;
 
-/* The Pokedex's touch (ProcessFieldDexTouch), as the Bag's. */
+/* The Pokedex's touch (ProcessFieldDexTouch), as the Bag's; `acted`: its arrow acted on the press. */
 static struct {
     int down, inside, code;
-    int y0, cursor0, scrolling;
-} sFieldDex = {0, 0, -1, 0, 0, 0};
+    int y0, cursor0, scrolling, acted;
+} sFieldDex = {0, 0, -1, 0, 0, 0, 0};
 
 /* Colors RGB565. */
 #define RGB565(r, g, b) ((uint16_t)(((r) & 31) << 11 | ((g) & 63) << 5 | ((b) & 31)))
@@ -2202,11 +2212,19 @@ static void BackPress(int mode)
         SumPlanStart(SUMPLAN_PRESS, 0, 0, K_B);
 }
 
+/* A field page is up (3ds_poketouch.h CtrPokeTouch_FieldPageShown): no sidebar, and BACK is the page's own cell. */
+static int FieldPageUp(void)
+{
+    return sHaveShown && CtrPokeTouch_FieldPageShown(&sShown.touch);
+}
+
 /* Pressed on touch-down on it, released off it: nothing; released on it: once,
- * if still enabled and no physical button is held (physical input wins). */
+ * if still enabled and no physical button is held (physical input wins). BACK is the page's cell while a field page
+ * shows, else the old bar's. */
 static void ProcessBack(int mode, const CtrInput *in)
 {
-    int on = in->touchActive && CtrPokeTouch_HitBack((int)in->touchX, (int)in->touchY);
+    int x = (int)in->touchX, y = (int)in->touchY;
+    int on = in->touchActive && (FieldPageUp() ? CtrPokeTouch_BackHit(&sShown.touch, x, y) : CtrPokeTouch_HitBack(x, y));
 
     if (!BackVisible(mode) || (sHaveShown && mode != sShown.mode) || (in->held & 0x3ffu)) {
         sBack.down = sBack.inside = 0;
@@ -2421,10 +2439,10 @@ static void UpdateDestinationRoute(int mode)
 }
 
 /* A tap on the sidebar's other root while a lower-screen session runs: pressed
- * on touch-down, cancelled by moving off, one request on release over it. */
+ * on touch-down, cancelled by moving off, one request on release over it. A field page has no sidebar. */
 static void ProcessRouteTouch(int mode, const CtrInput *in)
 {
-    if (sPendingScreen != PT_NONE || (in->held & 0x3ffu) || (sHaveShown && mode != sShown.mode)) {
+    if (FieldPageUp() || sPendingScreen != PT_NONE || (in->held & 0x3ffu) || (sHaveShown && mode != sShown.mode)) {
         sPoke.id = PT_NONE;
         sPoke.inside = 0;
         return;
@@ -2878,6 +2896,8 @@ static void UpdateSave(void)
  * column's. */
 static int PokeHit(int page, int x, int y)
 {
+    if (FieldPageUp())
+        return PT_NONE;                 /* OPTIONS and SAVE as pages: no column */
     if (page) {
         int id = CtrPokeTouch_HomeHit(&sShown.touch, x, y);
 
@@ -3630,6 +3650,69 @@ static void DexPlanPick(int kind, int target, int state)
     sDexPlan.press = 1;
 }
 
+/* What a touch on the Pokedex's page does with its hit `code`, on the page it was made on (`state`). */
+static void FieldDexAct(int state, int code)
+{
+    const CtrPokeTouchDex *d = &sShown.touch.dex;
+    int row;
+
+    if (state == DEX_MENU) {
+        if (code >= PT_DEX_HIT_TAB && code < PT_DEX_HIT_TAB + 3) {
+            row = CtrPokeTouch_DexTabRow(&sShown.touch, code - PT_DEX_HIT_TAB);
+            if (row >= 0 && row != d->menuCursor)
+                DexPlanTo(DEXPLAN_LIST, row, DEX_MENU);
+        } else if (code >= PT_DEX_HIT_ITEM && code < PT_DEX_HIT_ITEM + PT_DEX_MENU_MAX) {
+            row = code - PT_DEX_HIT_ITEM;
+            if (row < d->menuCount && !d->menu[row].locked) {
+                if (row == d->menuCursor)
+                    sRouteKey = K_A;
+                else
+                    DexPlanPick(DEXPLAN_LIST, row, DEX_MENU);
+            }
+        } else if (code == PT_DEX_HIT_UP || code == PT_DEX_HIT_DOWN) {
+            row = CtrPokeTouch_DexGridPageRow(&sShown.touch, code == PT_DEX_HIT_UP ? -1 : 1);
+            if (row >= 0)
+                DexPlanTo(DEXPLAN_LIST, row, DEX_MENU);
+        }
+    } else if (state == DEX_LIST) {
+        if (code >= PT_DEX_HIT_ROW && code < PT_DEX_HIT_ROW + PT_DEX_ROWS) {
+            row = d->listFirst + code - PT_DEX_HIT_ROW;
+            if (row == d->listCursor)
+                sRouteKey = K_A;
+            else if (row < d->listCount)
+                DexPlanPick(DEXPLAN_LIST, row, DEX_LIST);
+        } else if (code == PT_DEX_HIT_UP || code == PT_DEX_HIT_DOWN) {
+            row = d->listCursor + (code == PT_DEX_HIT_UP ? -(PT_DEX_ROWS - 1) : PT_DEX_ROWS - 1);
+            if (row < 0)
+                row = 0;
+            if (row > d->listCount - 1)
+                row = d->listCount - 1;
+            if (row != d->listCursor)
+                DexPlanTo(DEXPLAN_LIST, row, DEX_LIST);
+        }
+    } else if (state == DEX_CATEGORY) {
+        if (code >= PT_DEX_HIT_SLOT && code < PT_DEX_HIT_SLOT + 4) {
+            row = code - PT_DEX_HIT_SLOT;
+            if (row == d->slot)
+                sRouteKey = K_A;
+            else if (row < d->slots)
+                DexPlanPick(DEXPLAN_SLOT, row, DEX_CATEGORY);
+        } else if ((code == PT_DEX_HIT_PREV || code == PT_DEX_HIT_NEXT)
+                   && CtrBottomDex_PageCanFlip(code == PT_DEX_HIT_PREV ? -1 : 1))
+            DexPlanTo(DEXPLAN_FLIP, code == PT_DEX_HIT_PREV ? -1 : 1, DEX_CATEGORY);
+    } else if (state == DEX_PAGE) {
+        if (code == PT_DEX_HIT_CONTINUE)
+            sRouteKey = K_A;        /* a catch's page: back to the battle */
+        else if (code == PT_DEX_HIT_AREA)
+            sRouteKey = K_A;
+        else if (code == PT_DEX_HIT_CRY)
+            sRouteKey = K_START;
+    }
+}
+
+/* Press, track, release, one action, on what the page showed (CtrPokeTouch_DexHit). The arrows (a page of the list or of
+ * a section's rows, a habitat page's turn) act on the press, as every page arrow does; the rest on release over what
+ * was pressed. A drag over the list's rows walks it a row per DEX_LIST_ROW_H; over a section's rows, a page at a time. */
 static void ProcessFieldDexTouch(const CtrInput *in)
 {
     int state = CtrBottomDex_State(), hit = -1;
@@ -3638,7 +3721,7 @@ static void ProcessFieldDexTouch(const CtrInput *in)
     if (in->touchActive && ready)
         hit = CtrPokeTouch_DexHit(&sShown.touch, (int)in->touchX, (int)in->touchY);
     if ((in->held & 0x3ffu) || !ready) {
-        sFieldDex.down = sFieldDex.inside = 0;
+        sFieldDex.down = sFieldDex.inside = sFieldDex.acted = 0;
         return;
     }
     if (in->touchDown) {
@@ -3647,8 +3730,13 @@ static void ProcessFieldDexTouch(const CtrInput *in)
         sFieldDex.y0 = (int)in->touchY;
         sFieldDex.cursor0 = CtrBottomDex_Cursor();
         sFieldDex.scrolling = 0;
+        sFieldDex.acted = 0;
         if (hit >= 0)
             DexPlanClear();
+        if (hit >= PT_DEX_HIT_UP && hit <= PT_DEX_HIT_NEXT && state == sShown.touch.dex.state) {
+            FieldDexAct(state, hit);
+            sFieldDex.acted = 1;
+        }
         return;
     }
     if (!sFieldDex.down)
@@ -3659,7 +3747,7 @@ static void ProcessFieldDexTouch(const CtrInput *in)
 
         if (state == DEX_LIST && sFieldDex.code >= PT_DEX_HIT_ROW && sFieldDex.code < PT_DEX_HIT_ROW + PT_DEX_ROWS
             && (sFieldDex.scrolling || far)) {
-            int target = sFieldDex.cursor0 - (dy + (dy < 0 ? -LIST_DRAG_ROW / 2 : LIST_DRAG_ROW / 2)) / LIST_DRAG_ROW;
+            int target = sFieldDex.cursor0 - (dy + (dy < 0 ? -DEX_LIST_ROW_H / 2 : DEX_LIST_ROW_H / 2)) / DEX_LIST_ROW_H;
 
             sFieldDex.scrolling = 1;
             target = target < 0 ? 0 : target > d->listCount - 1 ? d->listCount - 1 : target;
@@ -3677,64 +3765,9 @@ static void ProcessFieldDexTouch(const CtrInput *in)
         sFieldDex.inside = !sFieldDex.scrolling && hit == sFieldDex.code;
         return;
     }
-    if (sFieldDex.inside && state == sShown.touch.dex.state && !sDexPlan.active) {
-        const CtrPokeTouchDex *d = &sShown.touch.dex;
-        int code = sFieldDex.code, row;
-
-        if (state == DEX_MENU) {
-            if (code >= PT_DEX_HIT_TAB && code < PT_DEX_HIT_TAB + 3) {
-                row = CtrPokeTouch_DexTabRow(&sShown.touch, code - PT_DEX_HIT_TAB);
-                if (row >= 0 && row != d->menuCursor)
-                    DexPlanTo(DEXPLAN_LIST, row, DEX_MENU);
-            } else if (code >= PT_DEX_HIT_ITEM && code < PT_DEX_HIT_ITEM + PT_DEX_MENU_MAX) {
-                row = code - PT_DEX_HIT_ITEM;
-                if (row < d->menuCount && !d->menu[row].locked) {
-                    if (row == d->menuCursor)
-                        sRouteKey = K_A;
-                    else
-                        DexPlanPick(DEXPLAN_LIST, row, DEX_MENU);
-                }
-            } else if (code == PT_DEX_HIT_UP || code == PT_DEX_HIT_DOWN) {
-                row = CtrPokeTouch_DexGridPageRow(&sShown.touch, code == PT_DEX_HIT_UP ? -1 : 1);
-                if (row >= 0)
-                    DexPlanTo(DEXPLAN_LIST, row, DEX_MENU);
-            }
-        } else if (state == DEX_LIST) {
-            if (code >= PT_DEX_HIT_ROW && code < PT_DEX_HIT_ROW + PT_DEX_ROWS) {
-                row = d->listFirst + code - PT_DEX_HIT_ROW;
-                if (row == d->listCursor)
-                    sRouteKey = K_A;
-                else if (row < d->listCount)
-                    DexPlanPick(DEXPLAN_LIST, row, DEX_LIST);
-            } else if (code == PT_DEX_HIT_UP || code == PT_DEX_HIT_DOWN) {
-                row = d->listCursor + (code == PT_DEX_HIT_UP ? -(PT_DEX_ROWS - 1) : PT_DEX_ROWS - 1);
-                if (row < 0)
-                    row = 0;
-                if (row > d->listCount - 1)
-                    row = d->listCount - 1;
-                if (row != d->listCursor)
-                    DexPlanTo(DEXPLAN_LIST, row, DEX_LIST);
-            }
-        } else if (state == DEX_CATEGORY) {
-            if (code >= PT_DEX_HIT_SLOT && code < PT_DEX_HIT_SLOT + 4) {
-                row = code - PT_DEX_HIT_SLOT;
-                if (row == d->slot)
-                    sRouteKey = K_A;
-                else if (row < d->slots)
-                    DexPlanPick(DEXPLAN_SLOT, row, DEX_CATEGORY);
-            } else if ((code == PT_DEX_HIT_PREV || code == PT_DEX_HIT_NEXT)
-                       && CtrBottomDex_PageCanFlip(code == PT_DEX_HIT_PREV ? -1 : 1))
-                DexPlanTo(DEXPLAN_FLIP, code == PT_DEX_HIT_PREV ? -1 : 1, DEX_CATEGORY);
-        } else if (state == DEX_PAGE) {
-            if (code == PT_DEX_HIT_CONTINUE)
-                sRouteKey = K_A;        /* a catch's page: back to the battle */
-            else if (code == PT_DEX_HIT_AREA)
-                sRouteKey = K_A;
-            else if (code == PT_DEX_HIT_CRY)
-                sRouteKey = K_START;
-        }
-    }
-    sFieldDex.down = sFieldDex.inside = 0;
+    if (sFieldDex.inside && !sFieldDex.acted && state == sShown.touch.dex.state && !sDexPlan.active)
+        FieldDexAct(state, sFieldDex.code);
+    sFieldDex.down = sFieldDex.inside = sFieldDex.acted = 0;
 }
 
 /* The move to forget: a row walks the Summary's cursor there with its UP / DOWN, a tap on the selected row is its A

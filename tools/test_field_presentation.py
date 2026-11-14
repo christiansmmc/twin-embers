@@ -645,6 +645,140 @@ int main(void) {
 }
 ''')
 
+    def test_field_pages_leave_the_sidebar(self):
+        """While a field page shows (the Pokedex, ...) the old sidebar is gone: a touch where its buttons were routes
+        nowhere, and BACK is the page's own cell (CtrPokeTouch_BackHit), released on it once, as the bar's was."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='latin-1')
+        names = ['FieldPageUp', 'ProcessBack', 'ProcessRouteTouch', 'PokeHit']
+        code = '\n'.join(function(bottom, n) for n in names)
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include <string.h>
+#include "3ds_input.h"
+#include "3ds_poketouch.h"
+enum { MODE_FIELD = 1, MODE_DEX = 7 };
+static struct { int down, inside; } sBack;
+static struct { uint8_t id, inside; } sPoke;
+static int sHaveShown = 1, sPendingScreen = PT_NONE, pageShown = 1, backAt = 0, pressed = -1, requested = -1;
+static struct { int mode; CtrPokeTouchView touch; } sShown;
+static int BackVisible(int mode) { (void)mode; return 1; }
+static int BackEnabled(int mode) { (void)mode; return 1; }
+static void BackPress(int mode) { pressed = mode; }
+static int CanRouteDestination(int id, int mode) { (void)mode; return id == PT_BAG; }
+static void RequestDestination(int id, int mode) { (void)mode; requested = id; }
+bool CtrPokeTouch_FieldPageShown(const CtrPokeTouchView *v) { (void)v; return pageShown; }
+bool CtrPokeTouch_BackHit(const CtrPokeTouchView *v, int x, int y) { (void)v; return x == backAt && y == backAt; }
+bool CtrPokeTouch_HitBack(int x, int y) { return x == 200 && y == 220; }
+int CtrPokeTouch_HitTest(int x, int y) { return x > 248 && y < 80 ? PT_BAG : PT_NONE; }
+int CtrPokeTouch_HomeHit(const CtrPokeTouchView *v, int x, int y) { (void)v; (void)x; (void)y; return -1; }
+''' + code + '''
+static CtrInput in;
+static void Touch(int x, int y, int down) { in.touchActive = 1; in.touchDown = down; in.touchX = x; in.touchY = y; }
+static void Lift(void) { in.touchActive = in.touchDown = 0; }
+int main(void) {
+    sShown.mode = MODE_DEX;
+    /* the page's BACK: pressed on it, released on it: the Pokedex's B once */
+    backAt = 260;
+    Touch(260, 260, 1); ProcessBack(MODE_DEX, &in); assert(sBack.down && pressed == -1);
+    Touch(260, 260, 0); ProcessBack(MODE_DEX, &in); Lift(); ProcessBack(MODE_DEX, &in);
+    assert(pressed == MODE_DEX);
+    /* the old bar's BACK is not there */
+    pressed = -1; Touch(200, 220, 1); ProcessBack(MODE_DEX, &in); Lift(); ProcessBack(MODE_DEX, &in);
+    assert(pressed == -1);
+    /* the sidebar's BAG routes nowhere while a page shows; it does where the old shell still has it */
+    Touch(300, 60, 1); ProcessRouteTouch(MODE_DEX, &in); Lift(); ProcessRouteTouch(MODE_DEX, &in);
+    assert(requested == -1);
+    assert(PokeHit(0, 300, 60) == PT_NONE);
+    pageShown = 0;
+    Touch(300, 60, 1); ProcessRouteTouch(MODE_DEX, &in); Lift(); ProcessRouteTouch(MODE_DEX, &in);
+    assert(requested == PT_BAG && PokeHit(0, 300, 60) == PT_BAG);
+    pressed = -1; Touch(200, 220, 1); ProcessBack(MODE_DEX, &in); Lift(); ProcessBack(MODE_DEX, &in);
+    assert(pressed == MODE_DEX);
+    return 0;
+}
+''')
+
+    def test_dex_page_touch(self):
+        """The Pokedex's page: its arrows (a page of the list or of the grid, a habitat page) act on the touch's press, as
+        the owner asked of every page arrow; a row on release. A drag over the list moves a row per DEX_LIST_ROW_H. The
+        row or place a touch's plan takes the cursor to is shown at once (DexShownCursor), not the old one first."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='latin-1')
+        names = ['DexShownCursor', 'FieldDexAct', 'ProcessFieldDexTouch']
+        code = '\n'.join(function(bottom, n) for n in names)
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include <string.h>
+#include "3ds_input.h"
+#include "3ds_poketouch.h"
+#include "3ds_lower_layout.h"
+#define K_A (1u << 0)
+#define K_START (1u << 3)
+#define LIST_DRAG_SLOP 8
+enum { MODE_DEX = 7 };
+enum { DEX_BUSY = 0, DEX_MENU, DEX_LIST, DEX_CATEGORY, DEX_PAGE };
+enum { DEXPLAN_LIST = 0, DEXPLAN_SLOT, DEXPLAN_FLIP };
+static struct { int active, target, state, steps, release, kind, page, press; } sDexPlan;
+static struct { int down, inside, code; int y0, cursor0, scrolling, acted; } sFieldDex = {0, 0, -1, 0, 0, 0, 0};
+static int sHaveShown = 1, state = DEX_LIST, cursor = 10, hitCode = -1, planTo = -1, planPick = -1, planKind = -1;
+static unsigned short sRouteKey;
+static struct { int mode; CtrPokeTouchView touch; } sShown;
+int CtrBottomDex_State(void) { return state; }
+int CtrBottomDex_Cursor(void) { return cursor; }
+int CtrBottomDex_PageCanFlip(int dir) { (void)dir; return 1; }
+bool CtrBottom_IsFading(void) { return 0; }
+int CtrPokeTouch_DexHit(const CtrPokeTouchView *v, int x, int y) { (void)v; (void)x; (void)y; return hitCode; }
+int CtrPokeTouch_DexTabRow(const CtrPokeTouchView *v, int tab) { (void)v; return tab * 5; }
+int CtrPokeTouch_DexGridPageRow(const CtrPokeTouchView *v, int dir) { (void)v; return dir > 0 ? 9 : -1; }
+static void DexPlanClear(void) { memset(&sDexPlan, 0, sizeof(sDexPlan)); }
+static void DexPlanTo(int kind, int target, int st)
+{ DexPlanClear(); sDexPlan.active = 1; sDexPlan.kind = planKind = kind; sDexPlan.target = planTo = target; sDexPlan.state = st; }
+static void DexPlanPick(int kind, int target, int st) { DexPlanTo(kind, target, st); planPick = target; sDexPlan.press = 1; }
+''' + code + '''
+static CtrInput in;
+static void Touch(int y, int down) { in.touchActive = 1; in.touchDown = down; in.touchY = y; ProcessFieldDexTouch(&in); }
+static void Lift(void) { in.touchActive = in.touchDown = 0; ProcessFieldDexTouch(&in); }
+int main(void) {
+    CtrPokeTouchDex *d = &sShown.touch.dex;
+    sShown.mode = MODE_DEX; d->on = 1; d->state = DEX_LIST; d->listCount = 151; d->listCursor = 10; d->listFirst = 8;
+    /* the list's DOWN: on the press, four rows on */
+    hitCode = PT_DEX_HIT_DOWN; Touch(120, 1);
+    assert(planTo == 14 && planKind == DEXPLAN_LIST);
+    Touch(120, 0); planTo = -1; Lift();
+    assert(planTo == -1);                               /* not again on release */
+    /* a row: nothing on the press, its pick on release */
+    DexPlanClear(); hitCode = PT_DEX_HIT_ROW + 3; Touch(100, 1);
+    assert(planTo == -1);
+    Lift(); assert(planPick == 11);
+    /* a drag from a row: a row per DEX_LIST_ROW_H */
+    DexPlanClear(); planTo = -1; Touch(150, 1); Touch(150 - 3 * DEX_LIST_ROW_H, 0);
+    assert(planTo == 13);
+    Lift();
+    /* the shown cursor: the plan's target while it runs in the state it was made for (not a habitat page's turn) */
+    DexPlanClear();
+    assert(DexShownCursor(DEX_LIST, 10) == 10);
+    DexPlanTo(DEXPLAN_LIST, 40, DEX_LIST);
+    assert(DexShownCursor(DEX_LIST, 10) == 40 && DexShownCursor(DEX_MENU, 3) == 3);
+    DexPlanTo(DEXPLAN_SLOT, 2, DEX_CATEGORY);
+    assert(DexShownCursor(DEX_CATEGORY, 0) == 2);
+    DexPlanTo(DEXPLAN_FLIP, 1, DEX_CATEGORY);
+    assert(DexShownCursor(DEX_CATEGORY, 0) == 0);
+    /* a habitat page's NEXT and the grid's DOWN: on the press */
+    DexPlanClear(); state = DEX_CATEGORY; d->state = DEX_CATEGORY; hitCode = PT_DEX_HIT_NEXT; planKind = -1; Touch(200, 1);
+    assert(planKind == DEXPLAN_FLIP && sDexPlan.target == 1);
+    Lift();
+    DexPlanClear(); state = DEX_MENU; d->state = DEX_MENU; hitCode = PT_DEX_HIT_DOWN; planTo = -1; Touch(100, 1);
+    assert(planTo == 9);
+    Lift();
+    /* AREA: on release, its A */
+    DexPlanClear(); state = DEX_PAGE; d->state = DEX_PAGE; hitCode = PT_DEX_HIT_AREA; Touch(200, 1);
+    assert(!sRouteKey);
+    Lift(); assert(sRouteKey == K_A);
+    return 0;
+}
+''')
+
 
 if __name__ == '__main__':
     unittest.main()

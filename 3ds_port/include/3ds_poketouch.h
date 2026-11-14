@@ -412,6 +412,12 @@ bool CtrPokeTouch_FrameData(int type, uint8_t tiles[9 * 32], uint16_t framePal[1
  * under lower-screen point (x, y): a PT_BAG_HIT_* code, or -1. */
 bool CtrPokeTouch_BagPageShown(const CtrPokeTouchView *view);
 int CtrPokeTouch_BagHit(const CtrPokeTouchView *view, int x, int y);
+/* The field's other views as full-screen pages (phase 2: the Pokedex, ...): drawn whole by the port in the kit's
+ * look, with no sidebar (nothing there routes to another screen) and their BACK as a framed cell at the bottom right. */
+bool CtrPokeTouch_FieldPageShown(const CtrPokeTouchView *view);
+/* Whether lower-screen point (x, y) is on the BACK the view shows: a field page's own cell (none while it has a menu or
+ * a message up), or the old bar's on a view that still has the bar. HOME, the BAG and the battle's pages have none. */
+bool CtrPokeTouch_BackHit(const CtrPokeTouchView *view, int x, int y);
 /* What the Pokedex (view->dex.on) shows under lower-screen point (x, y): a PT_DEX_HIT_* code, or -1. */
 int CtrPokeTouch_DexHit(const CtrPokeTouchView *view, int x, int y);
 /* The top menu row a tab (0-2) leads to, and the first row of the habitat/search page before (-1) or after (1) the

@@ -488,13 +488,15 @@ static int FieldDexFill(CtrPokeTouchView *v, int pressed)
             d->menu[i].id = (int8_t)id;
             d->menu[i].locked = (uint8_t)(!CtrBottomDex_MenuUnlocked(id));
         }
-        d->menuCursor = (int8_t)CtrBottomDex_Cursor();
+        d->menuCursor = (int8_t)DexShownCursor(DEX_MENU, CtrBottomDex_Cursor());
     } else if (state == DEX_LIST) {
         int count = CtrBottomDex_ListCount();
 
         d->order = (uint8_t)CtrBottomDex_ListOrder();
         d->listCount = (int16_t)count;
-        d->listCursor = (int16_t)CtrBottomDex_Cursor();
+        d->listCursor = (int16_t)DexShownCursor(DEX_LIST, CtrBottomDex_Cursor());
+        if (d->listCursor < 0 || d->listCursor >= count)
+            d->listCursor = (int16_t)CtrBottomDex_Cursor();
         d->listFirst = (int16_t)(d->listCursor - 2 < 0 ? 0 : d->listCursor - 2);
         if (d->listFirst > count - PT_DEX_ROWS)
             d->listFirst = (int16_t)(count - PT_DEX_ROWS < 0 ? 0 : count - PT_DEX_ROWS);
@@ -510,6 +512,7 @@ static int FieldDexFill(CtrPokeTouchView *v, int pressed)
             d->page = (uint8_t)page;
             d->pages = (uint8_t)pages;
             d->slots = (uint8_t)(slots > 4 ? 4 : slots);
+            slot = DexShownCursor(DEX_CATEGORY, slot);
             d->slot = (uint8_t)slot;
             d->canPrev = (uint8_t)(CtrBottomDex_PageCanFlip(-1) != 0);
             d->canNext = (uint8_t)(CtrBottomDex_PageCanFlip(1) != 0);

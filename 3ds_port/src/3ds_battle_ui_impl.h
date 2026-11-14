@@ -275,21 +275,6 @@ static const EmPal kEmGreen = {UI_RGB(140, 224, 124), UI_RGB(44, 160, 72), UI_RG
 static const EmPal kEmPurple = {UI_RGB(196, 168, 255), UI_RGB(122, 88, 222), UI_RGB(82, 56, 160), UI_RGB(44, 28, 96),
                                 EM_WHITE, UI_RGB(44, 28, 96)};
 
-/* A pill with `text` on it, 15 pixels tall; BPillW is its width, x its left edge. */
-static int BPillW(const char *text)
-{
-    return UiTextWidth(text, 1) + 14;
-}
-
-static void BPill(int x, int y, const char *text, uint16_t bg, uint16_t ink, uint16_t shadow)
-{
-    int w = BPillW(text);
-
-    UiRoundFill(x, y, w, 15, 5, UiMix(bg, UI_RGB(0, 0, 0), 3));
-    UiRoundFill(x + 1, y + 1, w - 2, 13, 4, bg);
-    UiText(text, x + 7, y + 3, ink, shadow, 1, x + w);
-}
-
 /* The menu's icons: FIGHT, the Poke Ball and the shoe drawn flat by tools/make_battle_icons.py, the game's own bag
  * from the user's pack (reduced to fit its disc), BAIT and ROCK the port's art (3ds_icons.h). */
 #include "battle_flat_icons.h"

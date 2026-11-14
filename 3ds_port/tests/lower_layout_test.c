@@ -389,6 +389,92 @@ static void bag(void)
     }
 }
 
+/* The bottom row every field page shares: the band (dialogue frame, three lines) 4 px under what is above it, BACK
+ * beside it at the bottom right, both on the screen's 4 px margin. */
+static void BandAndBack(const CtrPokeTouchRect *band, const CtrPokeTouchRect *back, int above)
+{
+    Dialogue(band);
+    assert(band->h >= 56 && Bottom(band) == 236 && band->y == above + 4);
+    Button(back);
+    assert(back->x == band->x + band->w + 4 && back->x + back->w == 316 && back->y == band->y && back->h == band->h);
+}
+
+/* The POKeDEX: the BAG's tabs over the list window, its scroll cells and the side window, 4 px apart; six menu rows or
+ * five list rows inside the list's frame; a habitat page's window with its four places, the page arrows and the
+ * narrower band under it; a Pokemon's page: the picture (80x80 whole) and the data side by side, the entry under them
+ * (three lines), AREA, CRY and BACK under that. */
+static void dex(void)
+{
+    const CtrPokeTouchRect *view[12];
+    int n = 0;
+
+    for (int i = 0; i < 3; ++i) {
+        assert(kDexTab[i].x == kBagTab[i].x && kDexTab[i].y == kBagTab[i].y && kDexTab[i].w == kBagTab[i].w);
+        Button(&kDexTab[i]);
+        view[n++] = &kDexTab[i];
+    }
+    Framed(&kDexTitle);
+    assert(kDexTitle.x == 4 && kDexTitle.x + kDexTitle.w == 316 && kDexTitle.h == kDexTab[0].h);
+    Framed(&kDexList);
+    Button(&kDexUp);
+    Button(&kDexDown);
+    Framed(&kDexSide);
+    assert(kDexList.x == 4 && kDexList.y == Bottom(&kDexTab[0]) + 4 && kDexUp.x == kDexList.x + kDexList.w + 4);
+    assert(kDexUp.y == kDexList.y && kDexDown.y == Bottom(&kDexUp) + 4 && Bottom(&kDexDown) == Bottom(&kDexList));
+    assert(kDexSide.x == kDexUp.x + kDexUp.w + 4 && kDexSide.x + kDexSide.w == 316 && kDexSide.y == kDexList.y);
+    assert(Bottom(&kDexSide) == Bottom(&kDexList) && kDexSide.w - 16 >= 80 && kDexSide.h - 16 >= 80 + 2 * 16);
+    view[n++] = &kDexList;
+    view[n++] = &kDexUp;
+    view[n++] = &kDexDown;
+    view[n++] = &kDexSide;
+    BandAndBack(&kDexNote, &kDexBack, Bottom(&kDexList));
+    view[n++] = &kDexNote;
+    view[n++] = &kDexBack;
+    Apart(view, n);
+    for (int i = 0; i < DEX_MENU_ROWS; ++i) {
+        CtrPokeTouchRect r = DexMenuRow(i);
+
+        Row(&r);
+        InFrame(&r, &kDexList);
+    }
+    for (int i = 0; i < 5; ++i) {
+        CtrPokeTouchRect r = DexListRow(i);
+
+        Row(&r);
+        assert(r.h >= 24);
+        InFrame(&r, &kDexList);
+    }
+    /* a habitat page */
+    Framed(&kDexHabitat);
+    assert(kDexHabitat.x == 4 && kDexHabitat.y == 4 && kDexHabitat.x + kDexHabitat.w == 316);
+    for (int i = 0; i < 4; ++i) {
+        CtrPokeTouchRect r = DexSlot(i);
+
+        Button(&r);
+        InFrame(&r, &kDexHabitat);
+        assert(r.h >= 64 + 8 && r.w >= 64 + 8 + 64);       /* the picture and the number and name beside it */
+    }
+    Button(&kDexPrev);
+    Button(&kDexNext);
+    Dialogue(&kDexNoteNarrow);
+    assert(kDexPrev.x == 4 && kDexNext.x == kDexPrev.x + kDexPrev.w + 4 && kDexNoteNarrow.x == kDexNext.x + kDexNext.w + 4);
+    assert(kDexPrev.y == kDexNote.y && kDexNext.y == kDexNote.y && kDexNoteNarrow.y == kDexNote.y);
+    assert(kDexNoteNarrow.x + kDexNoteNarrow.w + 4 == kDexBack.x && kDexPrev.y == Bottom(&kDexHabitat) + 4);
+    /* a Pokemon's page */
+    Framed(&kDexPic);
+    Framed(&kDexInfo);
+    assert(kDexPic.w - 16 >= 80 && kDexPic.h - 16 >= 80);
+    assert(kDexInfo.x == kDexPic.x + kDexPic.w + 4 && kDexInfo.x + kDexInfo.w == 316 && kDexInfo.h == kDexPic.h);
+    Dialogue(&kDexEntry);
+    assert(kDexEntry.x == 4 && kDexEntry.w == 312 && kDexEntry.y == Bottom(&kDexPic) + 4 && kDexEntry.h >= 56);
+    Button(&kDexArea);
+    Button(&kDexCry);
+    assert(kDexArea.x == 4 && kDexArea.y == Bottom(&kDexEntry) + 4 && kDexCry.x == kDexArea.x + kDexArea.w + 4);
+    assert(kDexCry.x + kDexCry.w + 4 == kDexBack.x && kDexArea.y == kDexBack.y && Bottom(&kDexArea) == 236);
+    Dialogue(&kDexNoteWide);
+    assert(kDexNoteWide.x == 4 && kDexNoteWide.x + kDexNoteWide.w == 316 && kDexNoteWide.y == kDexNote.y);
+}
+
 int main(void)
 {
     home();
@@ -396,6 +482,7 @@ int main(void)
     party();
     summary();
     bag();
+    dex();
     printf("PASS lower layout%s\n", LOWER_LAYOUT_PROVISIONAL ? " (provisional values)" : "");
     return 0;
 }

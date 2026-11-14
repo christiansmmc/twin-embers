@@ -875,9 +875,8 @@ static int FrameShown(const CtrPokeTouchView *v)
 
 /* The field Bag the port draws (3ds_field_bag_impl.h, included at the end). */
 static void BagPageDraw(const CtrPokeTouchView *v);
-/* The Pokedex the port draws (3ds_field_dex_impl.h, included at the end). */
-static void FDexFrame(const CtrPokeTouchView *v);
-static void FDexNote(const CtrPokeTouchView *v, int w);
+/* The field's pages (3ds_field_page_impl.h and the views' headers, included at the end). */
+static void FieldPageDraw(const CtrPokeTouchView *v);
 /* The Trainer Card the port draws (3ds_field_card_impl.h, included at the end). */
 static void FCardFrame(const CtrPokeTouchView *v);
 static void FCardNote(const CtrPokeTouchView *v, int w);
@@ -900,10 +899,6 @@ static void MenuFrame(const CtrPokeTouchView *v)
     const CtrPokeTouchRect *r = &sMenuFrame;
 
     TsBgRect(r->x, r->y, r->w, r->h);
-    if (v->dex.on && !v->viewport) {
-        FDexFrame(v);
-        return;
-    }
     if (v->card.on && !v->viewport) {
         FCardFrame(v);
         return;
@@ -1055,9 +1050,7 @@ static void Bar(const CtrPokeTouchView *v)
     for (int i = 0; i < PT_BAR_LINES; ++i)
         if (v->bar[i][0])
             lines = i + 1;
-    if (v->dex.on && !v->viewport)
-        FDexNote(v, w);
-    else if (v->card.on && !v->viewport)
+    if (v->card.on && !v->viewport)
         FCardNote(v, w);
     else if (v->learn.on && !v->viewport)
         FLearnNote(v, w);
@@ -1220,6 +1213,10 @@ void CtrPokeTouch_Draw(uint16_t *canvas, const CtrPokeTouchView *v)
         BagPageDraw(v);
         return;
     }
+    if (CtrPokeTouch_FieldPageShown(v)) {
+        FieldPageDraw(v);
+        return;
+    }
     Frame();
     MenuFrame(v);
     Bar(v);
@@ -1266,6 +1263,14 @@ void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const Ct
         /* The Bag's page: drawn again whole when anything on it changes (the description follows the selection). */
         if (!CtrPokeTouch_BagPageShown(old) || !CtrPokeTouch_BagPageShown(v) || old->frameType != v->frameType
             || memcmp(&old->bag, &v->bag, sizeof(v->bag))) {
+            CtrPokeTouch_Draw(canvas, v);
+            CtrDirty_Add(dirty, 0, 0, W, H);
+        }
+        return;
+    }
+    if (CtrPokeTouch_FieldPageShown(old) || CtrPokeTouch_FieldPageShown(v)) {
+        /* A field page: drawn again whole when anything it shows changes (a selection moves its description). */
+        if (!CtrPokeTouch_FieldPageShown(old) || !CtrPokeTouch_FieldPageShown(v) || memcmp(old, v, sizeof(*v))) {
             CtrPokeTouch_Draw(canvas, v);
             CtrDirty_Add(dirty, 0, 0, W, H);
         }
@@ -1405,9 +1410,44 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
 #include "3ds_battle_ui_impl.h"
 #include "3ds_summary_ui_impl.h"
 #include "3ds_field_bag_impl.h"
+#include "3ds_field_page_impl.h"
 #include "3ds_field_dex_impl.h"
 #include "3ds_field_card_impl.h"
 #include "3ds_field_learn_impl.h"
 #include "3ds_field_choice_impl.h"
 #include "3ds_field_naming_impl.h"
 #include "3ds_field_box_impl.h"
+
+/* ---- The field's pages: which view is one, its BACK, its drawing ---- */
+bool CtrPokeTouch_FieldPageShown(const CtrPokeTouchView *v)
+{
+    return !v->viewport && !CtrPokeTouch_BagPageShown(v) && v->dex.on;
+}
+
+/* BACK's cell on the page shown (none without the view's BACK, or while the page has no room for it). */
+static const CtrPokeTouchRect *FieldPageBack(const CtrPokeTouchView *v)
+{
+    if (!v->backVisible)
+        return NULL;
+    if (v->dex.on)
+        return FDexBackRect(v);
+    return NULL;
+}
+
+static void FieldPageDraw(const CtrPokeTouchView *v)
+{
+    if (v->dex.on)
+        FDexPageDraw(v);
+}
+
+bool CtrPokeTouch_BackHit(const CtrPokeTouchView *v, int x, int y)
+{
+    if (CtrPokeTouch_FieldPageShown(v)) {
+        const CtrPokeTouchRect *r = FieldPageBack(v);
+
+        return r && UiIn(r, x, y);
+    }
+    if (CtrPokeTouch_HomePageShown(v) || CtrPokeTouch_BagPageShown(v))
+        return false;
+    return CtrPokeTouch_HitBack(x, y);
+}

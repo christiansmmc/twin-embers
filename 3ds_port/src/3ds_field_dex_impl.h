@@ -1,20 +1,14 @@
-/* The Pokedex in the viewport (3ds_poketouch.h CtrPokeTouchDex), included at the end of 3ds_poketouch.c after the
- * field Bag, whose ember pieces it shares. A remote for FireRed's own Pokedex: the top menu's sections as tabs and its
- * rows as cards with the Pokedex's own icons, an ordered list as rows beside the selected Pokemon's picture, a habitat
- * page as its Pokemon, and a Pokemon's page with its picture, data and entry. Every cursor is the Pokedex's own
- * (3ds_bottom.c walks them with its keys); every picture and word is FireRed's (CtrPokeTouch_Dex*, the bridge's text),
- * but for the port's few labels (3ds_ui_strings.h). */
+/* The Pokedex as a page (3ds_poketouch.h CtrPokeTouchDex; phase 2, drawn in the BAG's style), included at the end of
+ * 3ds_poketouch.c after the field Bag. A remote for FireRed's own Pokedex: the top menu's three sections as the BAG's
+ * tabs, the section's rows in a list window (six a page, the scroll cells beside it) with the row's own icon and counts
+ * in a window on the right, as FireRed's top menu shows them; an ordered list as rows beside the Pokemon's picture and
+ * types; a habitat page as its Pokemon two by two, its arrows beside the band; a Pokemon's page with its picture, data
+ * and entry, AREA and CRY. The band says what the selection is; BACK is the Pokedex's B. Every cursor is the Pokedex's
+ * own (3ds_bottom.c walks them with its keys); every picture and word is FireRed's (CtrPokeTouch_Dex*, the bridge's
+ * text), but for the port's few labels (3ds_ui_strings.h). Its picture helpers are shared with the Trainer Card, the
+ * forget-a-move page, the naming keyboard and the PC box. */
 
-static const CtrPokeTouchRect sFDTab[3] = {{4, 4, 78, 24}, {85, 4, 78, 24}, {166, 4, 78, 24}};
 static const CtrUiString sFDTabLabel[3] = {UIS_DEX_LISTS, UIS_DEX_HABITATS, UIS_DEX_SEARCH};
-static const CtrPokeTouchRect sFDClose = {4, 140, 240, 24};
-static const CtrPokeTouchRect sFDGridUp = {230, 34, 14, 63}, sFDGridDown = {230, 101, 14, 63};
-static const CtrPokeTouchRect sFDListHead = {4, 4, 150, 24};
-static const CtrPokeTouchRect sFDListUp = {135, 34, 20, 63}, sFDListDown = {135, 101, 20, 63};
-static const CtrPokeTouchRect sFDSide = {158, 4, 86, 160};
-static const CtrPokeTouchRect sFDPrev = {220, 4, 24, 80}, sFDNext = {220, 86, 24, 80};
-static const CtrPokeTouchRect sFDArea = {4, 174, 80, 62}, sFDCry = {88, 174, 80, 62};
-#define FD_GRID_PAGE 6
 
 /* ---- Pictures (decoded once, kept by species or row id) ---- */
 #define FD_PICS 6
@@ -223,458 +217,391 @@ static void FDWeight(const CtrPokeTouchDex *d, char *out, int size)
     snprintf(out, (size_t)size, "%u.%u %s", lbs / 100, lbs % 100 / 10, CtrUiText(UIS_DEX_LBS));
 }
 
-/* ---- The top menu: sections (the rows after each header), the one the cursor is in, its cards ---- */
-static int FDSection(const CtrPokeTouchDex *d, int index)
+/* ---- The top menu: the rows a tab shows, the tab and the page the cursor is on ---- */
+/* The rows tab `tab` shows, as top menu indexes: its section's (FireRed's CLOSE left out), LISTS with CLOSE after its
+ * own. */
+static int FDTabRows(const CtrPokeTouchDex *d, int tab, int rows[PT_DEX_MENU_MAX])
 {
-    int section = -1;
+    int section = -1, n = 0, cancel = -1;
 
-    for (int i = 0; i <= index && i < d->menuCount; ++i)
+    for (int i = 0; i < d->menuCount && i < PT_DEX_MENU_MAX; ++i) {
         if (d->menu[i].id == PT_DEX_ID_HEADER)
             ++section;
-    return section;
-}
-
-/* The rows of section `k` (first, count). */
-static int FDSectionRows(const CtrPokeTouchDex *d, int k, int *first)
-{
-    int section = -1, n = 0;
-
-    *first = -1;
-    for (int i = 0; i < d->menuCount; ++i) {
-        if (d->menu[i].id == PT_DEX_ID_HEADER) {
-            ++section;
-            continue;
-        }
-        if (section == k) {
-            if (*first < 0)
-                *first = i;
-            ++n;
-        }
+        else if (d->menu[i].id == PT_DEX_ID_CANCEL)
+            cancel = i;
+        else if (section == tab)
+            rows[n++] = i;
     }
+    if (tab == 0 && cancel >= 0)
+        rows[n++] = cancel;
     return n;
 }
 
-static int FDCancelRow(const CtrPokeTouchDex *d)
-{
-    for (int i = 0; i < d->menuCount; ++i)
-        if (d->menu[i].id == PT_DEX_ID_CANCEL)
-            return i;
-    return -1;
-}
-
-/* The tab shown: the cursor's section (CLOSE belongs to the lists). */
+/* The tab shown: the cursor's section (CLOSE is drawn in LISTS). */
 static int FDTabShown(const CtrPokeTouchDex *d)
 {
-    int k = FDSection(d, d->menuCursor);
+    int c = d->menuCursor, section = -1;
 
-    return k < 0 || k > 2 ? 0 : k;
+    if (c < 0 || c >= d->menuCount || d->menu[c].id == PT_DEX_ID_CANCEL)
+        return 0;
+    for (int i = 0; i <= c; ++i)
+        section += d->menu[i].id == PT_DEX_ID_HEADER;
+    return section < 0 || section > 2 ? 0 : section;
 }
 
-/* A grid section's page (six cards) and the rows it shows. */
-static int FDGridPage(const CtrPokeTouchDex *d, int k, int *first, int *count, int *pages)
-{
-    int start, n = FDSectionRows(d, k, &start), at = d->menuCursor - start, page;
+/* The tab shown, its rows, and the page of them (DEX_MENU_ROWS a page) that holds the cursor, the first otherwise. */
+typedef struct {
+    int tab, n, page, pages;
+    int rows[PT_DEX_MENU_MAX];
+} FDMenuPage;
 
-    page = at >= 0 && at < n ? at / FD_GRID_PAGE : 0;
-    *pages = (n + FD_GRID_PAGE - 1) / FD_GRID_PAGE;
-    *first = start + page * FD_GRID_PAGE;
-    *count = n - page * FD_GRID_PAGE > FD_GRID_PAGE ? FD_GRID_PAGE : n - page * FD_GRID_PAGE;
-    return page;
+static void FDMenuPageOf(const CtrPokeTouchDex *d, FDMenuPage *m)
+{
+    int at = 0;
+
+    m->tab = FDTabShown(d);
+    m->n = FDTabRows(d, m->tab, m->rows);
+    for (int i = 0; i < m->n; ++i)
+        if (m->rows[i] == d->menuCursor)
+            at = i;
+    m->pages = (m->n + DEX_MENU_ROWS - 1) / DEX_MENU_ROWS;
+    m->page = at / DEX_MENU_ROWS;
 }
 
-static CtrPokeTouchRect FDGridCard(int i)
+/* The menu index of row i of the page shown, or -1. */
+static int FDMenuRowIndex(const FDMenuPage *m, int i)
 {
-    CtrPokeTouchRect r = {(int16_t)(4 + (i % 3) * 76), (int16_t)(34 + (i / 3) * 66), 74, 64};
-    return r;
-}
+    int k = m->page * DEX_MENU_ROWS + i;
 
-static CtrPokeTouchRect FDListCard(const CtrPokeTouchDex *d, int i, int n)
-{
-    CtrPokeTouchRect r = {4, 34, 240, 102};
-
-    (void)d;
-    if (n > 1) {
-        r.x = (int16_t)(i == 0 ? 4 : 126);
-        r.w = 118;
-    }
-    return r;
-}
-
-static CtrPokeTouchRect FDListRow(int i)
-{
-    CtrPokeTouchRect r = {4, (int16_t)(34 + 26 * i), 128, 25};
-    return r;
-}
-
-static CtrPokeTouchRect FDSlot(int i)
-{
-    CtrPokeTouchRect r = {(int16_t)(4 + (i % 2) * 108), (int16_t)(4 + (i / 2) * 82), 104, 80};
-    return r;
+    return i >= 0 && i < DEX_MENU_ROWS && k < m->n ? m->rows[k] : -1;
 }
 
 int CtrPokeTouch_DexTabRow(const CtrPokeTouchView *v, int tab)
 {
-    int first;
+    int rows[PT_DEX_MENU_MAX];
 
-    return FDSectionRows(&v->dex, tab, &first) > 0 ? first : -1;
+    return FDTabRows(&v->dex, tab, rows) > 0 ? rows[0] : -1;
 }
 
 int CtrPokeTouch_DexGridPageRow(const CtrPokeTouchView *v, int dir)
 {
-    const CtrPokeTouchDex *d = &v->dex;
-    int tab = FDTabShown(d), start, n, first, count, pages, page;
+    FDMenuPage m;
+    int page;
 
-    if (tab == 0)
-        return -1;
-    n = FDSectionRows(d, tab, &start);
-    page = FDGridPage(d, tab, &first, &count, &pages) + dir;
-    return page >= 0 && page < pages && start + page * FD_GRID_PAGE < start + n ? start + page * FD_GRID_PAGE : -1;
+    FDMenuPageOf(&v->dex, &m);
+    page = m.page + dir;
+    return page >= 0 && page < m.pages ? m.rows[page * DEX_MENU_ROWS] : -1;
 }
 
 int CtrPokeTouch_DexHit(const CtrPokeTouchView *v, int x, int y)
 {
     const CtrPokeTouchDex *d = &v->dex;
 
-    if (!d->on || x >= 248)
+    if (!d->on || v->viewport)
         return -1;
     switch (d->state) {
     case PT_DEX_STATE_MENU: {
-        int tab = FDTabShown(d), first, count, pages;
+        FDMenuPage m;
 
+        FDMenuPageOf(d, &m);
         for (int i = 0; i < 3; ++i)
-            if (UiIn(&sFDTab[i], x, y))
+            if (UiIn(&kDexTab[i], x, y))
                 return PT_DEX_HIT_TAB + i;
-        if (tab == 0) {
-            int n = FDSectionRows(d, 0, &first), cancel = FDCancelRow(d);
+        if (UiIn(&kDexUp, x, y))
+            return m.page > 0 ? PT_DEX_HIT_UP : -1;
+        if (UiIn(&kDexDown, x, y))
+            return m.page < m.pages - 1 ? PT_DEX_HIT_DOWN : -1;
+        for (int i = 0; i < DEX_MENU_ROWS; ++i) {
+            CtrPokeTouchRect r = DexMenuRow(i);
+            int row = FDMenuRowIndex(&m, i);
 
-            for (int i = 0; i < n && i < 2; ++i) {
-                CtrPokeTouchRect r = FDListCard(d, i, n);
-                if (UiIn(&r, x, y))
-                    return PT_DEX_HIT_ITEM + first + i;
-            }
-            if (cancel >= 0 && UiIn(&sFDClose, x, y))
-                return PT_DEX_HIT_ITEM + cancel;
-            return -1;
-        }
-        FDGridPage(d, tab, &first, &count, &pages);
-        if (pages > 1 && UiIn(&sFDGridUp, x, y))
-            return PT_DEX_HIT_UP;
-        if (pages > 1 && UiIn(&sFDGridDown, x, y))
-            return PT_DEX_HIT_DOWN;
-        for (int i = 0; i < count; ++i) {
-            CtrPokeTouchRect r = FDGridCard(i);
-            if (UiIn(&r, x, y))
-                return PT_DEX_HIT_ITEM + first + i;
+            if (row >= 0 && UiIn(&r, x, y))
+                return PT_DEX_HIT_ITEM + row;
         }
         return -1;
     }
     case PT_DEX_STATE_LIST:
-        if (UiIn(&sFDListUp, x, y))
+        if (UiIn(&kDexUp, x, y))
             return d->listFirst > 0 ? PT_DEX_HIT_UP : -1;
-        if (UiIn(&sFDListDown, x, y))
+        if (UiIn(&kDexDown, x, y))
             return d->listFirst + PT_DEX_ROWS < d->listCount ? PT_DEX_HIT_DOWN : -1;
         for (int i = 0; i < PT_DEX_ROWS; ++i) {
-            CtrPokeTouchRect r = FDListRow(i);
+            CtrPokeTouchRect r = DexListRow(i);
+
             if (d->listFirst + i < d->listCount && UiIn(&r, x, y))
                 return PT_DEX_HIT_ROW + i;
         }
         return -1;
     case PT_DEX_STATE_CATEGORY:
-        if (UiIn(&sFDPrev, x, y))
+        if (UiIn(&kDexPrev, x, y))
             return d->canPrev ? PT_DEX_HIT_PREV : -1;
-        if (UiIn(&sFDNext, x, y))
+        if (UiIn(&kDexNext, x, y))
             return d->canNext ? PT_DEX_HIT_NEXT : -1;
         for (int i = 0; i < d->slots && i < 4; ++i) {
-            CtrPokeTouchRect r = FDSlot(i);
+            CtrPokeTouchRect r = DexSlot(i);
+
             if (UiIn(&r, x, y))
                 return PT_DEX_HIT_SLOT + i;
         }
         return -1;
     case PT_DEX_STATE_PAGE:
-        if (d->added) {
-            /* The page a catch added: anywhere on it or its note goes on with the battle (its A). */
-            CtrPokeTouchRect note = {NOTE_X, NOTE_Y, NOTE_W_SIDE, NOTE_H};
-
-            return UiIn(&sFBArea, x, y) || UiIn(&note, x, y) ? PT_DEX_HIT_CONTINUE : -1;
-        }
-        if (UiIn(&sFDArea, x, y))
+        if (d->added)
+            return PT_DEX_HIT_CONTINUE;     /* the page a catch added: anywhere goes on with the battle (its A) */
+        if (UiIn(&kDexArea, x, y))
             return PT_DEX_HIT_AREA;
-        if (UiIn(&sFDCry, x, y))
+        if (UiIn(&kDexCry, x, y))
             return PT_DEX_HIT_CRY;
         return -1;
     }
     return -1;
 }
 
+/* BACK's cell: on every page but the one a catch adds (a message that waits for A). */
+static const CtrPokeTouchRect *FDexBackRect(const CtrPokeTouchView *v)
+{
+    return v->dex.state == PT_DEX_STATE_PAGE && v->dex.added ? NULL : &kDexBack;
+}
+
 /* ---- Drawing ---- */
-static void FDLabel(const char *s, int x, int w, int y, const EmPal *p)
+/* The tabs: the arrow on the one held, else the section shown. */
+static void FDTabs(const CtrPokeTouchView *v, int shown)
 {
-    UiText(s, x + (w - UiTextWidth(s, 1)) / 2, y, p->ink, p->inkSh, 1, x + w);
-}
-
-static void FDCounts(int x, int y, int w, const EmPal *p, unsigned seen, unsigned owned)
-{
-    char n[8];
-
-    UiText(CtrUiText(UIS_DEX_SEEN), x + 10, y, p->ink, p->inkSh, 1, x + w);
-    snprintf(n, sizeof(n), "%u", seen);
-    UiTextRight(n, x + w - 10, y, EM_VALUE, p->inkSh, 1);
-    UiText(CtrUiText(UIS_DEX_OWNED), x + 10, y + 13, p->ink, p->inkSh, 1, x + w);
-    snprintf(n, sizeof(n), "%u", owned);
-    UiTextRight(n, x + w - 10, y + 13, EM_VALUE, p->inkSh, 1);
-}
-
-/* A thin page arrow (up or down) in the ember well of the Bag's arrows. */
-static void FDArrow(const CtrPokeTouchRect *r, int dir, int on)
-{
-    UiRoundFill(r->x, r->y, r->w, r->h, 5, UI_RGB(24, 8, 10));
-    EmGradFill(r->x + 1, r->y + 1, r->w - 2, r->h - 2, 4, UI_RGB(72, 26, 26), UI_RGB(44, 14, 16));
-    if (dir == -1 || dir == 1)
-        UiArrow(r->x + (r->w - 5) / 2, r->y + r->h / 2 - 4, dir, on ? EM_GLOW : UI_RGB(110, 50, 44));
-    else
-        UiArrow(r->x + (r->w - 9) / 2, r->y + r->h / 2 - 3, dir, on ? EM_GLOW : UI_RGB(110, 50, 44));
-}
-
-static void FDMenu(const CtrPokeTouchDex *d, int pressed)
-{
-    int tab = FDTabShown(d), first, count, pages;
+    const CtrPokeTouchDex *d = &v->dex;
+    int held = d->pressed >= PT_DEX_HIT_TAB && d->pressed < PT_DEX_HIT_TAB + 3 ? d->pressed - PT_DEX_HIT_TAB : -1;
 
     for (int i = 0; i < 3; ++i)
-        FBButton(&sFDTab[i], tab == i ? &kEmAmber : &kEmCream, CtrUiText(sFDTabLabel[i]), pressed == PT_DEX_HIT_TAB + i);
-    if (tab == 0) {
-        int n = FDSectionRows(d, 0, &first), cancel = FDCancelRow(d);
+        BagCell(&kDexTab[i], v->frameType, CtrUiText(sFDTabLabel[i]), held >= 0 ? held == i : shown == i, held == i, 1);
+}
 
-        for (int i = 0; i < n && i < 2; ++i) {
-            CtrPokeTouchRect r = FDListCard(d, i, n);
-            int row = first + i, sel = d->menuCursor == row, nat = d->menu[row].id == PT_DEX_ID_NATIONAL;
-            const EmPal *p = sel ? &kEmAmber : &kEmCream;
-            int fy = EmButton(r.x, r.y, r.w, r.h, p, FB_DEPTH, pressed == PT_DEX_HIT_ITEM + row);
-            char label[24];
+/* The top menu row the side window and the band describe: the one held, else the cursor's. */
+static int FDMenuChosen(const CtrPokeTouchDex *d)
+{
+    int held = d->pressed >= PT_DEX_HIT_ITEM && d->pressed < PT_DEX_HIT_ITEM + PT_DEX_MENU_MAX
+             ? d->pressed - PT_DEX_HIT_ITEM : -1;
 
-            FDIconDraw(d->menu[row].id, r.x + (r.w - 64) / 2, fy + 4, 1);
-            FDCardLabel(d, row, label, sizeof(label));
-            FDLabel(label, r.x, r.w, fy + 54, p);
-            FDCounts(r.x, fy + 70, r.w, p, d->seen[nat], d->owned[nat]);
-        }
-        if (cancel >= 0)
-            FBButton(&sFDClose, d->menuCursor == cancel ? &kEmAmber : &kEmViolet, d->menu[cancel].name,
-                     pressed == PT_DEX_HIT_ITEM + cancel);
-        return;
-    }
-    FDGridPage(d, tab, &first, &count, &pages);
-    for (int i = 0; i < count; ++i) {
-        CtrPokeTouchRect r = FDGridCard(i);
-        int row = first + i, locked = d->menu[row].locked;
-        const EmPal *p = d->menuCursor == row ? &kEmAmber : locked ? &kEmGrey : &kEmCream;
-        int fy = EmButton(r.x, r.y, r.w, r.h, p, FB_DEPTH, pressed == PT_DEX_HIT_ITEM + row);
-        char label[24];
+    return held >= 0 && held < d->menuCount ? held : d->menuCursor;
+}
 
-        FDIconDraw(d->menu[row].id, r.x + (r.w - 64) / 2, fy + 1, !locked);
+/* The top menu: the tabs, the section's rows (the arrow on the chosen one, a habitat with nothing seen toned), the
+ * scroll cells, the row's FireRed icon (and a list's counts) on the right, the band. */
+static void FDMenu(const CtrPokeTouchView *v)
+{
+    const CtrPokeTouchDex *d = &v->dex;
+    int chosen = FDMenuChosen(d);
+    FDMenuPage m;
+    char title[28] = "", body[96] = "";
+
+    FDMenuPageOf(d, &m);
+    FDTabs(v, m.tab);
+    FPageWindow(&kDexList, v->frameType);
+    for (int i = 0; i < DEX_MENU_ROWS; ++i) {
+        CtrPokeTouchRect r = DexMenuRow(i);
+        int row = FDMenuRowIndex(&m, i);
+        char label[28];
+
+        if (row < 0)
+            break;
         FDCardLabel(d, row, label, sizeof(label));
-        FDLabel(label, r.x, r.w, fy + 50, p);
+        FPageRow(&r, label, row == chosen, d->pressed == PT_DEX_HIT_ITEM + row, !d->menu[row].locked);
     }
-    if (pages > 1) {
-        int start, at;
+    BagArrowCell(&kDexUp, v->frameType, 0, m.page > 0, d->pressed == PT_DEX_HIT_UP);
+    BagArrowCell(&kDexDown, v->frameType, 1, m.page < m.pages - 1, d->pressed == PT_DEX_HIT_DOWN);
+    FPageWindow(&kDexSide, v->frameType);
+    if (chosen >= 0 && chosen < d->menuCount) {
+        int id = d->menu[chosen].id, x = kDexSide.x + 8, right = kDexSide.x + kDexSide.w - 8;
 
-        FDSectionRows(d, tab, &start);
-        at = (first - start) / FD_GRID_PAGE;
-        FDArrow(&sFDGridUp, -2, at > 0);
-        FDArrow(&sFDGridDown, 2, at < pages - 1);
+        FDIconDraw(id, kDexSide.x + (kDexSide.w - 64) / 2, kDexSide.y + 12, !d->menu[chosen].locked);
+        if (id == PT_DEX_ID_KANTO || id == PT_DEX_ID_NATIONAL) {
+            int nat = id == PT_DEX_ID_NATIONAL;
+            char n[8];
+
+            snprintf(n, sizeof(n), "%u", d->seen[nat]);
+            SLine(x, right, kDexSide.y + 72, CtrUiText(UIS_DEX_SEEN), n);
+            snprintf(n, sizeof(n), "%u", d->owned[nat]);
+            SLine(x, right, kDexSide.y + 72 + KIT_LINE_H + 2, CtrUiText(UIS_DEX_OWNED), n);
+        }
+        snprintf(title, sizeof(title), "%s", d->menu[chosen].name);
+        snprintf(body, sizeof(body), "%s", CtrUiText(id == PT_DEX_ID_CANCEL ? UIS_DEX_NOTE_CLOSE
+                                                   : id == PT_DEX_ID_KANTO || id == PT_DEX_ID_NATIONAL ? UIS_DEX_NOTE_LIST
+                                                   : id >= 0 && id < 9 ? (d->menu[chosen].locked ? UIS_DEX_NOTE_LOCKED
+                                                                                               : UIS_DEX_NOTE_HABITAT)
+                                                   : UIS_DEX_NOTE_SEARCH));
+    }
+    FPageBand(&kDexNote, title, body, 0);
+}
+
+/* The selected Pokemon on the list's right: its picture (HeartGold's 80x80 whole when the pack has it) and its types. */
+static void FDMonSide(const CtrPokeTouchView *v)
+{
+    const CtrPokeTouchDex *d = &v->dex;
+    const CtrPokeTouchRect *s = &kDexSide;
+    int x = s->x + 8, w = s->w - 16;
+
+    FPageWindow(s, v->frameType);
+    if (d->sel.flags & 1)
+        FDPicDrawBig(d->sel.species, x + (w - 64) / 2, s->y + 16);
+    if (d->type[0] >= 0) {
+        CtrPokeTouchRect t = {(int16_t)x, (int16_t)(s->y + s->h - 8 - (d->type[1] >= 0 ? 30 : 13)), (int16_t)w, 13};
+
+        KitTypeLabel(&t, d->type[0], d->typeName[0]);
+        if (d->type[1] >= 0) {
+            t.y = (int16_t)(t.y + 17);
+            KitTypeLabel(&t, d->type[1], d->typeName[1]);
+        }
     }
 }
 
-/* The selected Pokemon beside a list: its picture on a disc, name, number and types. */
-static void FDSidePanel(const CtrPokeTouchDex *d)
+/* The selected Pokemon's line for the band: its number and name ("-----" while not seen). */
+static void FDMonTitle(const CtrPokeTouchDex *d, char *out, int size)
 {
-    const CtrPokeTouchRect *r = &sFDSide;
-    int fy = EmButton(r->x, r->y, r->w, r->h, &kEmCream, FB_DEPTH, 0), cx = r->x + r->w / 2;
     char no[12];
 
-    UiDisc(cx, fy + 44, 41, UiMix(kEmCream.edge, EM_WHITE, 2));
-    UiDisc(cx, fy + 44, 40, UI_RGB(255, 236, 214));
-    if (d->sel.flags & 1)
-        FDPicDrawBig(d->sel.species, cx - 32, fy + 12);
-    FDLabel(d->sel.flags & 1 ? d->sel.name : "-----", r->x, r->w, fy + 88, &kEmCream);
     FDNumber(d->sel.number, no, sizeof(no));
-    FDLabel(no, r->x, r->w, fy + 102, &kEmCream);
-    if (d->type[0] >= 0) {
-        CtrPokeTouchRect t0 = {(int16_t)(r->x + 12), (int16_t)(fy + 120), (int16_t)(r->w - 24), 15};
-
-        if (d->type[1] >= 0) {
-            t0.y = (int16_t)(fy + 118);
-            UiTypeBadge(&t0, d->type[0], d->typeName[0]);
-            t0.y = (int16_t)(fy + 136);
-            UiTypeBadge(&t0, d->type[1], d->typeName[1]);
-        } else
-            UiTypeBadge(&t0, d->type[0], d->typeName[0]);
-    }
+    snprintf(out, (size_t)size, "%s %s", no, d->sel.flags & 1 ? d->sel.name : "-----");
 }
 
-static void FDList(const CtrPokeTouchDex *d, int pressed)
+/* An ordered list: its order and counts in the title, five rows (the caught ball, the number, the name), the scroll
+ * cells, the Pokemon on the right, the band. */
+static void FDList(const CtrPokeTouchView *v)
 {
-    int fy = EmButton(sFDListHead.x, sFDListHead.y, sFDListHead.w, sFDListHead.h, &kEmCream, FB_DEPTH, 0);
-    static const CtrUiString kOrder[6] = {UIS_DEX_KANTO, UIS_DEX_ATOZ, UIS_DEX_TYPE, UIS_DEX_LIGHTEST,
-                                          UIS_DEX_SMALLEST, UIS_DEX_NATIONAL};
+    static const CtrUiString kOrder[6] = {UIS_DEX_KANTO, UIS_DEX_ATOZ, UIS_DEX_TYPE, UIS_DEX_LIGHTEST, UIS_DEX_SMALLEST,
+                                          UIS_DEX_NATIONAL};
+    const CtrPokeTouchDex *d = &v->dex;
+    const CtrPokeTouchRect *t = &kDexTitle;
+    int held = d->pressed >= PT_DEX_HIT_ROW && d->pressed < PT_DEX_HIT_ROW + PT_DEX_ROWS ? d->pressed - PT_DEX_HIT_ROW : -1;
+    int right = t->x + t->w - 8;
+    char title[40];
 
-    const char *title = CtrUiText(kOrder[d->order < 6 ? d->order : 0]);
-    int titleEnd = sFDListHead.x + 8 + UiTextWidth(title, 1);
-
-    UiText(title, sFDListHead.x + 8, fy + 6, EM_DARK, EM_DARK_SH, 1, sFDListHead.x + sFDListHead.w - 6);
+    FPageWindow(t, v->frameType);
     if (d->order == 0 || d->order == 5) {
-        char counts[32], owned[8];
-        int nat = d->order == 5, right = sFDListHead.x + sFDListHead.w - 6;
+        int nat = d->order == 5;
+        char counts[48];
 
-        /* SEEN n  OWNED n when it fits beside the title; with three-digit counts OWNED becomes the caught ball of
-           the rows, so the counts never run into KANTO or NATIONAL. */
         snprintf(counts, sizeof(counts), "%s %u  %s %u", CtrUiText(UIS_DEX_SEEN), d->seen[nat], CtrUiText(UIS_DEX_OWNED),
                  d->owned[nat]);
-        if (right - UiTextWidth(counts, 1) >= titleEnd + 6 || !FDCaughtLoad()) {
-            UiTextRight(counts, right, fy + 6, EM_DIM, EM_DARK_SH, 1);
-        } else {
-            snprintf(owned, sizeof(owned), "%u", d->owned[nat]);
-            snprintf(counts, sizeof(counts), "%s %u", CtrUiText(UIS_DEX_SEEN), d->seen[nat]);
-            UiTextRight(owned, right, fy + 6, EM_DIM, EM_DARK_SH, 1);
-            right -= UiTextWidth(owned, 1) + 10;
-            FDCaughtDraw(right, fy + 7);
-            UiTextRight(counts, right - 5, fy + 6, EM_DIM, EM_DARK_SH, 1);
-        }
+        KitText(counts, right - UiTextWidth(counts, 1), t->y + 8, right);
+        right -= UiTextWidth(counts, 1) + 8;
     }
+    KitText(CtrUiText(kOrder[d->order < 6 ? d->order : 0]), t->x + 8, t->y + 8, right);
+    FPageWindow(&kDexList, v->frameType);
     for (int i = 0; i < PT_DEX_ROWS; ++i) {
-        CtrPokeTouchRect r = FDListRow(i);
-        int index = d->listFirst + i;
+        CtrPokeTouchRect r = DexListRow(i);
         const CtrPokeTouchDexMon *m = &d->row[i];
-        const EmPal *p;
+        int index = d->listFirst + i, top = r.y + (r.h - KIT_LINE_H) / 2, nx = r.x + KIT_ARROW_W + 10;
         char no[8];
-        int ry;
 
         if (index >= d->listCount)
             break;
-        p = index == d->listCursor ? &kEmAmber : &kEmCream;
-        ry = EmButton(r.x, r.y, r.w, r.h, p, FB_DEPTH, pressed == PT_DEX_HIT_ROW + i);
+        Fill(r.x, r.y, r.w, r.h, held == i ? KitInk(3) : KitInk(1));
+        if (held >= 0 ? held == i : index == d->listCursor)
+            KitText(KIT_ARROW, r.x, top, r.x + KIT_ARROW_W);
         if (m->flags & 2)
-            FDCaughtDraw(r.x + 5, ry + 7);
+            FDCaughtDraw(r.x + KIT_ARROW_W, r.y + (r.h - 8) / 2);
         snprintf(no, sizeof(no), "%03u", m->number > 999 ? 999 : m->number);
-        UiText(no, r.x + 18, ry + 7, p->ink, p->inkSh, 1, r.x + 44);
-        UiText(m->flags & 1 ? m->name : "-----", r.x + 44, ry + 7, p->ink, p->inkSh, 1, r.x + r.w - 4);
+        KitText(no, nx, top, r.x + r.w);
+        KitText(m->flags & 1 ? m->name : "-----", nx + UiTextWidth("000", 1) + 6, top, r.x + r.w);
     }
-    if (d->listCount > PT_DEX_ROWS) {
-        FDArrow(&sFDListUp, -2, d->listFirst > 0);
-        FDArrow(&sFDListDown, 2, d->listFirst + PT_DEX_ROWS < d->listCount);
-    }
-    FDSidePanel(d);
+    BagArrowCell(&kDexUp, v->frameType, 0, d->listFirst > 0, d->pressed == PT_DEX_HIT_UP);
+    BagArrowCell(&kDexDown, v->frameType, 1, d->listFirst + PT_DEX_ROWS < d->listCount, d->pressed == PT_DEX_HIT_DOWN);
+    FDMonSide(v);
+    FDMonTitle(d, title, sizeof(title));
+    FPageBand(&kDexNote, title, CtrUiText(d->sel.flags & 1 ? UIS_DEX_NOTE_OPEN : UIS_DEX_NOTE_UNSEEN), 0);
 }
 
-static void FDCategory(const CtrPokeTouchDex *d, int pressed)
+/* A habitat page: its Pokemon two by two (the picture, the number with the caught ball, the name), the arrows that
+ * turn the pages beside the band (the selected one and the page). */
+static void FDCategory(const CtrPokeTouchView *v)
 {
+    const CtrPokeTouchDex *d = &v->dex;
+    int held = d->pressed >= PT_DEX_HIT_SLOT && d->pressed < PT_DEX_HIT_SLOT + 4 ? d->pressed - PT_DEX_HIT_SLOT : -1;
+    char title[40], page[24];
+
+    FPageWindow(&kDexHabitat, v->frameType);
     for (int i = 0; i < d->slots && i < 4; ++i) {
-        CtrPokeTouchRect r = FDSlot(i);
+        CtrPokeTouchRect r = DexSlot(i);
         const CtrPokeTouchDexMon *m = &d->mon[i];
-        const EmPal *p = i == d->slot ? &kEmAmber : &kEmCream;
-        int fy = EmButton(r.x, r.y, r.w, r.h, p, FB_DEPTH, pressed == PT_DEX_HIT_SLOT + i);
-        char label[24];
+        int tx = r.x + 64 + 16, top = r.y + 18;
+        char no[12];
 
-        /* The picture whole (80x80) on a disc filling the card, its number and name on a pill over its foot. */
-        UiDisc(r.x + r.w / 2, fy + 38, 37, i == d->slot ? UiMix(p->top, EM_WHITE, 2) : UI_RGB(255, 236, 214));
+        Fill(r.x, r.y, r.w, r.h, held == i ? KitInk(3) : KitInk(1));
         if (m->flags & 1)
-            FDPicDrawBig(m->species, r.x + (r.w - 64) / 2, fy + 6);
-        snprintf(label, sizeof(label), "%03u %s", m->number > 999 ? 999 : m->number, m->flags & 1 ? m->name : "-----");
-        BPill(r.x + (r.w - BPillW(label)) / 2, fy + 62, label, p->lip, EM_WHITE, p->edge);
+            FDPicDraw(m->species, r.x + 4, r.y + (r.h - 64) / 2, 0);
+        if (held >= 0 ? held == i : d->slot == i)
+            KitText(KIT_ARROW, tx - KIT_ARROW_W, top, tx);
+        FDNumber(m->number, no, sizeof(no));
+        KitText(no, tx, top, r.x + r.w);
         if (m->flags & 2)
-            FDCaughtDraw(r.x + 6, fy + 6);
+            FDCaughtDraw(tx + UiTextWidth(no, 1) + 4, top + 4);
+        KitText(m->flags & 1 ? m->name : "-----", tx, top + KIT_LINE_H + 4, r.x + r.w);
     }
-    FDArrow(&sFDPrev, -1, d->canPrev);
-    FDArrow(&sFDNext, 1, d->canNext);
+    BagArrowCell(&kDexPrev, v->frameType, 2, d->canPrev, d->pressed == PT_DEX_HIT_PREV);
+    BagArrowCell(&kDexNext, v->frameType, 3, d->canNext, d->pressed == PT_DEX_HIT_NEXT);
+    FDMonTitle(d, title, sizeof(title));
+    snprintf(page, sizeof(page), "%s %u/%u", CtrUiText(UIS_DEX_PAGE), d->page, d->pages);
+    FPageBand(&kDexNoteNarrow, title, page, 0);
 }
 
-static void FDPage(const CtrPokeTouchDex *d)
+/* A Pokemon's page: its picture; its number and name, category, height and weight (FireRed's conversions), types and
+ * footprint; its entry; AREA and CRY (or, for the page a catch adds, the band that waits for A). */
+static void FDPage(const CtrPokeTouchView *v)
 {
-    int fy = EmButton(4, 4, 96, 110, &kEmCream, FB_DEPTH, 0);
-    char no[12], text[32];
+    const CtrPokeTouchDex *d = &v->dex;
+    const CtrPokeTouchRect *p = &kDexPic, *in = &kDexInfo;
+    int x = in->x + 8, right = in->x + in->w - 8, top = in->y + 8;
+    char text[40];
 
-    UiDisc(52, fy + 46, 40, UiMix(kEmCream.edge, EM_WHITE, 2));
-    UiDisc(52, fy + 46, 39, UI_RGB(255, 236, 214));
-    FDPicDrawBig(d->sel.species, 20, fy + 14);
-    FDNumber(d->sel.number, no, sizeof(no));
-    BPill(52 - BPillW(no) / 2, fy + 90, no, kEmAmber.lip, EM_WHITE, kEmAmber.edge);
-    fy = EmButton(104, 4, 140, 110, &kEmCream, FB_DEPTH, 0);
-    UiText(d->sel.name, 114, fy + 8, EM_DARK, EM_DARK_SH, 1, 240);
-    UiText(d->sel.flags & 2 ? d->kind : "?????", 114, fy + 22, EM_DIM, EM_DARK_SH, 1, 240);
-    Fill(112, fy + 35, 124, 1, UI_RGB(214, 204, 192));
-    UiText(CtrUiText(UIS_DEX_HT), 114, fy + 42, EM_DARK, EM_DARK_SH, 1, 140);
+    FPageWindow(p, v->frameType);
+    FDPicDrawBig(d->sel.species, p->x + (p->w - 64) / 2, p->y + (p->h - 64) / 2);
+    FPageWindow(in, v->frameType);
+    FDMonTitle(d, text, sizeof(text));
+    KitText(text, x, top, right);
+    KitText(d->sel.flags & 2 ? d->kind : "?????", x, top + KIT_LINE_H, right);
     FDHeight(d, text, sizeof(text));
-    UiTextRight(text, 232, fy + 42, EM_VALUE, EM_DARK_SH, 1);
-    UiText(CtrUiText(UIS_DEX_WT), 114, fy + 56, EM_DARK, EM_DARK_SH, 1, 140);
+    SLine(x, right, top + 34, CtrUiText(UIS_DEX_HT), text);
     FDWeight(d, text, sizeof(text));
-    UiTextRight(text, 232, fy + 56, EM_VALUE, EM_DARK_SH, 1);
-    Fill(112, fy + 69, 124, 1, UI_RGB(214, 204, 192));
+    SLine(x, right, top + 34 + KIT_LINE_H, CtrUiText(UIS_DEX_WT), text);
     if (d->type[0] >= 0) {
-        CtrPokeTouchRect t = {114, (int16_t)(fy + 78), 46, 15};
+        CtrPokeTouchRect t = {(int16_t)x, (int16_t)(top + 70), 44, 13};
 
-        UiTypeBadge(&t, d->type[0], d->typeName[0]);
+        KitTypeLabel(&t, d->type[0], d->typeName[0]);
         if (d->type[1] >= 0) {
-            t.x = 164;
-            UiTypeBadge(&t, d->type[1], d->typeName[1]);
+            t.x = (int16_t)(x + 48);
+            KitTypeLabel(&t, d->type[1], d->typeName[1]);
         }
     }
-    FDFootprint(d->sel.species, 218, fy + 77);
-    fy = EmButton(4, 118, 240, 46, &kEmCream, FB_DEPTH, 0);
-    if (d->desc[0])
-        BDescribeN(d->desc, 12, fy + 5, 226, 3, EM_DARK);
-}
-
-/* The viewport's area: the screen the Pokedex shows. */
-static void FDexFrame(const CtrPokeTouchView *v)
-{
-    const CtrPokeTouchDex *d = &v->dex;
-
-    EmSurface();
-    TsBgRect(sFBArea.x - 4, sFBArea.y - 4, sFBArea.w + 8, sFBArea.h + 8);
-    if (d->state == PT_DEX_STATE_MENU)
-        FDMenu(d, d->pressed);
-    else if (d->state == PT_DEX_STATE_LIST)
-        FDList(d, d->pressed);
-    else if (d->state == PT_DEX_STATE_CATEGORY)
-        FDCategory(d, d->pressed);
-    else if (d->state == PT_DEX_STATE_PAGE)
-        FDPage(d);
-    sUiS = &sUiNavy;
-}
-
-/* The note under the Pokedex: what the selection is (a Pokemon's page has its AREA and CRY buttons there). */
-static void FDexNote(const CtrPokeTouchView *v, int w)
-{
-    const CtrPokeTouchDex *d = &v->dex;
-    char title[40], body[96];
-
-    EmSurface();
-    if (d->state == PT_DEX_STATE_PAGE && !d->added) {
-        FBButton(&sFDArea, &kEmCream, CtrUiText(UIS_DEX_AREA), d->pressed == PT_DEX_HIT_AREA);
-        FBButton(&sFDCry, &kEmCream, CtrUiText(UIS_DEX_CRY), d->pressed == PT_DEX_HIT_CRY);
-        sUiS = &sUiNavy;
+    FDFootprint(d->sel.species, right - 16, top + 68);
+    FPageBand(&kDexEntry, NULL, d->desc, 0);
+    if (d->added) {
+        FPageBand(&kDexNoteWide, d->sel.name, CtrUiText(UIS_DEX_NOTE_ADDED), 1);
         return;
     }
-    title[0] = body[0] = 0;
-    if (d->state == PT_DEX_STATE_MENU && d->menuCursor >= 0 && d->menuCursor < d->menuCount) {
-        int id = d->menu[d->menuCursor].id;
+    BagCell(&kDexArea, v->frameType, CtrUiText(UIS_DEX_AREA), d->pressed == PT_DEX_HIT_AREA, d->pressed == PT_DEX_HIT_AREA, 1);
+    BagCell(&kDexCry, v->frameType, CtrUiText(UIS_DEX_CRY), d->pressed == PT_DEX_HIT_CRY, d->pressed == PT_DEX_HIT_CRY, 1);
+}
 
-        snprintf(title, sizeof(title), "%s", d->menu[d->menuCursor].name);
-        snprintf(body, sizeof(body), "%s", CtrUiText(id == PT_DEX_ID_CANCEL ? UIS_DEX_NOTE_CLOSE
-                                                   : id == PT_DEX_ID_KANTO || id == PT_DEX_ID_NATIONAL ? UIS_DEX_NOTE_LIST
-                                                   : id >= 0 && id < 9 ? (d->menu[d->menuCursor].locked ? UIS_DEX_NOTE_LOCKED
-                                                                                                       : UIS_DEX_NOTE_HABITAT)
-                                                   : UIS_DEX_NOTE_SEARCH));
-    } else if (d->state == PT_DEX_STATE_PAGE) {
-        snprintf(title, sizeof(title), "%s", d->sel.name);
-        snprintf(body, sizeof(body), "%s", CtrUiText(UIS_DEX_NOTE_ADDED));
-    } else if (d->state == PT_DEX_STATE_LIST || d->state == PT_DEX_STATE_CATEGORY) {
-        snprintf(title, sizeof(title), "%s", d->sel.flags & 1 ? d->sel.name : "-----");
-        if (d->state == PT_DEX_STATE_CATEGORY)
-            snprintf(body, sizeof(body), "%s %u/%u", CtrUiText(UIS_DEX_PAGE), d->page, d->pages);
-        else
-            snprintf(body, sizeof(body), "%s", CtrUiText(d->sel.flags & 1 ? UIS_DEX_NOTE_OPEN : UIS_DEX_NOTE_UNSEEN));
+/* The page the Pokedex shows (while it is busy with nothing shown yet: the band alone), and BACK. */
+static void FDexPageDraw(const CtrPokeTouchView *v)
+{
+    const CtrPokeTouchRect *back = FDexBackRect(v);
+
+    Fill(0, 0, W, H, BPageBg());
+    switch (v->dex.state) {
+    case PT_DEX_STATE_MENU:
+        FDMenu(v);
+        break;
+    case PT_DEX_STATE_LIST:
+        FDList(v);
+        break;
+    case PT_DEX_STATE_CATEGORY:
+        FDCategory(v);
+        break;
+    case PT_DEX_STATE_PAGE:
+        FDPage(v);
+        break;
+    default:
+        FPageBand(&kDexNote, NULL, NULL, 0);
+        break;
     }
-    EmNote(NOTE_X, NOTE_Y, w, NOTE_H);
-    UiText(title, NOTE_X + 12, NOTE_Y + 6, EM_DARK, EM_DARK_SH, 1, NOTE_X + w - 4);
-    BDescribeN(body, NOTE_X + 12, NOTE_Y + 21, w - 18, 3, EM_DIM);
-    sUiS = &sUiNavy;
+    if (back && v->backVisible)
+        FPageBack(v, back);
 }

@@ -146,6 +146,55 @@ static inline CtrPokeTouchRect BagRow(int i)
     return r;
 }
 
+/* The POKeDEX (phase 2, drawn in the BAG's style). The top menu: its three sections as the BAG's tabs, the section's
+ * rows in a list window (six a page, the scroll cells beside it), the row's FireRed icon and counts in a window on the
+ * right; an ordered list: its order and counts in a title, five rows, the Pokemon's picture and types on the right. A
+ * habitat page: its Pokemon in a window, two by two, the page arrows beside the band. A Pokemon's page: its picture,
+ * its data, its entry in the dialogue frame, AREA and CRY. Every page: the band (three lines) and BACK. */
+static const CtrPokeTouchRect kDexTab[3] = { { 4, 4, 101, 30 }, { 109, 4, 102, 30 }, { 215, 4, 101, 30 } };
+static const CtrPokeTouchRect kDexTitle = { 4, 4, 312, 30 };
+static const CtrPokeTouchRect kDexList = { 4, 38, 184, 138 };
+static const CtrPokeTouchRect kDexUp = { 192, 38, 24, 67 };
+static const CtrPokeTouchRect kDexDown = { 192, 109, 24, 67 };
+static const CtrPokeTouchRect kDexSide = { 220, 38, 96, 138 };
+static const CtrPokeTouchRect kDexNote = { 4, 180, 248, 56 };
+static const CtrPokeTouchRect kDexBack = { 256, 180, 60, 56 };
+static const CtrPokeTouchRect kDexHabitat = { 4, 4, 312, 172 };
+static const CtrPokeTouchRect kDexPrev = { 4, 180, 28, 56 };
+static const CtrPokeTouchRect kDexNext = { 36, 180, 28, 56 };
+static const CtrPokeTouchRect kDexNoteNarrow = { 68, 180, 184, 56 };
+static const CtrPokeTouchRect kDexPic = { 4, 4, 112, 112 };
+static const CtrPokeTouchRect kDexInfo = { 120, 4, 196, 112 };
+static const CtrPokeTouchRect kDexEntry = { 4, 120, 312, 56 };
+static const CtrPokeTouchRect kDexArea = { 4, 180, 122, 56 };
+static const CtrPokeTouchRect kDexCry = { 130, 180, 122, 56 };
+static const CtrPokeTouchRect kDexNoteWide = { 4, 180, 312, 56 };
+#define DEX_MENU_ROWS 6
+#define DEX_MENU_ROW_H 20
+#define DEX_LIST_ROW_H 24
+
+static inline CtrPokeTouchRect DexMenuRow(int i)
+{
+    CtrPokeTouchRect r = { (int16_t)(kDexList.x + 8), (int16_t)(kDexList.y + 8 + DEX_MENU_ROW_H * i), (int16_t)(kDexList.w - 16), DEX_MENU_ROW_H };
+
+    return r;
+}
+
+static inline CtrPokeTouchRect DexListRow(int i)
+{
+    CtrPokeTouchRect r = { (int16_t)(kDexList.x + 8), (int16_t)(kDexList.y + 8 + DEX_LIST_ROW_H * i), (int16_t)(kDexList.w - 16), DEX_LIST_ROW_H };
+
+    return r;
+}
+
+/* A habitat page's place i (0-3), two by two inside its window. */
+static inline CtrPokeTouchRect DexSlot(int i)
+{
+    CtrPokeTouchRect r = { (int16_t)(kDexHabitat.x + 8 + 148 * (i % 2)), (int16_t)(kDexHabitat.y + 8 + 78 * (i / 2)), 148, 78 };
+
+    return r;
+}
+
 /* The party menu's window for `rows` rows (1 to PARTY_MENU_ROWS), and its row i: 8 px in from the frame, 16 px tall. */
 static inline CtrPokeTouchRect PartyMenuWindow(int rows)
 {
