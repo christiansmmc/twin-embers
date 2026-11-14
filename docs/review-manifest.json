@@ -971,7 +971,7 @@
   },
   {
    "path": "3ds_port/src/3ds_battle_hud.c",
-   "sha256": "75ca4c323c379f44ed9a660c6088dc94986f6d87148484576c56542ec26c12c1",
+   "sha256": "ccde35f64567368dbdf6e9d7fd5cfb578453e432adadc7d3f8839f3381f50ced",
    "review_status": "reviewed",
    "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -1693,7 +1693,7 @@
   },
   {
    "path": "3ds_port/tests/battle_hud_test.c",
-   "sha256": "1c789bdecf7ee9d9a664db405e116dba754c602c2e37ab9131aa19844176ae4e",
+   "sha256": "bcb42cd736a7debe4889b76e1ee9734185dbab28ab1330b837a3ea2dbf2b0007",
    "review_status": "reviewed",
    "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

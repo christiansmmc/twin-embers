@@ -75,7 +75,7 @@ int main(void)
     assert(sMatch(0x23F, &battler) == CTR_HUD_PART && sMatch(0x240, &battler) == CTR_HUD_NONE);
     assert(!sImage(2) && !sImage(3));
 
-    /* The player's box: 136x49 in the FRAME look (the owner's pick); at rest it is where the design puts it (260, 141). */
+    /* The player's box: 136x48 in the FRAME look (the owner's pick); at rest it is where the design puts it (260, 141). */
     CtrHud_Name(0, NAME, CTR_HUD_MALE, false);
     CtrHud_Level(0, 12);
     CtrHud_Hp(0, 27, false);
@@ -83,40 +83,42 @@ int main(void)
     CtrHud_HpBar(0, 48);
     CtrHud_ExpBar(0, 32);
     const CtrHudImage *player = sImage(0);
-    assert(player && player->width == 136 && player->height == 49 && player->unfaded == UNFADED);
+    assert(player && player->width == 136 && player->height == 48 && player->unfaded == UNFADED);
     float sx = 126 * CTR_BATTLE_ZOOM + 200 - 120 * CTR_BATTLE_ZOOM + player->dx;
     float sy = 72 * CTR_BATTLE_ZOOM + 192 - 112 * CTR_BATTLE_ZOOM + player->dy;
     assert(fabsf(sx - 260) < 0.01f && fabsf(sy - 141) < 0.01f);
     /* Without the pack's frame: the frame's outline look, its corners clear, white inside, no shadow. */
-    assert(Pixel(player, 0, 0) == 0 && Pixel(player, 135, 48) == 0);
+    assert(Pixel(player, 0, 0) == 0 && Pixel(player, 135, 47) == 0);
+    /* The name row clear of the top: the capitals start on row 9 (4 rows under the rims), nothing of them above. */
+    assert(Rgb(Pixel(player, 11, 8)) == 0xFFFFFF && Rgb(Pixel(player, 11, 9)) == 0x606060);
     assert(Rgb(Pixel(player, 80, 1)) == 0x3E4C6B);
     assert(Rgb(Pixel(player, 80, 10)) == 0xFFFFFF && (Pixel(player, 80, 10) & 255) == 255);
 
     /* HP: its tag from the box's margin (x 10; HP's and EXP's tags are one width, 4 + "EXP" + 4 = 23 here) and the
-     * track after it (x 35, row 19, 7 high, to 10 from the end): its edge dark, a full bar green to its end, a fifth
+     * track after it (x 35, row 21, 7 high, to 10 from the end): its edge dark, a full bar green to its end, a fifth
      * red, the rest the track's light inside. */
     unsigned version = player->version;
-    assert(Rgb(Pixel(player, 12, 22)) == 0x404850);                /* the tag */
-    assert(Rgb(Pixel(player, 35, 22)) == 0x404040);                /* the track's edge */
-    assert(Rgb(Pixel(player, 36 + 40, 22)) == 0x58D080 && Rgb(Pixel(player, 136 - 12, 22)) == 0x58D080);
+    assert(Rgb(Pixel(player, 12, 24)) == 0x404850);                /* the tag */
+    assert(Rgb(Pixel(player, 35, 24)) == 0x404040);                /* the track's edge */
+    assert(Rgb(Pixel(player, 36 + 40, 24)) == 0x58D080 && Rgb(Pixel(player, 136 - 12, 24)) == 0x58D080);
     CtrHud_HpBar(0, 9);
     player = sImage(0);
     assert(player->version != version);
-    assert(Rgb(Pixel(player, 36 + 2, 22)) == 0xF05848);
-    assert(Rgb(Pixel(player, 36 + 60, 22)) == 0xE4E4DC);          /* the empty track */
-    /* EXP: its tag at x 10, row 32; its track from the same x as HP's, half full in blue, ending before the room kept
-     * for "999/999" (7 glyphs of 5 here) and 4 pixels: at 136 - 10 - 35 - 4 = 87. */
-    assert(Rgb(Pixel(player, 12, 36)) == 0x404850);
-    assert(Rgb(Pixel(player, 35, 36)) == 0x404040);
-    assert(Rgb(Pixel(player, 40, 36)) == 0x40A8F8);
-    assert(Rgb(Pixel(player, 86, 36)) == 0x404040 && (Pixel(player, 88, 36) >> 8) != 0x404040);
+    assert(Rgb(Pixel(player, 36 + 2, 24)) == 0xF05848);
+    assert(Rgb(Pixel(player, 36 + 60, 24)) == 0xE4E4DC);          /* the empty track */
+    /* EXP right under HP: its tag at x 10 on row 31 (2 rows after HP's), its track from the same x as HP's, half full
+     * in blue, ending before the room kept for "999/999" (7 glyphs of 5 here) and 4 pixels: at 136 - 10 - 35 - 4 = 87. */
+    assert(Rgb(Pixel(player, 12, 35)) == 0x404850 && Rgb(Pixel(player, 12, 30)) == 0xFFFFFF);
+    assert(Rgb(Pixel(player, 35, 35)) == 0x404040);
+    assert(Rgb(Pixel(player, 40, 35)) == 0x40A8F8);
+    assert(Rgb(Pixel(player, 86, 35)) == 0x404040 && (Pixel(player, 88, 35) >> 8) != 0x404040);
 
-    /* A status: a 9-pixel tag in its colour before the "HP" tag, on the HP row (18 to 26), nothing above it. */
+    /* A status: a 9-pixel tag in its colour before the "HP" tag, on the HP row (20 to 28), nothing above it. */
     CtrHud_Status(0, CTR_HUD_PAR);
     player = sImage(0);
-    assert(Rgb(Pixel(player, 12, 22)) == 0xE8B828);
-    assert(Rgb(Pixel(player, 12, 17)) == 0xFFFFFF);
-    assert(Rgb(Pixel(player, 10 + 23 + 3 + 2, 22)) == 0x404850);   /* the "HP" tag after it (the tag: 4 + "PAR" + 4) */
+    assert(Rgb(Pixel(player, 12, 24)) == 0xE8B828);
+    assert(Rgb(Pixel(player, 12, 19)) == 0xFFFFFF);
+    assert(Rgb(Pixel(player, 10 + 23 + 3 + 2, 24)) == 0x404850);   /* the "HP" tag after it (the tag: 4 + "PAR" + 4) */
     CtrHud_Status(0, CTR_HUD_OK);
 
     /* With the pack's FRAME (OPTIONS -> FRAME, as on the lower screen): its tiles around its colour 1 inside; a new
@@ -174,17 +176,18 @@ int main(void)
     assert(sMatch(0x140, &battler) == CTR_HUD_MAIN && battler == 1);
     assert(sMatch(0x1C0, &battler) == CTR_HUD_MAIN && battler == 3);
     const CtrHudImage *low = sImage(2);
-    /* 32 high (two text rows inside the frame's rims), the two 2 rows apart and clear of the text box (at 192). */
-    assert(low && low->width == 136 && low->height == 32);
+    /* 34 high (two text rows inside the frame's rims, the name as far from the top as on the single box), the two 2
+     * rows apart and clear of the text box (at 192). */
+    assert(low && low->width == 136 && low->height == 34);
     sx = 139 * CTR_BATTLE_ZOOM + 200 - 120 * CTR_BATTLE_ZOOM + low->dx;
     sy = 84 * CTR_BATTLE_ZOOM + 192 - 112 * CTR_BATTLE_ZOOM + low->dy;
-    assert(fabsf(sx - 260) < 0.01f && fabsf(sy - 160) < 0.01f && sy + low->height <= 192);
+    assert(fabsf(sx - 260) < 0.01f && fabsf(sy - 158) < 0.01f && sy + low->height <= 192);
     sy = 59 * CTR_BATTLE_ZOOM + 192 - 112 * CTR_BATTLE_ZOOM + sImage(0)->dy;
-    assert(fabsf(sy - 126) < 0.01f && sImage(0)->height == 32);
+    assert(fabsf(sy - 122) < 0.01f && sImage(0)->height == 34);
     /* With a status the low box keeps its frame whole: the tag sits on the HP row, inside the light rim. */
     CtrHud_Status(2, CTR_HUD_PAR);
     low = sImage(2);
-    assert(Rgb(Pixel(low, 12, 28)) == 0xA7B6D3 && Rgb(Pixel(low, 12, 22)) == 0xE8B828);
+    assert(Rgb(Pixel(low, 12, 30)) == 0xA7B6D3 && Rgb(Pixel(low, 12, 23)) == 0xE8B828);
     sx = 0 * CTR_BATTLE_ZOOM + 200 - 120 * CTR_BATTLE_ZOOM + sImage(3)->dx;
     assert(fabsf(sx - 6) < 0.01f);
     /* The foe's two boxes, 40 high, one over the other with 2 rows between: tops at 4 and 46. */

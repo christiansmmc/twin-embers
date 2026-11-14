@@ -300,10 +300,10 @@ static void Numbers(const CtrHudState *s, char *out)
 #define FOE_H 40                           /* tall enough for the Poke Ball clear of the frame */
 /* The player's boxes are kept clear of the foe's ground: narrower than the foe's. */
 #define PLAYER_W 136
-#define PLAYER_H 49
+#define PLAYER_H 48
 #define LOW_H 36                           /* the Safari Zone's box */
 /* The player's boxes in a double battle: one row for the name and one for the bar inside the frame's rims. */
-#define DOUBLE_H 32
+#define DOUBLE_H 34
 #define PAD 10                             /* from the box's sides to its text and bars */
 
 /* The pack's frame (CtrHud_SetFrame), as the lower screen's kit draws it. */
@@ -365,14 +365,14 @@ static void PlayerBox(Canvas *c, const CtrHudState *s)
     char numbers[12];
 
     Window(c, w, PLAYER_H);
-    Name(c, PAD, 14, s);
-    Level(c, w - PAD, 14, s->level);
-    HpRow(c, HpStart(c, s, 19), 19, w - PAD, s->hpPixels);
+    Name(c, PAD, 16, s);                /* capitals from row 9: as far from the top as the foe's */
+    Level(c, w - PAD, 16, s->level);
+    HpRow(c, HpStart(c, s, 21), 21, w - PAD, s->hpPixels);
     /* The last row: EXP from the same x as HP, ending where the widest "hp/max" would start; the numbers right-aligned
      * after it. */
     Numbers(s, numbers);
-    Ascii(c, false, w - PAD - (int)AsciiWidth(false, numbers), 41, numbers, sInk, &sInkShadow);
-    ExpRow(c, PAD, 32, w - PAD - (int)AsciiWidth(false, "999/999") - 4, s->expPixels);
+    Ascii(c, false, w - PAD - (int)AsciiWidth(false, numbers), 38, numbers, sInk, &sInkShadow);
+    ExpRow(c, PAD, 31, w - PAD - (int)AsciiWidth(false, "999/999") - 4, s->expPixels);
 }
 
 /* A double battle's player box: the name row, then HP with its numbers beside the bar. */
@@ -382,12 +382,12 @@ static void PlayerDoubleBox(Canvas *c, const CtrHudState *s)
     char numbers[12];
 
     Window(c, w, DOUBLE_H);
-    Name(c, PAD, 14, s);
-    Level(c, w - PAD, 14, s->level);
+    Name(c, PAD, 16, s);
+    Level(c, w - PAD, 16, s->level);
     Numbers(s, numbers);
     int nw = (int)AsciiWidth(false, numbers);
-    Ascii(c, false, w - PAD - nw, 25, numbers, sInk, &sInkShadow);
-    HpRow(c, HasStatus(s) ? PAD + StatusTag(c, PAD, 18, s->status) + 3 : PAD, 19, w - PAD - nw - 4, s->hpPixels);
+    Ascii(c, false, w - PAD - nw, 27, numbers, sInk, &sInkShadow);
+    HpRow(c, HasStatus(s) ? PAD + StatusTag(c, PAD, 19, s->status) + 3 : PAD, 20, w - PAD - nw - 4, s->hpPixels);
 }
 
 /* The Safari Zone's box: SAFARI BALLS, a Poke Ball and how many are left below. */
@@ -398,13 +398,13 @@ static void SafariBox(Canvas *c, const CtrHudState *s)
     char tmp[4];
 
     Window(c, PLAYER_W, LOW_H);
-    Ascii(c, false, PAD, 14, "SAFARI BALLS", sInk, &sInkShadow);
+    Ascii(c, false, PAD, 16, "SAFARI BALLS", sInk, &sInkShadow);
     Ball(c, PAD + 2, 19, true);
     count[n++] = '*';
     do tmp[t++] = (char)('0' + v % 10); while ((v /= 10) && t < 3);
     while (t) count[n++] = tmp[--t];
     count[n] = 0;
-    Ascii(c, false, PAD + 16, 29, count, sInk, &sInkShadow);
+    Ascii(c, false, PAD + 16, 28, count, sInk, &sInkShadow);
 }
 
 void CtrHud_Render(const CtrHudState *s, uint32_t *pixels, unsigned *width, unsigned *height)
@@ -453,8 +453,8 @@ static const struct { uint8_t kind; bool doubles; uint8_t position; int16_t gbaX
     {CTR_HUD_SAFARI, false, 0, 126, 72, 260, 154},
     {CTR_HUD_FOE, true, 1, 12, 3, 24, 4},
     {CTR_HUD_FOE, true, 3, 0, 28, 6, 46},
-    {CTR_HUD_PLAYER_DOUBLE, true, 0, 127, 59, 252, 126},
-    {CTR_HUD_PLAYER_DOUBLE, true, 2, 139, 84, 260, 160},
+    {CTR_HUD_PLAYER_DOUBLE, true, 0, 127, 59, 252, 122},
+    {CTR_HUD_PLAYER_DOUBLE, true, 2, 139, 84, 260, 158},
 };
 
 static void Anchor(const CtrHudState *s, float *dx, float *dy)
