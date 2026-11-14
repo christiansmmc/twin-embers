@@ -56,7 +56,7 @@ static const CtrPokeTouchRect kBatSafari[4] = {
 };
 
 /* Moves (and, in a double battle, the targets): four cards 4 px apart under the party, the note with the
- * dialogue frame (ACC and STAB, then two lines of the move's description), CANCEL. */
+ * dialogue frame (the move's description in three lines, STAB at the first one's right), CANCEL. */
 static const CtrPokeTouchRect kBatMove[4] = {
     { 6, 40, 152, 64 }, { 162, 40, 152, 64 }, { 6, 108, 152, 64 }, { 162, 108, 152, 64 },
 };
@@ -65,5 +65,41 @@ static const CtrPokeTouchRect kBatCancel = { 250, 176, 64, 56 };
 static const CtrPokeTouchRect kBatTarget[4] = {
     { 6, 40, 152, 64 }, { 162, 40, 152, 64 }, { 6, 108, 152, 64 }, { 162, 108, 152, 64 },
 };
+
+/* POKeMON, in the field and in battle (phase 2, the owner's "1"): six framed cards in two columns of three, read left
+ * to right and down as the Party's D-pad walks them (recipe 0167), FireRed's message under them in the dialogue frame
+ * with CANCEL beside it. Picking several Pokemon, CONFIRM sits between a narrower message and CANCEL. A menu (the
+ * actions, YES / NO) is a window at the bottom right over CANCEL, one 16 px row each from PARTY_MENU_BOTTOM up, the
+ * message narrower beside it. A message that waits for A takes the whole width; a Rare Candy's level up adds its window
+ * over the right column's first two cards. */
+static const CtrPokeTouchRect kPartySlot[6] = {
+    { 4, 4, 154, 57 }, { 162, 4, 154, 57 }, { 4, 65, 154, 57 }, { 162, 65, 154, 57 }, { 4, 126, 154, 57 }, { 162, 126, 154, 57 },
+};
+static const CtrPokeTouchRect kPartyNote = { 4, 188, 248, 48 };
+static const CtrPokeTouchRect kPartyNoteMulti = { 4, 188, 184, 48 };
+static const CtrPokeTouchRect kPartyNoteMenu = { 4, 188, 192, 48 };
+static const CtrPokeTouchRect kPartyNoteWide = { 4, 188, 312, 48 };
+static const CtrPokeTouchRect kPartyConfirm = { 192, 188, 60, 48 };
+static const CtrPokeTouchRect kPartyCancel = { 256, 188, 60, 48 };
+#define PARTY_MENU_X 200
+#define PARTY_MENU_W 116
+#define PARTY_MENU_BOTTOM 236
+#define PARTY_MENU_ROWS 8
+static const CtrPokeTouchRect kPartyLevelUp = { 162, 4, 154, 118 };
+
+/* The party menu's window for `rows` rows (1 to PARTY_MENU_ROWS), and its row i: 8 px in from the frame, 16 px tall. */
+static inline CtrPokeTouchRect PartyMenuWindow(int rows)
+{
+    CtrPokeTouchRect r = { PARTY_MENU_X, (int16_t)(PARTY_MENU_BOTTOM - 16 - 16 * rows), PARTY_MENU_W, (int16_t)(16 + 16 * rows) };
+
+    return r;
+}
+
+static inline CtrPokeTouchRect PartyMenuRow(int rows, int i)
+{
+    CtrPokeTouchRect w = PartyMenuWindow(rows), r = { (int16_t)(w.x + 8), (int16_t)(w.y + 8 + 16 * i), (int16_t)(w.w - 16), 16 };
+
+    return r;
+}
 
 #endif

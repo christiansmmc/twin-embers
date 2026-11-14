@@ -218,10 +218,72 @@ static void battle(void)
     Apart(view, n);
 }
 
+/* POKeMON: the six cards 4 px apart in two columns of three, the message band 5 px under them (dialogue frame, two
+ * lines), CANCEL beside it ending with the cards' right edge; CONFIRM between the narrower message and CANCEL; the
+ * menu's window over CANCEL with the message narrower beside it, its rows inside it; the level-up window over the right
+ * column's first two cards. */
+static void party(void)
+{
+    const CtrPokeTouchRect *view[10];
+    int n = 0;
+
+    for (int i = 0; i < 6; ++i) {
+        Framed(&kPartySlot[i]);
+        assert(kPartySlot[i].w == kPartySlot[0].w && kPartySlot[i].h == kPartySlot[0].h);
+        assert(kPartySlot[i].h - 16 >= 32 + 8);                 /* the icon and its hop inside the frame */
+        view[n++] = &kPartySlot[i];
+    }
+    assert(kPartySlot[1].x - (kPartySlot[0].x + kPartySlot[0].w) == 4 && kPartySlot[2].y - Bottom(&kPartySlot[0]) == 4);
+    assert(kPartySlot[0].x == 4 && kPartySlot[1].x + kPartySlot[1].w == 316 && kPartySlot[0].y == 4);
+    for (int i = 2; i < 6; ++i)
+        assert(kPartySlot[i].x == kPartySlot[i & 1].x && kPartySlot[i].y == kPartySlot[i - 2].y + kPartySlot[0].h + 4);
+    Dialogue(&kPartyNote);
+    assert(kPartyNote.h - 16 >= 2 * 14 && kPartyNote.y >= Bottom(&kPartySlot[5]) + 4 && Bottom(&kPartyNote) <= 236);
+    Button(&kPartyCancel);
+    assert(kPartyCancel.x == kPartyNote.x + kPartyNote.w + 4 && kPartyCancel.x + kPartyCancel.w == 316);
+    assert(kPartyCancel.y == kPartyNote.y && kPartyCancel.h == kPartyNote.h);
+    view[n++] = &kPartyNote;
+    view[n++] = &kPartyCancel;
+    Apart(view, n);
+    /* picking several */
+    Dialogue(&kPartyNoteMulti);
+    Button(&kPartyConfirm);
+    assert(kPartyConfirm.x == kPartyNoteMulti.x + kPartyNoteMulti.w + 4 && kPartyCancel.x == kPartyConfirm.x + kPartyConfirm.w + 4);
+    assert(kPartyConfirm.y == kPartyNote.y && kPartyConfirm.h == kPartyNote.h);
+    n = 6;
+    view[n++] = &kPartyNoteMulti;
+    view[n++] = &kPartyConfirm;
+    view[n++] = &kPartyCancel;
+    Apart(view, n);
+    /* a menu: every size from one row to the most, where CANCEL is (not drawn while a menu shows), the message
+     * beside it */
+    Dialogue(&kPartyNoteMenu);
+    for (int rows = 1; rows <= PARTY_MENU_ROWS; ++rows) {
+        CtrPokeTouchRect w = PartyMenuWindow(rows);
+
+        Framed(&w);
+        assert(w.x == kPartyNoteMenu.x + kPartyNoteMenu.w + 4 && w.x + w.w == 316 && Bottom(&w) == Bottom(&kPartyNote));
+        assert(w.y >= 4);
+        for (int i = 0; i < rows; ++i) {
+            CtrPokeTouchRect r = PartyMenuRow(rows, i);
+
+            Row(&r);
+            InFrame(&r, &w);
+        }
+    }
+    Dialogue(&kPartyNoteWide);
+    assert(kPartyNoteWide.x == 4 && kPartyNoteWide.x + kPartyNoteWide.w == 316 && kPartyNoteWide.y == kPartyNote.y);
+    /* the level-up window: the right column's first two cards exactly */
+    Framed(&kPartyLevelUp);
+    assert(kPartyLevelUp.x == kPartySlot[1].x && kPartyLevelUp.y == kPartySlot[1].y && kPartyLevelUp.w == kPartySlot[1].w);
+    assert(Bottom(&kPartyLevelUp) == Bottom(&kPartySlot[3]) && kPartyLevelUp.h - 16 >= 6 * 16);
+}
+
 int main(void)
 {
     home();
     battle();
+    party();
     printf("PASS lower layout%s\n", LOWER_LAYOUT_PROVISIONAL ? " (provisional values)" : "");
     return 0;
 }

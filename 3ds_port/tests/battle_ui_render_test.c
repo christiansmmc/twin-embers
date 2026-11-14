@@ -308,6 +308,204 @@ static void action_hit_centres(const CtrBattleView *v)
     assert(CtrBattleUi_Hit(v, kBatParty.x + 4, kBatParty.y + 4) == -1);
 }
 
+/* POKeMON as a page (phase 2, the owner's "1"): the checks on one party view, every step through settle (an update
+ * equals a full draw). The test font is blank but for the arrow (a solid 8x14) and, here, the gender signs; the icons are
+ * flat squares in their slot's colour (CtrBottomParty_Icon above). */
+static uint16_t PartyIconColour(int slot)
+{
+    return GbaColor((uint16_t)((slot * 5 + 6) | (31 - slot * 4) << 5 | (slot * 3) << 10));
+}
+
+/* Ink of the arrow where a card has it: 8 px in, on the icon's middle (lines from y + 21). */
+static int PartyArrow(int i)
+{
+    CtrPokeTouchRect r = {(int16_t)(kPartySlot[i].x + 8), (int16_t)(kPartySlot[i].y + 21), 8, 14};
+
+    return ColorIn(&r, KitInk(2));
+}
+
+static int PartyCancelArrow(const CtrPokeTouchRect *cell)
+{
+    CtrPokeTouchRect in = BPageInside(cell);
+
+    return ColorIn(&in, KitInk(2));
+}
+
+static void SolidCode(unsigned code)
+{
+    for (int y = 0; y < 14; ++y)
+        for (int x = 0; x < 6; ++x) {
+            uint8_t *src = font + code * 64 + ((y / 8) * 2 + x / 8) * 16 + (y % 8) * 2;
+            unsigned bits = ((unsigned)src[1] << 8 | src[0]) | 1u << ((7 - x % 8) * 2);
+
+            src[0] = (uint8_t)bits;
+            src[1] = (uint8_t)(bits >> 8);
+        }
+}
+
+static void party_page(CtrBattleView *v, CtrBattleView *old)
+{
+    CtrBattleParty *p = &v->pty;
+    static uint8_t savedFont[sizeof(font)];
+    CtrPokeTouchRect page = {0, 0, 4, H};
+
+    memcpy(savedFont, font, sizeof(font));
+    SolidCode(0xB5);
+    SolidCode(0xB6);
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    CtrBattleUi_Draw(canvas, old);
+    settle(old, v); *old = *v;
+    /* party_page_bg: the page's own colour round the cards */
+    assert(ColorIn(&page, BPageBg()) == 4 * H);
+    for (int i = 0; i < 6; ++i) {
+        const CtrPokeTouchRect *r = &kPartySlot[i];
+
+        /* party_cards: every slot a framed card (the kit's outline without the pack), an empty one too */
+        assert(at(r->x, r->y + 20) == KitInk(2) && at(r->x + r->w - 1, r->y + 20) == KitInk(2));
+        if (!p->present[i]) {
+            assert(CtrBattleUi_Hit(v, r->x + r->w / 2, r->y + r->h / 2) == -1);
+            assert(at(r->x + 30, r->y + 28) == KitInk(1));
+            continue;
+        }
+        /* party_icon: the slot's party icon at (x + 16, y + 12), toned when fainted or barred */
+        {
+            int toned = p->hp[i] == 0 && !p->egg[i];
+
+            assert(at(r->x + 32, r->y + 28) == (toned ? Tone(PartyIconColour(i), 0) : PartyIconColour(i)));
+        }
+        /* party_hp: FireRed's HP bar from (x + 52, y + 26); none for an Egg */
+        if (p->egg[i])
+            assert(at(r->x + 53, r->y + 27) == KitInk(1));
+        else if (p->hp[i] > 0)
+            assert(at(r->x + 53, r->y + 27) == (p->hp[i] * 48 / p->maxHp[i] > 24 ? UI_HP_HIGH : p->hp[i] * 48 / p->maxHp[i] > 9 ? UI_HP_MID : UI_HP_LOW));
+        /* party_hit: the card answers anywhere on it */
+        assert(CtrBattleUi_Hit(v, r->x + 1, r->y + 1) == BUI_PTY_SLOT + i);
+        assert(CtrBattleUi_Hit(v, r->x + r->w - 2, r->y + r->h - 2) == BUI_PTY_SLOT + i);
+        /* party_arrow: FireRed's arrow on the Party's selection only */
+        assert(PartyArrow(i) == (p->cursor == i ? 8 * 14 : 0));
+    }
+    /* party_status: an ailment's tag, in its colour, where Lv goes (line 3, from x + 52); FNT for a fainted one */
+    {
+        CtrPokeTouchRect l3 = {(int16_t)(kPartySlot[1].x + 52), (int16_t)(kPartySlot[1].y + 31), 40, 14};
+        CtrPokeTouchRect f3 = {(int16_t)(kPartySlot[3].x + 52), (int16_t)(kPartySlot[3].y + 31), 40, 14};
+
+        assert(p->status[1] == 2 && ColorIn(&l3, kPPageAilment[2]) > 0);
+        assert(p->hp[3] == 0 && ColorIn(&f3, kPPageAilment[0]) > 0);
+    }
+    /* party_gender: the sign after the name, blue or red; none for a Pokemon without one */
+    {
+        CtrPokeTouchRect n0 = {(int16_t)(kPartySlot[0].x + 52), (int16_t)(kPartySlot[0].y + 8), 94, 14};
+        CtrPokeTouchRect n1 = {(int16_t)(kPartySlot[1].x + 52), (int16_t)(kPartySlot[1].y + 8), 94, 14};
+        CtrPokeTouchRect n2 = {(int16_t)(kPartySlot[2].x + 52), (int16_t)(kPartySlot[2].y + 8), 94, 14};
+
+        assert(p->gender[0] == 0 && ColorIn(&n0, kPPageMale) > 0 && ColorIn(&n0, kPPageFemale) == 0);
+        assert(p->gender[1] == 1 && ColorIn(&n1, kPPageFemale) > 0 && ColorIn(&n1, kPPageMale) == 0);
+        assert(p->gender[2] == 2 && ColorIn(&n2, kPPageMale) == 0 && ColorIn(&n2, kPPageFemale) == 0);
+    }
+    /* party_note_and_cancel: the message band in the dialogue frame, CANCEL beside it; the gap between them the page */
+    assert(at(kPartyNote.x + 20, kPartyNote.y + kPartyNote.h / 2) == KitInk(1));
+    assert(at(kPartyCancel.x - 2, kPartyCancel.y + 20) == BPageBg());
+    assert(at(kPartyCancel.x, kPartyCancel.y + 20) == KitInk(2));
+    assert(CtrBattleUi_Hit(v, kPartyCancel.x + 30, kPartyCancel.y + 24) == BUI_PTY_CANCEL);
+    assert(CtrBattleUi_Hit(v, kPartyNote.x + 30, kPartyNote.y + 24) == -1);
+    assert(CtrBattleUi_Hit(v, 160, 185) == -1);
+    assert(PartyCancelArrow(&kPartyCancel) == 0);
+    /* the arrow follows a press: on the card held, then on CANCEL held, back to the selection after */
+    v->pressed = BUI_PTY_SLOT + 4; settle(old, v); *old = *v;
+    for (int i = 0; i < 6; ++i)
+        assert(PartyArrow(i) == (i == 4 ? 8 * 14 : 0));
+    v->pressed = BUI_PTY_CANCEL; settle(old, v); *old = *v;
+    assert(PartyCancelArrow(&kPartyCancel) == 8 * 14);
+    for (int i = 0; i < 6; ++i)
+        assert(PartyArrow(i) == 0);
+    v->pressed = -1; settle(old, v); *old = *v;
+    /* the Party's cursor on CANCEL (button 1): the arrow there, none on the cards */
+    p->cursor = -1; p->button = 1; settle(old, v); *old = *v;
+    assert(PartyCancelArrow(&kPartyCancel) == 8 * 14);
+    p->cursor = 2; p->button = -1; settle(old, v); *old = *v;
+    /* the selection moves: a hop's frames redraw only the cards that changed (equal to a full draw) */
+    p->cursor = 3; settle(old, v); *old = *v;
+    p->iconFrame[3] = 2; settle(old, v); *old = *v;
+    p->iconFrame[3] = 0; p->cursor = 2; settle(old, v); *old = *v;
+    /* party_tags: an item's or a move's verdict; a NOT ABLE or NO USE card toned, icon and all */
+    p->mode = BUI_PTY_TARGET; p->tag[0] = BUI_PTY_TAG_ABLE; p->tag[1] = BUI_PTY_TAG_NOT_ABLE; p->tag[2] = BUI_PTY_TAG_LEARNED;
+    p->tag[4] = BUI_PTY_TAG_NO_USE; settle(old, v); *old = *v;
+    assert(at(kPartySlot[0].x + 32, kPartySlot[0].y + 28) == PartyIconColour(0));
+    assert(at(kPartySlot[1].x + 32, kPartySlot[1].y + 28) == Tone(PartyIconColour(1), 0));
+    memset(p->tag, 0, sizeof(p->tag)); p->mode = BUI_PTY_SWITCH; settle(old, v); *old = *v;
+    /* party_forced: no CANCEL to draw or to touch */
+    p->mode = BUI_PTY_FORCED; settle(old, v); *old = *v;
+    assert(at(kPartyCancel.x, kPartyCancel.y + 20) == BPageBg() && at(kPartyCancel.x + 30, kPartyCancel.y + 24) == BPageBg());
+    assert(CtrBattleUi_Hit(v, kPartyCancel.x + 30, kPartyCancel.y + 24) == -1);
+    p->mode = BUI_PTY_SWITCH; settle(old, v); *old = *v;
+    /* party_multi: CONFIRM between the narrower message and CANCEL; a barred one toned; the arrow on the button the
+     * Party's cursor is on */
+    p->mode = BUI_PTY_MULTI; p->entry[0] = BUI_PTY_FIRST; p->entry[1] = BUI_PTY_FIRST + 1; p->entry[2] = BUI_PTY_NOT_ABLE;
+    p->entry[3] = BUI_PTY_ABLE; p->entry[4] = BUI_PTY_ABLE; settle(old, v); *old = *v;
+    assert(at(kPartyConfirm.x, kPartyConfirm.y + 20) == KitInk(2) && at(kPartyConfirm.x - 2, kPartyConfirm.y + 20) == BPageBg());
+    assert(CtrBattleUi_Hit(v, kPartyConfirm.x + 30, kPartyConfirm.y + 24) == BUI_PTY_CONFIRM);
+    assert(CtrBattleUi_Hit(v, kPartyCancel.x + 30, kPartyCancel.y + 24) == BUI_PTY_CANCEL);
+    assert(at(kPartySlot[2].x + 32, kPartySlot[2].y + 28) == Tone(PartyIconColour(2), 0));
+    p->cursor = -1; p->button = 0; settle(old, v); *old = *v;
+    assert(PartyCancelArrow(&kPartyConfirm) == 8 * 14 && PartyCancelArrow(&kPartyCancel) == 0);
+    v->pressed = BUI_PTY_CONFIRM; settle(old, v); *old = *v;
+    v->pressed = -1; p->button = -1; p->cursor = 2; memset(p->entry, 0, sizeof(p->entry)); p->mode = BUI_PTY_SWITCH;
+    settle(old, v); *old = *v;
+    /* party_menu: FireRed's window at the bottom right, a 16 px row each, the arrow on its cursor (or the row held);
+     * the message narrower beside it; nothing else answers while it is open */
+    p->panel = BUI_PTY_ACTIONS; p->menuCount = 3; p->menuCursor = 0;
+    names(p->menuName[0], 14, "SHIFT"); names(p->menuName[1], 14, "SUMMARY"); names(p->menuName[2], 14, "CANCEL");
+    settle(old, v); *old = *v;
+    {
+        CtrPokeTouchRect w = PartyMenuWindow(3);
+
+        assert(at(w.x, w.y + 20) == KitInk(2) && at(w.x - 2, w.y + 20) == BPageBg());
+        assert(at(kPartyNoteMenu.x + kPartyNoteMenu.w + 1, kPartyNote.y + 20) == BPageBg());
+        for (int i = 0; i < 3; ++i) {
+            CtrPokeTouchRect r = PartyMenuRow(3, i), a = {r.x, r.y, 8, 16};
+
+            assert(CtrBattleUi_Hit(v, r.x + r.w / 2, r.y + r.h / 2) == BUI_PTY_MENU + i);
+            assert(ColorIn(&a, KitInk(2)) == (i == 0 ? 8 * 14 : 0));
+        }
+        assert(CtrBattleUi_Hit(v, kPartySlot[0].x + 30, kPartySlot[0].y + 30) == -1);
+        p->menuCursor = 1; settle(old, v); *old = *v;
+        v->pressed = BUI_PTY_MENU + 2; settle(old, v); *old = *v;
+        for (int i = 0; i < 3; ++i) {
+            CtrPokeTouchRect r = PartyMenuRow(3, i), a = {r.x, r.y, 8, 16};
+
+            assert(ColorIn(&a, KitInk(2)) == (i == 2 ? 8 * 14 : 0));
+        }
+        v->pressed = -1; settle(old, v); *old = *v;
+    }
+    /* a field menu with more rows, then YES / NO */
+    p->menuCount = 8; p->menuCursor = 7;
+    for (int i = 3; i < 8; ++i)
+        names(p->menuName[i], 14, "FLY");
+    settle(old, v); *old = *v;
+    {
+        CtrPokeTouchRect r = PartyMenuRow(8, 7);
+
+        assert(CtrBattleUi_Hit(v, r.x + 4, r.y + 4) == BUI_PTY_MENU + 7);
+    }
+    p->panel = BUI_PTY_YESNO; p->menuCount = 2; p->menuCursor = 0;
+    names(p->menuName[0], 14, "YES"); names(p->menuName[1], 14, "NO"); settle(old, v); *old = *v;
+    /* party_message: a message that waits for A takes the whole band, CANCEL gone; a touch anywhere goes on */
+    p->panel = BUI_PTY_TEXT; names(p->message, sizeof(p->message), "CHARIZARD is already in battle!");
+    settle(old, v); *old = *v;
+    assert(at(kPartyCancel.x + 30, kPartyCancel.y + kPartyCancel.h / 2) == KitInk(1));
+    assert(CtrBattleUi_Hit(v, 10, 10) == BUI_PTY_MESSAGE && CtrBattleUi_Hit(v, 300, 230) == BUI_PTY_MESSAGE);
+    /* party_level_up: the six stats' window over the right column's first two cards; the message as above */
+    p->panel = BUI_PTY_LEVELUP; p->lvSlot = 0; p->lvLevel = 51;
+    for (int i = 0; i < 6; ++i) { p->lvStat[i] = (uint16_t)(100 + i); p->lvGain[i] = (int16_t)(i + 1); }
+    settle(old, v); *old = *v;
+    assert(at(kPartyLevelUp.x, kPartyLevelUp.y + 20) == KitInk(2) && at(kPartyLevelUp.x + 60, kPartyLevelUp.y + kPartyLevelUp.h - 1) == KitInk(2));
+    assert(CtrBattleUi_Hit(v, 160, 120) == BUI_PTY_MESSAGE);
+    p->panel = BUI_PTY_NONE; p->message[0] = 0; settle(old, v); *old = *v;
+    memcpy(font, savedFont, sizeof(font));
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    CtrBattleUi_Draw(canvas, v);
+}
+
 /* arrow_follows_cursor_and_press: the arrow (a solid 8x14 here) is in the cell of FireRed's cursor, or in the one held
  * under a touch; never in two. */
 static void arrow_follows_cursor_and_press(const CtrBattleView *base)
@@ -854,28 +1052,29 @@ int main(int argc, char **argv)
     v.state = BUI_PARTY;
     {
         CtrBattleParty *p = &v.pty;
-        static const char *const nm[6] = {"CHARIZARD", "PIDGEOT", "SNORLAX", "ALAKAZAM", "GENGAR", "BLASTOISE"};
+        static const char *const nm[6] = {"CHARIZARD", "PIDGEOT", "SNORLAX", "ALAKAZAM", "EGG", ""};
 
-        for (k = 0; k < 6; ++k) {
+        memset(p, 0, sizeof(*p));
+        for (k = 0; k < 5; ++k) {
             p->present[k] = 1; p->level[k] = (uint8_t)(50 + k); p->maxHp[k] = 150; p->hp[k] = (uint16_t)(150 - 30 * k);
-            p->icon[k] = (uint16_t)(k + 1); names(p->name[k], sizeof(p->name[k]), nm[k]);
+            p->icon[k] = (uint16_t)(k + 1); p->gender[k] = 2; names(p->name[k], sizeof(p->name[k]), nm[k]);
         }
-        p->status[1] = 2; p->status[4] = 5; p->hp[3] = 0; p->cursor = 2; p->mode = BUI_PTY_SWITCH;
+        p->gender[0] = 0; p->gender[1] = 1;
+        p->egg[4] = 1; p->hp[4] = p->maxHp[4] = 0;
+        p->status[1] = 2; p->hp[3] = 0; p->cursor = 2; p->button = -1; p->mode = BUI_PTY_SWITCH; p->lead = 1;
     }
+    v.pressed = -1;
+#ifndef BATTLE_UI_BEFORE
+    party_page(&v, &old);
+#endif
     settle(&old, &v); old = v; put(out, "11_party"); hits(&v);
-    v.pressed = BUI_PTY_SLOT + 1; settle(&old, &v); old = v; v.pressed = -1; settle(&old, &v); old = v;
     v.pressed = BUI_PTY_CANCEL; settle(&old, &v); old = v; put(out, "12_party_cancel_pressed"); v.pressed = -1; settle(&old, &v); old = v;
     v.pty.panel = BUI_PTY_ACTIONS; v.pty.menuCount = 3; v.pty.menuCursor = 0;
     names(v.pty.menuName[0], 14, "SHIFT"); names(v.pty.menuName[1], 14, "SUMMARY"); names(v.pty.menuName[2], 14, "CANCEL");
     settle(&old, &v); old = v; put(out, "13_party_menu"); hits(&v);
-    v.pty.panel = BUI_PTY_YESNO; v.pty.menuCount = 2; names(v.pty.menuName[0], 14, "YES"); names(v.pty.menuName[1], 14, "NO");
-    settle(&old, &v); old = v;
     v.pty.panel = BUI_PTY_TEXT; names(v.pty.message, sizeof(v.pty.message), "CHARIZARD is already in battle!");
     settle(&old, &v); old = v; put(out, "14_party_message"); hits(&v);
-    v.pty.panel = BUI_PTY_NONE; v.pty.tag[0] = BUI_PTY_TAG_ABLE; v.pty.tag[1] = BUI_PTY_TAG_NOT_ABLE; v.pty.tag[2] = BUI_PTY_TAG_LEARNED;
-    v.pty.tag[3] = BUI_PTY_TAG_NO_USE; v.pty.tag[4] = BUI_PTY_TAG_ABLE; settle(&old, &v); old = v; put(out, "12b_party_teach");
-    memset(v.pty.tag, 0, sizeof(v.pty.tag)); settle(&old, &v); old = v;
-    v.pty.mode = BUI_PTY_FORCED; settle(&old, &v); old = v; put(out, "15_party_forced"); hits(&v);
+    v.pty.panel = BUI_PTY_NONE; v.pty.mode = BUI_PTY_FORCED; settle(&old, &v); old = v; put(out, "15_party_forced"); hits(&v);
     v.state = BUI_ACTION; settle(&old, &v); old = v;
     v.state = BUI_IDLE; settle(&old, &v);
 
@@ -961,7 +1160,7 @@ int main(int argc, char **argv)
                         fprintf(stderr, "state %d keeps the navy theme colour %04x at %d\n", states[i], navy[j], n);
                         assert(0);
                     }
-            if (states[i] == BUI_SAFARI || states[i] == BUI_TARGET)
+            if (states[i] == BUI_SAFARI || states[i] == BUI_TARGET || states[i] == BUI_PARTY)
                 assert(at(1, 100) == BPageBg());    /* reworked: the page's own colour */
             else
                 assert(at(1, 100) == EMBER_BG(1, 100) || at(1, 100) == PT_RED_BG);   /* the ember backdrop, or the flat red not yet redone */

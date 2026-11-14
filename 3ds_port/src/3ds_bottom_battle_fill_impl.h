@@ -182,8 +182,8 @@ static void BattlePartyFill(Snapshot *s)
     /* SEND_OUT cannot be cancelled. Out of battle the Party says what it is for itself (its own prompt). */
     p->mode = s->chooseMultiple ? BUI_PTY_MULTI : !CtrBottomParty_InBattle() ? BUI_PTY_SWITCH
             : action == 1 ? BUI_PTY_FORCED : action == 3 ? BUI_PTY_TARGET : BUI_PTY_SWITCH;
-    /* Picking several: FireRed's cursor may be on CONFIRM (slot 6) or CANCEL (7). */
-    p->button = (int8_t)(p->mode == BUI_PTY_MULTI && s->cursor >= PARTY_SIZE ? s->cursor - PARTY_SIZE : -1);
+    /* FireRed's cursor may be on CONFIRM (slot 6, picking several) or CANCEL (7): the page's arrow goes there. */
+    p->button = (int8_t)(s->cursor >= PARTY_SIZE ? s->cursor - PARTY_SIZE : -1);
     p->lead = (uint8_t)(CtrBottomParty_Layout() == 0 ? 1 : 2);
     p->caption[0] = 0;
     if (!CtrBottomParty_InBattle() && s->panel != PANEL_MESSAGE)
@@ -193,6 +193,7 @@ static void BattlePartyFill(Snapshot *s)
         if (!p->present[i])
             continue;
         p->egg[i] = s->isEgg[i];
+        p->gender[i] = s->gender[i];
         p->status[i] = s->status[i];
         p->level[i] = s->level[i];
         p->hp[i] = s->hp[i];

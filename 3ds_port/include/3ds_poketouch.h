@@ -534,6 +534,7 @@ enum { BUI_PTY_NONE = 0, BUI_PTY_ACTIONS, BUI_PTY_TEXT, BUI_PTY_YESNO, BUI_PTY_L
 typedef struct {
     uint8_t present[6];             /* a Pokemon in the slot */
     uint8_t egg[6];
+    uint8_t gender[6];              /* CtrBottomParty_Gender: 0 male, 1 female, 2 none (an Egg, a genderless one) */
     uint8_t status[6];              /* GetMonAilment: 1 PSN, 2 PAR, 3 SLP, 4 FRZ, 5 BRN, 6 PKRS */
     uint8_t level[6];
     uint16_t hp[6], maxHp[6];
