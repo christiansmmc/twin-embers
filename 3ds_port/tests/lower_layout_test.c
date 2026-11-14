@@ -103,6 +103,15 @@ static void battle(void)
         Framed(&kBatSafari[i]);
     }
     Framed(&kBatBall);
+    /* FIGHT (and the Safari's top row) sit close over the row under them, 4 px (owner), with more room above, under the
+     * party. */
+    for (int i = 0; i < 2; ++i) {
+        const CtrPokeTouchRect *top = i ? &kBatSafari[0] : &kBatAction[0], *under = i ? &kBatSafari[2] : &kBatAction[1];
+
+        assert(under->y - (top->y + top->h) == 4);
+        assert(top->y - (kBatParty.y + kBatParty.h) > 4);
+    }
+    assert(kBatActionBall[0].y == kBatAction[0].y && kBatActionBall[0].h == kBatAction[0].h && kBatSafari[1].y == kBatSafari[0].y);
     for (int i = 0; i < 4; ++i) {
         Framed(&kBatMove[i]);
         Framed(&kBatTarget[i]);

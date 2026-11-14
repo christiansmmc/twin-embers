@@ -31,18 +31,18 @@ static const CtrPokeTouchRect kHomeMessage = { 4, 180, 312, 56 };
  * HP bar under it (the owner's "B"). */
 static const CtrPokeTouchRect kBatParty = { 16, 0, 288, 38 };
 /* Battle commands: FIGHT, BAG, POKéMON, RUN; kBatActionBall is their place when the quick ball shows (a wild
- * battle), beside kBatBall and its two arrows. */
+ * battle), beside kBatBall and its two arrows. FIGHT sits 4 px over the row under it. */
 static const CtrPokeTouchRect kBatAction[4] = {
-    { 8, 40, 304, 88 }, { 8, 136, 96, 96 }, { 112, 136, 96, 96 }, { 216, 136, 96, 96 },
+    { 8, 44, 304, 88 }, { 8, 136, 96, 96 }, { 112, 136, 96, 96 }, { 216, 136, 96, 96 },
 };
 static const CtrPokeTouchRect kBatActionBall[4] = {
-    { 8, 40, 304, 88 }, { 8, 136, 72, 96 }, { 84, 136, 72, 96 }, { 240, 136, 72, 96 },
+    { 8, 44, 304, 88 }, { 8, 136, 72, 96 }, { 84, 136, 72, 96 }, { 240, 136, 72, 96 },
 };
 static const CtrPokeTouchRect kBatBall = { 160, 136, 72, 64 };
 static const CtrPokeTouchRect kBatBallArrow[2] = { { 160, 208, 24, 24 }, { 208, 208, 24, 24 } };
 /* The Safari Zone: BALL, BAIT, ROCK, RUN. */
 static const CtrPokeTouchRect kBatSafari[4] = {
-    { 8, 40, 152, 88 }, { 160, 40, 152, 88 }, { 8, 136, 152, 96 }, { 160, 136, 152, 96 },
+    { 8, 44, 152, 88 }, { 160, 44, 152, 88 }, { 8, 136, 152, 96 }, { 160, 136, 152, 96 },
 };
 
 /* Moves (and, in a double battle, the targets): four cards 4 px apart under the party, the note with the
