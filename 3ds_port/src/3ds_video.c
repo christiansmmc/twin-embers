@@ -5946,11 +5946,6 @@ void CtrVideo_Present(void)
 #endif
     if (!sHoldTop) DrawBuildLabel(sTop);
     if (stereo) DrawBuildLabel(sTopRight);
-    if (sFastForward > 1)
-    {
-        if (!sHoldTop) DrawFastForward(sTop);
-        if (stereo) DrawFastForward(sTopRight);
-    }
     sStats.commandUsage=C3D_GetCmdBufUsage();
     sStats.planes=sPlanes;
     uint64_t perfFinalize=CtrPerf_Begin();
