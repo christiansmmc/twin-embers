@@ -389,6 +389,53 @@ int main(void) {
 }
 ''')
 
+    def test_bridge_reports_the_destination(self):
+        """FireRed moves to a new pocket only at the end of its switch's animation, and its Party's cursor pointer goes
+        back to the first Pokemon while two of them slide to their places: the owner saw the Bag's list late and the
+        Party's arrow go back and forth. The bridge reports where they are going: the pocket being revealed (its count,
+        cursor and items are its own already), and the second Pokemon's slot while they slide."""
+        name = '0239-lower-screen-shows-destination.json'
+        bag = function(additions(name, 'src/item_menu.c'), 'CtrBagShownPocket')
+        party = function(additions(name, 'src/party_menu.c'), 'CtrPartyShownSlot')
+        self.run_c('''
+#include <assert.h>
+typedef unsigned char u8;
+typedef signed char s8;
+typedef short s16;
+typedef void (*TaskFunc)(u8);
+#define POCKET_ITEMS 1
+#define POCKET_POKE_BALLS 3
+#define tSwitchDir data[11]
+enum { PARTY_ACTION_CHOOSE_MON, PARTY_ACTION_SWITCH, PARTY_ACTION_SWITCHING, PARTY_ACTION_SOFTBOILED };
+static struct { TaskFunc func; s16 data[16]; } gTasks[4];
+static struct { u8 pocket; } gBagMenuState;
+static struct { u8 action; s8 slotId, slotId2; } gPartyMenu;
+static void Task_AnimateSwitchPockets(u8 t) { (void)t; }
+static void Task_Other(u8 t) { (void)t; }
+static int bagOpen = 1;
+static int BagTask(u8 *taskId) { *taskId = 2; return bagOpen; }
+static s8 *GetCurrentPartySlotPtr(void)
+{ return gPartyMenu.action == PARTY_ACTION_SWITCH ? &gPartyMenu.slotId2 : &gPartyMenu.slotId; }
+''' + bag + '\n' + party + '''
+int main(void) {
+    gBagMenuState.pocket = 0; gTasks[2].func = Task_Other;
+    assert(CtrBagShownPocket() == 0);
+    gTasks[2].func = Task_AnimateSwitchPockets; gTasks[2].data[11] = 1;
+    assert(CtrBagShownPocket() == 1);                   /* KEY ITEMS being revealed */
+    gBagMenuState.pocket = 2; gTasks[2].data[11] = 1;
+    assert(CtrBagShownPocket() == 2);                   /* never past the last pocket */
+    bagOpen = 0;
+    assert(CtrBagShownPocket() == 2);
+    gPartyMenu.action = PARTY_ACTION_SWITCH; gPartyMenu.slotId = 1; gPartyMenu.slotId2 = 4;
+    assert(CtrPartyShownSlot() == 4);                   /* choosing where to move it */
+    gPartyMenu.action = PARTY_ACTION_SWITCHING;
+    assert(CtrPartyShownSlot() == 4);                   /* sliding: where the cursor lands, not back on the first */
+    gPartyMenu.action = PARTY_ACTION_CHOOSE_MON; gPartyMenu.slotId = 4;
+    assert(CtrPartyShownSlot() == 4);
+    return 0;
+}
+''')
+
     def test_touch_shows_where_it_goes(self):
         """The owner saw the arrow go to a touched tab or Pokemon, back to where it was, then to it again. A Party slot
         touched (the Party takes the touch on its next frame) is shown as the selection until the Party's cursor is
