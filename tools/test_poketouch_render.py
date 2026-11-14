@@ -38,14 +38,14 @@ class Renderer(unittest.TestCase):
             self.assertEqual(len(cur),len(base))
             # HOME and GBA viewports are pixel-identical to the base.
             self.assertEqual(cur[:2*frame],base[:2*frame],'HOME and GBA viewport pixels must match the base')
-            # OPTIONS and SAVE wear the ember look: a new layout on the red backdrop.
+            # OPTIONS and SAVE are pages in the kit's look (phase 2): redrawn, and no longer on the red backdrop.
             for n,name in ((2,'OPTIONS'),(3,'SAVE')):
                 a=cur[n*frame:(n+1)*frame]; b=base[n*frame:(n+1)*frame]
                 px=lambda data:[int.from_bytes(data[i:i+2],'little') for i in range(0,len(data),2)]
                 a,b=px(a),px(b)
                 self.assertNotEqual(a,b,name+' must be redrawn')
                 red=sum(1 for x in a if (x>>11)*8>(x&31)*8+40)
-                self.assertGreater(red,len(a)//4,name+' must stand on the red backdrop')
+                self.assertLess(red,len(a)//4,name+' must be a page, not the red backdrop')
             self.assertNotEqual((folder/'current.ppm').read_bytes(),(folder/'base.ppm').read_bytes())
 
 if __name__=='__main__': unittest.main()

@@ -779,6 +779,47 @@ int main(void) {
 }
 ''')
 
+    def test_options_page_turns_on_press(self):
+        """OPTIONS' PAGE cell turns to the next page on the touch's press (the owner's rule for page arrows), once per
+        touch, held while the finger stays; a row's value still steps on release over the same place."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='latin-1')
+        touch = function(bottom, 'ProcessOptionsTouch')
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include "3ds_input.h"
+#include "3ds_poketouch.h"
+static struct { int sel; int down, row, zone, inside; int pageDown, pageInside; } sOpt;
+static int onPage, onRow = -1, stepped = 0;
+int CtrOptions_RowCount(void) { return 17; }
+bool CtrPokeTouch_HitOptPage(int x, int y) { (void)x; (void)y; return onPage; }
+bool CtrPokeTouch_OptionHit(int x, int y, int rows, int *row, int *zone)
+{ (void)x; (void)y; (void)rows; if (onRow < 0) return false; *row = onRow; *zone = PT_OPT_ZONE_NEXT; return true; }
+int CtrOptions_IsLevels(int row) { (void)row; return 0; }
+int CtrPokeTouch_OptionSegment(int x, int count) { (void)x; (void)count; return 0; }
+int CtrOptions_Count(int row) { (void)row; return 3; }
+void CtrOptions_Set(int row, int value) { (void)row; (void)value; }
+void CtrOptions_Step(int row, int dir) { (void)row; stepped += dir; }
+''' + touch + '''
+static CtrInput in;
+static void Touch(int down) { in.touchActive = 1; in.touchDown = down; ProcessOptionsTouch(&in); }
+static void Lift(void) { in.touchActive = in.touchDown = 0; ProcessOptionsTouch(&in); }
+int main(void) {
+    /* PAGE: the next page on the press, held while on it, nothing more on release */
+    onPage = 1; Touch(1);
+    assert(sOpt.sel == PT_OPT_MAX && sOpt.pageDown && sOpt.pageInside);
+    Touch(0); assert(sOpt.sel == PT_OPT_MAX && sOpt.pageInside);
+    Lift(); assert(sOpt.sel == PT_OPT_MAX && !sOpt.pageDown);
+    Touch(1); Lift(); assert(sOpt.sel == 2 * PT_OPT_MAX);
+    Touch(1); Lift(); assert(sOpt.sel == 0);       /* the last page wraps to the first */
+    /* a row's value: on release */
+    onPage = 0; onRow = 2; Touch(1);
+    assert(stepped == 0 && sOpt.sel == 2);
+    Lift(); assert(stepped == 1);
+    return 0;
+}
+''')
+
 
 if __name__ == '__main__':
     unittest.main()

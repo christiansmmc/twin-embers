@@ -27,7 +27,8 @@ static void KitPalette(const uint8_t *bytes, uint16_t *pal)
         pal[i] = GbaColor((uint16_t)(bytes[i * 2] | bytes[i * 2 + 1] << 8));
 }
 
-/* The text colours of FireRed's windows: stdpal_0's 1 (white, the interior), 2 (the text), 3 (its shadow). */
+/* The text colours of FireRed's windows: stdpal_0's 1 (white, the interior), 2 (the text), 3 (its shadow), 4 and 5
+ * (its red text and shadow, the values of OPTION). */
 UI_FN uint16_t KitInk(int index)
 {
     static int tried, ok;
@@ -43,7 +44,8 @@ UI_FN uint16_t KitInk(int index)
     }
     if (ok && index >= 0 && index < 16)
         return pal[index];
-    return index == 2 ? EM_DARK : index == 3 ? EM_DARK_SH : RGB(255, 255, 255);
+    return index == 2 ? EM_DARK : index == 3 ? EM_DARK_SH : index == 4 ? RGB(224, 8, 8) : index == 5 ? RGB(248, 184, 168)
+         : RGB(255, 255, 255);
 }
 
 UI_FN int KitFrameReady(int kind, int stdType)

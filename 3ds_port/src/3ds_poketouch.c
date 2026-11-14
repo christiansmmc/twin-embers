@@ -179,7 +179,6 @@ const CtrPokeTouchRect gCtrPokeTouchRects[PT_COUNT] = {
 static const CtrPokeTouchRect sMenuFrame = {0, 0, 248, 168};
 static const CtrPokeTouchRect sBar = {0, 168, 248, 72};
 const CtrPokeTouchRect gCtrPokeTouchBack = {172, 202, 72, 34};
-const CtrPokeTouchRect gCtrPokeTouchOptPage = {172, 172, 72, 26};
 #define NOTE_X 4
 #define NOTE_Y 172
 #define NOTE_H 64
@@ -567,36 +566,6 @@ static int HomeShow(const CtrPokeTouchView *v)
     return 1;
 }
 
-/* The OPTIONS rows: 228x20 on the red frame, 22 apart from (PT_VIEW_X + 6, PT_VIEW_Y + 4). The value
- * sits in a 124 wide box at the right: "<" (28), the value (68) and ">" (28). */
-#define OPT_X (PT_VIEW_X + 6)
-#define OPT_Y (PT_VIEW_Y + 4)
-#define OPT_W 228
-#define OPT_H 20
-#define OPT_STEP 22
-#define OPT_BOX_W 124
-#define OPT_ARROW_W 28
-
-static CtrPokeTouchRect OptRect(int row)
-{
-    CtrPokeTouchRect r = {OPT_X, (int16_t)(OPT_Y + row * OPT_STEP), OPT_W, OPT_H};
-    return r;
-}
-
-bool CtrPokeTouch_OptionHit(int x, int y, int rows, int *row, int *zone)
-{
-    int boxX = OPT_X + OPT_W - OPT_BOX_W;
-
-    if (x < OPT_X || x >= OPT_X + OPT_W || y < OPT_Y)
-        return false;
-    int r = (y - OPT_Y) / OPT_STEP;
-    if (r >= rows || r >= PT_OPT_MAX || (y - OPT_Y) % OPT_STEP >= OPT_H)
-        return false;
-    *row = r;
-    *zone = x < boxX ? PT_OPT_ZONE_LABEL : x < boxX + OPT_ARROW_W ? PT_OPT_ZONE_PREV : PT_OPT_ZONE_NEXT;
-    return true;
-}
-
 static int TextWidth(const char *s)
 {
     int w = 0;
@@ -604,261 +573,6 @@ static int TextWidth(const char *s)
     while (*s)
         w += Glyph(&s)->width;
     return w;
-}
-
-/* A row of levels: its values share the pill's inside, OPT_SEG_W wide in all (they need no arrows). */
-#define OPT_SEG_X(boxX) ((boxX) + 3)
-#define OPT_SEG_W (OPT_BOX_W - 8)
-
-int CtrPokeTouch_OptionSegment(int x, int count)
-{
-    int at = x - OPT_SEG_X(OPT_X + OPT_W - OPT_BOX_W), k;
-
-    if (count <= 0)
-        return 0;
-    k = at < 0 ? 0 : at * count / OPT_SEG_W;
-    return k >= count ? count - 1 : k;
-}
-
-/* The levels side by side in the pill: the chosen one an amber face with white ink, the others the game's grey on the
- * pill, split by thin lines; the one under a held touch darkens. */
-static void OptSegments(int row, const CtrPokeTouchView *v, int boxX, int fy, int h, int zone)
-{
-    int count = v->optSegCount[row], chosen = v->optSegValue[row], x0 = OPT_SEG_X(boxX);
-
-    for (int k = 0; k < count; ++k) {
-        int sx = x0 + k * OPT_SEG_W / count, sw = x0 + (k + 1) * OPT_SEG_W / count - sx;
-        const char *name = v->optSegName[row][k];
-        int tx = sx + (sw - TextWidth(name)) / 2;
-
-        if (k == chosen) {
-            UiRoundFill(sx, fy + 3, sw, h, 4, kEmAmber.lip);
-            EmGradFill(sx + 1, fy + 3, sw - 2, h - 1, 3, kEmAmber.top, kEmAmber.bottom);
-            UiText(name, tx, fy + 4, EM_WHITE, kEmAmber.inkSh, 1, sx + sw);
-            continue;
-        }
-        if (zone == PT_OPT_ZONE_SEG + k)
-            UiRoundFill(sx + 1, fy + 3, sw - 2, h, 4, UI_RGB(255, 214, 160));
-        if (k > 0 && k - 1 != chosen)
-            Fill(sx, fy + 5, 1, h - 4, kEmCream.bottom);
-        UiText(name, tx, fy + 4, EM_DIM, EM_DARK_SH, 1, sx + sw);
-    }
-}
-
-/* One row: a raised cream row with the label (amber, glowing, when selected) and on its right the value in a light pill
- * between "<" and ">" (a switch for ON and OFF, all the levels for a row of levels); the zone under a held touch
- * darkens. */
-static void OptRow(int row, const CtrPokeTouchView *v)
-{
-    CtrPokeTouchRect r = OptRect(row);
-    int selected = v->optSelected == row, pressed = v->optPressed == row;
-    int boxX = r.x + r.w - OPT_BOX_W, zone = pressed ? v->optZone : PT_OPT_ZONE_NONE;
-    const EmPal *pal = selected ? &kEmAmber : &kEmCream;
-    int fy, mid = boxX + OPT_BOX_W / 2;
-    const char *value = v->optValue[row];
-
-    TsBgRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
-    if (selected)
-        EmGlowRing(r.x, r.y, r.w, r.h);
-    fy = EmButton(r.x, r.y, r.w, r.h, pal, COL_DEPTH, zone == PT_OPT_ZONE_LABEL);
-    UiText(v->optLabel[row], r.x + 8, fy + 4, pal->ink, pal->inkSh, 1, boxX - 2);
-    UiRoundFill(boxX + 2, fy + 2, OPT_BOX_W - 6, r.h - COL_DEPTH - 4, 5, kEmAmber.lip);
-    UiRoundFill(boxX + 3, fy + 3, OPT_BOX_W - 8, r.h - COL_DEPTH - 6, 4, UI_RGB(255, 248, 236));
-    if (v->optSegCount[row]) {
-        OptSegments(row, v, boxX, fy, r.h - COL_DEPTH - 6, zone);
-        return;
-    }
-    if (zone == PT_OPT_ZONE_PREV)
-        UiRoundFill(boxX + 3, fy + 3, OPT_ARROW_W - 3, r.h - COL_DEPTH - 6, 4, UI_RGB(255, 214, 160));
-    if (zone == PT_OPT_ZONE_NEXT)
-        UiRoundFill(mid + OPT_BOX_W / 2 - OPT_ARROW_W, fy + 3, OPT_ARROW_W - 5, r.h - COL_DEPTH - 6, 4,
-                    UI_RGB(255, 214, 160));
-    UiArrow(boxX + 10, fy + 4, -1, EM_STRIPE);
-    UiArrow(boxX + OPT_BOX_W - 15, fy + 4, 1, EM_STRIPE);
-    if (v->optSwitch[row])
-        EmSwitch(mid - 13, fy + 3, v->optSwitch[row] == 2);
-    else
-        UiText(value, mid - TextWidth(value) / 2, fy + 4, EM_VALUE, UI_RGB(255, 206, 180), 1, boxX + OPT_BOX_W - 18);
-}
-
-static void BDescribeN(const char *text, int x, int y, int width, int maxLines, uint16_t color);
-
-/* The preview under the look rows of OPTIONS (3ds_poketouch.h CtrPokeTouchLook): in the rows the page does not use, a note card
- * with the look's walking picture facing down, twice as large (as it walks in the field), its name and its artists. */
-static CtrPokeTouchRect OptLookRect(const CtrPokeTouchView *v)
-{
-    CtrPokeTouchRect r = {OPT_X, (int16_t)(OPT_Y + v->optCount * OPT_STEP), OPT_W,
-                          (int16_t)((PT_OPT_MAX - v->optCount) * OPT_STEP - 2)};
-
-    return r;
-}
-
-static void OptLookPanel(const CtrPokeTouchView *v)
-{
-    const CtrPokeTouchLook *l = &v->optLook;
-    CtrPokeTouchRect r = OptLookRect(v);
-    int textX = r.x + 84;
-
-    if (r.h < 40)
-        return;
-    TsBgRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
-    EmNote(r.x, r.y, r.w, r.h);
-    if (l->has) {
-        static uint8_t pixels[32 * 32];
-        uint16_t pal[16];
-
-        for (int py = 0; py < 32; ++py)
-            for (int px = 0; px < 32; ++px)
-                pixels[py * 32 + px] = (uint8_t)((l->tiles[(py / 8 * 4 + px / 8) * 32 + py % 8 * 4 + px % 8 / 2] >> (px & 1) * 4) & 15);
-        for (int i = 0; i < 16; ++i)
-            pal[i] = GbaColor(l->palette[i]);
-        /* The first rows of a person are empty: the note's height holds the other 30 at twice the size. */
-        UiImage(pixels + 2 * 32, pal, 32, 32, 30, r.x + 14, r.y + (r.h - 60) / 2, 2, 1);
-    }
-    UiText(l->name, textX, r.y + 8, EM_DARK, EM_DARK_SH, 1, r.x + r.w - 6);
-    BDescribeN(l->credit, textX, r.y + 24, r.x + r.w - 6 - textX, 3, EM_DIM);
-}
-
-/* The SAVE screen: FireRed's save information in a card over the frame where the picture goes: a title band, the five
- * lines (label on the left, value on the right) and the player's own map icon, enlarged by 3, on a plate. Each value
- * has its own rectangle, filled with the card's colour before its text, so one that changes (the play clock) is
- * redrawn alone. The dialogue is the bar: the text in the note card, YES over NO (or a lone OK) on its right. */
-enum { SF_NAME, SF_BADGES, SF_DEX, SF_TIME, SF_MONEY, SF_COUNT };
-static const CtrPokeTouchRect sSavePanel = {14, 10, 220, 150};
-static const CtrPokeTouchRect sSaveButtons = {170, 170, 76, 70};   /* right of the note card, glow included */
-static const CtrPokeTouchRect sSaveYes = {172, 172, 72, 30};
-static const CtrPokeTouchRect sSaveNo = {172, 206, 72, 30};
-#define SAVE_CARD UI_RGB(255, 252, 244)
-#define SAVE_LINE_Y 42
-#define SAVE_LINE_STEP 22
-#define SAVE_VALUE_RIGHT 150
-static const char *const sSaveLabel[SF_COUNT] = {CTR_TR("PLAYER", "JUGADOR", "Spieler"), CTR_TR("BADGES", "MEDALLAS", "Orden"), CTR_TR("POK\xc3\xa9" "DEX", "POK\xc3\xa9" "DEX", "Pok\xc3\xa9" "dex"), CTR_TR("TIME", "TIEMPO", "Zeit"), CTR_TR("MONEY", "DINERO", "Geld")};
-
-static CtrPokeTouchRect SaveField(int f)
-{
-    CtrPokeTouchRect r = {84, (int16_t)(SAVE_LINE_Y + f * SAVE_LINE_STEP - 3), SAVE_VALUE_RIGHT + 2 - 84, 16};
-
-    return r;
-}
-
-static void SaveFieldDraw(int f, const CtrPokeTouchView *v)
-{
-    CtrPokeTouchRect r = SaveField(f);
-    char text[24];
-
-    Fill(r.x, r.y, r.w, r.h, SAVE_CARD);
-    switch (f) {
-    case SF_NAME:   snprintf(text, sizeof(text), "%s", v->playerName); break;
-    case SF_BADGES: snprintf(text, sizeof(text), "%u", (unsigned)v->saveBadges); break;
-    case SF_DEX:
-        if (v->saveHasDex)
-            snprintf(text, sizeof(text), "%u", (unsigned)v->saveDex);
-        else
-            snprintf(text, sizeof(text), "---");
-        break;
-    case SF_TIME:   snprintf(text, sizeof(text), "%u:%02u", (unsigned)(v->saveHours > 999 ? 999 : v->saveHours),
-                             (unsigned)(v->saveMinutes > 59 ? 59 : v->saveMinutes)); break;
-    default:        snprintf(text, sizeof(text), "\xc2\xa5%u", (unsigned)(v->saveMoney > 999999u ? 999999u : v->saveMoney)); break;
-    }
-#if !CTR_LANG_DE
-    for (char *c = text; f == SF_NAME && *c; ++c)
-        if (*c >= 'a' && *c <= 'z')
-            *c = (char)(*c - ('a' - 'A'));
-#endif
-    UiText(text, SAVE_VALUE_RIGHT - TextWidth(text), r.y + 3, UI_RGB(48, 80, 200), UI_RGB(176, 196, 240), 1,
-           SAVE_VALUE_RIGHT + 1);
-}
-
-/* The player's portrait: FireRed's own map icon of Red or Leaf, enlarged by 3, on a light plate. */
-static void SaveSprite(const CtrPokeTouchView *v)
-{
-    const int scale = 3, x = 166, y = 62;
-
-    UiRoundFill(x - 6, y - 6, MARKER * scale + 12, MARKER * scale + 12, 5, UI_RGB(255, 226, 190));
-    if (sPlayer.key != v->playerFemale)
-        IconBuild(&sPlayer, v->playerFemale, CtrPokeTouch_MapPlayerIcon);
-    if (!sPlayer.ok)
-        return;
-    for (int py = 0; py < MARKER; ++py)
-        for (int px = 0; px < MARKER; ++px) {
-            uint8_t index = sPlayer.pixels[0][py * MARKER + px];
-            if (index)
-                Fill(x + px * scale, y + py * scale, scale, scale, sPlayer.pal[index]);
-        }
-}
-
-static void SaveDraw(const CtrPokeTouchView *v)
-{
-    const CtrPokeTouchRect *p = &sSavePanel;
-
-    UiRoundFill(p->x, p->y, p->w, p->h, 5, UI_RGB(60, 64, 92));
-    UiRoundFill(p->x + 1, p->y + 1, p->w - 2, p->h - 2, 4, SAVE_CARD);
-    EmGradFill(p->x + 1, p->y + 1, p->w - 2, 22, 4, kEmAmber.top, kEmAmber.bottom);
-    Fill(p->x + 1, p->y + 23, p->w - 2, 1, kEmAmber.edge);
-    UiText(CTR_TR("SAVE", "GUARDAR", "Sichern"), p->x + 10, p->y + 7, EM_WHITE, kEmAmber.inkSh, 1, p->x + p->w - 4);
-    for (int f = 0; f < SF_COUNT; ++f) {
-        UiText(sSaveLabel[f], p->x + 12, SAVE_LINE_Y + f * SAVE_LINE_STEP, EM_DARK, EM_DARK_SH, 1, 84);
-        if (f + 1 < SF_COUNT)
-            Fill(p->x + 10, SAVE_LINE_Y + f * SAVE_LINE_STEP + 15, SAVE_VALUE_RIGHT - p->x - 8, 1, UI_RGB(226, 220, 210));
-        SaveFieldDraw(f, v);
-    }
-    SaveSprite(v);
-}
-
-static int SaveFieldChanged(int f, const CtrPokeTouchView *a, const CtrPokeTouchView *b)
-{
-    switch (f) {
-    case SF_NAME:   return strcmp(a->playerName, b->playerName) != 0;
-    case SF_BADGES: return a->saveBadges != b->saveBadges;
-    case SF_DEX:    return a->saveHasDex != b->saveHasDex || a->saveDex != b->saveDex;
-    case SF_TIME:   return a->saveHours != b->saveHours || a->saveMinutes != b->saveMinutes;
-    default:        return a->saveMoney != b->saveMoney;
-    }
-}
-
-/* The dialogue's buttons: YES over NO, or a lone OK on YES's place. */
-static CtrPokeTouchRect SaveButtonRect(int which, int state)
-{
-    return state == SAVE_CONFIRM && which == PT_SAVE_SECOND ? sSaveNo : sSaveYes;
-}
-
-int CtrPokeTouch_SaveHit(int x, int y, int state)
-{
-    if (state == SAVE_WRITING)
-        return PT_SAVE_NONE;
-    for (int which = PT_SAVE_FIRST; which <= (state == SAVE_CONFIRM ? PT_SAVE_SECOND : PT_SAVE_FIRST); ++which) {
-        CtrPokeTouchRect r = SaveButtonRect(which, state);
-
-        if (x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h)
-            return which;
-    }
-    return PT_SAVE_NONE;
-}
-
-/* YES amber (glowing when selected), NO violet (amber when selected), a lone OK amber; the one under a touch sinks.
- * While writing, three dots instead. */
-static void SaveButtons(const CtrPokeTouchView *v)
-{
-    const CtrPokeTouchRect *b = &sSaveButtons;
-    int confirm = v->saveState == SAVE_CONFIRM;
-
-    TsBgRect(b->x, b->y, b->w, b->h);
-    if (v->saveState == SAVE_WRITING) {
-        for (int i = 0; i < 3; ++i)
-            UiDisc(b->x + 26 + 12 * i, b->y + 34, 3, i == 1 ? EM_GLOW : UI_RGB(255, 236, 170));
-        return;
-    }
-    for (int which = PT_SAVE_FIRST; which <= (confirm ? PT_SAVE_SECOND : PT_SAVE_FIRST); ++which) {
-        CtrPokeTouchRect r = SaveButtonRect(which, v->saveState);
-        int sel = !confirm || v->saveSel == which - PT_SAVE_FIRST, press = v->savePressed == which;
-        const EmPal *pal = sel ? &kEmAmber : &kEmViolet;
-        int fy;
-
-        if (sel)
-            EmGlowRing(r.x, r.y, r.w, r.h);
-        fy = EmButton(r.x, r.y, r.w, r.h, pal, BTN_DEPTH, press);
-        EmLabel(!confirm ? "OK" : which == PT_SAVE_FIRST ? CTR_TR("YES", "S\xC3\x8D", "Ja") : CTR_TR("NO", "NO", "Nein"), r.x, r.w, fy, r.h - BTN_DEPTH, pal);
-    }
 }
 
 /* The backdrop: the embers. */
@@ -919,17 +633,6 @@ static void MenuFrame(const CtrPokeTouchView *v)
         FBoxFrame(v);
         return;
     }
-    if (v->save && !v->viewport) {
-        SaveDraw(v);
-        return;
-    }
-    if (v->options && !v->viewport) {
-        for (int i = 0; i < v->optCount && i < PT_OPT_MAX; ++i)
-            OptRow(i, v);
-        if (v->optLook.on)
-            OptLookPanel(v);
-        return;
-    }
     if (!FrameShown(v))
         return;
     EmBezel(PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H);
@@ -951,28 +654,10 @@ static void Back(const CtrPokeTouchView *v)
     UiText(CTR_TR("BACK", "ATR\xC3\x81S", "Zur\xC3\xBC" "ck"), x + 9, fy + (r->h - BTN_DEPTH - UI_TEXT_H) / 2, pal->ink, pal->inkSh, 1, r->x + r->w);
 }
 
-/* PAGE: switches between OPTIONS pages (PAGE 1/2, PAGE 2/2) right above BACK. */
-static void OptPageButton(const CtrPokeTouchView *v)
-{
-    const CtrPokeTouchRect *r = &gCtrPokeTouchOptPage;
-    char label[16];
-    int fy;
-
-    snprintf(label, sizeof(label), CTR_TR("PAGE %u/%u", "P\xC3\x81G. %u/%u", "Seite %u/%u"), (unsigned)(v->optPage + 1), (unsigned)v->optPageCount);
-    TsBgRect(r->x, r->y, r->w, r->h);
-    fy = EmButton(r->x, r->y, r->w, r->h, &kEmCream, COL_DEPTH, v->optPagePressed);
-    EmLabel(label, r->x, r->w, fy, r->h - COL_DEPTH, &kEmCream);
-}
-
 /* The bar: the note card with up to three lines, 15 pixels apart and centred on it; the first line is the subject,
  * the others what is known about it (dimmer). It is narrower when BACK, PAGE or SAVE's buttons are on its right. */
 
-/* FRAME's sample: the chosen frame (the game's own graphics/text_window/typeN, 3x3 tiles of 8x8) as FireRed draws a
- * window with it, stretched to the sample's size, with YES / NO inside. The tiles and palette are read from the
- * pack when the type changes; if they are not there the sample is left out. */
-#define FRAME_W 56
-#define FRAME_H 40
-
+/* A text window's file from the pack (graphics/text_window/<base>.<ext>, raw or LZ): `want` bytes, 0 without it. */
 static int FrameLoadFile(const char *base, const char *ext, uint8_t *out, uint32_t cap, uint32_t want)
 {
     char path[64];
@@ -993,58 +678,11 @@ static int FrameLoadFile(const char *base, const char *ext, uint8_t *out, uint32
     return PokeTouch_LoadLz(path, out, cap) == (int)want ? (int)want : 0;
 }
 
-static int FrameSample(int type, int x, int y)
-{
-    static int loaded = -1;
-    static uint16_t px[24 * 24];
-    static int ok;
-
-    if (loaded != type) {
-        uint8_t tiles[9 * 32], colors[32];
-        char base[16];
-        uint16_t pal[16];
-
-        loaded = type;
-        ok = 0;
-        snprintf(base, sizeof(base), "type%d", type + 1);
-        if (FrameLoadFile(base, "4bpp", tiles, sizeof(tiles), sizeof(tiles))
-            && FrameLoadFile(base, "gbapal", colors, sizeof(colors), sizeof(colors))) {
-            for (int i = 0; i < 16; ++i) {
-                unsigned c = (unsigned)colors[i * 2] | (unsigned)colors[i * 2 + 1] << 8;
-
-                pal[i] = GbaColor(c);
-            }
-            for (int ty = 0; ty < 24; ++ty)
-                for (int tx = 0; tx < 24; ++tx) {
-                    uint8_t b = tiles[(ty / 8 * 3 + tx / 8) * 32 + ty % 8 * 4 + tx % 8 / 2];
-                    uint8_t v = (tx & 1) ? b >> 4 : b & 15;
-
-                    px[ty * 24 + tx] = v ? pal[v] : RGB(255, 255, 255);
-                }
-            ok = 1;
-        }
-    }
-    if (!ok)
-        return 0;
-    for (int dy = 0; dy < FRAME_H; ++dy)
-        for (int dx = 0; dx < FRAME_W; ++dx) {
-            int sx = dx < 8 ? dx : dx >= FRAME_W - 8 ? 16 + dx - (FRAME_W - 8) : 8 + dx % 8;
-            int sy = dy < 8 ? dy : dy >= FRAME_H - 8 ? 16 + dy - (FRAME_H - 8) : 8 + dy % 8;
-
-            Px(x + dx, y + dy, px[sy * 24 + sx]);
-        }
-    UiText(CTR_TR("YES", "S\xC3\x8D", "Ja"), x + 14, y + 7, EM_DARK, EM_DARK_SH, 1, x + FRAME_W - 6);
-    UiText(CTR_TR("NO", "NO", "Nein"), x + 14, y + 21, EM_DARK, EM_DARK_SH, 1, x + FRAME_W - 6);
-    return 1;
-}
-
 static void Bar(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchRect *r = &sBar;
     int lines = 0;
-    int hasPage = v->options && !v->viewport && v->optPageCount > 1;
-    int side = v->backVisible || hasPage || v->save;
-    int w = side ? NOTE_W_SIDE : NOTE_W_FULL;
+    int w = v->backVisible ? NOTE_W_SIDE : NOTE_W_FULL;
 
     TsBgRect(r->x, r->y, r->w, r->h);
     for (int i = 0; i < PT_BAR_LINES; ++i)
@@ -1066,18 +704,11 @@ static void Bar(const CtrPokeTouchView *v)
         int right = NOTE_X + w - 4;
 
         EmNote(NOTE_X, NOTE_Y, w, NOTE_H);
-        if (v->options && v->optFrameShow && FrameSample(v->optFrameType, NOTE_X + w - FRAME_W - 8,
-                                                         NOTE_Y + (NOTE_H - FRAME_H) / 2 - 1))
-            right -= FRAME_W + 4;
         for (int i = 0; i < lines; ++i)
             UiText(v->bar[i], NOTE_X + 12, top + i * pitch, i == 0 ? EM_DARK : EM_DIM, EM_DARK_SH, 1, right);
     }
-    if (hasPage)
-        OptPageButton(v);
     if (v->backVisible)
         Back(v);
-    if (v->save)
-        SaveButtons(v);
 }
 
 /* An element's area: its rectangle and the glow round it. */
@@ -1170,13 +801,6 @@ bool CtrPokeTouch_HitBack(int x, int y)
     return x >= r->x && y >= r->y && x < r->x + r->w && y < r->y + r->h;
 }
 
-bool CtrPokeTouch_HitOptPage(int x, int y)
-{
-    const CtrPokeTouchRect *r = &gCtrPokeTouchOptPage;
-
-    return x >= r->x && y >= r->y && x < r->x + r->w && y < r->y + r->h;
-}
-
 int CtrPokeTouch_HitTest(int x, int y)
 {
     for (int i = 0; i < PT_COUNT; ++i) {
@@ -1245,9 +869,6 @@ static void Mark(CtrDirtyList *dirty, const CtrPokeTouchRect *r)
 
 void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const CtrPokeTouchView *v, CtrDirtyList *dirty)
 {
-    int oldHasPage = old->options && !old->viewport && old->optPageCount > 1;
-    int newHasPage = v->options && !v->viewport && v->optPageCount > 1;
-
     sCanvas = canvas;
     if (CtrPokeTouch_HomePageShown(old) || CtrPokeTouch_HomePageShown(v)) {
         /* HOME's page: its own elements while it stays up; any change to or from it repaints the whole screen. */
@@ -1285,8 +906,7 @@ void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const Ct
         Mark(dirty, &sMenuFrame);
         Bar(v);
         Mark(dirty, &sBar);
-    } else if (old->viewport != v->viewport || old->home != v->home || old->options != v->options || old->save != v->save
-        || (v->options && !v->viewport && (old->optCount != v->optCount || old->optLook.on != v->optLook.on))
+    } else if (old->viewport != v->viewport || old->home != v->home
         || (v->home && (old->mapGroup != v->mapGroup || old->mapVersion != v->mapVersion))) {
         MenuFrame(v);
         Mark(dirty, &sMenuFrame);
@@ -1312,62 +932,13 @@ void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const Ct
                 Mark(dirty, &r);
             }
         IconsDraw(v);
-    } else if (v->save && !v->viewport) {
-        /* A value that changed (the play clock, say): its own rectangle. */
-        for (int f = 0; f < SF_COUNT; ++f)
-            if (SaveFieldChanged(f, old, v)) {
-                CtrPokeTouchRect r = SaveField(f);
-
-                SaveFieldDraw(f, v);
-                Mark(dirty, &r);
-            }
-        if (old->playerFemale != v->playerFemale) {
-            SaveDraw(v);
-            Mark(dirty, &sSavePanel);
-        }
-    } else if (v->options && !v->viewport) {
-        /* A row whose value, selection or press changed: only its rectangle. */
-        for (int i = 0; i < v->optCount && i < PT_OPT_MAX; ++i) {
-            if (strcmp(old->optLabel[i], v->optLabel[i]) || strcmp(old->optValue[i], v->optValue[i])
-                || (old->optSelected == i) != (v->optSelected == i) || (old->optPressed == i) != (v->optPressed == i)
-                || (v->optPressed == i && old->optZone != v->optZone)) {
-                CtrPokeTouchRect r = OptRect(i);
-
-                OptRow(i, v);
-                Mark(dirty, &r);
-            }
-        }
-        /* The preview: its look (or the one chosen for another slot) changed. */
-        if (v->optLook.on && memcmp(&old->optLook, &v->optLook, sizeof(v->optLook))) {
-            CtrPokeTouchRect r = OptLookRect(v);
-
-            r.x -= 2;
-            r.y -= 2;
-            r.w += 4;
-            r.h += 4;
-            OptLookPanel(v);
-            Mark(dirty, &r);
-        }
     }
-    if (memcmp(old->bar, v->bar, sizeof(v->bar)) || old->optFrameShow != v->optFrameShow
-        || old->optFrameType != v->optFrameType || old->backVisible != v->backVisible || old->save != v->save
-        || oldHasPage != newHasPage) {
+    if (memcmp(old->bar, v->bar, sizeof(v->bar)) || old->backVisible != v->backVisible) {
         Bar(v);
         Mark(dirty, &sBar);
-    } else {
-        if (newHasPage && (old->optPage != v->optPage || old->optPageCount != v->optPageCount
-                           || old->optPagePressed != v->optPagePressed)) {
-            OptPageButton(v);
-            Mark(dirty, &gCtrPokeTouchOptPage);
-        }
-        if (v->backVisible && (old->backEnabled != v->backEnabled || old->backPressed != v->backPressed)) {
-            Back(v);                        /* a press or a state: only BACK's rectangle */
-            Mark(dirty, &gCtrPokeTouchBack);
-        } else if (v->save && (old->saveState != v->saveState || old->saveSel != v->saveSel
-                               || old->savePressed != v->savePressed)) {
-            SaveButtons(v);                 /* the selection or a press: only the buttons' area */
-            Mark(dirty, &sSaveButtons);
-        }
+    } else if (v->backVisible && (old->backEnabled != v->backEnabled || old->backPressed != v->backPressed)) {
+        Back(v);                        /* a press or a state: only BACK's rectangle */
+        Mark(dirty, &gCtrPokeTouchBack);
     }
     for (int i = 0; i < PT_COUNT; ++i) {
         if (!Changed(i, old, v))
@@ -1411,6 +982,7 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
 #include "3ds_summary_ui_impl.h"
 #include "3ds_field_bag_impl.h"
 #include "3ds_field_page_impl.h"
+#include "3ds_options_page_impl.h"
 #include "3ds_field_dex_impl.h"
 #include "3ds_field_card_impl.h"
 #include "3ds_field_learn_impl.h"
@@ -1421,7 +993,7 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
 /* ---- The field's pages: which view is one, its BACK, its drawing ---- */
 bool CtrPokeTouch_FieldPageShown(const CtrPokeTouchView *v)
 {
-    return !v->viewport && !CtrPokeTouch_BagPageShown(v) && v->dex.on;
+    return !v->viewport && !CtrPokeTouch_BagPageShown(v) && (v->dex.on || v->options || v->save);
 }
 
 /* BACK's cell on the page shown (none without the view's BACK, or while the page has no room for it). */
@@ -1431,6 +1003,10 @@ static const CtrPokeTouchRect *FieldPageBack(const CtrPokeTouchView *v)
         return NULL;
     if (v->dex.on)
         return FDexBackRect(v);
+    if (v->save)
+        return NULL;                    /* NO and B leave SAVE */
+    if (v->options)
+        return &kOptBack;
     return NULL;
 }
 
@@ -1438,6 +1014,10 @@ static void FieldPageDraw(const CtrPokeTouchView *v)
 {
     if (v->dex.on)
         FDexPageDraw(v);
+    else if (v->save)
+        SavePageDraw(v);
+    else if (v->options)
+        OptionsPageDraw(v);
 }
 
 bool CtrPokeTouch_BackHit(const CtrPokeTouchView *v, int x, int y)

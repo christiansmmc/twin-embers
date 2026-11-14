@@ -475,6 +475,51 @@ static void dex(void)
     assert(kDexNoteWide.x == 4 && kDexNoteWide.x + kDexNoteWide.w == 316 && kDexNoteWide.y == kDexNote.y);
 }
 
+/* OPTIONS: the title and PAGE across the top, the list 4 px under them with a page's rows inside its frame (each with
+ * room for its label and the value box, whose arrows' touch places are 24 px wide at least), the band and BACK; FRAME's
+ * sample inside the band's text area, clear of its frame. SAVE: the two windows side by side, the band beside the
+ * Party's two-row window, or whole. */
+static void options(void)
+{
+    const CtrPokeTouchRect *view[6] = {&kOptTitle, &kOptPage, &kOptList, &kOptNote, &kOptBack};
+
+    Framed(&kOptTitle);
+    Button(&kOptPage);
+    assert(kOptTitle.x == 4 && kOptTitle.y == 4 && kOptPage.x == kOptTitle.x + kOptTitle.w + 4 && kOptPage.x + kOptPage.w == 316);
+    assert(kOptPage.h == kOptTitle.h && kOptTitle.h - 16 >= 14);
+    Framed(&kOptList);
+    assert(kOptList.x == 4 && kOptList.x + kOptList.w == 316 && kOptList.y == Bottom(&kOptTitle) + 4);
+    BandAndBack(&kOptNote, &kOptBack, Bottom(&kOptList));
+    Apart(view, 5);
+    for (int i = 0; i < PT_OPT_MAX; ++i) {
+        CtrPokeTouchRect r = OptRowRect(i);
+
+        Row(&r);
+        InFrame(&r, &kOptList);
+        assert(r.w - OPT_BOX_W >= 8 + 80 && OPT_ARROW_W >= 24 && OPT_BOX_W - OPT_ARROW_W >= 24);
+    }
+    Within(&kOptSample, &kOptNote);
+    assert(kOptSample.y >= kOptNote.y + 8 && Bottom(&kOptSample) <= Bottom(&kOptNote) - 8);
+    assert(kOptSample.x + kOptSample.w <= kOptNote.x + kOptNote.w - 16 && kOptSample.w >= 24 && kOptSample.h >= 24);
+    {
+        const CtrPokeTouchRect *save[4] = {&kSaveInfo, &kSavePlayer, &kSaveNote, NULL};
+        CtrPokeTouchRect yesNo = PartyMenuWindow(2);
+
+        Framed(&kSaveInfo);
+        Framed(&kSavePlayer);
+        assert(kSaveInfo.x == 4 && kSaveInfo.y == 4 && kSavePlayer.x == kSaveInfo.x + kSaveInfo.w + 4);
+        assert(kSavePlayer.x + kSavePlayer.w == 316 && kSavePlayer.h == kSaveInfo.h && kSaveInfo.h - 16 >= 5 * 14);
+        assert(kSavePlayer.w - 16 >= 64 && kSavePlayer.h - 16 >= 64);           /* the map icon at 4x */
+        Dialogue(&kSaveNote);
+        assert(kSaveNote.x == 4 && kSaveNote.y == Bottom(&kSaveInfo) + 4 && Bottom(&kSaveNote) == 236);
+        assert(kSaveNote.x + kSaveNote.w + 4 == yesNo.x && Bottom(&yesNo) == 236);
+        save[3] = &yesNo;
+        Apart(save, 4);
+        Dialogue(&kSaveNoteWide);
+        assert(kSaveNoteWide.x == 4 && kSaveNoteWide.x + kSaveNoteWide.w == 316 && kSaveNoteWide.y == kSaveNote.y);
+    }
+}
+
 int main(void)
 {
     home();
@@ -483,6 +528,7 @@ int main(void)
     summary();
     bag();
     dex();
+    options();
     printf("PASS lower layout%s\n", LOWER_LAYOUT_PROVISIONAL ? " (provisional values)" : "");
     return 0;
 }

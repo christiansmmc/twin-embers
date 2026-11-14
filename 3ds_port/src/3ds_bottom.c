@@ -2727,10 +2727,10 @@ static int FieldEnabled(int id)
     return 1;
 }
 
-/* A touch on an OPTIONS row or the PAGE switcher button (the viewport shows no map then): selected on
- * touch-down, one step on release over the same zone ("<" back, the value or
- * ">" forward; the label only selects; on a row of levels, the level touched). Moving off cancels it; a held
- * physical button cancels it too. */
+/* A touch on an OPTIONS row or its PAGE cell: a row is selected on touch-down and steps once on release over the same
+ * zone ("<" back, the value or ">" forward; the label only selects; on a row of levels, the level touched); PAGE turns
+ * to the next page on the press, as every page arrow does, and is shown held while the finger stays. Moving off
+ * cancels a row; a held physical button cancels it too. */
 static void ProcessOptionsTouch(const CtrInput *in)
 {
     int page = sOpt.sel / PT_OPT_MAX;
@@ -2739,7 +2739,7 @@ static void ProcessOptionsTouch(const CtrInput *in)
     int pageCount = (total + PT_OPT_MAX - 1) / PT_OPT_MAX;
     int pageRows = total - base > PT_OPT_MAX ? PT_OPT_MAX : total - base;
     int hitPage = in->touchActive && pageCount > 1 && CtrPokeTouch_HitOptPage((int)in->touchX, (int)in->touchY);
-    int relRow, zone;
+    int relRow = 0, zone = PT_OPT_ZONE_NONE;
     int on = in->touchActive && CtrPokeTouch_OptionHit((int)in->touchX, (int)in->touchY,
                                                        pageRows, &relRow, &zone);
     int globalRow = base + relRow;
@@ -2759,6 +2759,8 @@ static void ProcessOptionsTouch(const CtrInput *in)
             sOpt.zone = zone;
             sOpt.sel = globalRow;
         }
+        if (hitPage)
+            sOpt.sel = ((page + 1) % pageCount) * PT_OPT_MAX;
         return;
     }
     if (sOpt.pageDown) {
@@ -2766,12 +2768,7 @@ static void ProcessOptionsTouch(const CtrInput *in)
             sOpt.pageInside = hitPage;
             return;
         }
-        int pageInside = sOpt.pageInside;
         sOpt.pageDown = sOpt.pageInside = 0;
-        if (pageInside) {
-            int next = ((page + 1) % pageCount) * PT_OPT_MAX;
-            sOpt.sel = next;
-        }
         return;
     }
     if (!sOpt.down)

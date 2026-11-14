@@ -57,12 +57,11 @@ enum { PT_MAP_KANTO, PT_MAP_SEVII123, PT_MAP_SEVII45, PT_MAP_SEVII67, PT_MAP_COU
 #define PT_HOME_Y 5
 #define PT_HOME_CELL 10
 #define PT_HOME_ICON 20
-/* The native OPTIONS screen (3ds_poketouch_options.c holds the rows): it fills the viewport with up
- * to PT_OPT_MAX rows, each a label on the left and, on the right, "<" value ">". A row is 228x20 at
- * (PT_VIEW_X + 6, PT_VIEW_Y + 4 + 22 row). On a row, the label selects it (its description goes to
- * the bar), "<" steps the value back and the value or ">" steps it forward. A row of levels (EMBERS'
- * OFF / LOW / HIGH) shows all its values side by side instead, the chosen one lit: a touch on one
- * picks it (zone PT_OPT_ZONE_SEG + its index). */
+/* The native OPTIONS screen (3ds_poketouch_options.c holds the rows), a page (3ds_options_page_impl.h): up to
+ * PT_OPT_MAX rows a page, each a label on the left and, on the right, "<" value ">" (3ds_lower_layout.h OptRowRect).
+ * On a row, the label selects it (its description goes to the band), "<" steps the value back and the value or ">"
+ * steps it forward. A row of levels (COMPANION's OFF / FOLLOW / BE IT) shows all its values side by side instead, the
+ * chosen one red: a touch on one picks it (zone PT_OPT_ZONE_SEG + its index). */
 #define PT_OPT_MAX 7
 #define PT_OPT_LABEL_LEN 16
 #define PT_OPT_VALUE_LEN 12
@@ -85,10 +84,10 @@ typedef struct {
     uint8_t tiles[512];
     uint16_t palette[16];           /* 15-bit colours, 0 clear */
 } CtrPokeTouchLook;
-/* The SAVE screen (the facts come from FireRed's save window, ctr_poketouch.h CtrSave_*): the whole
- * viewport shows the game's save information, and the contextual bar becomes the dialogue: its two or
- * three text lines on the left and, on the right of the same bar, YES / NO (SAVE_CONFIRM), nothing
- * (SAVE_WRITING) or OK (SAVE_SUCCESS, SAVE_ERROR). */
+/* The SAVE screen (the facts come from FireRed's save window, ctr_poketouch.h CtrSave_*), a page
+ * (3ds_options_page_impl.h): the game's save information, and the band as the dialogue (bar[0] and bar[1]) with YES / NO
+ * in the Party's window (SAVE_CONFIRM); the band whole while writing (SAVE_WRITING) and for the result (SAVE_SUCCESS,
+ * SAVE_ERROR), whose OK is a tap anywhere. */
 enum { SAVE_CONFIRM, SAVE_WRITING, SAVE_SUCCESS, SAVE_ERROR };
 enum { PT_SAVE_NONE, PT_SAVE_FIRST, PT_SAVE_SECOND };  /* the button: YES or OK, NO */
 /* Contextual bar text: three lines of FireRed's font inside 228 pixels. */
@@ -383,8 +382,7 @@ extern const CtrPokeTouchRect gCtrPokeTouchRects[PT_COUNT];
 /* BACK: a shell control in the bar's bottom-right corner, outside the viewport. It
  * stands for the B button of the open screen (3ds_bottom.c sends the real B). */
 extern const CtrPokeTouchRect gCtrPokeTouchBack;
-extern const CtrPokeTouchRect gCtrPokeTouchOptPage;
-/* Whether a bottom-screen pixel is on BACK's or OPTIONS PAGE's rectangle. */
+/* Whether a bottom-screen pixel is on the old bar's BACK, or on OPTIONS' PAGE cell (3ds_lower_layout.h kOptPage). */
 bool CtrPokeTouch_HitBack(int x, int y);
 bool CtrPokeTouch_HitOptPage(int x, int y);
 
@@ -393,8 +391,8 @@ bool CtrPokeTouch_OptionHit(int x, int y, int rows, int *row, int *zone);
 /* On a row of `count` levels, the one under bottom-screen column `x` (the zone was not LABEL). */
 int CtrPokeTouch_OptionSegment(int x, int count);
 
-/* SAVE's button under a bottom-screen pixel (PT_SAVE_*) in the bar for the dialogue state: YES and NO
- * while confirming, OK (PT_SAVE_FIRST) after a result, none while writing. */
+/* SAVE's button under a bottom-screen pixel (PT_SAVE_*) for the dialogue state: YES and NO (the Party's window's rows)
+ * while confirming, OK (PT_SAVE_FIRST, anywhere) after a result, none while writing. */
 int CtrPokeTouch_SaveHit(int x, int y, int state);
 
 /* PT_* under a bottom-screen pixel, or PT_NONE. */

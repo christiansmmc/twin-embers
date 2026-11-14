@@ -195,6 +195,36 @@ static inline CtrPokeTouchRect DexSlot(int i)
     return r;
 }
 
+/* OPTIONS (phase 2, in FireRed's OPTION window's style): the title and the PAGE cell across the top, the page's rows in
+ * a list window (the label, then the value between its two arrows, or a row's levels side by side), the look's preview
+ * under a short page's rows, the band (the row's description; FRAME's sample at its right) and BACK. A row's touch
+ * places: its label, "<" (the box's first OPT_ARROW_W), and the value or ">" (the rest of the box). */
+static const CtrPokeTouchRect kOptTitle = { 4, 4, 216, 30 };
+static const CtrPokeTouchRect kOptPage = { 224, 4, 92, 30 };
+static const CtrPokeTouchRect kOptList = { 4, 38, 312, 138 };
+static const CtrPokeTouchRect kOptNote = { 4, 180, 248, 56 };
+static const CtrPokeTouchRect kOptBack = { 256, 180, 60, 56 };
+static const CtrPokeTouchRect kOptSample = { 180, 188, 56, 40 };
+#define OPT_ROW_H 17
+#define OPT_BOX_W 124
+#define OPT_ARROW_W 28
+
+static inline CtrPokeTouchRect OptRowRect(int i)
+{
+    CtrPokeTouchRect r = { (int16_t)(kOptList.x + 8), (int16_t)(kOptList.y + 8 + OPT_ROW_H * i), (int16_t)(kOptList.w - 16), OPT_ROW_H };
+
+    return r;
+}
+
+/* SAVE (phase 2): FireRed's save information in a window (the player, the badges, the Pokedex, the play time, the
+ * money) and the player's own map icon at 4x in a window beside it; the dialogue in the band with YES / NO in the
+ * Party's window, the band whole while writing and for the result (a tap anywhere is its OK). SAVE has no BACK: NO and
+ * B leave it. */
+static const CtrPokeTouchRect kSaveInfo = { 4, 4, 204, 172 };
+static const CtrPokeTouchRect kSavePlayer = { 212, 4, 104, 172 };
+static const CtrPokeTouchRect kSaveNote = { 4, 180, 192, 56 };
+static const CtrPokeTouchRect kSaveNoteWide = { 4, 180, 312, 56 };
+
 /* The party menu's window for `rows` rows (1 to PARTY_MENU_ROWS), and its row i: 8 px in from the frame, 16 px tall. */
 static inline CtrPokeTouchRect PartyMenuWindow(int rows)
 {

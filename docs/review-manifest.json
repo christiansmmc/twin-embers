@@ -642,7 +642,7 @@
   },
   {
    "path": "3ds_port/include/3ds_poketouch.h",
-   "sha256": "2319b374110d652f755828a6baabbfaf75a4f5384062a87c7b415b35108c4064",
+   "sha256": "1fef43b6505b0afc1c9aa0e85ab4cbf9e22fe75025d6dafce79220e2f1f6e3b1",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -1034,7 +1034,7 @@
   },
   {
    "path": "3ds_port/src/3ds_bottom.c",
-   "sha256": "932289d28e1ae3028155fd2e99f8a51ba1bd3a91ad9329e9e476e1ae923e1b55",
+   "sha256": "a0a70a16ae40797bdaca6888eb459afa8af9f0cfe48ae73bb024ce3af4373498",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -1400,7 +1400,7 @@
   },
   {
    "path": "3ds_port/src/3ds_poketouch.c",
-   "sha256": "b2c2a6ab624574db88a9e56f10f94029e79c992082635bbb1686cd2bb7f29206",
+   "sha256": "6edd5c11328125bf0c58ab4c1e4c6374ee81689b5a99c41b19ce1a8985b54568",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -1998,7 +1998,7 @@
    "credit": "alex61194 with disclosed AI assistance; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT for original port/test contributions; external game rights unchanged",
    "basis": "Original chrome rendering and synthetic fixtures; runtime pack assets remain external; geometry and viewport preserved",
-   "sha256": "b620b6bcf20fa406ca44a7eadc82615cc64cec4aad991224786e4619ee75c60a"
+   "sha256": "0a53a5412c5ae01fc2e055a97ef212475b80c740e1850844a3cf7b20eb589428"
   },
   {
    "path": "3ds_port/tests/rex_test.c",
@@ -6470,7 +6470,7 @@
   },
   {
    "path": "tools/test_field_presentation.py",
-   "sha256": "27202f6850f542a53768fb4b49df727aee38eb981219534ce6ece60f941332b6",
+   "sha256": "fddb44e683272d6c24bd928a10d9ee05124009c7bdb456f892243ef0762bc353",
    "review_status": "reviewed",
    "credit": "alex61194; Twin Embers Port contributors; inherited/adapted upstream portions as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; external game/dependency rights excluded",
@@ -6566,10 +6566,10 @@
   {
    "path": "tools/test_poketouch_render.py",
    "review_status": "reviewed",
-   "credit": "alex61194 with disclosed AI assistance",
+   "credit": "alex61194 with disclosed AI assistance; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT for original port/test contributions; external game rights unchanged",
    "basis": "Original chrome rendering and synthetic fixtures; runtime pack assets remain external; geometry and viewport preserved",
-   "sha256": "42a6f9932ed2f4127180c2c238ddfdec74a22c08c57f2f4b0ffe98465620a7c2",
+   "sha256": "32b82c43b30e2d9469ede17cad903519d02e589cd551817913ad82183461363d",
    "baseline_review": "Baseline viewport comparison against 579726e skips with a reason, after the current-state checks, in a checkout without that commit"
   },
   {
@@ -6896,7 +6896,7 @@
   },
   {
    "path": "3ds_port/src/3ds_lower_kit_impl.h",
-   "sha256": "63f54cb60b2155324bc0854897af036d58f9a50df3c302ada61bba572070bcb7",
+   "sha256": "a62cc7dbf070f30ec48436df768afb59baae26911634f0c09e08f3d747de9c04",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -6920,7 +6920,7 @@
   },
   {
    "path": "3ds_port/include/3ds_lower_layout.h",
-   "sha256": "6601f528dd02da3ea065051c3e927717902cada6e66a5f5c4037bb1b78ba9e0d",
+   "sha256": "3c75e820372c5abdfec007dcf7c8f5a4e829352efdfa15228a6b44730f0d6c2c",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -6928,7 +6928,7 @@
   },
   {
    "path": "3ds_port/tests/lower_layout_test.c",
-   "sha256": "3f799d62062ad0235d9af4bae484507ac17ff8d8b18aeb6f9916670097471afb",
+   "sha256": "7d3d91de85b8b1f1a167c1f0acd0a9a5301f5bacf3038f6f08c536e1c55ef848",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7000,7 +7000,15 @@
   },
   {
    "path": "3ds_port/src/3ds_field_page_impl.h",
-   "sha256": "23e3656cecbddef94e7a1fb3a8526d021aab90201177228f71221b101d531161",
+   "sha256": "a58840a26d81016ac5698a39409ffb01ab8641a599357b463b211e76e815e44d",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "3ds_port/src/3ds_options_page_impl.h",
+   "sha256": "8490a4406735f3779f19968f2cd4b7b8120111effc088f998b8a5a6a37dd1bb5",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

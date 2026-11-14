@@ -47,6 +47,23 @@ static void FPageBand(const CtrPokeTouchRect *n, const char *title, const char *
     }
 }
 
+/* A menu or YES / NO: the Party's window at the bottom right with `count` rows (PARTY_MENU_ROWS at most), FireRed's
+ * arrow on the chosen one, the light grey under the one held (-1: none). */
+static void FPageMenu(int frameType, const char *const *names, int count, int chosen, int held)
+{
+    CtrPokeTouchRect w;
+
+    if (count > PARTY_MENU_ROWS)
+        count = PARTY_MENU_ROWS;
+    w = PartyMenuWindow(count);
+    FPageWindow(&w, frameType);
+    for (int i = 0; i < count; ++i) {
+        CtrPokeTouchRect r = PartyMenuRow(count, i);
+
+        FPageRow(&r, names[i], chosen == i, held == i, 1);
+    }
+}
+
 /* BACK's cell, the view's B: FireRed's arrow and the light grey while held, toned while it cannot be used. */
 static void FPageBack(const CtrPokeTouchView *v, const CtrPokeTouchRect *r)
 {

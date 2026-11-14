@@ -705,6 +705,42 @@ static void preview_pages(const CtrPokeTouchView *base)
     d->state = PT_DEX_STATE_CATEGORY; d->sel = d->mon[1]; ShotOf(&v, "dex_5_habitat_page");
     d->state = PT_DEX_STATE_PAGE; d->sel = d->row[2]; ShotOf(&v, "dex_6_mon_page");
     d->added = 1; ShotOf(&v, "dex_7_added");
+    memset(d, 0, sizeof(*d));
+    {
+        static const char *const labels[7] = {"TEXT SPEED", "BATTLE SCENE", "BATTLE STYLE", "SOUND", "BUTTON MODE", "FRAME",
+                                              "FPS COUNTER"};
+        static const char *const values[7] = {"MID", "ON", "SHIFT", "MONO", "HELP", "TYPE1", "OFF"};
+
+        v.options = 1; v.optPage = 0; v.optPageCount = 3; v.optCount = 7; v.optSelected = 5; v.optPressed = -1;
+        for (int i = 0; i < 7; ++i) {
+            snprintf(v.optLabel[i], sizeof(v.optLabel[i]), "%s", labels[i]);
+            snprintf(v.optValue[i], sizeof(v.optValue[i]), "%s", values[i]);
+        }
+        snprintf(v.bar[0], sizeof(v.bar[0]), "FRAME"); snprintf(v.bar[1], sizeof(v.bar[1]), "The frame of menu");
+        snprintf(v.bar[2], sizeof(v.bar[2]), "and YES/NO boxes.");
+        v.optFrameShow = 1; v.optFrameType = (uint8_t)v.frameType;
+        ShotOf(&v, "opt_1_page1");
+        v.optFrameShow = 0; v.optPage = 1; v.optCount = 7; v.optSelected = 5;
+        snprintf(v.optLabel[5], sizeof(v.optLabel[5]), "COMPANION"); v.optSegCount[5] = 3; v.optSegValue[5] = 1;
+        snprintf(v.optSegName[5][0], 8, "OFF"); snprintf(v.optSegName[5][1], 8, "FOLLOW"); snprintf(v.optSegName[5][2], 8, "BE IT");
+        v.optPressed = 3; v.optZone = PT_OPT_ZONE_PREV;
+        ShotOf(&v, "opt_2_page2_held");
+        v.optPressed = -1; v.optSegCount[5] = 0; v.optPage = 2; v.optCount = 3; v.optSelected = 0; v.optLook.on = 1;
+        snprintf(v.optLabel[0], 16, "RED LOOK"); snprintf(v.optValue[0], 12, "ASH HGSS");
+        snprintf(v.optLook.name, sizeof(v.optLook.name), "ASH HGSS");
+        snprintf(v.optLook.credit, sizeof(v.optLook.credit), "Made by PKMNTrainerRick, with thanks to the HGSS team");
+        ShotOf(&v, "opt_3_page3_look");
+        memset(&v.optLook, 0, sizeof(v.optLook));
+        v.options = 0; v.save = 1; v.saveState = SAVE_CONFIRM; v.saveSel = 0; v.savePressed = PT_SAVE_NONE;
+        v.saveBadges = 3; v.saveHasDex = 1; v.saveDex = 25; v.saveHours = 12; v.saveMinutes = 34; v.saveMoney = 3000;
+        snprintf(v.playerName, sizeof(v.playerName), "Red");
+        snprintf(v.bar[0], sizeof(v.bar[0]), "Would you like to save"); snprintf(v.bar[1], sizeof(v.bar[1]), "your adventure?");
+        v.backVisible = 0;
+        ShotOf(&v, "save_1_confirm");
+        v.saveState = SAVE_SUCCESS; snprintf(v.bar[0], sizeof(v.bar[0]), "Your game has been saved!"); v.bar[1][0] = 0;
+        ShotOf(&v, "save_2_done");
+        v.save = 0; v.backVisible = 1;
+    }
 }
 
 /* The page colour round every window: the screen's 4 px margin. */
@@ -880,6 +916,132 @@ static void dex_page(const CtrPokeTouchView *base)
     v.frameType = base->frameType; update(&old, &v);
     CtrPokeTouch_Draw(canvas, base);
 }
+
+/* OPTIONS as a page: the title, PAGE, the rows' touch places (label, "<", the value and ">"; a row of levels by its
+ * thirds), the arrow on the row the band describes, a held place's grey, the look's preview under a short page, FRAME's
+ * sample in the band, BACK. */
+static void options_page(const CtrPokeTouchView *base)
+{
+    CtrPokeTouchView v = *base, old;
+    int row, zone;
+
+    v.home = 0; v.options = 1; v.optPage = 0; v.optPageCount = 3; v.optCount = 7; v.optSelected = 2; v.optPressed = -1;
+    v.backVisible = 1; v.backEnabled = 1; v.backPressed = 0;
+    for (int i = 0; i < 7; ++i) {
+        snprintf(v.optLabel[i], sizeof(v.optLabel[i]), "ROW %d", i);
+        snprintf(v.optValue[i], sizeof(v.optValue[i]), "VALUE");
+        v.optSwitch[i] = 0; v.optSegCount[i] = 0;
+    }
+    v.optSwitch[1] = 2;
+    v.optSegCount[5] = 3; v.optSegValue[5] = 1;
+    for (int k = 0; k < 3; ++k)
+        snprintf(v.optSegName[5][k], sizeof(v.optSegName[5][k]), "L%d", k);
+    snprintf(v.bar[0], sizeof(v.bar[0]), "TEXT SPEED"); snprintf(v.bar[1], sizeof(v.bar[1]), "How fast dialogue");
+    CtrPokeTouch_Draw(canvas, &v);
+    old = v;
+    const int outline = !KitFrameReady(KIT_FRAME_STD, v.frameType);
+    assert(CtrPokeTouch_FieldPageShown(&v));
+    PageMargin();
+    assert(!outline || (at(kOptTitle.x, kOptTitle.y + 15) == KitInk(2) && at(kOptPage.x, kOptPage.y + 15) == KitInk(2)
+                        && at(kOptList.x, kOptList.y + 20) == KitInk(2)));
+    assert(CtrPokeTouch_HitOptPage(kOptPage.x + 40, kOptPage.y + 15) && !CtrPokeTouch_HitOptPage(kOptTitle.x + 40, kOptTitle.y + 15));
+    /* opt_rows: each row's three places; nothing past the page's rows */
+    for (int i = 0; i < 7; ++i) {
+        CtrPokeTouchRect r = OptRowRect(i);
+        int box = r.x + r.w - OPT_BOX_W;
+
+        assert(CtrPokeTouch_OptionHit(r.x + 20, r.y + 8, 7, &row, &zone) && row == i && zone == PT_OPT_ZONE_LABEL);
+        assert(CtrPokeTouch_OptionHit(box + 4, r.y + 8, 7, &row, &zone) && row == i && zone == PT_OPT_ZONE_PREV);
+        assert(CtrPokeTouch_OptionHit(box + 60, r.y + 8, 7, &row, &zone) && row == i && zone == PT_OPT_ZONE_NEXT);
+        assert(CtrPokeTouch_OptionHit(r.x + r.w - 2, r.y + r.h - 1, 7, &row, &zone) && zone == PT_OPT_ZONE_NEXT);
+        assert(ArrowAt(&r) == (i == 2));
+    }
+    assert(!CtrPokeTouch_OptionHit(OptRowRect(3).x + 20, OptRowRect(3).y + 8, 3, &row, &zone));
+    assert(!CtrPokeTouch_OptionHit(kOptList.x + 2, OptRowRect(0).y + 8, 7, &row, &zone));
+    {
+        int box = OptRowRect(5).x + OptRowRect(5).w - OPT_BOX_W;
+
+        assert(CtrPokeTouch_OptionSegment(box + 6, 3) == 0 && CtrPokeTouch_OptionSegment(box + OPT_BOX_W / 2, 3) == 1);
+        assert(CtrPokeTouch_OptionSegment(box + OPT_BOX_W - 6, 3) == 2 && CtrPokeTouch_OptionSegment(box - 10, 3) == 0);
+    }
+    /* BACK closes OPTIONS (ProcessBack); the band is nothing */
+    assert(CtrPokeTouch_BackHit(&v, kOptBack.x + 30, kOptBack.y + 28) && !CtrPokeTouch_BackHit(&v, kOptNote.x + 30, kOptNote.y + 28));
+    /* a held place: its grey; another row selected; a held level */
+    v.optPressed = 3; v.optZone = PT_OPT_ZONE_PREV; update(&old, &v);
+    assert(at(OptRowRect(3).x + OptRowRect(3).w - OPT_BOX_W + 2, OptRowRect(3).y + 1) == KitInk(3));
+    v.optZone = PT_OPT_ZONE_LABEL; update(&old, &v);
+    assert(at(OptRowRect(3).x + 60, OptRowRect(3).y + 1) == KitInk(3));
+    v.optZone = PT_OPT_ZONE_NEXT; update(&old, &v);
+    v.optPressed = 5; v.optZone = PT_OPT_ZONE_SEG + 2; update(&old, &v);
+    v.optPressed = -1; v.optSelected = 4; update(&old, &v);
+    assert(ArrowAt(&(CtrPokeTouchRect){OptRowRect(4).x, OptRowRect(4).y, 8, OPT_ROW_H}));
+    v.optPagePressed = 1; update(&old, &v);
+    v.optPagePressed = 0; v.optPage = 1; update(&old, &v);
+    /* FRAME's sample in the band */
+    v.optFrameShow = 1; v.optFrameType = 0; update(&old, &v);
+    assert(!outline || at(kOptSample.x, kOptSample.y + 20) == KitInk(2));
+    v.optFrameShow = 0; update(&old, &v);
+    /* a short page with a look row selected: the preview under its rows */
+    v.optPage = 2; v.optCount = 3; v.optSelected = 1; v.optLook.on = 1; v.optLook.has = 1;
+    strcpy(v.optLook.name, "ASH HGSS"); strcpy(v.optLook.credit, "Made by someone");
+    for (int i = 0; i < 512; ++i) v.optLook.tiles[i] = (uint8_t)(i * 7);
+    for (int i = 1; i < 16; ++i) v.optLook.palette[i] = (uint16_t)(0x001F);
+    update(&old, &v);
+    assert(ColorIn(kOptList.x + 8, OptRowRect(3).y + 2, 80, kOptList.y + kOptList.h - 8 - OptRowRect(3).y - 2, GbaColor(0x001F)) > 0);
+    v.optLook.has = 0; update(&old, &v);
+    v.optLook.on = 0; v.optCount = 7; update(&old, &v);
+    v.backPressed = 1; update(&old, &v);
+    v.backPressed = 0; v.frameType = 3; update(&old, &v);
+    v.frameType = base->frameType; update(&old, &v);
+    CtrPokeTouch_Draw(canvas, base);
+}
+
+/* SAVE as a page: the information and the player's windows; YES / NO in the Party's window beside the band (waiting
+ * for one of its two), the arrow on the selection or the one held; the band whole while writing (no touch) and for the
+ * result (anywhere is OK). No BACK. */
+static void save_page(const CtrPokeTouchView *base)
+{
+    CtrPokeTouchView v = *base, old;
+    CtrPokeTouchRect yes = PartyMenuRow(2, 0), no = PartyMenuRow(2, 1);
+
+    v.home = 0; v.save = 1; v.saveState = SAVE_CONFIRM; v.saveSel = 0; v.savePressed = PT_SAVE_NONE;
+    v.saveBadges = 3; v.saveHasDex = 1; v.saveDex = 25; v.saveHours = 12; v.saveMinutes = 34; v.saveMoney = 3000;
+    v.backVisible = 0;
+    snprintf(v.bar[0], sizeof(v.bar[0]), "Would you like to save"); snprintf(v.bar[1], sizeof(v.bar[1]), "your adventure?");
+    CtrPokeTouch_Draw(canvas, &v);
+    old = v;
+    const int outline = !KitFrameReady(KIT_FRAME_STD, v.frameType);
+    assert(CtrPokeTouch_FieldPageShown(&v));
+    PageMargin();
+    assert(!outline || (at(kSaveInfo.x, kSaveInfo.y + 20) == KitInk(2) && at(kSavePlayer.x, kSavePlayer.y + 20) == KitInk(2)));
+    assert(CtrPokeTouch_SaveHit(yes.x + 20, yes.y + 8, SAVE_CONFIRM) == PT_SAVE_FIRST);
+    assert(CtrPokeTouch_SaveHit(no.x + 20, no.y + 8, SAVE_CONFIRM) == PT_SAVE_SECOND);
+    assert(CtrPokeTouch_SaveHit(kSaveNote.x + 30, kSaveNote.y + 20, SAVE_CONFIRM) == PT_SAVE_NONE);
+    assert(CtrPokeTouch_SaveHit(10, 10, SAVE_CONFIRM) == PT_SAVE_NONE);
+    assert(ArrowAt(&yes) && !ArrowAt(&no));
+    assert(!CtrPokeTouch_BackHit(&v, 290, 220));
+    v.saveSel = 1; update(&old, &v);
+    assert(!ArrowAt(&yes) && ArrowAt(&no));
+    v.savePressed = PT_SAVE_FIRST; update(&old, &v);
+    assert(ArrowAt(&yes) && !ArrowAt(&no) && at(yes.x + 60, yes.y + 1) == KitInk(3));
+    v.savePressed = PT_SAVE_NONE; v.saveMinutes = 35; update(&old, &v);
+    v.playerFemale = 1; update(&old, &v);
+    /* writing: the whole band, nothing to touch */
+    v.saveState = SAVE_WRITING; snprintf(v.bar[0], sizeof(v.bar[0]), "Saving..."); update(&old, &v);
+    assert(CtrPokeTouch_SaveHit(yes.x + 20, yes.y + 8, SAVE_WRITING) == PT_SAVE_NONE);
+    assert(at(yes.x + 20, yes.y + 8) == KitInk(1) || at(yes.x + 20, yes.y + 8) == KitInk(2));
+    /* the result: anywhere is its OK */
+    for (int state = SAVE_SUCCESS; state <= SAVE_ERROR; ++state) {
+        v.saveState = (uint8_t)state; update(&old, &v);
+        assert(CtrPokeTouch_SaveHit(10, 10, state) == PT_SAVE_FIRST && CtrPokeTouch_SaveHit(300, 230, state) == PT_SAVE_FIRST);
+        v.savePressed = PT_SAVE_FIRST; update(&old, &v);
+        v.savePressed = PT_SAVE_NONE; update(&old, &v);
+    }
+    v.saveHasDex = 0; update(&old, &v);
+    v.frameType = 7; update(&old, &v);
+    v.frameType = base->frameType; update(&old, &v);
+    CtrPokeTouch_Draw(canvas, base);
+}
 #endif
 
 int main(int argc, char **argv)
@@ -939,6 +1101,8 @@ int main(int argc, char **argv)
     home_frame_change(&v);
     bag_page(&v);
     dex_page(&v);
+    options_page(&v);
+    save_page(&v);
 #else
     for(int x=4;x<244;++x) for(int y=4;y<164;++y) assert(at(x,y)==Gba(0x5ab3));
 #endif
@@ -971,8 +1135,13 @@ int main(int argc, char **argv)
     for(int state=SAVE_CONFIRM;state<=SAVE_ERROR;++state) {
         v.saveState=state; update(&old,&v);
         v.saveSel=1; update(&old,&v); v.savePressed=PT_SAVE_FIRST; update(&old,&v);
+#ifndef PT_BASELINE
+        assert(CtrPokeTouch_SaveHit(state==SAVE_CONFIRM?PartyMenuRow(2,0).x+20:10,state==SAVE_CONFIRM?PartyMenuRow(2,0).y+8:10,state)==
+               (state==SAVE_WRITING?PT_SAVE_NONE:PT_SAVE_FIRST));
+#else
         assert(CtrPokeTouch_SaveHit(180,state==SAVE_CONFIRM?180:200,state)==
                (state==SAVE_WRITING?PT_SAVE_NONE:PT_SAVE_FIRST));
+#endif
         v.savePressed=PT_SAVE_NONE; update(&old,&v);
     }
 #ifndef PT_BASELINE
