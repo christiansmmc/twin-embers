@@ -94,8 +94,8 @@ int CtrPokeTouch_BagHit(const CtrPokeTouchView *v, int x, int y)
     return -1;
 }
 
-/* The pockets as tabs (the arrow on the one shown, or on the tab held), or a case's, a mart's or a PC's title across
- * (a mart: the player's money at its right). */
+/* The pockets as tabs (the arrow on the one shown, on the tab held, or on the one the Bag is being walked to), or a
+ * case's, a mart's or a PC's title across (a mart: the player's money at its right). */
 static void FBHeader(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchBag *b = &v->bag;
@@ -104,8 +104,8 @@ static void FBHeader(const CtrPokeTouchView *v)
         int held = b->pressed >= PT_BAG_HIT_TAB && b->pressed < PT_BAG_HIT_TAB + 3 ? b->pressed - PT_BAG_HIT_TAB : -1;
 
         for (int i = 0; i < 3; ++i)
-            BagCell(&kBagTab[i], v->frameType, CtrUiText(sFBTabLabel[i]), held >= 0 ? held == i : b->pocket == i,
-                    held == i, 1);
+            BagCell(&kBagTab[i], v->frameType, CtrUiText(sFBTabLabel[i]),
+                    held >= 0 ? held == i : b->asked ? b->asked - 1 == i : b->pocket == i, held == i, 1);
         return;
     }
     {

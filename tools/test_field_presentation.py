@@ -270,6 +270,237 @@ int main(void) {
 }
 ''')
 
+    def test_summary_turns_on_press(self):
+        """The owner found the Summary slow to turn pages by touch, and MOVES <-> TRAINER slow on the D-pad: both acted
+        on release. The page arrows and the previous / next Pokemon act on the touch's press (BACK, a move, the IV / EV
+        switch still on release, so sliding off cancels them); RIGHT on MOVES and LEFT on TRAINER act on the key's
+        press, and the plan they start is not dropped for that key being held (a key pressed after it still drops
+        it)."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        names = ['SumPlanClear', 'SumPlanStart', 'SumPlanPress', 'RunSumPlan', 'ProcessSummaryTouch']
+        code = '\n'.join(function(bottom, n) for n in names)
+        start = bottom.index('static struct {\n    int kind;\n    int target;')
+        plan = bottom[start:bottom.index('} sSumPlan;', start) + len('} sSumPlan;')]
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include <string.h>
+#include "3ds_input.h"
+#include "3ds_poketouch.h"
+#include "3ds_summary.h"
+#define K_A (1u << 0)
+#define K_B (1u << 1)
+#define K_RIGHT (1u << 4)
+#define K_LEFT (1u << 5)
+#define K_UP (1u << 6)
+enum { HIT_NONE = 0xFF, HIT_PANEL = 0x50 };
+enum { SUMPLAN_NONE = 0, SUMPLAN_PAGE, SUMPLAN_MOVE, SUMPLAN_PRESS };
+#define SUMMARY_MOVES 2
+#define SUMMARY_MOVES_INFO 3
+static uint16_t sInjected;
+static CtrInput sIn;
+const CtrInput *CtrInput_Get(void) { return &sIn; }
+static int page = SUI_PAGE_MOVES, asked = -1, acted = -1, hitCode = -1;
+void CtrSummary_AskMove(int row) { (void)row; }
+void CtrSummary_AskPage(int p) { asked = p; }
+int CtrBottomSummary_Page(void) { return page; }
+int CtrBottomSummary_Mon(void) { return 0; }
+unsigned CtrBottomSummary_Serial(void) { return 1; }
+int CtrBottomSummary_Ready(void) { return 1; }
+int CtrBottomSummary_MoveCursor(void) { return 0; }
+int CtrSummaryUi_Hit(const CtrSummaryUiView *v, int x, int y) { (void)v; (void)x; (void)y; return hitCode; }
+static struct { CtrSummaryUiView sum; unsigned char summaryUi; } sShown;
+static int sHaveShown = 1;
+static struct { int down, inside, btn, trainer, ivView; } sSum;
+static void SummaryAct(int hit) { acted = hit; }
+''' + plan + '\n' + code + '''
+static void Frame(void) { ProcessSummaryTouch(&sIn); RunSumPlan(); }
+int main(void) {
+    sShown.summaryUi = 1;
+    /* RIGHT on MOVES: TRAINER on the press, the plan asks FireRed for INFO while RIGHT stays held */
+    sIn.down = sIn.held = K_RIGHT; Frame();
+    assert(sSum.trainer == 1 && sSumPlan.kind == SUMPLAN_PAGE && asked == SUI_PAGE_INFO);
+    sIn.down = 0; Frame();                      /* still held: the plan goes on (its release frame) */
+    assert(sSumPlan.kind == SUMPLAN_PAGE);
+    sIn.held = K_RIGHT | K_A; sIn.down = K_A; Frame();
+    assert(sSumPlan.kind == SUMPLAN_NONE);      /* a key pressed after it drops it */
+    /* LEFT on TRAINER (FireRed on INFO): MOVES on the press */
+    page = SUI_PAGE_INFO; sShown.sum.trainer = 1; sIn.held = sIn.down = K_LEFT; asked = -1; Frame();
+    assert(sSum.trainer == 0 && asked == SUI_PAGE_MOVES);
+    SumPlanClear(); sIn.held = sIn.down = 0; Frame();
+    /* a page arrow and the next Pokemon act on the touch's press */
+    hitCode = SUI_HIT_PAGE_NEXT; sIn.touchActive = sIn.touchDown = 1; acted = -1; Frame();
+    assert(acted == SUI_HIT_PAGE_NEXT);
+    sIn.touchDown = 0; acted = -1; Frame(); sIn.touchActive = 0; sIn.touchUp = 1; Frame();
+    assert(acted == -1);                        /* once: not again on release */
+    sIn.touchUp = 0;
+    hitCode = SUI_HIT_NEXT; sIn.touchActive = sIn.touchDown = 1; Frame();
+    assert(acted == SUI_HIT_NEXT);
+    sIn.touchDown = 0; sIn.touchActive = 0; Frame();
+    /* BACK on release, and not when the touch slid off */
+    hitCode = SUI_HIT_BACK; acted = -1; sIn.touchActive = sIn.touchDown = 1; Frame();
+    assert(acted == -1);
+    sIn.touchDown = 0; sIn.touchActive = 0; Frame();
+    assert(acted == SUI_HIT_BACK);
+    acted = -1; sIn.touchActive = sIn.touchDown = 1; Frame();
+    hitCode = -1; sIn.touchDown = 0; Frame(); sIn.touchActive = 0; Frame();
+    assert(acted == -1);
+    return 0;
+}
+''')
+
+    def test_summary_page_shown_when_taken(self):
+        """A page turned by a plan (an arrow, TRAINER) is shown as soon as FireRed has taken it (its page is the one
+        asked, while its own flip still runs), as a page turned by FireRed's own keys is; the way there (out of the move
+        details first) stays hidden. The owner found TRAINER, always a plan, much slower: the lower screen waited for the
+        whole flip."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        nav = function(bottom, 'NavPending')
+        self.run_c('''
+#include <assert.h>
+#include "3ds_poketouch.h"
+#include "3ds_summary.h"
+enum { MODE_BAG = 3, MODE_SUMMARY = 5 };
+enum { BAG_BUSY = 0 };
+enum { SUMPLAN_NONE = 0, SUMPLAN_PAGE, SUMPLAN_MOVE, SUMPLAN_PRESS };
+static struct { int mode, battleUi, summaryUi; } sShown;
+static int sHaveShown = 1;
+static struct { int pocketTarget; } sBatBag;
+static struct { int kind, target; } sSumPlan;
+static int page, ready;
+int CtrBottomBag_InBattle(void) { return 0; }
+int CtrBottomBag_Pocket(void) { return 0; }
+int CtrBottomBag_State(void) { return 0; }
+int CtrBottomSummary_Ready(void) { return ready; }
+int CtrBottomSummary_Page(void) { return page; }
+''' + nav + '''
+int main(void) {
+    sShown.mode = MODE_SUMMARY; sShown.summaryUi = 1;
+    sSumPlan.kind = SUMPLAN_PAGE; sSumPlan.target = SUI_PAGE_INFO;
+    page = SUI_PAGE_MOVES; ready = 1;
+    assert(NavPending(MODE_SUMMARY));               /* not taken yet */
+    page = SUI_PAGE_INFO; ready = 0;
+    assert(!NavPending(MODE_SUMMARY));              /* taken: shown while FireRed's flip runs */
+    sSumPlan.target = SUI_PAGE_SKILLS; page = SUI_PAGE_MOVES; ready = 1;
+    assert(NavPending(MODE_SUMMARY));               /* out of the move details first: the way stays hidden */
+    sSumPlan.kind = SUMPLAN_NONE;
+    assert(!NavPending(MODE_SUMMARY));
+    return 0;
+}
+''')
+
+    def test_bridge_reports_the_destination(self):
+        """FireRed moves to a new pocket only at the end of its switch's animation, and its Party's cursor pointer goes
+        back to the first Pokemon while two of them slide to their places: the owner saw the Bag's list late and the
+        Party's arrow go back and forth. The bridge reports where they are going: the pocket being revealed (its count,
+        cursor and items are its own already), and the second Pokemon's slot while they slide."""
+        name = '0239-lower-screen-shows-destination.json'
+        bag = function(additions(name, 'src/item_menu.c'), 'CtrBagShownPocket')
+        party = function(additions(name, 'src/party_menu.c'), 'CtrPartyShownSlot')
+        self.run_c('''
+#include <assert.h>
+typedef unsigned char u8;
+typedef signed char s8;
+typedef short s16;
+typedef void (*TaskFunc)(u8);
+#define POCKET_ITEMS 1
+#define POCKET_POKE_BALLS 3
+#define tSwitchDir data[11]
+enum { PARTY_ACTION_CHOOSE_MON, PARTY_ACTION_SWITCH, PARTY_ACTION_SWITCHING, PARTY_ACTION_SOFTBOILED };
+static struct { TaskFunc func; s16 data[16]; } gTasks[4];
+static struct { u8 pocket; } gBagMenuState;
+static struct { u8 action; s8 slotId, slotId2; } gPartyMenu;
+static void Task_AnimateSwitchPockets(u8 t) { (void)t; }
+static void Task_Other(u8 t) { (void)t; }
+static int bagOpen = 1;
+static int BagTask(u8 *taskId) { *taskId = 2; return bagOpen; }
+static s8 *GetCurrentPartySlotPtr(void)
+{ return gPartyMenu.action == PARTY_ACTION_SWITCH ? &gPartyMenu.slotId2 : &gPartyMenu.slotId; }
+''' + bag + '\n' + party + '''
+int main(void) {
+    gBagMenuState.pocket = 0; gTasks[2].func = Task_Other;
+    assert(CtrBagShownPocket() == 0);
+    gTasks[2].func = Task_AnimateSwitchPockets; gTasks[2].data[11] = 1;
+    assert(CtrBagShownPocket() == 1);                   /* KEY ITEMS being revealed */
+    gBagMenuState.pocket = 2; gTasks[2].data[11] = 1;
+    assert(CtrBagShownPocket() == 2);                   /* never past the last pocket */
+    bagOpen = 0;
+    assert(CtrBagShownPocket() == 2);
+    gPartyMenu.action = PARTY_ACTION_SWITCH; gPartyMenu.slotId = 1; gPartyMenu.slotId2 = 4;
+    assert(CtrPartyShownSlot() == 4);                   /* choosing where to move it */
+    gPartyMenu.action = PARTY_ACTION_SWITCHING;
+    assert(CtrPartyShownSlot() == 4);                   /* sliding: where the cursor lands, not back on the first */
+    gPartyMenu.action = PARTY_ACTION_CHOOSE_MON; gPartyMenu.slotId = 4;
+    assert(CtrPartyShownSlot() == 4);
+    return 0;
+}
+''')
+
+    def test_party_switch_shows_the_new_places(self):
+        """FireRed swaps two Pokemon's data only once both have slid out of sight (SwitchPartyMon at the end of
+        Task_SlideSelectedSlotsOffscreen): the owner saw the lower screen's cards change about a second after the
+        pick. While they slide out, the bridge shows each of the two slots with the Pokemon about to be there; before
+        and after, every slot is its own."""
+        name = '0240-party-switch-shows-new-places.json'
+        shown = function(additions(name, 'src/party_menu.c'), 'CtrBottomParty_ShownMon')
+        self.run_c('''
+#include <assert.h>
+typedef unsigned char u8;
+typedef signed char s8;
+typedef void (*TaskFunc)(u8);
+enum { PARTY_ACTION_CHOOSE_MON, PARTY_ACTION_SWITCH, PARTY_ACTION_SWITCHING };
+static struct { u8 action; s8 slotId, slotId2; } gPartyMenu;
+static void Task_SlideSelectedSlotsOffscreen(u8 t) { (void)t; }
+static TaskFunc active;
+static int FuncIsActiveTask(TaskFunc f) { return f == active; }
+''' + shown + '''
+int main(void) {
+    gPartyMenu.action = PARTY_ACTION_SWITCH; gPartyMenu.slotId = 1; gPartyMenu.slotId2 = 4;
+    for (int i = 0; i < 6; ++i)
+        assert(CtrBottomParty_ShownMon(i) == i);        /* choosing where: nothing moved yet */
+    gPartyMenu.action = PARTY_ACTION_SWITCHING; active = Task_SlideSelectedSlotsOffscreen;
+    assert(CtrBottomParty_ShownMon(1) == 4 && CtrBottomParty_ShownMon(4) == 1);
+    assert(CtrBottomParty_ShownMon(0) == 0 && CtrBottomParty_ShownMon(5) == 5);
+    active = 0;                                         /* swapped, sliding back in: every slot its own */
+    assert(CtrBottomParty_ShownMon(1) == 1 && CtrBottomParty_ShownMon(4) == 4);
+    return 0;
+}
+''')
+
+    def test_touch_shows_where_it_goes(self):
+        """The owner saw the arrow go to a touched tab or Pokemon, back to where it was, then to it again. A Party slot
+        touched (the Party takes the touch on its next frame) is shown as the selection until the Party's cursor is
+        there, or for a short while at most; a Bag tab's pocket is shown chosen while the Bag walks to it, the way there
+        hidden; and a pocket FireRed has just switched to is drawn at once, while it slides in (its list is already the
+        pocket's own), instead of after the slide."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        echo = function(bottom, 'PartyEchoCursor')
+        hold = function(bottom, 'FieldBagHold')
+        self.run_c('''
+#include <assert.h>
+enum { BAG_BUSY = 0, BAG_LIST };
+static struct { int slot, wait; } sPartyEcho = {-1, 0};
+''' + echo + '\n' + hold + '''
+int main(void) {
+    /* the Party: the slot touched until the cursor gets there */
+    assert(PartyEchoCursor(2) == 2);
+    sPartyEcho.slot = 4; sPartyEcho.wait = 30;
+    assert(PartyEchoCursor(2) == 4 && PartyEchoCursor(2) == 4);
+    assert(PartyEchoCursor(4) == 4 && sPartyEcho.slot == -1);
+    assert(PartyEchoCursor(1) == 1);
+    sPartyEcho.slot = 5; sPartyEcho.wait = 2;
+    assert(PartyEchoCursor(0) == 5 && PartyEchoCursor(0) == 0);     /* not forever */
+    /* the Bag: hold the picture on the way to a tab's pocket; draw a switched pocket while it slides */
+    assert(FieldBagHold(1, BAG_LIST, 1, 0, 2) == 1);                /* on the way: KEY ITEMS toward POKe BALLS */
+    assert(FieldBagHold(1, BAG_BUSY, 2, 1, 2) == 0);                /* arrived, sliding in: drawn */
+    assert(FieldBagHold(1, BAG_BUSY, 1, 0, -1) == 0);               /* the D-pad switched it: drawn */
+    assert(FieldBagHold(1, BAG_BUSY, 1, 1, -1) == 1);               /* busy otherwise (a message printing): held */
+    assert(FieldBagHold(1, BAG_LIST, 1, 1, -1) == 0);
+    assert(FieldBagHold(0, BAG_BUSY, 0, 0, -1) == 1 && FieldBagHold(0, BAG_LIST, 0, 0, -1) == 0);   /* a case */
+    return 0;
+}
+''')
+
     def test_bag_page_cancel_and_drag(self):
         """The BAG's page: its CANCEL (and a tap off the item menu) is the Bag's B, sent through the Bag's plan as the
         old bar's BACK was; a drag over the rows moves the selection a row per BAG_ROW_H (the page's 30 px rows)."""
@@ -356,7 +587,8 @@ enum { SUMPLAN_NONE = 0 };
 static struct { int kind; } sSumPlan;
 static struct { int down, inside, btn, trainer, ivView; unsigned serial; CtrSummaryView latch; } sSum;
 unsigned CtrBottomSummary_Serial(void) { return 1; }
-void CtrBottomSummary_GetView(CtrSummaryView *v) { memset(v, 0, sizeof(*v)); v->serial = 1; strcpy(v->species, "X"); }
+static int summaryReady;
+void CtrBottomSummary_GetView(CtrSummaryView *v) { memset(v, 0, sizeof(*v)); v->serial = 1; v->ready = summaryReady; strcpy(v->species, "X"); }
 unsigned CtrBottomSummary_IconSpecies(void) { return 1; }
 ''' + common + '\n' + summary + '''
 int main(void) {
@@ -367,6 +599,15 @@ int main(void) {
         assert(v.frameType == option);
         SummaryFill(&s);
         assert(s.frameType == option);
+    }
+    {
+        /* FireRed's input readiness (it flips at the end of every page turn) is not part of the picture: the view stays
+         * the same, so the page is not drawn again for it */
+        CtrSummaryUiView t;
+
+        summaryReady = 0; SummaryFill(&s);
+        summaryReady = 1; SummaryFill(&t);
+        assert(!memcmp(&s, &t, sizeof(s)));
     }
     return 0;
 }

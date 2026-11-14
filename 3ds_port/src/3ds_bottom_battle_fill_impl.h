@@ -179,12 +179,16 @@ static void BattlePartyFill(Snapshot *s)
 
     BattleCommon(v);
     v->state = BUI_PARTY;
-    p->cursor = (int8_t)(s->cursor >= 0 && s->cursor < PARTY_SIZE ? s->cursor : -1);
+    {
+        int cursor = PartyEchoCursor(s->cursor);    /* a slot just touched, until the Party's cursor is there */
+
+        p->cursor = (int8_t)(cursor >= 0 && cursor < PARTY_SIZE ? cursor : -1);
+        /* FireRed's cursor may be on CONFIRM (slot 6, picking several) or CANCEL (7): the page's arrow goes there. */
+        p->button = (int8_t)(cursor >= PARTY_SIZE ? cursor - PARTY_SIZE : -1);
+    }
     /* SEND_OUT cannot be cancelled. Out of battle the Party says what it is for itself (its own prompt). */
     p->mode = s->chooseMultiple ? BUI_PTY_MULTI : !CtrBottomParty_InBattle() ? BUI_PTY_SWITCH
             : action == 1 ? BUI_PTY_FORCED : action == 3 ? BUI_PTY_TARGET : BUI_PTY_SWITCH;
-    /* FireRed's cursor may be on CONFIRM (slot 6, picking several) or CANCEL (7): the page's arrow goes there. */
-    p->button = (int8_t)(s->cursor >= PARTY_SIZE ? s->cursor - PARTY_SIZE : -1);
     p->lead = (uint8_t)(CtrBottomParty_Layout() == 0 ? 1 : 2);
     p->caption[0] = 0;
     if (!CtrBottomParty_InBattle() && s->panel != PANEL_MESSAGE)

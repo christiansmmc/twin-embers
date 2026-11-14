@@ -680,6 +680,37 @@ static struct {
     int y0, cursor0, scrolling;         /* the touch-down's row and cursor, and whether it became a drag */
 } sFieldBag = {0, 0, -1, -1, 0, 0, 0, 0};
 
+/* What the field Bag's page shows while FireRed is busy or a tab's pocket is being walked to: 1 keeps the last picture
+ * (a message printing; a pocket on the way to the one a tab asked for, so the way is not shown), 0 draws the Bag as it
+ * is (a pocket FireRed has just switched to is drawn while it slides in: its count, cursor and items are the pocket's
+ * own already, so a D-pad switch shows at once). `bag`: the Bag itself (a case has no pockets). */
+static int FieldBagHold(int bag, int state, int pocket, int shownPocket, int target)
+{
+    if (bag && target >= 0 && pocket != target)
+        return 1;
+    if (state != BAG_BUSY)
+        return 0;
+    return !(bag && pocket != shownPocket);
+}
+
+/* The Party slot (or CONFIRM 6, CANCEL 7) a tap asked for: the Party takes the touch on its next frame, so until its
+ * cursor is there (or for a short while at most) that slot is shown as the selection, and the arrow does not go back
+ * to where it was for those frames. A physical button drops it. */
+static struct {
+    int slot, wait;
+} sPartyEcho = {-1, 0};
+
+static int PartyEchoCursor(int cursor)
+{
+    if (sPartyEcho.slot < 0)
+        return cursor;
+    if (cursor == sPartyEcho.slot || --sPartyEcho.wait <= 0) {
+        sPartyEcho.slot = -1;
+        return cursor;
+    }
+    return sPartyEcho.slot;
+}
+
 /* Dragging a list: a finger on a row that moves this far up or down scrolls instead of tapping, one row per
  * LIST_DRAG_ROW pixels (the lower screen's row pitch), the content following the finger. */
 #define LIST_DRAG_SLOP 8
@@ -1815,6 +1846,7 @@ static struct {
     int steps;
     int release;
     uint16_t keys;
+    uint16_t held;                  /* the keys held when it began (the D-pad's own, for TRAINER): they may stay held */
 } sSumPlan;
 
 static void SumPlanClear(void)
@@ -1836,6 +1868,7 @@ static void SumPlanStart(int kind, int target, int activate, uint16_t keys)
     sSumPlan.expect = CtrBottomSummary_Page();
     sSumPlan.mon = CtrBottomSummary_Mon();
     sSumPlan.serial = CtrBottomSummary_Serial();
+    sSumPlan.held = (uint16_t)(CtrInput_Get()->held & 0x3ffu);
 }
 
 static void SumPlanPress(uint16_t keys, int expect)
@@ -1851,8 +1884,10 @@ static void RunSumPlan(void)
 
     if (sSumPlan.kind == SUMPLAN_NONE)
         return;
-    /* Physical controls always win. */
-    if (CtrInput_Get()->held & 0x3ffu) {
+    /* Physical controls always win: a key pressed after the plan began drops it (the one that began it may stay held,
+     * and once let go it counts again). */
+    sSumPlan.held &= CtrInput_Get()->held;
+    if (CtrInput_Get()->held & 0x3ffu & ~sSumPlan.held) {
         SumPlanClear();
         return;
     }
@@ -1937,6 +1972,7 @@ static void SummaryFill(CtrSummaryUiView *v)
         v->data = sSum.latch;
     else
         v->loading = 1;
+    v->data.ready = 0;              /* FireRed's input readiness: not drawn, so not a change that redraws the page */
     if (now.page != SUI_PAGE_INFO && sSumPlan.kind == SUMPLAN_NONE)
         sSum.trainer = 0;
     v->trainer = (uint8_t)(sSum.trainer && v->data.page == SUI_PAGE_INFO);
@@ -1986,25 +2022,25 @@ static void SummaryAct(int hit)
 }
 
 /* Press, track, release: a control is pressed while a touch that began on it stays on it, and acts once when released
- * there; sliding off cancels it. A held physical button wins. */
+ * there; sliding off cancels it. Turning the pages and the Pokemon acts on the press instead, as FireRed's keys do (the
+ * owner found it slow on release). A held physical button wins. */
 static int ProcessSummaryTouch(const CtrInput *in)
 {
     int hit = in->touchActive && sHaveShown && sShown.summaryUi
             ? CtrSummaryUi_Hit(&sShown.sum, (int)in->touchX, (int)in->touchY) : -1;
 
     /* TRAINER, the last tab, is the port's (FireRed's first page shown as its memo), so the D-pad reaches it here: RIGHT
-     * on the moves page goes to it, LEFT from it back to the moves (on release, as the plan walks FireRed's pages with its
-     * own LEFT and RIGHT, which a held key would cancel). */
-    if (sSumPlan.kind == SUMPLAN_NONE && sHaveShown && sShown.summaryUi && !sShown.sum.loading && CtrBottomSummary_Ready()
-        && !(in->held & 0x3ffu)) {
+     * on the moves page goes to it, LEFT from it back to the moves, on the press as FireRed's own pages turn (the plan
+     * lets the key that began it stay held; FireRed's RIGHT on its last page and LEFT on its first do nothing). */
+    if (sSumPlan.kind == SUMPLAN_NONE && sHaveShown && sShown.summaryUi && !sShown.sum.loading && CtrBottomSummary_Ready()) {
         int page = CtrBottomSummary_Page();
 
-        if ((in->up & K_RIGHT) && page == SUI_PAGE_MOVES && !sShown.sum.data.egg) {
+        if ((in->down & K_RIGHT) && page == SUI_PAGE_MOVES && !sShown.sum.data.egg) {
             sSum.trainer = 1;
             SumPlanStart(SUMPLAN_PAGE, SUI_PAGE_INFO, 0, 0);
             return HIT_NONE;
         }
-        if ((in->up & K_LEFT) && page == SUI_PAGE_INFO && sShown.sum.trainer) {
+        if ((in->down & K_LEFT) && page == SUI_PAGE_INFO && sShown.sum.trainer) {
             sSum.trainer = 0;
             if (!sShown.sum.data.egg)
                 SumPlanStart(SUMPLAN_PAGE, SUI_PAGE_MOVES, 0, 0);
@@ -2021,6 +2057,11 @@ static int ProcessSummaryTouch(const CtrInput *in)
         return HIT_NONE;
     }
     if (in->touchDown) {
+        if (hit == SUI_HIT_PAGE_PREV || hit == SUI_HIT_PAGE_NEXT || hit == SUI_HIT_PREV || hit == SUI_HIT_NEXT) {
+            sSum.down = sSum.inside = 0;
+            SummaryAct(hit);
+            return HIT_PANEL;
+        }
         sSum.down = sSum.inside = hit >= 0;
         sSum.btn = hit;
         return HIT_NONE;
@@ -3311,6 +3352,8 @@ static void ProcessBattlePartyTouch(const CtrInput *in)
 
     if (in->touchActive && sHaveShown)
         btn = CtrBattleUi_Hit(&sShown.battle, (int)in->touchX, (int)in->touchY);
+    if (in->held & 0x3ffu)
+        sPartyEcho.slot = -1;
     if ((in->held & 0x3ffu) || !ready) {
         sBat.down = sBat.inside = 0;
         return;
@@ -3328,16 +3371,14 @@ static void ProcessBattlePartyTouch(const CtrInput *in)
     }
     if (sBat.inside) {
         int code = sBat.btn, open = CtrBottomParty_SelectionOpen() || CtrBottomParty_YesNoOpen();
+        int slot = code >= BUI_PTY_SLOT && code < BUI_PTY_SLOT + 6 ? code - BUI_PTY_SLOT
+                 : code == BUI_PTY_CANCEL ? PARTY_SIZE + 1 : code == BUI_PTY_CONFIRM ? PARTY_SIZE : -1;
 
-        if (code >= BUI_PTY_SLOT && code < BUI_PTY_SLOT + 6) {
-            if (!open && CtrBottomParty_IsOpen() && !CtrBottomParty_CanAdvanceText())
-                CtrBottomParty_TouchSlot(code - BUI_PTY_SLOT);
-        } else if (code == BUI_PTY_CANCEL) {
-            if (!open && CtrBottomParty_IsOpen() && !CtrBottomParty_CanAdvanceText())
-                CtrBottomParty_TouchSlot(PARTY_SIZE + 1);
-        } else if (code == BUI_PTY_CONFIRM) {
-            if (!open && CtrBottomParty_IsOpen() && !CtrBottomParty_CanAdvanceText())
-                CtrBottomParty_TouchSlot(PARTY_SIZE);
+        if (slot >= 0) {
+            if (!open && CtrBottomParty_IsOpen() && !CtrBottomParty_CanAdvanceText() && CtrBottomParty_TouchSlot(slot)) {
+                sPartyEcho.slot = slot;         /* shown as the selection until the Party's cursor is there */
+                sPartyEcho.wait = 30;
+            }
         } else if (code >= BUI_PTY_MENU && code < BUI_PTY_MENU + 8) {
             if (open)
                 PlanStart(PLAN_MENU, code - BUI_PTY_MENU);
@@ -4538,7 +4579,10 @@ void CtrBottom_Init(void)
 /* FireRed reaches some screens through others: the Bag's BALLS from ITEMS through KEY ITEMS, a Summary's TRAINER from MOVES
  * through STATS, a move's row through the details. The lower screen shows where a touch asked to go, never the way: while the
  * backend is on its way (the plan a tap started has not arrived and is still walking) the last complete picture stays, and the
- * destination is presented in one update. Only what a finger pressed is let go, so the control does not stay held down. */
+ * destination is presented in one update. Only what a finger pressed is let go, so the control does not stay held down.
+ * A Summary page is presented as soon as FireRed has taken it (its page is the one asked: the Summary turns there in one
+ * flip, CtrSummary_AskPage), while that flip still runs, as a page turned by FireRed's own keys is: waiting for the
+ * flip's end made every touched page, and TRAINER always, slow (the owner's finding). */
 static int NavPending(int mode)
 {
     if (!sHaveShown || mode != sShown.mode)
@@ -4550,7 +4594,7 @@ static int NavPending(int mode)
     }
     if (sShown.mode == MODE_SUMMARY && sShown.summaryUi) {
         if (sSumPlan.kind == SUMPLAN_PAGE)
-            return !(CtrBottomSummary_Ready() && CtrBottomSummary_Page() == sSumPlan.target);
+            return CtrBottomSummary_Page() != sSumPlan.target;
         return sSumPlan.kind == SUMPLAN_MOVE;
     }
     return 0;
