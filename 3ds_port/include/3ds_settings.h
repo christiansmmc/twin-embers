@@ -20,10 +20,6 @@ void CtrSettings_SetTurbo(unsigned turbo);
 int CtrSettings_AutoRun(void);
 void CtrSettings_SetAutoRun(int on);
 
-/* The EMBERS level the player chose (CTR_EMBERS_*, 0..2), or -1 when none was: the console's default then. */
-int CtrSettings_Embers(void);
-void CtrSettings_SetEmbers(int level);
-
 /* Whether a Repel that wears off offers to use another (REPEL AGAIN on the OPTIONS screen): on by default. */
 int CtrSettings_RepelAgain(void);
 void CtrSettings_SetRepelAgain(int on);

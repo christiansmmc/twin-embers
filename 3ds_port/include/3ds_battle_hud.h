@@ -16,6 +16,17 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/* Whose healthboxes the battle shows: 1 the port's (this file's, drawn at the screen's resolution), 0 FireRed's own
+ * sprites, which the battle's 1.5x zoom renders unevenly. And whose message box: 1 the port's navy panel
+ * (3ds_battle_textbox_impl.h), 0 FireRed's own frame, drawn 1:1. The fork owner's call (2026-11-13): the port's boxes,
+ * FireRed's message box. */
+#ifndef CTR_PORT_BATTLE_HUD
+#define CTR_PORT_BATTLE_HUD 1
+#endif
+#ifndef CTR_PORT_BATTLE_TEXTBOX
+#define CTR_PORT_BATTLE_TEXTBOX 0
+#endif
+
 #define CTR_HUD_BATTLERS 4
 #define CTR_HUD_NAME_LEN 12              /* FireRed's 10-character nickname and its EOS, in the game's charset */
 #define CTR_HUD_HP_PIXELS 48             /* FireRed's HP bar */
@@ -45,6 +56,10 @@ void CtrHud_Status(unsigned battler, unsigned status);
 void CtrHud_Caught(unsigned battler, bool caught);
 /* A trainer's Pokemon: the foe's box has no Poke Ball (FireRed shows whether it is caught only in wild battles). */
 void CtrHud_NoBall(unsigned battler, bool none);
+/* The boxes' frame, as the lower screen's windows have it: the pack's standard frame (OPTIONS -> FRAME) as nine 4bpp
+ * tiles in a ring, its 16 GBA colours, and stdpal_0's (the text colours 2 and 3). NULL tiles: the frame's outline look.
+ * Every box is drawn again. */
+void CtrHud_SetFrame(const uint8_t *tiles, const uint16_t *framePal, const uint16_t *textPal);
 
 /* Compositor side. What an OAM tile number is: CTR_HUD_NONE, or the battler's box (its main sprite, where the box
  * is drawn) or another of its sprites (left out). */

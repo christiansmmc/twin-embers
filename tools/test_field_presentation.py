@@ -235,6 +235,73 @@ int main(void) {
 }
 ''')
 
+    def test_home_speed_and_party_taps(self):
+        """HOME's SPEED line and its party (the owner's "F"): SPEED is usable where START would change the speed and a
+        tap is one START press for the turbo, taken once; a Pokemon is usable when POKeMON is and opens it."""
+        source = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        enabled = function(source, 'HomeTouchEnabled')
+        activate = function(source, 'HomeTouchActivate')
+        take = function(source, 'CtrBottom_TakeTurboTap')
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include "3ds_poketouch.h"
+static int canCycle, partyOpens, activated = -1;
+static bool CtrBottom_TurboCanCycle(void) { return canCycle; }
+static int FieldEnabled(int id) { return id == PT_POKEMON && partyOpens; }
+static void PokeTouchActivate(int id) { activated = id; }
+static void HomePickDrop(void) { }
+static int sTurboTap;
+''' + enabled + '\n' + activate + '\n' + take + '''
+int main(void) {
+    assert(!HomeTouchEnabled(PT_HOME_SPEED)); canCycle = 1; assert(HomeTouchEnabled(PT_HOME_SPEED) == 1);
+    assert(!CtrBottom_TakeTurboTap());
+    assert(HomeTouchActivate(PT_HOME_SPEED) && activated == -1);
+    assert(CtrBottom_TakeTurboTap() && !CtrBottom_TakeTurboTap());
+    for (int i = 0; i < 6; ++i) {
+        partyOpens = 0; assert(!HomeTouchEnabled(PT_HOME_PARTY + i));
+        partyOpens = 1; assert(HomeTouchEnabled(PT_HOME_PARTY + i) == 1);
+    }
+    assert(HomeTouchActivate(PT_HOME_PARTY + 5) && activated == PT_POKEMON);
+    activated = -1;
+    assert(HomeTouchEnabled(PT_BAG) == -1 && HomeTouchEnabled(PT_HOME_PARTY + 6) == -1);
+    assert(!HomeTouchActivate(PT_BAG) && !HomeTouchActivate(PT_RUN) && activated == -1 && !CtrBottom_TakeTurboTap());
+    return 0;
+}
+''')
+
+    def test_home_pick_dropped(self):
+        """The map's hint has the party's window while a place is picked (or the Party's FLY waits); the final review
+        found nothing a player would try gave the party back. A tap on the hint does, and so does any button in the
+        field (walking away); a battle, a native screen or START's menu still give up FLY alone."""
+        source = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        enabled = function(source, 'HomeTouchEnabled')
+        activate = function(source, 'HomeTouchActivate')
+        drop = function(source, 'HomePickDrop')
+        expire = function(source, 'HomePicksExpire')
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include "3ds_poketouch.h"
+enum { MODE_FIELD = 1, MODE_BATTLE = 2 };
+static int sFlyPick, sTurboTap, activated = -1;
+static struct { int valid; } sHome;
+static bool CtrBottom_TurboCanCycle(void) { return 1; }
+static int FieldEnabled(int id) { (void)id; return 1; }
+static void PokeTouchActivate(int id) { activated = id; }
+''' + drop + '\n' + enabled + '\n' + activate + '\n' + expire + '''
+int main(void) {
+    assert(HomeTouchEnabled(PT_HOME_HINT) == 1);
+    sHome.valid = 1; assert(HomeTouchActivate(PT_HOME_HINT) && !sHome.valid && activated == -1 && !sTurboTap);
+    sFlyPick = 1; assert(HomeTouchActivate(PT_HOME_HINT) && !sFlyPick);
+    sHome.valid = sFlyPick = 1; HomePicksExpire(MODE_FIELD, 0, 0); assert(sHome.valid && sFlyPick);
+    HomePicksExpire(MODE_FIELD, 0x40u, 0); assert(!sHome.valid && !sFlyPick);
+    sHome.valid = sFlyPick = 1; HomePicksExpire(MODE_FIELD, 0x400u, 0); assert(sHome.valid && sFlyPick);
+    HomePicksExpire(MODE_BATTLE, 0x1u, 1); assert(sHome.valid && !sFlyPick);
+    return 0;
+}
+''')
+
 
 if __name__ == '__main__':
     unittest.main()

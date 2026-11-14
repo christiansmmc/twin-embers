@@ -26,6 +26,11 @@ enum {
     PT_NONE = 0xff
 };
 
+/* HOME's own touch places beyond the buttons (CtrPokeTouch_HomeHit, a view's `pressed`): the game's speed (a tap is a
+ * START press for the turbo), the map's hint while it has the party's window (a tap puts the party back), and a
+ * Pokemon of the party (PT_HOME_PARTY + its slot, a tap opens POKeMON). Never START menu entries or field commands. */
+enum { PT_HOME_SPEED = 0x40, PT_HOME_HINT = 0x41, PT_HOME_PARTY = 0x48 };
+
 /* What Fly does at a map section (CtrPokeTouch_FlyStatus): not a destination, or
  * one, and why it cannot be used (unvisited, no party member that knows Fly, no
  * badge for it, not outdoors, the field busy), or can. */
@@ -313,8 +318,16 @@ typedef struct {
     uint8_t pressed;            /* element under a held touch, or PT_NONE */
     uint8_t selected;           /* the active destination, or PT_NONE */
     uint8_t running;            /* the running mode is on (Running Shoes) */
+    uint8_t speed;              /* the turbo chosen (3ds_fast_forward.h): 0 or 1 off, 2..4 the multiplier */
+    uint8_t speedEnabled;       /* a tap on SPEED can change it now (where START could) */
+    uint8_t homeHint;           /* HOME's map has a place picked: the Fly's hint (bar[2]) shows where the party is */
+    uint8_t party[6];           /* HOME's party: 0 no Pokemon, 1 able, 2 fainted, 3 a status (as CtrBattleView) */
+    uint8_t partyHp[6];         /* HP left as a percentage (an egg: 100) */
+    uint8_t partyStatus[6];     /* 0 none, else 1..6 PSN PAR SLP FRZ BRN PKRS */
+    uint16_t partyIcon[6];      /* each slot's party icon (a species number, as CtrBottomParty_IconSpecies) */
     uint8_t viewport;           /* the GPU shows a GBA picture in the viewport */
     uint8_t home;               /* the HOME map fills the viewport (no GBA picture) */
+    uint8_t frameType;          /* OPTIONS -> FRAME, 0..9: the standard frame of the reworked views' lists and menus */
     uint8_t mapGroup;           /* which map: PT_MAP_KANTO..PT_MAP_SEVII67 */
     uint8_t mapVersion;         /* what else its art depends on (CtrPokeTouch_MapVersion) */
     uint8_t playerFemale;       /* Leaf's map icon rather than Red's */
@@ -384,6 +397,14 @@ int CtrPokeTouch_SaveHit(int x, int y, int state);
 
 /* PT_* under a bottom-screen pixel, or PT_NONE. */
 int CtrPokeTouch_HitTest(int x, int y);
+/* HOME as a full-screen page (3ds_home_page_impl.h): shown when HOME is up and nothing else is; its buttons (a PT_*
+ * id, or -1) and its map's cells (the 22x15 grid of FireRed's Region Map, at 1:1 in the map panel). */
+bool CtrPokeTouch_HomePageShown(const CtrPokeTouchView *view);
+int CtrPokeTouch_HomeHit(const CtrPokeTouchView *view, int x, int y);
+bool CtrPokeTouch_HomeMapCell(int x, int y, int *cx, int *cy);
+/* A type's standard frame (OPTIONS -> FRAME) from the pack, for the top screen's healthboxes: nine 4bpp tiles, its GBA
+ * colours and stdpal_0's. False without the pack. */
+bool CtrPokeTouch_FrameData(int type, uint8_t tiles[9 * 32], uint16_t framePal[16], uint16_t textPal[16]);
 /* What the field Bag (view->bag.on) shows under lower-screen point (x, y): a PT_BAG_HIT_* code, or -1. */
 int CtrPokeTouch_BagHit(const CtrPokeTouchView *view, int x, int y);
 /* What the Pokedex (view->dex.on) shows under lower-screen point (x, y): a PT_DEX_HIT_* code, or -1. */
@@ -436,10 +457,6 @@ void CtrPokeTouch_Draw(uint16_t *canvas, const CtrPokeTouchView *view);
  * is added to `dirty` to be presented; nothing is added when nothing changed. */
 void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const CtrPokeTouchView *view,
                          CtrDirtyList *dirty);
-/* One step of the embers rising over the backdrop of whatever screen the canvas holds (PokeTouch, the battle, the
- * Summary): drawn only where the backdrop shows and, with `pictureShown`, off the GBA picture; with `on` false they
- * are only taken away. What changed is added to `dirty`. */
-void CtrPokeTouch_Embers(uint16_t *canvas, int on, int low, int pictureShown, CtrDirtyList *dirty);
 /* The lower screen with nothing to show for FireRed's screen above (its title, naming, a shop, an evolution, a trade):
  * the ember backdrop, and the project's logo when `logo`. */
 void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo);
@@ -557,9 +574,11 @@ typedef struct {
     int16_t pressed;                /* the button held under a touch, or -1 */
     int8_t cursor;                  /* the controller's own cursor, drawn only while showCursor (the last input was a button) */
     uint8_t showCursor;
+    uint8_t frameType;              /* OPTIONS -> FRAME, 0..9: the standard frame of the reworked views */
     uint8_t party[6];               /* 0 no Pokemon, 1 able, 2 fainted, 3 status condition */
     uint8_t partyHp[6];             /* HP left as a percentage (an egg: 100) */
     uint8_t partyStatus[6];         /* 0 none, else 1..6 PSN PAR SLP FRZ BRN PKRS */
+    uint16_t partyIcon[6];          /* each slot's party icon (a species number, as CtrBottomParty_IconSpecies gives it) */
     char activeName[BUI_NAME_LEN];  /* the Pokemon in the lead (party slot 0): the action screen's footer */
     uint8_t activeLevel;
     uint8_t activeSlot;             /* its slot in the party */

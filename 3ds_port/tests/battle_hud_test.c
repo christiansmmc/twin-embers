@@ -1,5 +1,7 @@
 /* The port's healthboxes (src/3ds_battle_hud.c) on the host: which OAM tiles are a box's, the boxes' sizes and
- * anchors, their bars and redraws. The font is synthetic: every glyph a 4x7 block of ink, 5 pixels wide. */
+ * anchors, their bars and redraws. The font is synthetic: every glyph a 4x7 block of ink, 5 pixels wide.
+ * Built twice: as it ships (the port's boxes), and with CTR_PORT_BATTLE_HUD=0, where FireRed draws its own boxes and
+ * the port must not take their place. */
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
@@ -49,6 +51,16 @@ int main(void)
     unsigned battler = 9;
 
     MakeFonts();
+#ifdef BATTLE_HUD_CLASSIC
+    /* classic_boxes (built with CTR_PORT_BATTLE_HUD=0): FireRed's own healthboxes; the compositor is never handed the port's. */
+    CtrHud_Box(0, CTR_HUD_PLAYER, 0, false, 0x100, 0x300, UNFADED);
+    CtrHud_Box(1, CTR_HUD_FOE, 1, false, 0x200, 0x310, UNFADED);
+    CtrHud_Box(0, CTR_HUD_SAFARI, 0, false, 0x100, 0xFFFF, UNFADED);
+    assert(!sMatch && !sImage);
+    (void)battler; (void)Pixel; (void)Rgb; (void)NAME;
+    puts("PASS battle HUD: FireRed's own boxes");
+    return 0;
+#endif
 
     /* A single battle: the player's 64x64 pair, its HP bar sprite, and a foe's 64x32 pair. */
     CtrHud_Box(0, CTR_HUD_PLAYER, 0, false, 0x100, 0x300, UNFADED);
@@ -63,7 +75,7 @@ int main(void)
     assert(sMatch(0x23F, &battler) == CTR_HUD_PART && sMatch(0x240, &battler) == CTR_HUD_NONE);
     assert(!sImage(2) && !sImage(3));
 
-    /* The player's box: 136x49 and its shadow; at rest it is where the design puts it (260, 141). */
+    /* The player's box: 136x48 in the FRAME look (the owner's pick); at rest it is where the design puts it (260, 141). */
     CtrHud_Name(0, NAME, CTR_HUD_MALE, false);
     CtrHud_Level(0, 12);
     CtrHud_Hp(0, 27, false);
@@ -71,43 +83,89 @@ int main(void)
     CtrHud_HpBar(0, 48);
     CtrHud_ExpBar(0, 32);
     const CtrHudImage *player = sImage(0);
-    assert(player && player->width == 137 && player->height == 51 && player->unfaded == UNFADED);
+    assert(player && player->width == 136 && player->height == 48 && player->unfaded == UNFADED);
     float sx = 126 * CTR_BATTLE_ZOOM + 200 - 120 * CTR_BATTLE_ZOOM + player->dx;
     float sy = 72 * CTR_BATTLE_ZOOM + 192 - 112 * CTR_BATTLE_ZOOM + player->dy;
     assert(fabsf(sx - 260) < 0.01f && fabsf(sy - 141) < 0.01f);
-    /* Outside the plate it is clear; the drop shadow is translucent; the plate opaque. */
-    assert(Pixel(player, 0, 0) == 0);
-    assert((Pixel(player, 136, 43) & 255) == 107);
-    assert((Pixel(player, 80, 10) & 255) == 255);
+    /* Without the pack's frame: the frame's outline look, its corners clear, white inside, no shadow. */
+    assert(Pixel(player, 0, 0) == 0 && Pixel(player, 135, 47) == 0);
+    /* The name row clear of the top: the capitals start on row 9 (4 rows under the rims), nothing of them above. */
+    assert(Rgb(Pixel(player, 11, 8)) == 0xFFFFFF && Rgb(Pixel(player, 11, 9)) == 0x606060);
+    assert(Rgb(Pixel(player, 80, 1)) == 0x3E4C6B);
+    assert(Rgb(Pixel(player, 80, 10)) == 0xFFFFFF && (Pixel(player, 80, 10) & 255) == 255);
 
-    /* A full HP bar is green to its end; a fifth is red. The track starts 16 past the capsule's left (x 16). */
+    /* HP: its tag from the box's margin (x 10; HP's and EXP's tags are one width, 4 + "EXP" + 4 = 23 here) and the
+     * track after it (x 35, row 21, 7 high, to 10 from the end): its edge dark, a full bar green to its end, a fifth
+     * red, the rest the track's light inside. */
     unsigned version = player->version;
-    assert(Rgb(Pixel(player, 16 + 16 + 4, 27 + 5)) == 0x48D478);   /* the fill's third row */
+    assert(Rgb(Pixel(player, 12, 24)) == 0x404850);                /* the tag */
+    assert(Rgb(Pixel(player, 35, 24)) == 0x404040);                /* the track's edge */
+    assert(Rgb(Pixel(player, 36 + 40, 24)) == 0x58D080 && Rgb(Pixel(player, 136 - 12, 24)) == 0x58D080);
     CtrHud_HpBar(0, 9);
     player = sImage(0);
     assert(player->version != version);
-    assert(Rgb(Pixel(player, 16 + 16 + 2, 27 + 5)) == 0xEC4434);
-    assert(Rgb(Pixel(player, 16 + 16 + 60, 27 + 5)) == 0x464C60);  /* the empty track */
+    assert(Rgb(Pixel(player, 36 + 2, 24)) == 0xF05848);
+    assert(Rgb(Pixel(player, 36 + 60, 24)) == 0xE4E4DC);          /* the empty track */
+    /* EXP right under HP: its tag at x 10 on row 31 (2 rows after HP's), its track from the same x as HP's, half full
+     * in blue, ending before the room kept for "999/999" (7 glyphs of 5 here) and 4 pixels: at 136 - 10 - 35 - 4 = 87. */
+    assert(Rgb(Pixel(player, 12, 35)) == 0x404850 && Rgb(Pixel(player, 12, 30)) == 0xFFFFFF);
+    assert(Rgb(Pixel(player, 35, 35)) == 0x404040);
+    assert(Rgb(Pixel(player, 40, 35)) == 0x40A8F8);
+    assert(Rgb(Pixel(player, 86, 35)) == 0x404040 && (Pixel(player, 88, 35) >> 8) != 0x404040);
+
+    /* A status: a 9-pixel tag in its colour before the "HP" tag, on the HP row (20 to 28), nothing above it. */
+    CtrHud_Status(0, CTR_HUD_PAR);
+    player = sImage(0);
+    assert(Rgb(Pixel(player, 12, 24)) == 0xE8B828);
+    assert(Rgb(Pixel(player, 12, 19)) == 0xFFFFFF);
+    assert(Rgb(Pixel(player, 10 + 23 + 3 + 2, 24)) == 0x404850);   /* the "HP" tag after it (the tag: 4 + "PAR" + 4) */
+    CtrHud_Status(0, CTR_HUD_OK);
+
+    /* With the pack's FRAME (OPTIONS -> FRAME, as on the lower screen): its tiles around its colour 1 inside; a new
+     * frame redraws the boxes. */
+    {
+        static uint8_t tiles[9 * 32];
+        uint16_t framePal[16] = {0}, textPal[16] = {0};
+
+        memset(tiles, 0x22, sizeof(tiles));         /* every ring pixel colour 2 */
+        tiles[0] = 0x20;                            /* the top-left corner's first pixel clear */
+        framePal[1] = 0x7FFF;                       /* white inside */
+        framePal[2] = 0x001F;                       /* a red ring (GBA colours) */
+        textPal[2] = 0x0000; textPal[3] = 0x6318;
+        version = sImage(0)->version;
+        CtrHud_SetFrame(tiles, framePal, textPal);
+        player = sImage(0);
+        assert(player->version != version);
+        assert(Pixel(player, 0, 0) == 0);
+        assert(Rgb(Pixel(player, 80, 1)) == 0xFF0000 && Rgb(Pixel(player, 135, 20)) == 0xFF0000);
+        assert(Rgb(Pixel(player, 80, 10)) == 0xFFFFFF);
+        CtrHud_SetFrame(NULL, NULL, NULL);          /* and back to the outline look */
+        assert(Rgb(Pixel(sImage(0), 80, 1)) == 0x3E4C6B);
+    }
     /* Nothing changed, nothing redrawn. */
     version = player->version;
     CtrHud_HpBar(0, 9);
     CtrHud_Level(0, 12);
     assert(sImage(0)->version == version);
 
-    /* The foe's box: 152x36 at the design's (10, 22). */
+    /* The foe's box: 152x40 at the design's (10, 22). */
     CtrHud_Name(1, NAME, CTR_HUD_FEMALE, true);
     const CtrHudImage *foe = sImage(1);
-    assert(foe->width == 153 && foe->height == 38);
+    assert(foe->width == 152 && foe->height == 40);
     sx = 12 * CTR_BATTLE_ZOOM + 200 - 120 * CTR_BATTLE_ZOOM + foe->dx;
     sy = 14 * CTR_BATTLE_ZOOM + 192 - 112 * CTR_BATTLE_ZOOM + foe->dy;
     assert(fabsf(sx - 10) < 0.01f && fabsf(sy - 22) < 0.01f);
-    /* Its Poke Ball: grey until the species is caught. */
-    assert(Rgb(Pixel(foe, 5 + 4, 12 + 2)) == 0xAAAEBA);
+    /* Its Poke Ball before the name, centred on the name's capitals (rows 10 to 18: the ball's 11 rows from 9), clear of
+     * the frame (the rims whole above it): grey until the species is caught. */
+    assert(Rgb(Pixel(foe, 9 + 4, 9 + 2)) == 0xAAAEBA && Rgb(Pixel(foe, 9 + 4, 8)) == 0xFFFFFF);
+    assert(Rgb(Pixel(foe, 9 + 4, 2)) == 0x3E4C6B && Rgb(Pixel(foe, 9 + 4, 4)) == 0xA7B6D3 && Rgb(Pixel(foe, 9 + 4, 6)) == 0xFFFFFF);
     CtrHud_Caught(1, true);
-    assert(Rgb(Pixel(sImage(1), 5 + 4, 12 + 2)) == 0xE8382C);
+    assert(Rgb(Pixel(sImage(1), 9 + 4, 9 + 2)) == 0xE8382C);
+    /* Its HP from the margin too: the tag at x 10 on the row under the name. */
+    assert(Rgb(Pixel(sImage(1), 12, 28)) == 0x404850);
     /* A trainer's Pokemon: no Poke Ball. */
     CtrHud_NoBall(1, true);
-    assert(Rgb(Pixel(sImage(1), 5 + 4, 12 + 2)) != 0xE8382C);
+    assert(Rgb(Pixel(sImage(1), 9 + 4, 9 + 2)) != 0xE8382C);
     CtrHud_NoBall(1, false);
 
     /* A double battle: four boxes, the player's low ones (no EXP bar), 64x32 pairs. */
@@ -118,12 +176,25 @@ int main(void)
     assert(sMatch(0x140, &battler) == CTR_HUD_MAIN && battler == 1);
     assert(sMatch(0x1C0, &battler) == CTR_HUD_MAIN && battler == 3);
     const CtrHudImage *low = sImage(2);
-    assert(low && low->width == 137 && low->height == 28);
+    /* 34 high (two text rows inside the frame's rims, the name as far from the top as on the single box), the two 2
+     * rows apart and clear of the text box (at 192). */
+    assert(low && low->width == 136 && low->height == 34);
     sx = 139 * CTR_BATTLE_ZOOM + 200 - 120 * CTR_BATTLE_ZOOM + low->dx;
     sy = 84 * CTR_BATTLE_ZOOM + 192 - 112 * CTR_BATTLE_ZOOM + low->dy;
-    assert(fabsf(sx - 260) < 0.01f && fabsf(sy - 164) < 0.01f);
+    assert(fabsf(sx - 260) < 0.01f && fabsf(sy - 158) < 0.01f && sy + low->height <= 192);
+    sy = 59 * CTR_BATTLE_ZOOM + 192 - 112 * CTR_BATTLE_ZOOM + sImage(0)->dy;
+    assert(fabsf(sy - 122) < 0.01f && sImage(0)->height == 34);
+    /* With a status the low box keeps its frame whole: the tag sits on the HP row, inside the light rim. */
+    CtrHud_Status(2, CTR_HUD_PAR);
+    low = sImage(2);
+    assert(Rgb(Pixel(low, 12, 30)) == 0xA7B6D3 && Rgb(Pixel(low, 12, 23)) == 0xE8B828);
     sx = 0 * CTR_BATTLE_ZOOM + 200 - 120 * CTR_BATTLE_ZOOM + sImage(3)->dx;
     assert(fabsf(sx - 6) < 0.01f);
+    /* The foe's two boxes, 40 high, one over the other with 2 rows between: tops at 4 and 46. */
+    sy = 3 * CTR_BATTLE_ZOOM + 192 - 112 * CTR_BATTLE_ZOOM + sImage(1)->dy;
+    assert(fabsf(sy - 4) < 0.01f && sImage(1)->height == 40);
+    sy = 28 * CTR_BATTLE_ZOOM + 192 - 112 * CTR_BATTLE_ZOOM + sImage(3)->dy;
+    assert(fabsf(sy - 46) < 0.01f);
 
     /* The Safari Zone after it: the right-hand battlers go, the player's box is the Safari Zone's, with no HP bar
      * sprite. */
@@ -133,7 +204,7 @@ int main(void)
     assert(sMatch(0x1C0, &battler) == CTR_HUD_NONE);
     assert(sMatch(0x17F, &battler) == CTR_HUD_PART && battler == 0);
     CtrHud_SafariBalls(0, 30);
-    assert(sImage(0)->width == 137 && sImage(0)->height == 38);
+    assert(sImage(0)->width == 136 && sImage(0)->height == 36);
 
     /* A box the port leaves to FireRed matches nothing and has no picture. */
     CtrHud_Box(0, CTR_HUD_OFF, 0, false, 0x100, 0x300, UNFADED);

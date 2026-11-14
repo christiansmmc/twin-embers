@@ -52,6 +52,8 @@ jobs:
           python3 tools/test_data_runtime.py --cc gcc
       - name: Synthetic PokeTouch icons, geometry and unchanged viewports
         run: python3 -m unittest discover -s tools -p test_poketouch_render.py -v
+      - name: Lower screen kit (FireRed frames from synthetic text-window entries)
+        run: python3 -m unittest discover -s tools -p test_lower_kit.py -v
       - name: Oak presentation sampling and GPU geometry
         run: python3 -m unittest discover -s tools -p test_oak_presentation.py -v
       - name: Storage touch geometry and route tests (no emulator)

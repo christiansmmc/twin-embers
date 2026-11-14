@@ -29,7 +29,6 @@ static const char *const sHourName[HOUR_COUNT] = {
     "18:00", "18:30", "19:00", "19:30", "20:00", "20:30",
     "21:00", "21:30", "22:00", "22:30", "23:00", "23:30",
 };
-static const char *const sEmbers[] = {CTR_TR("OFF", "NO", "Aus"), CTR_TR("LOW", "BAJO", "Wenig"), CTR_TR("HIGH", "ALTO", "Viel")};     /* CTR_EMBERS_* */
 /* EXP SHARE: who gets experience (HALF: the whole team shares as if each held an EXP. SHARE; FULL: every Pokemon that can
  * still fight gets the share of one that fought). */
 static const char *const sExpShare[] = {CTR_TR("OFF", "NO", "Aus"), CTR_TR("HALF", "MITAD", "Halb"), CTR_TR("FULL", "TODA", "Voll")};
@@ -40,7 +39,6 @@ static int sPortTypeMatchup;
 static int sPortMoveDetails;
 static int sPortDayNight;
 static int sPortHour = HOUR_DEFAULT;
-static int sPortEmbers = CTR_EMBERS_HIGH;
 
 static int TwoCount(void) { return 2; }
 static int GetTypeMatchup(void) { return sPortTypeMatchup; }
@@ -84,29 +82,14 @@ static void SetLookLeaf(int v) { CtrLooks_Choose(CTR_LOOK_LEAF, v - 1); }
 static void SetLookBlue(int v) { CtrLooks_Choose(CTR_LOOK_BLUE, v - 1); }
 static int GetExpShare(void) { return CtrSettings_ExpShare(); }
 static void SetExpShare(int v) { CtrSettings_SetExpShare(v); }
-static int GetEmbers(void) { return sPortEmbers; }
-static void SetEmbers(int v)
-{
-    sPortEmbers = v < 0 || v >= CTR_EMBERS_COUNT ? CTR_EMBERS_HIGH : v;
-    CtrSettings_SetEmbers(sPortEmbers);     /* kept for the next session; the file is written only on a change */
-}
 
 int CtrOptions_TypeMatchup(void) { return sPortTypeMatchup == 0; }
 int CtrOptions_MoveDetails(void) { return sPortMoveDetails == 0; }
 int CtrOptions_DayNight(void) { return sPortDayNight != DAY_NIGHT_OFF; }
 int CtrOptions_DayNightSecond(void) { return sPortDayNight == DAY_NIGHT_FIXED ? sPortHour * HOUR_STEP_SECONDS : -1; }
-int CtrOptions_Embers(void) { return sPortEmbers != CTR_EMBERS_OFF; }
-int CtrOptions_EmbersLow(void) { return sPortEmbers == CTR_EMBERS_LOW; }
 int CtrOptions_RepelAgain(void) { return CtrSettings_RepelAgain(); }
 int CtrOptions_Companion(void) { return CtrSettings_Companion(); }
 int CtrOptions_ExpShare(void) { return CtrSettings_ExpShare(); }
-
-void CtrOptions_EmbersInit(int isNew3ds)
-{
-    int stored = CtrSettings_Embers();
-
-    sPortEmbers = stored >= 0 && stored < CTR_EMBERS_COUNT ? stored : isNew3ds ? CTR_EMBERS_HIGH : CTR_EMBERS_LOW;
-}
 
 /* FireRed's menu order (Page 1), followed by 3DS port QoL options (Page 2). */
 static const CtrOptionRow sRows[] = {
@@ -130,13 +113,10 @@ static const CtrOptionRow sRows[] = {
      GetDayNight, DayNightCount, SetDayNight},
     {CTR_TR("HOUR", "HORA", "Stunde"), {CTR_TR("The hour outdoors when", "La hora en el exterior si", "Uhrzeit in der Oberwelt,"), CTR_TR("DAY/NIGHT is FIXED.", "D\xC3\x8D" "A/NOCHE est\xC3\xA1 en FIJA.", "wenn TAG/NACHT FEST ist.")}, 0, sHourName, NULL,
      GetHour, HourCount, SetHour},
-    {CTR_TR("EMBERS", "ASCUAS", "Funken"), {CTR_TR("Sparks rising behind the", "Chispas que suben tras los", "Funken hinter den Men\xC3\xBCs."), CTR_TR("menus. LOW suits an Old 3DS.", "men\xC3\xBAs. BAJO para Old 3DS.", "Wenig eignet sich f\xC3\xBCr Old 3DS.")}, 0, sEmbers, NULL,
-     GetEmbers, ThreeCount, SetEmbers},
     {CTR_TR("REPEL AGAIN", "REPELENTE", "Schutz erneut"), {CTR_TR("When a REPEL wears off,", "Al acabarse un REPELENTE,", "Wenn ein Schutz endet,"), CTR_TR("offer to use another.", "pregunta si usar otro.", "einen weiteren anbieten.")}, 0, sFps, NULL,
      GetRepelAgain, TwoCount, SetRepelAgain},
     {CTR_TR("COMPANION", "ACOMPA\xC3\x91" "NTE", "Begleiter"), {CTR_TR("A Pokemon walks behind you,", "Un Pok\xC3\xA9mon te sigue,", "Ein Pok\xC3\xA9mon folgt dir,"), CTR_TR("or you are that Pokemon.", "o t\xC3\xBA eres ese Pok\xC3\xA9mon.", "oder du bist das Pok\xC3\xA9mon.")}, 0, sCompanion, NULL,
      GetCompanion, ThreeCount, SetCompanion},
-    /* Page 3. */
     {CTR_TR("EXP SHARE", "REPARTIR EXP", "EP-Teiler"), {CTR_TR("Share EXP with the whole", "Reparte la EXP con todo", "EP an das ganze Team:"), CTR_TR("team: HALF or FULL.", "el equipo: MITAD o TODA.", "Halb oder Voll.")}, 0, sExpShare, NULL,
      GetExpShare, ThreeCount, SetExpShare},
     {CTR_TR("RED LOOK", "ASPECTO ROJO", "Rot-Look"), {CTR_TR("The look of Red, from the", "El aspecto de Rojo, de los", "Das Aussehen von Rot, aus"), CTR_TR("Builder's alternative looks.", "aspectos del Builder.", "den Builder-Looks.")}, 0, sLookNames, NULL,
@@ -202,7 +182,7 @@ int CtrOptions_IsLevels(int row)
 {
     const CtrOptionRow *r = CtrOptions_Row(row);
 
-    return r != NULL && (r->names == sEmbers || r->names == sCompanion || r->names == sExpShare);
+    return r != NULL && (r->names == sCompanion || r->names == sExpShare);
 }
 
 void CtrOptions_Set(int row, int value)

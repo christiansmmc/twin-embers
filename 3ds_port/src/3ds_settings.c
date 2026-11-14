@@ -18,7 +18,6 @@
 
 static unsigned sTurbo;
 static int sAutoRun;
-static int sEmbers = -1;
 static int sRepelAgain = 1;
 static int sCompanion;
 static char sLook[3][16];     /* look_red, look_leaf, look_blue */
@@ -74,6 +73,8 @@ static void Load(void)
     file = sFile;
     if (file == NULL)
         return;
+    /* A line no setting reads (embers=, kept by builds that had the EMBERS option) is skipped, and the next write
+     * leaves it out. */
     while (fgets(line, sizeof(line), file) != NULL)
     {
         unsigned value;
@@ -82,8 +83,6 @@ static void Load(void)
             sTurbo = value == 0 || (value >= 2 && value <= 4) ? value : 0;
         else if (sscanf(line, "autorun=%u", &value) == 1)
             sAutoRun = value != 0;
-        else if (sscanf(line, "embers=%u", &value) == 1)
-            sEmbers = value <= 2 ? (int)value : -1;
         else if (sscanf(line, "repel=%u", &value) == 1)
             sRepelAgain = value != 0;
         else if (sscanf(line, "companion=%u", &value) == 1)
@@ -118,10 +117,6 @@ static void Format(char *text, size_t size)
 {
     int length = snprintf(text, size, "turbo=%u\nautorun=%d\nrepel=%d\n", sTurbo, sAutoRun, sRepelAgain);
 
-    if (sEmbers >= 0 && length > 0 && (size_t)length < size)
-    {
-        length += snprintf(text + length, size - (size_t)length, "embers=%d\n", sEmbers);
-    }
     if (sCompanion && length > 0 && (size_t)length < size)
         length += snprintf(text + length, size - (size_t)length, "companion=%d\n", sCompanion);
     if (sExpShare && length > 0 && (size_t)length < size)
@@ -259,12 +254,6 @@ void CtrSettings_SetAutoRun(int on)
     Save();
 }
 
-int CtrSettings_Embers(void)
-{
-    Load();
-    return sEmbers;
-}
-
 int CtrSettings_RepelAgain(void)
 {
     Load();
@@ -328,15 +317,6 @@ void CtrSettings_SetLook(int slot, const char *id)
     LookSet(slot, id ? id : "");
     if (memcmp(before, sLook[slot], sizeof(before)))
         Save();
-}
-
-void CtrSettings_SetEmbers(int level)
-{
-    Load();
-    if (level < 0 || level > 2 || level == sEmbers)
-        return;
-    sEmbers = level;
-    Save();
 }
 
 unsigned CtrSettings_LastBall(void)

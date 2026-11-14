@@ -13,51 +13,17 @@
 
 /* The party's balls, on their pill. */
 static const CtrPokeTouchRect sBStrip = {70, 3, 180, 28};
-/* The action menu, FireRed's cursors 0-3: FIGHT across the top, BAG, POKeMON and RUN below; in a wild battle the quick
- * ball (CTR_ACTION_BALL) between BAG and POKeMON, the four a row of equal buttons (3ds_battle_nav.h walks the D-pad over
- * them the same way). FIGHT is lower than the row: the row's buttons hold an icon, a name and a pill each, and the
- * quick ball its dots and arrows too. */
-#define BACT_ROW_Y 120
-#define BACT_ROW_H 114
-static const CtrPokeTouchRect sBFight = {8, 36, 304, 78};
-static const CtrPokeTouchRect sBRow3[3] = {{8, BACT_ROW_Y, 98, BACT_ROW_H}, {111, BACT_ROW_Y, 98, BACT_ROW_H},
-                                           {214, BACT_ROW_Y, 98, BACT_ROW_H}};
-static const CtrPokeTouchRect sBRow4[4] = {{8, BACT_ROW_Y, 73, BACT_ROW_H}, {85, BACT_ROW_Y, 73, BACT_ROW_H},
-                                           {162, BACT_ROW_Y, 73, BACT_ROW_H}, {239, BACT_ROW_Y, 73, BACT_ROW_H}};
-/* The rows inside a row button, from the top of its face: the icon's disc, the name, the quick ball's dots, the pill
- * (or the quick ball's arrows and count). */
-#define BACT_DISC_Y 30
-#define BACT_DISC_R 24
-#define BACT_NAME_Y 61
-#define BACT_DOTS_Y 79
-#define BACT_PILL_Y 88
-#define BACT_ARROW_W 20
-#define BACT_ARROW_H 19
-
-/* Action `i` (0-3, or CTR_ACTION_BALL) on the screen `v` shows. */
+/* The commands, FireRed's cursors 0-3 (FIGHT, BAG, POKeMON, RUN), and in a wild battle the quick ball
+ * (CTR_ACTION_BALL) with its arrows: where 3ds_lower_layout.h puts them, the row with the quick ball apart. */
 static const CtrPokeTouchRect *BActRect(const CtrBattleView *v, int i)
 {
-    if (i == 0)
-        return &sBFight;
-    if (v->ball == CTR_QUICK_BALL_NONE)
-        return &sBRow3[i == 1 ? 0 : i == 2 ? 1 : 2];
-    return &sBRow4[i == 1 ? 0 : i == CTR_ACTION_BALL ? 1 : i == 2 ? 2 : 3];
+    if (i == CTR_ACTION_BALL)
+        return &kBatBall;
+    return &(v->ball == CTR_QUICK_BALL_NONE ? kBatAction : kBatActionBall)[i];
 }
-
-/* The quick ball's arrows: the lower corners of its button, where a finger reaches them apart from the throw. */
-static CtrPokeTouchRect BBallArrow(const CtrBattleView *v, int next)
-{
-    const CtrPokeTouchRect *r = BActRect(v, CTR_ACTION_BALL);
-    CtrPokeTouchRect a = {(int16_t)(next ? r->x + r->w - 3 - BACT_ARROW_W : r->x + 3), (int16_t)(r->y + BACT_PILL_Y - 2),
-                          BACT_ARROW_W, BACT_ARROW_H};
-    return a;
-}
-/* The move cards (and a double battle's target cards) in the controller's 2x2 order; under them the note and CANCEL. */
-static const CtrPokeTouchRect sBCard[4] = {{8, 38, 150, 62}, {162, 38, 150, 62}, {8, 104, 150, 62}, {162, 104, 150, 62}};
+/* The battle Bag's note and CANCEL. */
 static const CtrPokeTouchRect sBNote = {4, 176, 236, 60};
 static const CtrPokeTouchRect sBCancel = {244, 180, 72, 52};
-/* The Safari Zone's four actions in the controller's 2x2 order (BALL, BAIT, ROCK, RUN). */
-static const CtrPokeTouchRect sBSafari[4] = {{8, 38, 150, 92}, {162, 38, 150, 92}, {8, 140, 150, 92}, {162, 140, 150, 92}};
 /* The battle Bag: its title (the Items pocket, the only one it shows) and BERRIES for the Berry Pouch, the item list
  * on the left with its scroll arrows, the selected item's card on the right, the description's note and CANCEL. */
 static const CtrPokeTouchRect sBTitle = {6, 4, 204, 26}, sBTitleWide = {6, 4, 308, 26}, sBBerries = {214, 4, 100, 26};
@@ -132,30 +98,28 @@ int CtrBattleUi_Hit(const CtrBattleView *v, int x, int y)
         for (int i = 0; i < 4; ++i)
             if (BIn(BActRect(v, i), x, y))
                 return i;
-        if (v->ball != CTR_QUICK_BALL_NONE && BIn(BActRect(v, CTR_ACTION_BALL), x, y)) {
-            CtrPokeTouchRect prev = BBallArrow(v, 0), next = BBallArrow(v, 1);
-
-            /* The arrows answer a little round themselves too: the button is narrow. */
-            prev = UiInset(&prev, -3);
-            next = UiInset(&next, -3);
-            if (v->ball == CTR_QUICK_BALL_READY && v->ballCount > 1 && BIn(&prev, x, y))
+        if (v->ball != CTR_QUICK_BALL_NONE) {
+            /* The arrows only while there is another ball to go to. */
+            if (v->ball == CTR_QUICK_BALL_READY && v->ballCount > 1 && BIn(&kBatBallArrow[0], x, y))
                 return BUI_ACT_BALL_PREV;
-            if (v->ball == CTR_QUICK_BALL_READY && v->ballCount > 1 && BIn(&next, x, y))
+            if (v->ball == CTR_QUICK_BALL_READY && v->ballCount > 1 && BIn(&kBatBallArrow[1], x, y))
                 return BUI_ACT_BALL_NEXT;
-            return BUI_ACT_BALL;
+            if (BIn(&kBatBall, x, y))
+                return BUI_ACT_BALL;
         }
     }
     if (v->state == BUI_MOVE || v->state == BUI_TARGET) {
         for (int i = 0; i < 4; ++i)
-            if ((v->state == BUI_MOVE ? v->move[i].present : v->target[i].present) && BIn(&sBCard[i], x, y))
+            if (v->state == BUI_MOVE ? v->move[i].present && BIn(&kBatMove[i], x, y)
+                                     : v->target[i].present && BIn(&kBatTarget[i], x, y))
                 return i;
-        if (BIn(&sBCancel, x, y))
+        if (BIn(&kBatCancel, x, y))
             return BUI_CANCEL;
         return -1;
     }
     if (v->state == BUI_SAFARI) {
         for (int i = 0; i < 4; ++i)
-            if (BIn(&sBSafari[i], x, y))
+            if (BIn(&kBatSafari[i], x, y))
                 return i;
         return -1;
     }
@@ -215,14 +179,6 @@ int CtrBattleUi_Hit(const CtrBattleView *v, int x, int y)
         }
     }
     return -1;
-}
-
-/* Whether button or card `i` looks different between two views of the same screen: pressed, or focused. */
-static int BLooksChanged(const CtrBattleView *a, const CtrBattleView *b, int i)
-{
-    return (a->pressed == i) != (b->pressed == i)
-        || (a->showCursor && a->cursor == i) != (b->showCursor && b->cursor == i)
-        || (b->state == BUI_ACTION && i == 0 && a->activeFrame != b->activeFrame);   /* the lead's icon bounces */
 }
 
 /* Appends `word` to `line` (a space first when it is not empty), within `size`. */
@@ -826,7 +782,8 @@ static void BDisc(int cx, int cy, int r, const EmPal *p)
 }
 
 /* Icon `icon` (BX_*) centred at (cx, cy) on a light disc of the piece's colour, `r` its radius. */
-static void BDiscIcon(int icon, int cx, int cy, int r, const EmPal *p)
+/* Unused since the commands moved to the kit (3ds_battle_page_impl.h); goes with the ember look in phase 2. */
+UI_FN void BDiscIcon(int icon, int cx, int cy, int r, const EmPal *p)
 {
     BDisc(cx, cy, r, p);
     if (icon == BX_FIGHT)
@@ -847,23 +804,6 @@ static void BDiscIcon(int icon, int cx, int cy, int r, const EmPal *p)
         h = sBImg[art].image.h * sBImg[art].scale;
         BIconAt(art, cx - w / 2, cy - h / 2);
     }
-}
-
-/* A raised card of the battle: the backdrop back round it, the glow while FireRed's cursor is on it. */
-static int BEmCard(const CtrPokeTouchRect *r, const EmPal *p, int focused, int pressed)
-{
-    TsBgRect(r->x - 2, r->y - 2, r->w + 4, r->h + 4);
-    if (focused)
-        EmGlowRing(r->x, r->y, r->w, r->h);
-    return EmButton(r->x, r->y, r->w, r->h, p, B_DEPTH, pressed);
-}
-
-/* An empty slot: a hollow in the backdrop. */
-static void BHollow(const CtrPokeTouchRect *r)
-{
-    TsBgRect(r->x - 2, r->y - 2, r->w + 4, r->h + 4);
-    UiRoundFill(r->x, r->y, r->w, r->h - B_DEPTH, 5, UI_RGB(140, 70, 60));
-    UiRoundFill(r->x + 1, r->y + 1, r->w - 2, r->h - B_DEPTH - 2, 4, UI_RGB(70, 18, 16));
 }
 
 /* CANCEL: violet, as BACK and the Party's. */
@@ -908,389 +848,14 @@ static void BBall(int cx, int cy, int kind, int status)
     }
 }
 
-/* The party's six balls on a dark pill, an HP bar under each. */
-static void BStrip(const CtrBattleView *v)
-{
-    const CtrPokeTouchRect *s = &sBStrip;
-
-    TsBgRect(s->x, s->y, s->w, s->h);
-    UiRoundFill(s->x, s->y, s->w, s->h, 5, UI_RGB(24, 8, 10));
-    EmGradFill(s->x + 1, s->y + 1, s->w - 2, s->h - 2, 4, UI_RGB(72, 26, 26), UI_RGB(44, 14, 16));
-    for (int i = 0; i < 6; ++i) {
-        int cx = s->x + 15 + 30 * i, kind = v->party[i];
-
-        BBall(cx, s->y + 10, kind, kind == 3 || (v->partyStatus[i] >= 1 && v->partyStatus[i] <= 6));
-        if (kind) {
-            unsigned hp = kind == 2 ? 0 : v->partyHp[i];
-            int fill = (int)(hp * 18 / 100);
-
-            if (hp && fill < 1)
-                fill = 1;
-            UiRoundFill(cx - 10, s->y + 20, 20, 5, 2, UI_RGB(24, 8, 10));
-            Fill(cx - 9, s->y + 21, fill, 3, hp > 50 ? UI_RGB(72, 200, 96) : hp > 20 ? UI_RGB(240, 200, 40) : UI_RGB(230, 60, 40));
-        }
-    }
-}
-
 /* ---- The action menu ---- */
-/* A row button's name, centred on its line (the same line on every button of the row). */
-static void BRowLabel(const char *s, const CtrPokeTouchRect *r, int fy, const EmPal *p)
-{
-    UiText(s, r->x + (r->w - UiTextWidth(s, 1)) / 2, fy + BACT_NAME_Y, p->ink, p->inkSh, 1, r->x + r->w);
-}
-
-static void BBallCard(const CtrBattleView *v);
-
 /* A hit code of the quick ball: the button or one of its arrows. */
 static int BBallPart(int code)
 {
     return code >= BUI_ACT_BALL && code <= BUI_ACT_BALL_NEXT;
 }
 
-static void BActCard(int i, const CtrBattleView *v)
-{
-    static const EmPal *const pal[4] = {&kEmAmber, &kEmBlue, &kEmGreen, &kEmPurple};
-    static const int icon[4] = {BX_FIGHT, BX_BAG, BX_BALL, BX_SHOE};
-    static const char *const label[4] = {CTR_TR("FIGHT", "LUCHAR", "Kampf"), CTR_TR("BAG", "MOCHILA", "Beutel"), CTR_TR("POK\xC3\xA9MON", "POK\xC3\xA9MON", "Pok\xC3\xA9mon"), CTR_TR("RUN", "HUIR", "Flucht")};
-    static const char *const sub[4] = {"", CTR_TR("ITEMS", "OBJETOS", "Items"), CTR_TR("PARTY", "EQUIPO", "Team"), CTR_TR("ESCAPE", "ESCAPAR", "Fliehen")};
-    const CtrPokeTouchRect *r = BActRect(v, i);
-    const EmPal *p = pal[i];
-    int fy = BEmCard(r, p, v->showCursor && v->cursor == i, v->pressed == i), fh = r->h - B_DEPTH;
-
-    if (i == 0) {
-        int left = r->x + 100, w = r->w - 108, tw = UiTextWidth(label[0], 2);
-        char text[32];
-
-        if (v->activeIcon && BPartyIcon(v->activeSlot, v->activeIcon)) { /* the Pokemon's own party icon at twice its size, bouncing */
-            int cx = r->x + 52, cy = fy + fh / 2, x0 = cx - 32, y0 = cy - 30 - 2 * v->activeFrame;
-
-            BDisc(cx, cy, 33, p);
-            for (int y = 0; y < 32; ++y)
-                for (int x = 0; x < 32; ++x) {
-                    uint8_t index = sBPIcon[v->activeSlot].pixels[y * 32 + x];
-
-                    if (index)
-                        Fill(x0 + 2 * x, y0 + 2 * y, 2, 2, sBPIcon[v->activeSlot].pal[index]);
-                }
-        } else
-            BDiscIcon(icon[0], r->x + 52, fy + fh / 2, 33, p);
-        /* The word and the pill as one block, centred on the face (FIGHT is 2x: 18 pixels tall). */
-        UiText(label[0], left + (w - tw) / 2, fy + (fh - 51) / 2, p->ink, p->inkSh, 2, r->x + r->w);
-        if (v->activeName[0]) {
-            snprintf(text, sizeof(text), "%s Lv%u", v->activeName, (unsigned)v->activeLevel);
-            BPill(left + (w - BPillW(text)) / 2, fy + (fh - 51) / 2 + 36, text, p->lip, EM_WHITE, p->edge);
-        }
-        return;
-    }
-    BDiscIcon(icon[i], r->x + r->w / 2, fy + BACT_DISC_Y, BACT_DISC_R, p);
-    BRowLabel(label[i], r, fy, p);
-    BPill(r->x + (r->w - BPillW(sub[i])) / 2, fy + BACT_PILL_Y, sub[i], p->lip, EM_WHITE, p->edge);
-}
-
-/* The quick ball: grey and still when there is no ball to throw (none left, or the boxes full). */
-static const EmPal kEmSlate = {UI_RGB(200, 196, 206), UI_RGB(150, 146, 160), UI_RGB(104, 100, 116), UI_RGB(60, 58, 72),
-                               EM_WHITE, UI_RGB(60, 58, 72)};
-/* Its colour: gold, apart from FIGHT's orange and the cursor's glow. */
-static const EmPal kEmGold = {UI_RGB(255, 228, 120), UI_RGB(226, 166, 24), UI_RGB(160, 108, 8), UI_RGB(96, 60, 4),
-                              EM_WHITE, UI_RGB(96, 60, 4)};
-
-/* An arrow of the quick ball: a small raised piece with a chevron, lit while there is another ball that way. */
-static void BBallArrowDraw(const CtrBattleView *v, int next, const EmPal *p, int face)
-{
-    CtrPokeTouchRect a = BBallArrow(v, next);
-    int pressed = v->pressed == (next ? BUI_ACT_BALL_NEXT : BUI_ACT_BALL_PREV);
-    int y = a.y + (face - (int)BActRect(v, CTR_ACTION_BALL)->y), cx, cy;
-    uint16_t ink = v->ballCount > 1 ? EM_WHITE : UiMix(p->lip, EM_WHITE, 2);
-
-    if (pressed)
-        y += 1;
-    UiRoundFill(a.x, y, a.w, a.h, 5, p->edge);
-    EmGradFill(a.x + 1, y + 1, a.w - 2, a.h - 2, 4, pressed ? p->edge : p->lip, UiMix(p->lip, p->edge, 2));
-    /* A chevron two pixels thick, 9 tall, with the shadow of the font under it. */
-    cx = a.x + a.w / 2 + (next ? -2 : 2);
-    cy = y + a.h / 2;
-    for (int pass = 0; pass < 2; ++pass)
-        for (int k = 0; k <= 4; ++k) {
-            int dx = next ? k : -k, sx = pass ? 0 : 1;
-            uint16_t c = pass ? ink : p->edge;
-
-            Fill(cx + dx + sx, cy - 4 + k + sx, 2, 1, c);
-            Fill(cx + dx + sx, cy + 4 - k + sx, 2, 1, c);
-        }
-}
-
-/* The quick ball (a wild battle's fourth button): the ball's own icon at twice its size, its name, a dot for each of
- * the Bag's balls (the one shown lit), and under them the arrows round its count. Without a ball to throw: grey,
- * a plain Poke Ball and why. */
-static void BBallCard(const CtrBattleView *v)
-{
-    const CtrPokeTouchRect *r = BActRect(v, CTR_ACTION_BALL);
-    int ready = v->ball == CTR_QUICK_BALL_READY;
-    const EmPal *p = ready ? &kEmGold : &kEmSlate;
-    int fy = BEmCard(r, p, v->showCursor && v->cursor == CTR_ACTION_BALL, ready && v->pressed == BUI_ACT_BALL);
-    int cx = r->x + r->w / 2;
-
-    if (!ready) {
-        const char *why = v->ball == CTR_QUICK_BALL_FULL ? CTR_TR("BOX FULL", "CAJA LLENA", "Box voll") : CTR_TR("NO BALLS", "SIN BALLS", "Kein Ball");
-
-        char qty[8];
-
-        BDiscIcon(BX_BALL, cx, fy + BACT_DISC_Y, BACT_DISC_R, p);
-        BRowLabel(why, r, fy, p);
-        /* The pill on the row's line as on the others: none left, or how many of the ball there would be. */
-        snprintf(qty, sizeof(qty), "x%u", v->ball == CTR_QUICK_BALL_FULL ? (unsigned)v->ballQty : 0u);
-        BPill(cx - BPillW(qty) / 2, fy + BACT_PILL_Y, qty, p->lip, EM_WHITE, p->edge);
-        return;
-    }
-    BDisc(cx, fy + BACT_DISC_Y, BACT_DISC_R, p);
-    BItemDraw(v->ballItem, cx - 24, fy + BACT_DISC_Y - 24, 2);
-    {
-        /* The name; " BALL" left off when the whole of it is wider than the button. */
-        char name[BUI_ITEM_LEN];
-        size_t n;
-
-        snprintf(name, sizeof(name), "%s", v->ballName);
-        n = strlen(name);
-        /* "BALL" left off too when it is joined to the name, as in German (MEISTERBALL). */
-        if (UiTextWidth(name, 1) > r->w - 8 && n > 6 && strcmp(name + n - 4, "BALL") == 0)
-            name[n - (name[n - 5] == ' ' ? 5 : 4)] = 0;
-        BRowLabel(name, r, fy, p);
-    }
-    if (v->ballCount > 1) {
-        int count = v->ballCount, gap = (r->w - 16) / count > 8 ? 8 : (r->w - 16) / count;
-        int x0 = cx - gap * (count - 1) / 2;
-
-        for (int k = 0; k < count; ++k)
-            UiDisc(x0 + gap * k, fy + BACT_DOTS_Y, gap >= 6 ? 2 : 1,
-                   k == v->ballPlace ? EM_WHITE : UiMix(p->bottom, p->edge, 2));
-    }
-    {
-        char qty[8];
-
-        snprintf(qty, sizeof(qty), "x%u", (unsigned)v->ballQty);
-        BPill(cx - BPillW(qty) / 2, fy + BACT_PILL_Y, qty, p->lip, EM_WHITE, p->edge);
-    }
-    if (v->ballCount > 1) {
-        BBallArrowDraw(v, 0, p, fy);
-        BBallArrowDraw(v, 1, p, fy);
-    }
-}
-
-/* ---- The moves ---- */
-/* The PP count's ink: red at 0, orange and amber when low. On the amber card the orange and amber vanish into it, so
- * there only 0 is red and the pips tell the rest. */
-static uint16_t BEmPpInk(unsigned pp, unsigned max, const EmPal *p)
-{
-    if (pp == 0)
-        return EM_VALUE;
-    if (p == &kEmAmber)
-        return p->ink;
-    return pp * 4 <= max ? UI_RGB(222, 96, 24) : pp * 2 <= max ? UI_RGB(196, 128, 0) : p->ink;
-}
-
-/* What the move does to the foe, on a pill: green when it is super effective, orange when not very, grey otherwise. */
-static const uint16_t kBFxColor[] = {0, UI_RGB(110, 100, 110), UI_RGB(204, 84, 24), UI_RGB(214, 112, 30),
-                                     UI_RGB(40, 150, 70), UI_RGB(30, 170, 60), UI_RGB(100, 106, 132)};
-
-/* The mark before the pill's words, as in the mockup: two arrows up for super effective, one down for not very, a red
- * cross for no effect; a plain hit has none. 7 pixels tall, `x` its left edge; returns its width. */
-enum { BFX_MARK_NONE, BFX_MARK_UP, BFX_MARK_DOWN, BFX_MARK_CROSS };
-
-static int BFxMarkW(int mark)
-{
-    return mark == BFX_MARK_UP ? 11 : mark == BFX_MARK_DOWN ? 7 : mark == BFX_MARK_CROSS ? 7 : 0;
-}
-
-static void BFxMark(int mark, int x, int y, uint16_t ink, uint16_t shadow)
-{
-    for (int pass = 0; pass < 2; ++pass) {
-        uint16_t c = pass ? ink : shadow;
-        int sx = x + !pass, sy = y + !pass;      /* the shadow first, a pixel down and right, as the font's */
-
-        if (mark == BFX_MARK_UP)
-            for (int k = 0; k < 2; ++k)
-                for (int row = 0; row < 6; ++row)
-                    Fill(sx + 6 * k + 2 - row / 2, sy + 1 + row, 1 + row / 2 * 2, 1, c);
-        else if (mark == BFX_MARK_DOWN)
-            for (int row = 0; row < 7; ++row)
-                Fill(sx + (row + 1) / 2, sy + row, 7 - (row + 1) / 2 * 2, 1, c);
-        else if (mark == BFX_MARK_CROSS) {
-            if (pass)
-                c = UI_RGB(240, 72, 64);
-            for (int k = 0; k < 6; ++k) {
-                Fill(sx + k, sy + k, 2, 1, c);
-                Fill(sx + 5 - k, sy + k, 2, 1, c);
-            }
-        }
-    }
-}
-
-static void BMatchupPill(uint8_t matchup, int right, int y)
-{
-    static const char *const kText[] = {"", CTR_TR("NO EFFECT", "NO AFECTA", "Wirkungslos"), CTR_TR("NOT VERY", "POCO EFIC.", "Nicht sehr"), CTR_TR("NOT VERY", "POCO EFIC.", "Nicht sehr"), CTR_TR("SUPER", "S\xC3\x9APER", "Sehr"), CTR_TR("SUPER x4", "S\xC3\x9APER x4", "Sehr x4"), CTR_TR("EFFECTIVE", "EFICAZ", "Effektiv")};
-    static const uint8_t kMark[] = {BFX_MARK_NONE, BFX_MARK_CROSS, BFX_MARK_DOWN, BFX_MARK_DOWN, BFX_MARK_UP, BFX_MARK_UP,
-                                    BFX_MARK_NONE};
-    const uint16_t *kColor = kBFxColor;
-    uint16_t shadow;
-    int markW, w, x;
-
-    if (matchup == CTR_FX_NONE || matchup > CTR_FX_NEUTRAL)
-        return;
-    markW = BFxMarkW(kMark[matchup]);
-    w = BPillW(kText[matchup]) + (markW ? markW + 2 : 0);
-    x = right - w;
-    shadow = UiMix(kColor[matchup], UI_RGB(0, 0, 0), 4);
-    UiRoundFill(x, y, w, 15, 5, UiMix(kColor[matchup], UI_RGB(0, 0, 0), 3));
-    UiRoundFill(x + 1, y + 1, w - 2, 13, 4, kColor[matchup]);
-    if (markW)
-        BFxMark(kMark[matchup], x + 6, y + 4, EM_WHITE, shadow);
-    UiText(kText[matchup], x + 7 + (markW ? markW + 2 : 0), y + 3, EM_WHITE, shadow, 1, x + w);
-}
-
-static void BMoveCard(int i, const CtrBattleView *v)
-{
-    const CtrPokeTouchRect *r = &sBCard[i];
-    const CtrBattleMove *m = &v->move[i];
-    int focused = v->showCursor && v->cursor == i;
-    const EmPal *p = focused ? &kEmAmber : &kEmCream;
-    uint16_t label = focused ? UI_RGB(255, 236, 200) : EM_DIM;
-    int fy, fh = r->h - B_DEPTH;
-
-    if (!m->present) {
-        BHollow(r);
-        return;
-    }
-    fy = BEmCard(r, p, focused, v->pressed == i);
-    Fill(r->x + 3, fy + 4, 4, fh - 8, UiTypeColor(m->type));
-    UiText(m->name, r->x + 12, fy + 7, p->ink, p->inkSh, 1, r->x + r->w - 58);
-    BPill(r->x + r->w - 6 - BPillW(m->typeName), fy + 4, m->typeName, UiTypeColor(m->type), EM_WHITE,
-          UiMix(UiTypeColor(m->type), UI_RGB(0, 0, 0), 4));
-    UiText(CTR_TR("POW", "POT", "St\xC3\xA4"), r->x + 12, fy + 25, label, p->inkSh, 1, r->x + 40);
-    UiText(m->power[0] ? m->power : "-", r->x + 40, fy + 25, p->ink, p->inkSh, 1, r->x + 72);
-    if (m->matchup != CTR_FX_NONE)
-        BMatchupPill(m->matchup, r->x + r->w - 6, fy + 22);
-    else if (!m->power[0] || m->power[0] == '-')
-        UiTextRight(CTR_TR("STATUS", "ESTADO", "Status"), r->x + r->w - 8, fy + 25, label, p->inkSh, 1);
-    {
-        /* The last row: PP as five pips (a fifth of the move's PP each) and its number, and the move's accuracy between them. */
-        int lit = m->maxPp ? ((int)m->pp * 5 + m->maxPp - 1) / m->maxPp : 0;
-        uint16_t on = m->pp * 4 <= m->maxPp ? UI_RGB(232, 110, 30) : m->pp * 2 <= m->maxPp ? UI_RGB(236, 190, 30)
-                    : UI_RGB(72, 190, 96);
-        /* On the amber card the unlit pips are its dark brown: its orange looked like lit pips (a move at 0 PP read full). */
-        uint16_t off = focused ? UiMix(p->lip, p->edge, 4) : UiMix(p->bottom, p->edge, 3);
-        char pp[16];
-
-        const char *accLabel = CTR_TR("ACC", "PRE", "Gen");
-        const char *acc = m->accuracy[0] && m->accuracy[0] != '-' ? m->accuracy : "--";
-        int pipsEnd = r->x + 12 + 5 * 6, ppLeft, accRight, accStart;
-
-        for (int k = 0; k < 5; ++k)
-            UiRoundFill(r->x + 12 + 6 * k, fy + 45, 5, 5, 2, k < lit ? on : off);
-        snprintf(pp, sizeof(pp), "%u/%u", m->pp, m->maxPp);
-        UiTextRight(pp, r->x + r->w - 8, fy + 43, BEmPpInk(m->pp, m->maxPp, p), p->inkSh, 1);
-        ppLeft = r->x + r->w - 13 - UiTextWidth(pp, 1) - UiTextWidth("PP", 1);
-        UiTextRight("PP", r->x + r->w - 13 - UiTextWidth(pp, 1), fy + 43, label, p->inkSh, 1);
-        /* The accuracy sits just before PP; where its label does not fit between the pips and PP, only the number is shown. */
-        accRight = ppLeft - 8;
-        accStart = accRight - UiTextWidth(acc, 1) - 3 - UiTextWidth(accLabel, 1);
-        if (accStart >= pipsEnd + 5) {
-            UiText(accLabel, accStart, fy + 43, label, p->inkSh, 1, accRight);
-            UiTextRight(acc, accRight, fy + 43, p->ink, p->inkSh, 1);
-        } else {
-            UiTextRight(acc, accRight, fy + 43, p->ink, p->inkSh, 1);
-        }
-    }
-}
-
-/* The note under the moves: accuracy, effect chance and STAB of the move under FireRed's cursor, and its description. */
-static void BMoveNote(const CtrBattleView *v)
-{
-    const CtrPokeTouchRect *n = &sBNote;
-    int sel = v->cursor >= 0 && v->cursor < 4 && v->move[v->cursor].present ? v->cursor : 0;
-    const CtrBattleMove *m = &v->move[sel];
-
-    TsBgRect(n->x, n->y, n->w, n->h);
-    EmNote(n->x, n->y, n->w, n->h);
-    if (!m->present)
-        return;
-    {
-        const char *acc = m->accuracy[0] && m->accuracy[0] != '-' ? m->accuracy : "--";
-        char val[16];
-        int x = n->x + 12;
-
-        UiText(CTR_TR("ACC", "PRE", "Gen"), x, n->y + 7, EM_DIM, EM_DARK_SH, 1, n->x + n->w);
-        snprintf(val, sizeof(val), "%s%s", acc, acc[0] == '-' ? "" : "%");
-        UiText(val, x + 26, n->y + 7, EM_DARK, EM_DARK_SH, 1, n->x + n->w);
-        if (m->effectChance) {
-            UiText(CTR_TR("EFFECT", "EFECTO", "Effekt"), x + 70, n->y + 7, EM_DIM, EM_DARK_SH, 1, n->x + n->w);
-            snprintf(val, sizeof(val), "%u%%", m->effectChance);
-            UiText(val, x + 116, n->y + 7, EM_DARK, EM_DARK_SH, 1, n->x + n->w);
-        }
-        if (m->stab)
-            BPill(n->x + n->w - 8 - BPillW(CTR_TR("STAB", "STAB", "STAB")), n->y + 4, CTR_TR("STAB", "STAB", "STAB"), EM_STRIPE, EM_WHITE, UI_RGB(110, 40, 6));
-    }
-    BDescribeN(m->desc[0] ? m->desc : m->type < 10 ? CTR_TR("Physical move", "Ataque f\xC3\xADsico", "Physischer Angriff") : CTR_TR("Special move", "Ataque especial", "Spezialangriff"), n->x + 12, n->y + 24,
-               n->w - 18, 3, EM_DARK);
-}
-
-/* ---- A double battle's targets: the opposing battlers on top, the player's below, as the move cards ---- */
-static void BTargetCard(int i, const CtrBattleView *v)
-{
-    const CtrPokeTouchRect *r = &sBCard[i];
-    const CtrBattleTarget *t = &v->target[i];
-    int focused = v->showCursor && v->cursor == i;
-    const EmPal *p = focused ? &kEmAmber : &kEmCream;
-    uint16_t side = t->side ? UI_RGB(60, 120, 230) : UI_RGB(220, 60, 50);
-    int fy, fh = r->h - B_DEPTH;
-    char text[20];
-
-    if (!t->present) {
-        BHollow(r);
-        return;
-    }
-    fy = BEmCard(r, p, focused, v->pressed == i);
-    Fill(r->x + 3, fy + 4, 4, fh - 8, side);
-    UiText(t->name, r->x + 12, fy + 7, p->ink, p->inkSh, 1, r->x + r->w - 48);
-    BPill(r->x + r->w - 6 - BPillW(t->side ? CTR_TR("ALLY", "ALIADO", "Partner") : CTR_TR("FOE", "RIVAL", "Gegner")), fy + 4, t->side ? CTR_TR("ALLY", "ALIADO", "Partner") : CTR_TR("FOE", "RIVAL", "Gegner"), side, EM_WHITE,
-          UiMix(side, UI_RGB(0, 0, 0), 4));
-    snprintf(text, sizeof(text), "Lv%u", t->level);
-    UiText(text, r->x + 12, fy + 25, p->ink, p->inkSh, 1, r->x + 60);
-    BMatchupPill(t->matchup, r->x + r->w - 6, fy + 22);
-    {
-        CtrPokeTouchRect bar = {(int16_t)(r->x + 12), (int16_t)(fy + 45), 70, 6};
-
-        UiRoundFill(bar.x - 1, bar.y - 1, bar.w + 2, bar.h + 2, 2, UI_RGB(64, 72, 104));
-        UiHpBar(&bar, t->hp, t->maxHp);
-        if (t->side) {
-            snprintf(text, sizeof(text), "%u/%u", t->hp, t->maxHp);
-            UiTextRight(text, r->x + r->w - 8, fy + 44, p->ink, p->inkSh, 1);
-        }
-    }
-}
-
-static void BTargetNote(void)
-{
-    const CtrPokeTouchRect *n = &sBNote;
-
-    TsBgRect(n->x, n->y, n->w, n->h);
-    EmNote(n->x, n->y, n->w, n->h);
-    BPWrap(CTR_TR("Which POK\xC3\xA9MON should the move hit?", "\xC2\xBF" "A qu\xC3\xA9 POK\xC3\xA9MON ataca?", "Welches Pok\xC3\xA9mon angreifen?"), n->x + 12, n->y + 25, n->w - 18, 2, EM_DARK, EM_DARK_SH);
-}
-
 /* ---- The Safari Zone: BALL, BAIT, ROCK, RUN (the words of FireRed's gText_SafariZoneMenu) ---- */
-static void BSafariCard(int i, const CtrBattleView *v)
-{
-    static const EmPal *const pal[4] = {&kEmAmber, &kEmGreen, &kEmBlue, &kEmPurple};
-    static const int icon[4] = {BX_BALL, BX_BAIT, BX_ROCK, BX_SHOE};
-    static const char *const label[4] = {CTR_TR("BALL", "BALL", "Ball"), CTR_TR("BAIT", "CEBO", "K\xC3\xB6" "der"), CTR_TR("ROCK", "ROCA", "Stein"), CTR_TR("RUN", "HUIR", "Flucht")};
-    const CtrPokeTouchRect *r = &sBSafari[i];
-    const EmPal *p = pal[i];
-    int fy = BEmCard(r, p, v->showCursor && v->cursor == i, v->pressed == i);
-
-    BDiscIcon(icon[i], r->x + r->w / 2, fy + 34, 25, p);
-    UiText(label[i], r->x + (r->w - UiTextWidth(label[i], 1)) / 2, fy + 69, p->ink, p->inkSh, 1, r->x + r->w);
-}
-
 /* ---- The battle Bag ---- */
 /* Its title (the items: the balls have their button on the action screen) and, with the Berry Pouch, BERRIES. */
 static void BTabs(const CtrBattleView *v)
@@ -1423,29 +988,12 @@ static void BBag(const CtrBattleView *v)
 }
 
 /* A screen with the party's balls on top. */
+#include "3ds_battle_page_impl.h"
+
+/* Every state but the Bag and the Party: a page (3ds_battle_page_impl.h). */
 static void BScreen(const CtrBattleView *v)
 {
-    TsBackdrop();
-    BStrip(v);
-    if (v->state == BUI_ACTION) {
-        for (int i = 0; i < 4; ++i)
-            BActCard(i, v);
-        if (v->ball != CTR_QUICK_BALL_NONE)
-            BBallCard(v);
-    }
-    else if (v->state == BUI_MOVE) {
-        for (int i = 0; i < 4; ++i)
-            BMoveCard(i, v);
-        BMoveNote(v);
-        BEmCancel(&sBCancel, v->pressed == BUI_CANCEL);
-    } else if (v->state == BUI_TARGET) {
-        for (int i = 0; i < 4; ++i)
-            BTargetCard(i, v);
-        BTargetNote();
-        BEmCancel(&sBCancel, v->pressed == BUI_CANCEL);
-    } else if (v->state == BUI_SAFARI)
-        for (int i = 0; i < 4; ++i)
-            BSafariCard(i, v);
+    BPageScreen(v);
 }
 
 void CtrBattleUi_Draw(uint16_t *canvas, const CtrBattleView *v)
@@ -1497,8 +1045,8 @@ static int BPartyMenuOnly(const CtrBattleView *a, const CtrBattleView *b)
 /* Whether a screen with the balls must be drawn again whole: another screen, other balls, other cards. */
 static int BScreenChanged(const CtrBattleView *a, const CtrBattleView *b)
 {
-    if (a->state != b->state || memcmp(a->party, b->party, sizeof(b->party)) || memcmp(a->partyHp, b->partyHp, sizeof(b->partyHp))
-        || memcmp(a->partyStatus, b->partyStatus, sizeof(b->partyStatus)))
+    if (a->state != b->state || a->frameType != b->frameType || memcmp(a->party, b->party, sizeof(b->party)) || memcmp(a->partyHp, b->partyHp, sizeof(b->partyHp))
+        || memcmp(a->partyStatus, b->partyStatus, sizeof(b->partyStatus)) || memcmp(a->partyIcon, b->partyIcon, sizeof(b->partyIcon)))
         return 1;
     if (b->state == BUI_ACTION)
         return strcmp(a->activeName, b->activeName) || a->activeLevel != b->activeLevel || a->activeIcon != b->activeIcon
@@ -1579,40 +1127,8 @@ void CtrBattleUi_Update(uint16_t *canvas, const CtrBattleView *old, const CtrBat
         CtrBattleUi_Draw(canvas, v);
         EmSurface();
         BMark(dirty, &all);
-    } else if (v->state != BUI_IDLE) {
-        /* Only what looks different: a card pressed or under the cursor, the note that follows the cursor, CANCEL. */
-        for (int i = 0; i < 4; ++i)
-            if (BLooksChanged(old, v, i)) {
-                const CtrPokeTouchRect *c = v->state == BUI_ACTION ? BActRect(v, i) : v->state == BUI_SAFARI ? &sBSafari[i] : &sBCard[i];
-                CtrPokeTouchRect g = UiInset(c, -2);
-
-                if (v->state == BUI_ACTION)
-                    BActCard(i, v);
-                else if (v->state == BUI_SAFARI)
-                    BSafariCard(i, v);
-                else if (v->state == BUI_MOVE)
-                    BMoveCard(i, v);
-                else
-                    BTargetCard(i, v);
-                BMark(dirty, &g);
-            }
-        if (v->state == BUI_MOVE && old->cursor != v->cursor) {
-            BMoveNote(v);
-            BMark(dirty, &sBNote);
-        }
-        /* The quick ball: pressed (the button or an arrow), or the cursor on it or off it. */
-        if (v->state == BUI_ACTION && v->ball != CTR_QUICK_BALL_NONE
-            && ((old->pressed != v->pressed && (BBallPart(old->pressed) || BBallPart(v->pressed)))
-                || (old->showCursor && old->cursor == CTR_ACTION_BALL) != (v->showCursor && v->cursor == CTR_ACTION_BALL))) {
-            CtrPokeTouchRect g = UiInset(BActRect(v, CTR_ACTION_BALL), -2);
-
-            BBallCard(v);
-            BMark(dirty, &g);
-        }
-        if ((v->state == BUI_MOVE || v->state == BUI_TARGET) && (old->pressed == BUI_CANCEL) != (v->pressed == BUI_CANCEL)) {
-            BEmCancel(&sBCancel, v->pressed == BUI_CANCEL);
-            BMark(dirty, &sBCancel);
-        }
+    } else {
+        BPageUpdate(old, v, dirty);
     }
     sUiS = &sUiNavy;
 }

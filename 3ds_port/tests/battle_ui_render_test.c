@@ -16,7 +16,19 @@
 
 static uint8_t font[256 * 64];
 const uint8_t *CtrTwinFontData(void) { return font; }
-unsigned CtrTwinFontWidth(unsigned code) { (void)code; return 6; }
+unsigned CtrTwinFontWidth(unsigned code) { return code == 0xEF ? 8 : 6; }
+/* FireRed's menu arrow (0xEF) as a solid 8x14 block of text ink, so a test can find it; every other glyph stays blank. */
+static void ArrowGlyph(void)
+{
+    for (int y = 0; y < 14; ++y)
+        for (int x = 0; x < 8; ++x) {
+            uint8_t *src = font + 0xEF * 64 + ((y / 8) * 2 + x / 8) * 16 + (y % 8) * 2;
+            unsigned bits = ((unsigned)src[1] << 8 | src[0]) | 1u << ((7 - x % 8) * 2);
+
+            src[0] = (uint8_t)bits;
+            src[1] = (uint8_t)(bits >> 8);
+        }
+}
 const uint8_t *CtrTwinJapaneseGlyph(unsigned code, uint8_t out[64]) { (void)code; memset(out, 0, 64); return out; }
 unsigned CtrTwinJapaneseFontWidth(unsigned code) { (void)code; return 8; }
 static uint8_t smallFont[256 * 32], smallWidth[256];
@@ -124,8 +136,12 @@ static void settle(const CtrBattleView *old, const CtrBattleView *v)
         for (int x = 0; x < W; ++x)
             for (int y = 0; y < H; ++y)
                 if (reference[x * H + H - 1 - y] != canvas[x * H + H - 1 - y]) {
-                    fprintf(stderr, "battle redraw mismatch at %d,%d state=%u pressed=%d cursor=%d\n", x, y, v->state,
-                            v->pressed, v->cursor);
+                    fprintf(stderr, "battle redraw mismatch at %d,%d state=%u pressed=%d cursor=%d ball=%u"
+                            " (from state=%u pressed=%d cursor=%d ball=%u)\n", x, y, v->state, v->pressed, v->cursor,
+                            v->ball, old->state, old->pressed, old->cursor, old->ball);
+                    for (size_t n = 0; n < sizeof(*v); ++n)       /* the view's bytes that changed, by offset */
+                        if (((const uint8_t *)old)[n] != ((const uint8_t *)v)[n])
+                            fprintf(stderr, "  view byte %zu: %u -> %u\n", n, ((const uint8_t *)old)[n], ((const uint8_t *)v)[n]);
                     assert(0);
                 }
     }
@@ -253,6 +269,300 @@ static void summary_hits(const CtrSummaryUiView *v)
 
 static void names(char *dst, size_t n, const char *s) { snprintf(dst, n, "%s", s); }
 
+#ifndef BATTLE_UI_BEFORE
+/* Text ink inside a framed cell's interior (8 px in): only the arrow draws it here (the test font is blank otherwise). */
+static int InkIn(const CtrPokeTouchRect *r)
+{
+    int n = 0;
+
+    for (int x = r->x + 8; x < r->x + r->w - 8; ++x)
+        for (int y = r->y + 8; y < r->y + r->h - 8; ++y)
+            n += at(x, y) == KitInk(2);
+    return n;
+}
+
+static int ColorIn(const CtrPokeTouchRect *r, uint16_t c)
+{
+    int n = 0;
+
+    for (int x = r->x; x < r->x + r->w; ++x)
+        for (int y = r->y; y < r->y + r->h; ++y)
+            n += at(x, y) == c;
+    return n;
+}
+
+/* action_hit_centres: every command, the quick ball and its arrows answer at their rectangles' centres. */
+static void action_hit_centres(const CtrBattleView *v)
+{
+    const CtrPokeTouchRect *row = v->ball == CTR_QUICK_BALL_NONE ? kBatAction : kBatActionBall;
+
+    for (int i = 0; i < 4; ++i)
+        assert(CtrBattleUi_Hit(v, row[i].x + row[i].w / 2, row[i].y + row[i].h / 2) == i);
+    if (v->ball != CTR_QUICK_BALL_NONE) {
+        assert(CtrBattleUi_Hit(v, kBatBall.x + kBatBall.w / 2, kBatBall.y + kBatBall.h / 2) == BUI_ACT_BALL);
+        if (v->ball == CTR_QUICK_BALL_READY && v->ballCount > 1) {
+            assert(CtrBattleUi_Hit(v, kBatBallArrow[0].x + 12, kBatBallArrow[0].y + 12) == BUI_ACT_BALL_PREV);
+            assert(CtrBattleUi_Hit(v, kBatBallArrow[1].x + 12, kBatBallArrow[1].y + 12) == BUI_ACT_BALL_NEXT);
+        }
+    }
+    assert(CtrBattleUi_Hit(v, kBatParty.x + 4, kBatParty.y + 4) == -1);
+}
+
+/* arrow_follows_cursor_and_press: the arrow (a solid 8x14 here) is in the cell of FireRed's cursor, or in the one held
+ * under a touch; never in two. */
+static void arrow_follows_cursor_and_press(const CtrBattleView *base)
+{
+    CtrBattleView v = *base, old = *base;
+
+    v.state = BUI_ACTION; v.ball = CTR_QUICK_BALL_NONE; v.showCursor = 1; v.cursor = 2; v.pressed = -1;
+    settle(&old, &v); old = v;
+    for (int i = 0; i < 4; ++i)
+        assert(InkIn(&kBatAction[i]) == (i == 2 ? 8 * 14 : 0));
+    v.pressed = 1; settle(&old, &v); old = v;
+    for (int i = 0; i < 4; ++i)
+        assert(InkIn(&kBatAction[i]) == (i == 1 ? 8 * 14 : 0));
+    v.state = BUI_SAFARI; v.pressed = -1; v.cursor = 3; settle(&old, &v); old = v;
+    for (int i = 0; i < 4; ++i)
+        assert(InkIn(&kBatSafari[i]) == (i == 3 ? 8 * 14 : 0));
+    v.pressed = 0; settle(&old, &v); old = v;
+    for (int i = 0; i < 4; ++i)
+        assert(InkIn(&kBatSafari[i]) == (i == 0 ? 8 * 14 : 0));
+    CtrBattleUi_Draw(canvas, base);         /* the canvas back to the caller's view, for its next settle */
+}
+
+/* quick_ball_states: no button without the quick ball; READY in the ball's colours; EMPTY toned grey. */
+static void quick_ball_states(const CtrBattleView *base)
+{
+    CtrBattleView v = *base, old = *base;
+    uint16_t green = GbaColor(31 << 5);     /* the test's icon colour for item 2 */
+
+    v.state = BUI_ACTION; v.pressed = -1; v.cursor = 0; v.ballItem = 2; v.ballQty = 5; v.ballCount = 2; v.ballPlace = 0;
+    v.ball = CTR_QUICK_BALL_NONE; settle(&old, &v); old = v;
+    {   /* no quick ball: its icon (the only pure green here) nowhere on the screen */
+        const CtrPokeTouchRect all = {0, 0, W, H};
+
+        assert(ColorIn(&all, green) == 0);
+    }
+    v.ball = CTR_QUICK_BALL_READY; settle(&old, &v); old = v;
+    assert(ColorIn(&kBatBall, green) > 0);
+    v.ball = CTR_QUICK_BALL_EMPTY; settle(&old, &v); old = v;
+    assert(ColorIn(&kBatBall, green) == 0 && ColorIn(&kBatBall, Tone(green, 0)) > 0);
+    v.ball = CTR_QUICK_BALL_FULL; settle(&old, &v); old = v;
+    assert(ColorIn(&kBatBall, green) == 0);
+    CtrBattleUi_Draw(canvas, base);         /* the canvas back to the caller's view, for its next settle */
+}
+
+/* party_icons: each Pokemon's own party icon (frame 0, from the pack) in its slot, 48 px apart, toned when fainted, none
+ * for an empty slot; FireRed's HP bar under it. A changed icon redraws the page. */
+static void party_icons(const CtrBattleView *base)
+{
+    CtrBattleView v = *base, old = *base;
+
+    v.state = BUI_ACTION; v.pressed = -1; v.ball = CTR_QUICK_BALL_NONE;
+    for (int k = 0; k < 6; ++k)
+        v.partyIcon[k] = v.party[k] ? (uint16_t)(25 + k) : 0;
+    settle(&old, &v); old = v;
+    for (int k = 0; k < 6; ++k) {
+        CtrPokeTouchRect icon = {(int16_t)(kBatParty.x + 48 * k + 8), kBatParty.y, 32, 32};
+        CtrPokeTouchRect hp = {(int16_t)(kBatParty.x + 48 * k + 10), (int16_t)(kBatParty.y + 33), 28, 4};
+        uint16_t c = sBPIcon[k].pal[1];
+
+        if (!v.party[k]) {
+            assert(ColorIn(&hp, KitInk(2)) == 0);
+            continue;
+        }
+        if (v.party[k] == 2)
+            assert(ColorIn(&icon, c) == 0 && ColorIn(&icon, Tone(c, 0)) > 32 * 32 / 2);
+        else
+            assert(ColorIn(&icon, c) > 32 * 32 / 2);
+        assert(ColorIn(&hp, KitInk(2)) > 0);
+    }
+    v.partyIcon[0] = 99; settle(&old, &v); old = v;
+    CtrBattleUi_Draw(canvas, base);         /* the canvas back to the caller's view, for its next settle */
+}
+
+/* The arrow at the start of a move or target cell's first line (8 px wide, the line's 14 rows): 8x14 of ink when there. */
+static int ArrowAtLine(const CtrPokeTouchRect *r)
+{
+    int n = 0;
+
+    for (int x = r->x + 8; x < r->x + 16; ++x)
+        for (int y = r->y + 8; y < r->y + 24; ++y)
+            n += at(x, y) == KitInk(2);
+    return n;
+}
+
+/* The five PP pips on a move card's third line: pixels of colour c in their 29x5. */
+static int PipsIn(const CtrPokeTouchRect *r, uint16_t c)
+{
+    CtrPokeTouchRect in = BPageInside(r);
+    int n = 0, x0 = in.x + KIT_ARROW_W, y0 = BPAGE_LINE(in, 2) + 6;
+
+    for (int x = x0; x < x0 + 29; ++x)
+        for (int y = y0; y < y0 + 5; ++y)
+            n += at(x, y) == c;
+    return n;
+}
+
+/* move_hit_centres, empty_move_slot, the arrow on the moves and the targets, the PP pips, the note's STAB, the party's
+ * balls on both pages. */
+static void moves_and_targets(const CtrBattleView *base)
+{
+    CtrBattleView v = *base, old = *base;
+    const CtrPokeTouchRect *c = &kBatCancel;
+
+    v.state = BUI_MOVE; v.pressed = -1; v.cursor = 1;
+    v.move[3].present = 0;
+    settle(&old, &v); old = v;
+    for (int i = 0; i < 3; ++i)
+        assert(CtrBattleUi_Hit(&v, kBatMove[i].x + kBatMove[i].w / 2, kBatMove[i].y + kBatMove[i].h / 2) == i);
+    assert(CtrBattleUi_Hit(&v, c->x + c->w / 2, c->y + c->h / 2) == BUI_CANCEL);
+    /* empty_move_slot: nothing but the page, and no hit */
+    assert(CtrBattleUi_Hit(&v, kBatMove[3].x + kBatMove[3].w / 2, kBatMove[3].y + kBatMove[3].h / 2) == -1);
+    assert(ColorIn(&kBatMove[3], BPageBg()) == kBatMove[3].w * kBatMove[3].h);
+    for (int i = 0; i < 3; ++i)
+        assert(ArrowAtLine(&kBatMove[i]) == (i == 1 ? 8 * 14 : 0));
+    /* pp_pips: a fifth of the PP each, rounded up; green over half, yellow down to a quarter, red below (FireRed's HP
+     * colours); the unlit ones the light grey. 15/15, 7/15, 3/15 here. */
+    assert(PipsIn(&kBatMove[0], UI_HP_HIGH) == 5 * 21 && PipsIn(&kBatMove[0], KitInk(3)) == 0);
+    assert(PipsIn(&kBatMove[1], UI_HP_MID) == 3 * 21 && PipsIn(&kBatMove[1], KitInk(3)) == 2 * 21);
+    assert(PipsIn(&kBatMove[2], UI_HP_LOW) == 1 * 21 && PipsIn(&kBatMove[2], KitInk(3)) == 4 * 21);
+    v.pressed = 2; settle(&old, &v); old = v;
+    for (int i = 0; i < 3; ++i)
+        assert(ArrowAtLine(&kBatMove[i]) == (i == 2 ? 8 * 14 : 0));
+    v.pressed = -1; v.cursor = 0; settle(&old, &v); old = v;
+    /* note_stab_tag: the note shows the STAB tag only for a move with it (the one under the cursor) */
+    v.move[0].stab = 1; settle(&old, &v); old = v;
+    assert(ColorIn(&kBatMoveNote, kBStabColor) > 0);
+    v.move[0].stab = 0; settle(&old, &v); old = v;
+    assert(ColorIn(&kBatMoveNote, kBStabColor) == 0);
+    /* note_description_three_lines (the owner's pick after the final review): the note is the description alone, from
+     * its first line to its third (the card shows the accuracy); with STAB its first line stops 4 px short of the tag.
+     * Q is the only glyph with ink here: nine 60 px words, three to a 208 px line. */
+    {
+        const CtrPokeTouchRect *n = &kBatMoveNote;
+        int x = n->x + 16, right = n->x + n->w - 16, top = n->y + 6, tag = UiTextWidth("STAB", 1) + 8;
+        char saved[sizeof(v.move[0].desc)];
+        static uint8_t savedFont[sizeof(font)];
+
+        memcpy(saved, v.move[0].desc, sizeof(saved));
+        memcpy(savedFont, font, sizeof(font));
+        for (int y = 3; y <= 11; ++y)
+            for (int px = 0; px <= 4; ++px) {
+                uint8_t *src = font + 0xCB * 64 + ((y / 8) * 2 + px / 8) * 16 + (y % 8) * 2;
+                unsigned bits = ((unsigned)src[1] << 8 | src[0]) | 1u << ((7 - px % 8) * 2);
+
+                src[0] = (uint8_t)bits;
+                src[1] = (uint8_t)(bits >> 8);
+            }
+        memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        snprintf(v.move[0].desc, sizeof(v.move[0].desc), "%s",
+                 "QQQQQQQQQQ QQQQQQQQQQ QQQQQQQQQQ QQQQQQQQQQ QQQQQQQQQQ QQQQQQQQQQ QQQQQQQQQQ QQQQQQQQQQ QQQQQQQQQQ");
+        CtrBattleUi_Draw(canvas, &v);
+        for (int line = 0; line < 3; ++line) {
+            CtrPokeTouchRect band = {(int16_t)x, (int16_t)(top + line * 14), (int16_t)(right - x), 14};
+
+            assert(ColorIn(&band, KitInk(2)) > 0);
+        }
+        v.move[0].stab = 1;
+        CtrBattleUi_Draw(canvas, &v);
+        {
+            CtrPokeTouchRect first = {(int16_t)x, (int16_t)top, (int16_t)(right - tag - 4 - x), 14};
+            CtrPokeTouchRect beside = {(int16_t)(right - tag - 4), (int16_t)top, (int16_t)(tag + 4), 14};
+
+            assert(ColorIn(&first, KitInk(2)) > 0 && ColorIn(&beside, KitInk(2)) == 0);
+            assert(ColorIn(&beside, kBStabColor) > 0);
+        }
+        v.move[0].stab = 0;
+        memcpy(v.move[0].desc, saved, sizeof(saved));
+        memcpy(font, savedFont, sizeof(font));
+        memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        CtrBattleUi_Draw(canvas, &v);
+        old = v;
+    }
+    v.pressed = BUI_CANCEL; settle(&old, &v); old = v;
+    v.pressed = -1; settle(&old, &v); old = v;
+    v.move[3].present = 1; settle(&old, &v); old = v;
+    /* 0/15: five unlit pips */
+    assert(PipsIn(&kBatMove[3], KitInk(3)) == 5 * 21 && !PipsIn(&kBatMove[3], UI_HP_HIGH) && !PipsIn(&kBatMove[3], UI_HP_LOW));
+
+    v.state = BUI_TARGET; v.cursor = 2;
+    for (int i = 0; i < 4; ++i)
+        v.target[i].present = 1;
+    v.target[3].present = 0;
+    settle(&old, &v); old = v;
+    for (int i = 0; i < 3; ++i)
+        assert(CtrBattleUi_Hit(&v, kBatTarget[i].x + kBatTarget[i].w / 2, kBatTarget[i].y + kBatTarget[i].h / 2) == i);
+    assert(CtrBattleUi_Hit(&v, kBatTarget[3].x + kBatTarget[3].w / 2, kBatTarget[3].y + kBatTarget[3].h / 2) == -1);
+    assert(CtrBattleUi_Hit(&v, c->x + c->w / 2, c->y + c->h / 2) == BUI_CANCEL);
+    for (int i = 0; i < 3; ++i)
+        assert(ArrowAtLine(&kBatTarget[i]) == (i == 2 ? 8 * 14 : 0));
+    v.pressed = 0; settle(&old, &v); old = v;
+    for (int i = 0; i < 3; ++i)
+        assert(ArrowAtLine(&kBatTarget[i]) == (i == 0 ? 8 * 14 : 0));
+    {
+        /* party_on_moves: the party's balls on the targets and the moves pages, the same pixels as on the commands */
+        static uint16_t commands[W * H];
+        CtrBattleView a = v;
+        const CtrPokeTouchRect *s = &kBatParty;
+        int drawn = 0;
+
+        a.state = BUI_ACTION; a.ball = CTR_QUICK_BALL_NONE; a.pressed = -1;
+        CtrBattleUi_Draw(canvas, &a);
+        memcpy(commands, canvas, sizeof(commands));
+        for (int page = 0; page < 2; ++page) {
+            v.state = page ? BUI_MOVE : BUI_TARGET;
+            CtrBattleUi_Draw(canvas, &v);
+            for (int x = s->x; x < s->x + s->w; ++x)
+                for (int y = s->y; y < s->y + s->h; ++y) {
+                    assert(at(x, y) == commands[x * H + H - 1 - y]);
+                    drawn += at(x, y) != BPageBg();
+                }
+        }
+        assert(drawn > 0);
+    }
+    CtrBattleUi_Draw(canvas, base);         /* the canvas back to the caller's view, for its next settle */
+}
+
+/* no_pp_toned (its own process, BATTLE_UI_PP: the digits and capitals get synthetic glyphs here and nowhere else): a
+ * move with no PP left draws its PP in the toned grey, never in the plain text colour; labels_light: POW, ACC and PP
+ * are in the toned ink, their values in the text colour. */
+static void no_pp_toned(void)
+{
+    CtrBattleView v;
+
+    for (unsigned code = 0xA1; code <= 0xD4; ++code)     /* 0-9 and A-Z: ink on the capitals' rows */
+        for (int y = 3; y <= 11 && (code <= 0xAA || code >= 0xBB); ++y)
+            for (int x = 0; x <= 4; ++x) {
+                uint8_t *src = font + code * 64 + ((y / 8) * 2 + x / 8) * 16 + (y % 8) * 2;
+                unsigned bits = ((unsigned)src[1] << 8 | src[0]) | 1u << ((7 - x % 8) * 2);
+
+                src[0] = (uint8_t)bits;
+                src[1] = (uint8_t)(bits >> 8);
+            }
+    memset(&v, 0, sizeof(v));
+    v.state = BUI_MOVE; v.pressed = -1; v.cursor = 1;
+    v.move[0].present = 1; v.move[0].pp = 0; v.move[0].maxPp = 25;
+    names(v.move[0].name, BUI_NAME_LEN, "SURF"); names(v.move[0].typeName, 10, "WATER");
+    names(v.move[0].power, sizeof(v.move[0].power), "90");
+    CtrBattleUi_Draw(canvas, &v);
+    {
+        /* the PP sits at the end of the cell's third line */
+        const CtrPokeTouchRect *r = &kBatMove[0];
+        CtrPokeTouchRect in = BPageInside(r);
+        CtrPokeTouchRect pp = {(int16_t)(r->x + r->w - 8 - 32), (int16_t)BPAGE_LINE(in, 2), 32, 16};
+        int labelW = UiTextWidth("POW", 1), space = UiTextWidth(" ", 1);
+        CtrPokeTouchRect label = {(int16_t)(in.x + KIT_ARROW_W), (int16_t)BPAGE_LINE(in, 1), (int16_t)labelW, 16};
+        CtrPokeTouchRect value = {(int16_t)(label.x + labelW + space), (int16_t)BPAGE_LINE(in, 1), 12, 16};
+
+        assert(ColorIn(&pp, Tone(KitInk(2), 0)) > 0 && ColorIn(&pp, KitInk(2)) == 0);
+        assert(ColorIn(&label, Tone(KitInk(2), 0)) > 0 && ColorIn(&label, KitInk(2)) == 0);
+        assert(ColorIn(&value, KitInk(2)) > 0);
+    }
+    printf("PASS battle ui no-PP\n");
+}
+#endif
+
 int main(int argc, char **argv)
 {
     const char *out = getenv("BATTLE_UI_OUT"), *fontPath = getenv("BATTLE_UI_FONT");
@@ -260,6 +570,13 @@ int main(int argc, char **argv)
     int k;
 
     (void)argv;
+    ArrowGlyph();
+#ifndef BATTLE_UI_BEFORE
+    if (getenv("BATTLE_UI_PP")) {
+        no_pp_toned();
+        return 0;
+    }
+#endif
 #ifndef BATTLE_UI_EXTERNAL_LOAD
 #ifndef BATTLE_UI_BEFORE
     gNoPack = getenv("BATTLE_UI_NO_PACK") != NULL;
@@ -326,13 +643,7 @@ int main(int argc, char **argv)
     v.ball = CTR_QUICK_BALL_READY; v.ballCount = 4; v.ballPlace = 1; v.ballItem = 2; v.ballQty = 21;
     names(v.ballName, BUI_ITEM_LEN, "GREAT BALL");
     settle(&old, &v); old = v; put(out, "02b_action_ball");
-    assert(CtrBattleUi_Hit(&v, 8 + 30, 120 + 30) == BUI_ACT_BAG);
-    assert(CtrBattleUi_Hit(&v, 85 + 36, 120 + 30) == BUI_ACT_BALL);
-    assert(CtrBattleUi_Hit(&v, 85 + 13, 120 + 95) == BUI_ACT_BALL_PREV);
-    assert(CtrBattleUi_Hit(&v, 85 + 73 - 13, 120 + 95) == BUI_ACT_BALL_NEXT);
-    assert(CtrBattleUi_Hit(&v, 162 + 36, 120 + 30) == BUI_ACT_POKEMON);
-    assert(CtrBattleUi_Hit(&v, 239 + 36, 120 + 30) == BUI_ACT_RUN);
-    assert(CtrBattleUi_Hit(&v, 150, 60) == BUI_ACT_FIGHT);
+    action_hit_centres(&v);
     v.showCursor = 1;
     for (k = 0; k < 5; ++k) {
         v.cursor = (int8_t)k; settle(&old, &v); old = v;
@@ -347,13 +658,15 @@ int main(int argc, char **argv)
     v.ballPlace = 2; v.ballItem = 3; v.ballQty = 8; names(v.ballName, BUI_ITEM_LEN, "ULTRA BALL");
     settle(&old, &v); old = v;
     v.ball = CTR_QUICK_BALL_EMPTY; v.ballCount = 0; settle(&old, &v); old = v; put(out, "02d_action_no_balls");
-    assert(CtrBattleUi_Hit(&v, 85 + 13, 120 + 95) == BUI_ACT_BALL);    /* no arrows: the button only says so */
+    assert(CtrBattleUi_Hit(&v, kBatBallArrow[0].x + 12, kBatBallArrow[0].y + 12) == -1);    /* no arrows */
     v.ball = CTR_QUICK_BALL_FULL; v.ballCount = 4; settle(&old, &v); old = v;
     v.ball = CTR_QUICK_BALL_READY; v.ballCount = 1; settle(&old, &v); old = v;
-    assert(CtrBattleUi_Hit(&v, 85 + 13, 120 + 95) == BUI_ACT_BALL);    /* one kind of ball: no other to go to */
+    assert(CtrBattleUi_Hit(&v, kBatBallArrow[1].x + 12, kBatBallArrow[1].y + 12) == -1);    /* one kind: no other */
     v.ball = CTR_QUICK_BALL_NONE; v.cursor = 0; settle(&old, &v); old = v;
-    assert(CtrBattleUi_Hit(&v, 8 + 30, 120 + 30) == BUI_ACT_BAG && CtrBattleUi_Hit(&v, 111 + 30, 120 + 30) == BUI_ACT_POKEMON
-           && CtrBattleUi_Hit(&v, 214 + 30, 120 + 30) == BUI_ACT_RUN);
+    action_hit_centres(&v);
+    arrow_follows_cursor_and_press(&v);
+    quick_ball_states(&v);
+    party_icons(&v);
     v.showCursor = 0; settle(&old, &v); old = v;
 #endif
 
@@ -389,32 +702,32 @@ int main(int argc, char **argv)
         w.showCursor = 0;
         settle(&old, &w); old = w; put(out, "03b_move_matchups");
         for (k = 0; k < 4; ++k) {
-            const CtrPokeTouchRect *r = &sBCard[k];
+            const CtrPokeTouchRect *r = &kBatMove[k];
             int found = 0;
 
-            for (int y = r->y + 20; y < r->y + 38; ++y)
-                for (int x = r->x + 57; x < r->x + r->w; ++x)
+            for (int y = r->y + 8 + 16; y < r->y + 8 + 32; ++y)
+                for (int x = r->x + 56; x < r->x + r->w - 8; ++x)
                     found += at(x, y) == fill[k];
             assert(found >= 12);           /* the mark is there, in the colour of its meaning */
             for (int c = 0; c < 4; ++c)
                 if (c != k) {
                     int other = 0;
 
-                    for (int y = r->y + 20; y < r->y + 38; ++y)
-                        for (int x = r->x + 57; x < r->x + r->w; ++x)
+                    for (int y = r->y + 8 + 16; y < r->y + 8 + 32; ++y)
+                        for (int x = r->x + 56; x < r->x + r->w - 8; ++x)
                             other += at(x, y) == fill[c];
                     assert(other == 0);    /* and in no other */
                 }
         }
         /* A neutral hit draws nothing: the row of the first card has none of its colour any more. */
         {
-            const CtrPokeTouchRect *r = &sBCard[0];
+            const CtrPokeTouchRect *r = &kBatMove[0];
             int left = 0;
 
             w.move[0].matchup = CTR_FX_NONE;
             settle(&old, &w); old = w;
-            for (int y = r->y + 20; y < r->y + 38; ++y)
-                for (int x = r->x + 57; x < r->x + r->w; ++x)
+            for (int y = r->y + 8 + 16; y < r->y + 8 + 32; ++y)
+                for (int x = r->x + 56; x < r->x + r->w - 8; ++x)
                     left += at(x, y) == fill[0];
             assert(left == 0);
         }
@@ -505,6 +818,9 @@ int main(int argc, char **argv)
     settle(&old, &v); old = v; put(out, "05_targets"); hits(&v);
     v.pressed = 0; settle(&old, &v); old = v; v.pressed = -1; settle(&old, &v); old = v;
 
+#ifndef BATTLE_UI_BEFORE
+    moves_and_targets(&v);
+#endif
     /* SAFARI */
     v.state = BUI_SAFARI; v.cursor = 2;
     settle(&old, &v); old = v; put(out, "06_safari"); hits(&v);
@@ -645,7 +961,10 @@ int main(int argc, char **argv)
                         fprintf(stderr, "state %d keeps the navy theme colour %04x at %d\n", states[i], navy[j], n);
                         assert(0);
                     }
-            assert(at(1, 100) == EMBER_BG(1, 100) || at(1, 100) == PT_RED_BG);   /* the ember backdrop, or the flat red not yet redone */
+            if (states[i] == BUI_SAFARI || states[i] == BUI_TARGET)
+                assert(at(1, 100) == BPageBg());    /* reworked: the page's own colour */
+            else
+                assert(at(1, 100) == EMBER_BG(1, 100) || at(1, 100) == PT_RED_BG);   /* the ember backdrop, or the flat red not yet redone */
         }
         {
             CtrSummaryUiView sv;

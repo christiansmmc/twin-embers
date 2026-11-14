@@ -769,7 +769,8 @@ void VBlankIntrWait(void)
     /* The overworld turbo (3ds_fast_forward.h): a frame that is not shown skips the
      * compositor, and with it the wait for the screen, and the sound engine;
      * the game, its VBlank handler, input, bottom screen and save still run.
-     * START (a new press) cycles it where CtrBottom_TurboCanCycle allows, and it is in force only where
+     * START (a new press) or a tap on HOME's SPEED cycles it where CtrBottom_TurboCanCycle allows (a tap is taken
+     * every frame, so it never waits for a later one), and it is in force only where
      * CtrBottom_TurboApplies says the stable field, or a battle's stable core, is the screen's owner. */
     static bool turboRestored;
     if (!turboRestored)
@@ -777,7 +778,8 @@ void VBlankIntrWait(void)
         turboRestored = true;
         sFastForward.turbo = CtrSettings_Turbo();   /* the speed chosen in an earlier session */
     }
-    CtrFastForward_Turbo(&sFastForward, (CtrInput_Get()->physicalDown & CTR_KEY_START) != 0,
+    bool turboTap = CtrBottom_TakeTurboTap();
+    CtrFastForward_Turbo(&sFastForward, (CtrInput_Get()->physicalDown & CTR_KEY_START) != 0 || turboTap,
                          CtrBottom_TurboCanCycle() != 0, CtrBottom_TurboApplies() != 0, CtrBottom_MenuChangingOver() != 0);
     {
         u64 settingsStart = osGetTime();

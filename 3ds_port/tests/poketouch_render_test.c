@@ -20,9 +20,39 @@ static uint8_t smallFont[256 * 32];
 const uint8_t *CtrTwinSmallFontData(void) { return smallFont; }
 unsigned CtrTwinSmallFontWidth(unsigned code) { (void)code; return 5; }
 
+/* graphics/text_window/ for home_frame_change, raw: typeN.4bpp's pixels cycle through indexes 0..2 shifted by N, so
+ * each type has clear (0) pixels where the type before it drew; the palettes' index 2 differs by type. */
+static int kitFixture;
+static void *KitFixture(const char *path, uint32_t *len)
+{
+    const char *name = path + strlen("graphics/text_window/");
+    int type = 0, n = strstr(name, "menu_message") ? 576 : strstr(name, ".4bpp") ? 288 : 32;
+    uint8_t *out;
+
+    if (strstr(name, ".lz"))
+        return NULL;
+    if (sscanf(name, "type%d.", &type) != 1)
+        type = 0;
+    out = calloc((size_t)n, 1); assert(out);
+    if (n != 32)
+        for (int i = 0; i < n * 2; ++i)
+            out[i / 2] |= (uint8_t)(((i + type) % 3) << (i & 1 ? 4 : 0));
+    else
+        for (int i = 0; i < 16; ++i) {
+            uint16_t c = (uint16_t)(i == 1 ? 0x7fff : (i * 7 + type * 3) | type << 10);
+
+            out[i * 2] = (uint8_t)c;
+            out[i * 2 + 1] = (uint8_t)(c >> 8);
+        }
+    *len = (uint32_t)n;
+    return out;
+}
+
 /* Literal-only GBA LZ stream, freshly synthesized from the fixture bytes. */
 void *CtrData_Load(const char *path, uint32_t *len)
 {
+    if (kitFixture && !strncmp(path, "graphics/text_window/", strlen("graphics/text_window/")))
+        return KitFixture(path, len);
     if (realPack) {
         const CtrPakEntry *entry=CtrPak_Find(realIndex,realHeader.entryCount,path);
         assert(entry && !entry->flags && entry->storedSize==entry->rawSize);
@@ -85,8 +115,16 @@ int CtrPokeTouch_MapPlayerIcon(uint8_t *tiles, uint16_t *pal)
 { (void)tiles; (void)pal; return 0; }
 int CtrPokeTouch_MapCursorIcon(uint8_t *tiles, uint16_t *pal)
 { (void)tiles; (void)pal; return 0; }
+/* A party icon: none, or (partyIconOk) a solid one in palette colour 1, pure red. */
+static int partyIconOk;
 int CtrBottomParty_Icon(int slot, unsigned char *tiles, unsigned short *pal)
-{ (void)slot; (void)tiles; (void)pal; return 0; }
+{
+    (void)slot;
+    if (!partyIconOk)
+        return 0;
+    memset(tiles, 0x11, 1024); memset(pal, 0, 32); pal[1] = 0x001F;
+    return 1;
+}
 
 unsigned CtrBottomSummary_IconSpecies(void) { return 0; }
 int CtrBottomSummary_Icon(unsigned char *tiles, unsigned short *pal)
@@ -181,6 +219,277 @@ static void decoder(void)
     assert(!CtrPokeTouch_PackMenuIcon(6,pixels,pal));
 #endif
 }
+#ifndef PT_BASELINE
+/* FireRed's menu arrow (raw code 0xEF) as a solid glyph, so where it is drawn shows in the text colour. */
+static void ArrowGlyph(void)
+{
+    for (int y = 0; y < 14; ++y)
+        for (int x = 0; x < 8; ++x) {
+            uint8_t *src = font + 0xEF * 64 + ((y / 8) * 2 + x / 8) * 16 + (y % 8) * 2;
+            unsigned bits = ((unsigned)src[1] << 8 | src[0]) | 1u << ((7 - x % 8) * 2);
+
+            src[0] = (uint8_t)bits;
+            src[1] = (uint8_t)(bits >> 8);
+        }
+}
+
+/* A glyph inked in the text colour in columns 0-4 over the capitals' rows 3-11, so where it is drawn shows. */
+static void SolidGlyph(unsigned code)
+{
+    for (int y = 3; y <= 11; ++y)
+        for (int x = 0; x < 5; ++x) {
+            uint8_t *src = font + code * 64 + ((y / 8) * 2 + x / 8) * 16 + (y % 8) * 2;
+            unsigned bits = ((unsigned)src[1] << 8 | src[0]) | 1u << ((7 - x % 8) * 2);
+
+            src[0] = (uint8_t)bits;
+            src[1] = (uint8_t)(bits >> 8);
+        }
+}
+
+/* Pixels of colour c in the w x h at (x, y). */
+static int ColorIn(int x, int y, int w, int h, uint16_t c)
+{
+    int n = 0;
+
+    for (int i = x; i < x + w; ++i)
+        for (int j = y; j < y + h; ++j)
+            n += at(i, j) == c;
+    return n;
+}
+
+/* HOME as a full-screen page (3ds_home_page_impl.h): its hits, the map at 1:1 and its cells, the page only when
+ * nothing else is open, and every partial redraw equal to a full one. `v` is the HOME view just drawn. */
+static void home_page(CtrPokeTouchView *v)
+{
+    const int mx = kHomeMapPanel.x + 8, my = kHomeMapPanel.y + 8;
+    const CtrPokeTouchRect *buttons[PT_COUNT] = {0};
+    int cx, cy;
+
+    /* home_map_1to1: the stub map is one colour; at 1:1 it covers exactly the 192x128 at (mx, my). */
+    for (int x = mx; x < mx + 192; ++x) for (int y = my; y < my + 128; ++y) assert(at(x, y) == Gba(0x5ab3));
+    assert(at(mx - 1, my + 10) != Gba(0x5ab3) && at(mx + 192, my + 10) != Gba(0x5ab3));
+    /* home_hit_centres: the entries; RUN and SPEED, each the half of their window it is in */
+    for (int i = PT_POKEDEX; i <= PT_OPTIONS; ++i) buttons[i] = &kHomeEntry[i - PT_POKEDEX];
+    buttons[PT_RUN] = &kHomeRun;
+    for (int i = 0; i < PT_COUNT; ++i) {
+        const CtrPokeTouchRect *r = buttons[i];
+        if (!r)
+            continue;
+        assert(CtrPokeTouch_HomeHit(v, r->x + r->w / 2, r->y + r->h / 2) == i);
+        assert(CtrPokeTouch_HomeHit(v, r->x, r->y) == i && CtrPokeTouch_HomeHit(v, r->x + r->w - 1, r->y + r->h - 1) == i);
+    }
+    assert(CtrPokeTouch_HomeHit(v, kHomeSpeed.x, kHomeSpeed.y) == PT_HOME_SPEED);
+    assert(CtrPokeTouch_HomeHit(v, kHomeSpeed.x + kHomeSpeed.w - 1, kHomeSpeed.y + kHomeSpeed.h - 1) == PT_HOME_SPEED);
+    /* home_no_xy: X and Y have left the page (their buttons still work): nothing on it answers with them */
+    for (int x = 0; x < W; x += 2)
+        for (int y = 0; y < H; y += 2) {
+            int hit = CtrPokeTouch_HomeHit(v, x, y);
+            assert(hit != PT_REGISTERED && hit != PT_BIKE);
+        }
+    /* home_hit_gaps: the menu window's frame beside a row and above the first, the gap under it, on the map, off the
+     * screen */
+    assert(CtrPokeTouch_HomeHit(v, kHomeEntry[0].x + kHomeEntry[0].w, kHomeEntry[0].y + 4) == -1);
+    assert(CtrPokeTouch_HomeHit(v, kHomeMenu.x + 2, kHomeMenu.y + 2) == -1);
+    assert(CtrPokeTouch_HomeHit(v, kHomeMenu.x + 20, kHomeMenu.y + kHomeMenu.h + 1) == -1);
+    assert(CtrPokeTouch_HomeHit(v, mx + 50, my + 50) == -1 && CtrPokeTouch_HomeHit(v, -1, -1) == -1);
+    /* home_menu_window: the entries are rows of one framed window, each row the window's white; RUN and SPEED's window
+     * and the party's are framed too, the first ending on the map's last row. The outline checks hold without the pack
+     * (the kit's outline); with FIRERED_TEST_PAK the frames are the pack's tiles and home_frame_change covers them. */
+    if (!KitFrameReady(KIT_FRAME_STD, v->frameType)) {
+        assert(at(kHomeMenu.x, kHomeMenu.y + 20) == KitInk(2) && at(kHomeMenu.x + kHomeMenu.w - 1, kHomeMenu.y + 60) == KitInk(2));
+        assert(at(kHomeSettings.x, kHomeSettings.y + 20) == KitInk(2));
+        assert(at(kHomeSettings.x + 20, kHomeSettings.y + kHomeSettings.h - 1) == KitInk(2));
+        assert(at(kHomeParty.x, kHomeParty.y + 20) == KitInk(2) && at(kHomeParty.x + 20, kHomeParty.y + kHomeParty.h - 1) == KitInk(2));
+    }
+    for (int i = 0; i < 6; ++i)
+        assert(at(kHomeEntry[i].x + 2, kHomeEntry[i].y + 1) == KitInk(1));
+    assert(at(kHomeSettings.x + 20, kHomeSettings.y + kHomeSettings.h) != KitInk(2));
+    assert(at(kHomeRunLine.x + 2, kHomeRunLine.y + 1) == KitInk(1) && at(kHomeSpeedLine.x + 2, kHomeSpeedLine.y + 1) == KitInk(1));
+    /* home_speed_label: the multiplier the game runs the field at, "1x" with the turbo off */
+    {
+        char text[8];
+
+        HomeSpeedLabel(0, text); assert(!strcmp(text, "1x"));
+        HomeSpeedLabel(1, text); assert(!strcmp(text, "1x"));
+        HomeSpeedLabel(2, text); assert(!strcmp(text, "2x"));
+        HomeSpeedLabel(4, text); assert(!strcmp(text, "4x"));
+    }
+    /* home_setting_margins: RUN's and SPEED's values ("OFF", "1x" here) end the arrow's 8 px before their line's end,
+     * as the labels start 8 px after its start, so the text sits in the middle of the window (the owner saw "ON" and
+     * "2x" against the frame) */
+    {
+        static uint8_t saved[sizeof(font)];
+        const CtrPokeTouchRect *lines[2] = {&kHomeRunLine, &kHomeSpeedLine};
+
+        memcpy(saved, font, sizeof(font));
+        for (const char *c = "OF1x"; *c; ++c) {
+            const char *one = c;
+
+            SolidGlyph(GlyphCode(&one));
+        }
+        memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        CtrPokeTouch_Draw(canvas, v);
+        for (int i = 0; i < 2; ++i) {
+            int end = lines[i]->x + lines[i]->w;
+
+            assert(!ColorIn(end - KIT_ARROW_W, lines[i]->y, KIT_ARROW_W, lines[i]->h, KitInk(2)));
+            assert(ColorIn(end - KIT_ARROW_W - 5, lines[i]->y, 5, lines[i]->h, KitInk(2)) > 0);
+        }
+        /* home_setting_label_room: a label too long for its line (SPEED is "VELOCIDAD" in Spanish) stops 4 px short
+         * of the value, never runs under it */
+        {
+            const char *one = "W";
+            const CtrPokeTouchRect *l = &kHomeSpeedLine;
+            int valueX = l->x + l->w - KIT_ARROW_W - UiTextWidth("1x", 1);
+
+            SolidGlyph(GlyphCode(&one));
+            memset(sPtFontReady, 0, sizeof(sPtFontReady));
+            HomeSettingLine(l, "WWWWWWWWWWWWWWWWWW", "1x", 0, 1);
+            assert(ColorIn(l->x + KIT_ARROW_W, l->y, 8, l->h, KitInk(2)) > 0);
+            assert(!ColorIn(valueX - 4, l->y, 4, l->h, KitInk(2)) && !ColorIn(valueX - 4, l->y, 4, l->h, KitInk(3)));
+            assert(ColorIn(valueX, l->y, 5, l->h, KitInk(2)) > 0);
+        }
+        memcpy(font, saved, sizeof(font));
+        memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        CtrPokeTouch_Draw(canvas, v);
+    }
+    /* home_arrow_on_held_row: no arrow while nothing is held; FireRed's arrow at the left of the row held, RUN's and
+     * SPEED's on their line */
+    for (int i = 0; i < 6; ++i)
+        assert(!ColorIn(kHomeEntry[i].x, kHomeEntry[i].y, 8, 16, KitInk(2)));
+    assert(!ColorIn(kHomeRunLine.x, kHomeRunLine.y, 8, kHomeRunLine.h, KitInk(2)));
+    {
+        CtrPokeTouchView old = *v;
+
+        v->pressed = PT_BAG; update(&old, v);
+        assert(ColorIn(kHomeEntry[2].x, kHomeEntry[2].y, 8, 16, KitInk(2)) > 20);
+        assert(!ColorIn(kHomeEntry[1].x, kHomeEntry[1].y, 8, 16, KitInk(2)));
+        v->pressed = PT_RUN; update(&old, v);
+        assert(ColorIn(kHomeRunLine.x, kHomeRunLine.y, 8, kHomeRunLine.h, KitInk(2)) > 20);
+        assert(!ColorIn(kHomeEntry[2].x, kHomeEntry[2].y, 8, 16, KitInk(2)));
+        v->pressed = PT_HOME_SPEED; update(&old, v);
+        assert(ColorIn(kHomeSpeedLine.x, kHomeSpeedLine.y, 8, kHomeSpeedLine.h, KitInk(2)) > 20);
+        assert(!ColorIn(kHomeRunLine.x, kHomeRunLine.y, 8, kHomeRunLine.h, KitInk(2)));
+        v->running = 1; update(&old, v);
+        v->speed = 3; update(&old, v);
+        v->speedEnabled = 0; update(&old, v);
+        v->enabled[PT_SAVE] = 0; update(&old, v);
+        v->pressed = PT_REGISTERED; update(&old, v);
+        v->pressed = PT_NONE; v->running = 0; v->speed = 1; v->speedEnabled = 1; v->enabled[PT_SAVE] = 1; update(&old, v);
+    }
+    /* home_party: each Pokemon's party icon at (slot x + 8, slot y + 7) over its HP bar at (slot x + 10, slot y + 40),
+     * as the battle's bar: toned when fainted, the empty ring and no bar for an empty slot. A touch on a Pokemon is
+     * PT_HOME_PARTY + its slot; on an empty slot nothing. */
+    {
+        CtrPokeTouchView old = *v;
+        const CtrPokeTouchRect *s0 = &kHomePartySlot[0], *s1 = &kHomePartySlot[1], *s2 = &kHomePartySlot[2];
+
+        partyIconOk = 1;
+        v->party[0] = 1; v->partyHp[0] = 100; v->partyIcon[0] = 25;
+        v->party[1] = 2; v->partyHp[1] = 0; v->partyIcon[1] = 26;
+        update(&old, v);
+        assert(at(s0->x + 8 + 16, s0->y + 7 + 16) == GbaColor(0x001F));
+        assert(at(s1->x + 8 + 16, s1->y + 7 + 16) == Tone(GbaColor(0x001F), 0));
+        assert(at(s0->x + 11, s0->y + 41) == UI_HP_HIGH && at(s0->x + 10, s0->y + 40) == KitInk(2));
+        assert(at(s1->x + 11, s1->y + 41) == KitInk(3));
+        assert(at(s2->x + 11, s2->y + 41) == KitInk(1) && at(s2->x + 10, s2->y + 40) == KitInk(1));
+        assert(CtrPokeTouch_HomeHit(v, s0->x + s0->w / 2, s0->y + s0->h / 2) == PT_HOME_PARTY + 0);
+        assert(CtrPokeTouch_HomeHit(v, s1->x, s1->y) == PT_HOME_PARTY + 1);
+        assert(CtrPokeTouch_HomeHit(v, s2->x + 10, s2->y + 10) == -1);
+        /* home_hint_over_party: while the map has a place picked (the Fly's hints), the hint has the window and the party
+         * waits: no icon, no bar, no touch on it; then the party comes back */
+        v->homeHint = 1; strcpy(v->bar[2], "Tap again to Fly"); update(&old, v);
+        assert(at(s0->x + 8 + 16, s0->y + 7 + 16) == KitInk(1) && at(s0->x + 11, s0->y + 41) == KitInk(1));
+        /* home_hint_tap: a touch anywhere on the hint's window is PT_HOME_HINT (it puts the party back) */
+        assert(CtrPokeTouch_HomeHit(v, s0->x + s0->w / 2, s0->y + s0->h / 2) == PT_HOME_HINT);
+        assert(CtrPokeTouch_HomeHit(v, kHomeParty.x, kHomeParty.y) == PT_HOME_HINT);
+        assert(CtrPokeTouch_HomeHit(v, kHomeParty.x + kHomeParty.w - 1, kHomeParty.y + kHomeParty.h - 1) == PT_HOME_HINT);
+        assert(CtrPokeTouch_HomeHit(v, kHomeParty.x + 20, kHomeParty.y - 1) == -1);
+        strcpy(v->bar[2], "Not visited yet"); update(&old, v);
+        v->homeHint = 0; update(&old, v);
+        assert(at(s0->x + 8 + 16, s0->y + 7 + 16) == GbaColor(0x001F));
+        /* every change of the party redraws it as a full draw would */
+        v->partyHp[0] = 30; update(&old, v);
+        v->party[0] = 3; v->partyStatus[0] = 1; update(&old, v);
+        v->partyIcon[0] = 27; update(&old, v);
+        v->party[2] = 1; v->partyHp[2] = 5; v->partyIcon[2] = 28; update(&old, v);
+        v->pressed = PT_HOME_PARTY + 2; update(&old, v);
+        v->pressed = PT_NONE; memset(v->party, 0, sizeof(v->party)); update(&old, v);
+        partyIconOk = 0;
+    }
+    /* home_map_cell_bounds: cell (cx, cy) is the 8x8 at (mx + 8 + 8 cx, my + 4 + 8 cy) */
+    assert(CtrPokeTouch_HomeMapCell(mx + 8 + 3, my + 4 + 3, &cx, &cy) && cx == 0 && cy == 0);
+    assert(CtrPokeTouch_HomeMapCell(mx + 8 + 8 * 21 + 7, my + 4 + 8 * 14 + 7, &cx, &cy) && cx == 21 && cy == 14);
+    assert(!CtrPokeTouch_HomeMapCell(mx + 7, my + 10, &cx, &cy));                 /* left of cell 0 */
+    assert(!CtrPokeTouch_HomeMapCell(mx + 20, my + 4 + 8 * 15, &cx, &cy));        /* below row 14 */
+    assert(!CtrPokeTouch_HomeMapCell(mx + 8 + 8 * 22, my + 20, &cx, &cy));        /* right of column 21 */
+    assert(!CtrPokeTouch_HomeMapCell(kHomeCaption.x + 20, kHomeCaption.y + 8, &cx, &cy));
+    /* old_views_keep_old_frame: the page is HOME alone; any other view keeps the old frame and column */
+    assert(CtrPokeTouch_HomePageShown(v));
+    {
+        CtrPokeTouchView w = *v;
+        w.bag.on = 1; assert(!CtrPokeTouch_HomePageShown(&w));
+        w = *v; w.viewport = 1; assert(!CtrPokeTouch_HomePageShown(&w));
+        w = *v; w.options = 1; assert(!CtrPokeTouch_HomePageShown(&w));
+        w = *v; w.home = 0; assert(!CtrPokeTouch_HomePageShown(&w));
+    }
+    /* home_update_equals_draw: frame type, the caption's and the message's text, the map, the player */
+    {
+        CtrPokeTouchView old = *v;
+        v->frameType = 4; update(&old, v);
+        strcpy(v->bar[0], "SEAFOAM ISLANDS"); update(&old, v);
+        strcpy(v->bar[2], "Tap a destination"); update(&old, v);
+        v->mapGroup = PT_MAP_SEVII123; update(&old, v);
+        v->playerX = 3; v->playerY = 4; update(&old, v);
+        v->cursorX = 5; v->cursorY = 6; v->cursorFrame = 1; update(&old, v);
+        v->mapGroup = PT_MAP_KANTO; v->frameType = 0; v->cursorX = v->cursorY = v->playerX = v->playerY = -1;
+        strcpy(v->bar[0], "TEST MAP"); v->bar[2][0] = 0; update(&old, v);
+    }
+}
+
+/* home_frame_change (Review Focus 1): with frames that differ in every window and have clear pixels where the type
+ * before drew, each OPTIONS -> FRAME change while HOME shows repaints every window as a full draw would, nothing of the
+ * old frame left. The outline without the pack is the same for every type, so this needs the fixture's frames. */
+static void home_frame_change(CtrPokeTouchView *v)
+{
+    static uint16_t first[W * H];
+    const CtrPokeTouchRect *windows[] = {&kHomeMapPanel, &kHomeMenu, &kHomeSettings, &kHomeParty};
+    int type = v->frameType;
+    CtrPokeTouchView old;
+
+    kitFixture = 1;
+    sKitStd.type = sKitDialogue.type = -2;
+    v->frameType = 0;
+    CtrPokeTouch_Draw(canvas, v);
+    assert(KitFrameReady(KIT_FRAME_STD, 0));
+    memcpy(first, canvas, sizeof(first));
+    v->frameType = 1;
+    CtrPokeTouch_Draw(canvas, v);
+    for (size_t i = 0; i < sizeof(windows) / sizeof(windows[0]); ++i) {
+        const CtrPokeTouchRect *r = windows[i];
+        int differs = 0;
+
+        for (int x = r->x; x < r->x + 8; ++x)
+            for (int y = r->y; y < r->y + r->h; ++y)
+                differs |= first[x * H + H - 1 - y] != canvas[x * H + H - 1 - y];
+        assert(differs);
+    }
+    v->frameType = 0;
+    CtrPokeTouch_Draw(canvas, v);
+    old = *v;
+    for (int t = 1; t < KIT_STD_TYPES; ++t) {
+        v->frameType = t;
+        update(&old, v);
+    }
+    v->frameType = 0;
+    update(&old, v);
+    kitFixture = 0;
+    sKitStd.type = sKitDialogue.type = -2;
+    v->frameType = type;
+    CtrPokeTouch_Draw(canvas, v);
+}
+#endif
+
 int main(int argc, char **argv)
 {
     decoder(); fixtureFail=1; /* Exercise original fallbacks for the UI. */
@@ -220,8 +529,17 @@ int main(int argc, char **argv)
     v.registeredItem=1; v.bikeItem=2;
     strcpy(v.playerName,"Trades"); strcpy(v.bar[0],"TEST MAP");
     for(int i=0;i<PT_COUNT;++i) v.enabled[i]=1;
+    v.speed=1; v.speedEnabled=1;
+#ifndef PT_BASELINE
+    ArrowGlyph();
+#endif
     CtrPokeTouch_Draw(canvas,&v);
+#ifndef PT_BASELINE
+    home_page(&v);
+    home_frame_change(&v);
+#else
     for(int x=4;x<244;++x) for(int y=4;y<164;++y) assert(at(x,y)==Gba(0x5ab3));
+#endif
     if(argc>1) { /* Synthetic render for visual QA, never a ROM screenshot. */
         FILE *f=fopen(argv[1],"wb"); assert(f);
         fprintf(f,"P6\n320 240\n255\n");

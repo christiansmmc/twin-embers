@@ -76,6 +76,16 @@ class BattleUi(unittest.TestCase):
             self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
             self.assertIn('PASS battle ui', run.stdout)
 
+    def test_no_pp_toned(self):
+        """A move with no PP left draws its PP in the toned grey (its own run: digits get synthetic glyphs there)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            exe = tmp / ('battle-ui.exe' if os.name == 'nt' else 'battle-ui')
+            build(exe, [], [ROOT / '3ds_port/include', ROOT / '3ds_port/src'])
+            run = subprocess.run([str(exe)], capture_output=True, text=True, env=dict(os.environ, BATTLE_UI_PP='1'))
+            self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+            self.assertIn('PASS battle ui no-PP', run.stdout)
+
 
 if __name__ == '__main__':
     unittest.main()
