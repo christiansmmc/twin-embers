@@ -1171,6 +1171,12 @@ static int sPouchHold;              /* the battle Bag's Berry Pouch was opened: 
 
 #include "3ds_bottom_battle_fill_impl.h"
 
+/* The player's OPTIONS -> FRAME for a view's windows. */
+static void ViewFrame(CtrPokeTouchView *v)
+{
+    v->frameType = (uint8_t)CtrPokeTouch_OptionGet(PT_OPT_FRAME);
+}
+
 static void SnapshotState(Snapshot *s, int mode, int pressed)
 {
     memset(s, 0, sizeof(*s));
@@ -1178,6 +1184,9 @@ static void SnapshotState(Snapshot *s, int mode, int pressed)
     s->pressed = (unsigned char)pressed;
     s->cursor = -1;
     s->tapped = -1;
+    /* Every page's windows wear the player's frame, the views that return before the field's common block too (the
+     * choice, the PC box, the forget-a-move page, the naming keyboard, FireRed's picture's frame). */
+    ViewFrame(&s->touch);
     /* PT_POKEDEX is zero: a zeroed view must not select that sidebar button. */
     s->touch.selected = PT_NONE;
     s->touch.pressed = PT_NONE;

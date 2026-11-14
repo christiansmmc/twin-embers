@@ -128,6 +128,7 @@ int main(void)
 #include <string.h>
 #include "3ds_poketouch.h"
 typedef struct { unsigned char mode,pressed; int cursor,tapped; CtrPokeTouchView touch; } Snapshot;
+static void ViewFrame(CtrPokeTouchView *v) { (void)v; }   /* the player's FRAME (test_field_presentation) */
 static void initialize(Snapshot *s,int mode,int pressed)
 {
 ''' + source[start:end] + '''

@@ -126,6 +126,7 @@ typedef struct { unsigned char mode,pressed; int cursor,tapped; CtrPokeTouchView
 static void LearnSnapshot(Snapshot *s,int mode) { (void)s; (void)mode; }   /* no move to forget open */
 static void NameSnapshot(Snapshot *s) { (void)s; }   /* no naming screen open */
 static void ShopSnapshot(Snapshot *s,int mode) { (void)s; (void)mode; }   /* no mart open */
+static void ViewFrame(CtrPokeTouchView *v) { (void)v; }   /* the player's FRAME: test_field_pages_take_the_frame */
 static void snapshot(Snapshot *s,int mode,int pressed) {
 ''' + snapshot + '''
 }
@@ -608,6 +609,33 @@ int main(void) {
         summaryReady = 0; SummaryFill(&s);
         summaryReady = 1; SummaryFill(&t);
         assert(!memcmp(&s, &t, sizeof(s)));
+    }
+    return 0;
+}
+''')
+
+    def test_field_pages_take_the_frame(self):
+        """OPTIONS -> FRAME reaches every field page: SnapshotState gives every view the player's frame before any mode's
+        own fill (the choice, the PC box, the forget-a-move page, the naming keyboard and FireRed's picture's frame return
+        before the field's common block, and stayed on the first frame)."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='latin-1')
+        frame = function(bottom, 'ViewFrame')
+        snap = function(bottom, 'SnapshotState')
+        first_branch = snap.index('if (mode ==')
+        self.assertIn('ViewFrame(&s->touch);', snap[:first_branch])
+        self.run_c('''
+#include <assert.h>
+#include <string.h>
+#include "3ds_poketouch.h"
+static int option;
+int CtrPokeTouch_OptionGet(int id) { return id == PT_OPT_FRAME ? option : 0; }
+''' + frame + '''
+int main(void) {
+    CtrPokeTouchView v;
+    for (option = 0; option < 10; ++option) {
+        memset(&v, 0, sizeof(v));
+        ViewFrame(&v);
+        assert(v.frameType == option);
     }
     return 0;
 }

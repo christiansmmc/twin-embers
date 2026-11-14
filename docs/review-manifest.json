@@ -1034,7 +1034,7 @@
   },
   {
    "path": "3ds_port/src/3ds_bottom.c",
-   "sha256": "071cb6083dc90e4acf9d8ce1b1160986515f79769437d1f037c9dbf4d6a3ddd0",
+   "sha256": "10239770367ad2378706c4f5ad12e358c5b6f25755d3bb521fb7a839338c5496",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -6470,7 +6470,7 @@
   },
   {
    "path": "tools/test_field_presentation.py",
-   "sha256": "3a326837bc95bf34037a0b653da18523883e7644357f74d478d7a64968a6e52b",
+   "sha256": "eb982b584ae3a3d6d2834e04624f68fec91a68d265bca08438b57dabf094d1c4",
    "review_status": "reviewed",
    "credit": "alex61194; Twin Embers Port contributors; inherited/adapted upstream portions as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; external game/dependency rights excluded",
@@ -6619,10 +6619,10 @@
   {
    "path": "tools/test_storage_controller.py",
    "review_status": "reviewed",
-   "credit": "alex61194 (original port work with disclosed AI assistance)",
+   "credit": "alex61194 (original port work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
    "basis": "Reviewed authored controller/prototype/regression text; synthetic fixtures only, no game payloads or generated media",
-   "sha256": "ee98e29265f84d86f073ca9d7dc330f0382707a2439d8e008b6ac285c129f4c1",
+   "sha256": "eaca0b798ed52b2a868e17ed6c6bf168e58215f88097cc9a8e764db6fbb2f27f",
    "storage_review": "Read-only PC controller integration, lifecycle and touch regression review; no storage/save layouts or asset ABI changes",
    "modified_for_distribution": true,
    "field_ui_review": "Lower viewport owns move selection and item learning across child callbacks, preserving physical controls and releasing TOP on field return"
