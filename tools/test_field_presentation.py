@@ -349,6 +349,46 @@ int main(void) {
 }
 ''')
 
+    def test_summary_page_shown_when_taken(self):
+        """A page turned by a plan (an arrow, TRAINER) is shown as soon as FireRed has taken it (its page is the one
+        asked, while its own flip still runs), as a page turned by FireRed's own keys is; the way there (out of the move
+        details first) stays hidden. The owner found TRAINER, always a plan, much slower: the lower screen waited for the
+        whole flip."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        nav = function(bottom, 'NavPending')
+        self.run_c('''
+#include <assert.h>
+#include "3ds_poketouch.h"
+#include "3ds_summary.h"
+enum { MODE_BAG = 3, MODE_SUMMARY = 5 };
+enum { BAG_BUSY = 0 };
+enum { SUMPLAN_NONE = 0, SUMPLAN_PAGE, SUMPLAN_MOVE, SUMPLAN_PRESS };
+static struct { int mode, battleUi, summaryUi; } sShown;
+static int sHaveShown = 1;
+static struct { int pocketTarget; } sBatBag;
+static struct { int kind, target; } sSumPlan;
+static int page, ready;
+int CtrBottomBag_InBattle(void) { return 0; }
+int CtrBottomBag_Pocket(void) { return 0; }
+int CtrBottomBag_State(void) { return 0; }
+int CtrBottomSummary_Ready(void) { return ready; }
+int CtrBottomSummary_Page(void) { return page; }
+''' + nav + '''
+int main(void) {
+    sShown.mode = MODE_SUMMARY; sShown.summaryUi = 1;
+    sSumPlan.kind = SUMPLAN_PAGE; sSumPlan.target = SUI_PAGE_INFO;
+    page = SUI_PAGE_MOVES; ready = 1;
+    assert(NavPending(MODE_SUMMARY));               /* not taken yet */
+    page = SUI_PAGE_INFO; ready = 0;
+    assert(!NavPending(MODE_SUMMARY));              /* taken: shown while FireRed's flip runs */
+    sSumPlan.target = SUI_PAGE_SKILLS; page = SUI_PAGE_MOVES; ready = 1;
+    assert(NavPending(MODE_SUMMARY));               /* out of the move details first: the way stays hidden */
+    sSumPlan.kind = SUMPLAN_NONE;
+    assert(!NavPending(MODE_SUMMARY));
+    return 0;
+}
+''')
+
     def test_bag_page_cancel_and_drag(self):
         """The BAG's page: its CANCEL (and a tap off the item menu) is the Bag's B, sent through the Bag's plan as the
         old bar's BACK was; a drag over the rows moves the selection a row per BAG_ROW_H (the page's 30 px rows)."""
@@ -435,7 +475,8 @@ enum { SUMPLAN_NONE = 0 };
 static struct { int kind; } sSumPlan;
 static struct { int down, inside, btn, trainer, ivView; unsigned serial; CtrSummaryView latch; } sSum;
 unsigned CtrBottomSummary_Serial(void) { return 1; }
-void CtrBottomSummary_GetView(CtrSummaryView *v) { memset(v, 0, sizeof(*v)); v->serial = 1; strcpy(v->species, "X"); }
+static int summaryReady;
+void CtrBottomSummary_GetView(CtrSummaryView *v) { memset(v, 0, sizeof(*v)); v->serial = 1; v->ready = summaryReady; strcpy(v->species, "X"); }
 unsigned CtrBottomSummary_IconSpecies(void) { return 1; }
 ''' + common + '\n' + summary + '''
 int main(void) {
@@ -446,6 +487,15 @@ int main(void) {
         assert(v.frameType == option);
         SummaryFill(&s);
         assert(s.frameType == option);
+    }
+    {
+        /* FireRed's input readiness (it flips at the end of every page turn) is not part of the picture: the view stays
+         * the same, so the page is not drawn again for it */
+        CtrSummaryUiView t;
+
+        summaryReady = 0; SummaryFill(&s);
+        summaryReady = 1; SummaryFill(&t);
+        assert(!memcmp(&s, &t, sizeof(s)));
     }
     return 0;
 }

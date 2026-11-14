@@ -1941,6 +1941,7 @@ static void SummaryFill(CtrSummaryUiView *v)
         v->data = sSum.latch;
     else
         v->loading = 1;
+    v->data.ready = 0;              /* FireRed's input readiness: not drawn, so not a change that redraws the page */
     if (now.page != SUI_PAGE_INFO && sSumPlan.kind == SUMPLAN_NONE)
         sSum.trainer = 0;
     v->trainer = (uint8_t)(sSum.trainer && v->data.page == SUI_PAGE_INFO);
@@ -4547,7 +4548,10 @@ void CtrBottom_Init(void)
 /* FireRed reaches some screens through others: the Bag's BALLS from ITEMS through KEY ITEMS, a Summary's TRAINER from MOVES
  * through STATS, a move's row through the details. The lower screen shows where a touch asked to go, never the way: while the
  * backend is on its way (the plan a tap started has not arrived and is still walking) the last complete picture stays, and the
- * destination is presented in one update. Only what a finger pressed is let go, so the control does not stay held down. */
+ * destination is presented in one update. Only what a finger pressed is let go, so the control does not stay held down.
+ * A Summary page is presented as soon as FireRed has taken it (its page is the one asked: the Summary turns there in one
+ * flip, CtrSummary_AskPage), while that flip still runs, as a page turned by FireRed's own keys is: waiting for the
+ * flip's end made every touched page, and TRAINER always, slow (the owner's finding). */
 static int NavPending(int mode)
 {
     if (!sHaveShown || mode != sShown.mode)
@@ -4559,7 +4563,7 @@ static int NavPending(int mode)
     }
     if (sShown.mode == MODE_SUMMARY && sShown.summaryUi) {
         if (sSumPlan.kind == SUMPLAN_PAGE)
-            return !(CtrBottomSummary_Ready() && CtrBottomSummary_Page() == sSumPlan.target);
+            return CtrBottomSummary_Page() != sSumPlan.target;
         return sSumPlan.kind == SUMPLAN_MOVE;
     }
     return 0;
