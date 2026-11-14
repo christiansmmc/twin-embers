@@ -680,6 +680,37 @@ static struct {
     int y0, cursor0, scrolling;         /* the touch-down's row and cursor, and whether it became a drag */
 } sFieldBag = {0, 0, -1, -1, 0, 0, 0, 0};
 
+/* What the field Bag's page shows while FireRed is busy or a tab's pocket is being walked to: 1 keeps the last picture
+ * (a message printing; a pocket on the way to the one a tab asked for, so the way is not shown), 0 draws the Bag as it
+ * is (a pocket FireRed has just switched to is drawn while it slides in: its count, cursor and items are the pocket's
+ * own already, so a D-pad switch shows at once). `bag`: the Bag itself (a case has no pockets). */
+static int FieldBagHold(int bag, int state, int pocket, int shownPocket, int target)
+{
+    if (bag && target >= 0 && pocket != target)
+        return 1;
+    if (state != BAG_BUSY)
+        return 0;
+    return !(bag && pocket != shownPocket);
+}
+
+/* The Party slot (or CONFIRM 6, CANCEL 7) a tap asked for: the Party takes the touch on its next frame, so until its
+ * cursor is there (or for a short while at most) that slot is shown as the selection, and the arrow does not go back
+ * to where it was for those frames. A physical button drops it. */
+static struct {
+    int slot, wait;
+} sPartyEcho = {-1, 0};
+
+static int PartyEchoCursor(int cursor)
+{
+    if (sPartyEcho.slot < 0)
+        return cursor;
+    if (cursor == sPartyEcho.slot || --sPartyEcho.wait <= 0) {
+        sPartyEcho.slot = -1;
+        return cursor;
+    }
+    return sPartyEcho.slot;
+}
+
 /* Dragging a list: a finger on a row that moves this far up or down scrolls instead of tapping, one row per
  * LIST_DRAG_ROW pixels (the lower screen's row pitch), the content following the finger. */
 #define LIST_DRAG_SLOP 8
@@ -3321,6 +3352,8 @@ static void ProcessBattlePartyTouch(const CtrInput *in)
 
     if (in->touchActive && sHaveShown)
         btn = CtrBattleUi_Hit(&sShown.battle, (int)in->touchX, (int)in->touchY);
+    if (in->held & 0x3ffu)
+        sPartyEcho.slot = -1;
     if ((in->held & 0x3ffu) || !ready) {
         sBat.down = sBat.inside = 0;
         return;
@@ -3338,16 +3371,14 @@ static void ProcessBattlePartyTouch(const CtrInput *in)
     }
     if (sBat.inside) {
         int code = sBat.btn, open = CtrBottomParty_SelectionOpen() || CtrBottomParty_YesNoOpen();
+        int slot = code >= BUI_PTY_SLOT && code < BUI_PTY_SLOT + 6 ? code - BUI_PTY_SLOT
+                 : code == BUI_PTY_CANCEL ? PARTY_SIZE + 1 : code == BUI_PTY_CONFIRM ? PARTY_SIZE : -1;
 
-        if (code >= BUI_PTY_SLOT && code < BUI_PTY_SLOT + 6) {
-            if (!open && CtrBottomParty_IsOpen() && !CtrBottomParty_CanAdvanceText())
-                CtrBottomParty_TouchSlot(code - BUI_PTY_SLOT);
-        } else if (code == BUI_PTY_CANCEL) {
-            if (!open && CtrBottomParty_IsOpen() && !CtrBottomParty_CanAdvanceText())
-                CtrBottomParty_TouchSlot(PARTY_SIZE + 1);
-        } else if (code == BUI_PTY_CONFIRM) {
-            if (!open && CtrBottomParty_IsOpen() && !CtrBottomParty_CanAdvanceText())
-                CtrBottomParty_TouchSlot(PARTY_SIZE);
+        if (slot >= 0) {
+            if (!open && CtrBottomParty_IsOpen() && !CtrBottomParty_CanAdvanceText() && CtrBottomParty_TouchSlot(slot)) {
+                sPartyEcho.slot = slot;         /* shown as the selection until the Party's cursor is there */
+                sPartyEcho.wait = 30;
+            }
         } else if (code >= BUI_PTY_MENU && code < BUI_PTY_MENU + 8) {
             if (open)
                 PlanStart(PLAN_MENU, code - BUI_PTY_MENU);

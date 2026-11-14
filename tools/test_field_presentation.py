@@ -389,6 +389,40 @@ int main(void) {
 }
 ''')
 
+    def test_touch_shows_where_it_goes(self):
+        """The owner saw the arrow go to a touched tab or Pokemon, back to where it was, then to it again. A Party slot
+        touched (the Party takes the touch on its next frame) is shown as the selection until the Party's cursor is
+        there, or for a short while at most; a Bag tab's pocket is shown chosen while the Bag walks to it, the way there
+        hidden; and a pocket FireRed has just switched to is drawn at once, while it slides in (its list is already the
+        pocket's own), instead of after the slide."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        echo = function(bottom, 'PartyEchoCursor')
+        hold = function(bottom, 'FieldBagHold')
+        self.run_c('''
+#include <assert.h>
+enum { BAG_BUSY = 0, BAG_LIST };
+static struct { int slot, wait; } sPartyEcho = {-1, 0};
+''' + echo + '\n' + hold + '''
+int main(void) {
+    /* the Party: the slot touched until the cursor gets there */
+    assert(PartyEchoCursor(2) == 2);
+    sPartyEcho.slot = 4; sPartyEcho.wait = 30;
+    assert(PartyEchoCursor(2) == 4 && PartyEchoCursor(2) == 4);
+    assert(PartyEchoCursor(4) == 4 && sPartyEcho.slot == -1);
+    assert(PartyEchoCursor(1) == 1);
+    sPartyEcho.slot = 5; sPartyEcho.wait = 2;
+    assert(PartyEchoCursor(0) == 5 && PartyEchoCursor(0) == 0);     /* not forever */
+    /* the Bag: hold the picture on the way to a tab's pocket; draw a switched pocket while it slides */
+    assert(FieldBagHold(1, BAG_LIST, 1, 0, 2) == 1);                /* on the way: KEY ITEMS toward POKe BALLS */
+    assert(FieldBagHold(1, BAG_BUSY, 2, 1, 2) == 0);                /* arrived, sliding in: drawn */
+    assert(FieldBagHold(1, BAG_BUSY, 1, 0, -1) == 0);               /* the D-pad switched it: drawn */
+    assert(FieldBagHold(1, BAG_BUSY, 1, 1, -1) == 1);               /* busy otherwise (a message printing): held */
+    assert(FieldBagHold(1, BAG_LIST, 1, 1, -1) == 0);
+    assert(FieldBagHold(0, BAG_BUSY, 0, 0, -1) == 1 && FieldBagHold(0, BAG_LIST, 0, 0, -1) == 0);   /* a case */
+    return 0;
+}
+''')
+
     def test_bag_page_cancel_and_drag(self):
         """The BAG's page: its CANCEL (and a tap off the item menu) is the Bag's B, sent through the Bag's plan as the
         old bar's BACK was; a drag over the rows moves the selection a row per BAG_ROW_H (the page's 30 px rows)."""

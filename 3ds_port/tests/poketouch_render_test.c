@@ -565,6 +565,11 @@ static void bag_page(const CtrPokeTouchView *base)
     b->first = 3; b->cursor = 6; b->row[3].item = 0; update(&old, &v);
     assert(CtrPokeTouch_BagHit(&v, BagRow(3).x + 40, BagRow(3).y + 10) == PT_BAG_HIT_ROW + 3);
     b->first = 0; b->cursor = 1; b->row[3].item = 4; update(&old, &v);
+    /* a tab's pocket on the way (asked): that tab chosen, not the one the Bag is still in */
+    b->asked = 3; update(&old, &v);
+    assert(BagInk(kBagTab[2].x + 8, kBagTab[2].y + 8, kBagTab[2].w - 16, 14) > 0);
+    assert(BagInk(kBagTab[0].x + 8, kBagTab[0].y + 8, kBagTab[0].w - 16, 14) == 0);
+    b->asked = 0; update(&old, &v);
     /* a key item registered on X: its button in its row */
     b->pocket = 1; b->regX = 3; update(&old, &v);
     b->pocket = 0; b->regX = 0; update(&old, &v);

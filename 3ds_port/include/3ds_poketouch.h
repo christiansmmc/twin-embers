@@ -118,6 +118,7 @@ typedef struct {
     char title[20];
     char closeName[16];
     uint8_t pocket;                 /* FireRed's pocket: 0 Items, 1 Key Items, 2 Poke Balls */
+    uint8_t asked;                  /* a tab's pocket the Bag is being walked to, + 1 (0: none): that tab is chosen */
     uint8_t state;                  /* PT_BAG_STATE_*: the Bag's own input state */
     int16_t count;                  /* items in the pocket; row `count` is CLOSE BAG */
     int16_t cursor;                 /* the Bag's selection (count: CLOSE BAG) */

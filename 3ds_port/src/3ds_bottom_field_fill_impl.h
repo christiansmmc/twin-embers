@@ -122,10 +122,17 @@ static void FieldBagFill(CtrPokeTouchView *v, int pressed, const FieldList *f)
     const ListScreen *list = f->list;
     int count, total, state = list->state();
 
-    if (state == BAG_BUSY && sHaveShown && sShown.mode == f->mode && sShown.touch.bag.on) {
-        *b = sShown.touch.bag;
-        b->pressed = -1;
-        return;
+    {
+        int target = f->kind == PT_BAG_KIND_BAG ? sFieldBag.pocketTarget : -1;
+
+        if (sHaveShown && sShown.mode == f->mode && sShown.touch.bag.on
+            && FieldBagHold(f->kind == PT_BAG_KIND_BAG, state, f->kind == PT_BAG_KIND_BAG ? CtrBottomBag_Pocket() : 0,
+                            sShown.touch.bag.pocket, target)) {
+            *b = sShown.touch.bag;
+            b->pressed = -1;
+            b->asked = (uint8_t)(target >= 0 ? target + 1 : 0);   /* the tab touched stays chosen on the way there */
+            return;
+        }
     }
     memset(b, 0, sizeof(*b));
     v->frameType = (uint8_t)CtrPokeTouch_OptionGet(PT_OPT_FRAME);     /* the page's windows: the player's FRAME */
