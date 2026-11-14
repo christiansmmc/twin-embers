@@ -99,7 +99,7 @@ enum { PT_SAVE_NONE, PT_SAVE_FIRST, PT_SAVE_SECOND };  /* the button: YES or OK,
  * as tabs, the rows of the list it shows (items, then CLOSE BAG), the item's description in the note, and over the
  * list the menu, the quantity box, the question or the message it has open. Everything is the Bag's own state.
  * The TM Case and the Berry Pouch it opens are drawn the same way, with their title in place of the pockets. */
-#define PT_BAG_ROWS 5
+#define PT_BAG_ROWS 4                       /* the page's rows (3ds_lower_layout.h BAG_PAGE_ROWS) */
 #define PT_BAG_MENU_MAX 6
 enum { PT_BAG_KIND_BAG = 0, PT_BAG_KIND_TMCASE, PT_BAG_KIND_POUCH, PT_BAG_KIND_SHOP,   /* SHOP: a mart's BUY list */
        PT_BAG_KIND_ITEMPC };                                                          /* ITEMPC: the PC's WITHDRAW ITEM */
@@ -108,7 +108,8 @@ enum { PT_BAG_STATE_BUSY = 0, PT_BAG_STATE_LIST, PT_BAG_STATE_ACTIONS, PT_BAG_ST
        PT_BAG_STATE_MESSAGE };
 /* Hit codes (CtrPokeTouch_BagHit). */
 enum { PT_BAG_HIT_TAB = 100, PT_BAG_HIT_ROW = 200, PT_BAG_HIT_MENU = 300, PT_BAG_HIT_MESSAGE = 500, PT_BAG_HIT_UP = 600,
-       PT_BAG_HIT_DOWN, PT_BAG_HIT_QTY_UP = 610, PT_BAG_HIT_QTY_DOWN, PT_BAG_HIT_QTY_OK, PT_BAG_HIT_QTY_CANCEL };
+       PT_BAG_HIT_DOWN, PT_BAG_HIT_QTY_UP = 610, PT_BAG_HIT_QTY_DOWN, PT_BAG_HIT_QTY_OK, PT_BAG_HIT_QTY_CANCEL,
+       PT_BAG_HIT_BACK /* the page's CANCEL, or a tap off the menu: the Bag's B */ };
 typedef struct {
     uint8_t on;                     /* the viewport shows this Bag (no GBA picture) */
     uint8_t kind;                   /* PT_BAG_KIND_*: the Bag, or a case it opens */
@@ -405,7 +406,10 @@ bool CtrPokeTouch_HomeMapCell(int x, int y, int *cx, int *cy);
 /* A type's standard frame (OPTIONS -> FRAME) from the pack, for the top screen's healthboxes: nine 4bpp tiles, its GBA
  * colours and stdpal_0's. False without the pack. */
 bool CtrPokeTouch_FrameData(int type, uint8_t tiles[9 * 32], uint16_t framePal[16], uint16_t textPal[16]);
-/* What the field Bag (view->bag.on) shows under lower-screen point (x, y): a PT_BAG_HIT_* code, or -1. */
+/* The field Bag (view->bag.on: the Bag, a case, a mart's BUY, the item PC, the mailbox) as a full-screen page
+ * (3ds_field_bag_impl.h, phase 2): shown whenever the Bag is, without FireRed's picture in the viewport. What it shows
+ * under lower-screen point (x, y): a PT_BAG_HIT_* code, or -1. */
+bool CtrPokeTouch_BagPageShown(const CtrPokeTouchView *view);
 int CtrPokeTouch_BagHit(const CtrPokeTouchView *view, int x, int y);
 /* What the Pokedex (view->dex.on) shows under lower-screen point (x, y): a PT_DEX_HIT_* code, or -1. */
 int CtrPokeTouch_DexHit(const CtrPokeTouchView *view, int x, int y);
@@ -500,7 +504,7 @@ typedef struct {
 } CtrBattleMove;
 enum { BUI_BAG_TAB = 100, BUI_BAG_ROW = 200, BUI_BAG_MENU = 300, BUI_BAG_CANCEL = 400, BUI_BAG_MESSAGE = 500,
        BUI_BAG_UP = 600, BUI_BAG_DOWN = 601, BUI_BAG_BERRIES = 602 };
-#define BUI_BAG_ROWS 5
+#define BUI_BAG_ROWS 4                      /* the page's rows (3ds_lower_layout.h BAG_PAGE_ROWS) */
 #define BUI_ITEM_LEN 20
 typedef struct {
     uint8_t pocket;                 /* FireRed's pocket: 0 Items, 1 Key Items, 2 Poke Balls */
@@ -534,6 +538,7 @@ enum { BUI_PTY_NONE = 0, BUI_PTY_ACTIONS, BUI_PTY_TEXT, BUI_PTY_YESNO, BUI_PTY_L
 typedef struct {
     uint8_t present[6];             /* a Pokemon in the slot */
     uint8_t egg[6];
+    uint8_t gender[6];              /* CtrBottomParty_Gender: 0 male, 1 female, 2 none (an Egg, a genderless one) */
     uint8_t status[6];              /* GetMonAilment: 1 PSN, 2 PAR, 3 SLP, 4 FRZ, 5 BRN, 6 PKRS */
     uint8_t level[6];
     uint16_t hp[6], maxHp[6];
@@ -607,15 +612,18 @@ int CtrBattleUi_Hit(const CtrBattleView *view, int x, int y);
 /*
  * The Pokemon Summary (3ds_summary_ui.inc, CtrSummaryUi_*): the whole lower screen while FireRed's Summary of the party
  * runs hidden behind it, from the field's Party or the battle's (the same screen for both). It shows what the Summary
- * reports (CtrSummaryView) in the premium design: a header with the Pokemon (icon, nickname, gender, number, species,
- * level) and the buttons for the previous and next one, the tabs INFO / STATS / MOVES / TRAINER, the page and a footer
- * with BACK. INFO, STATS and MOVES are FireRed's three pages (its move details are MOVES with a move selected);
- * TRAINER is the trainer memo of its first page, shown on its own.
+ * reports (CtrSummaryView) as a page in the kit's look, FireRed's own arrangement (phase 2, the owner's "3"): the page's
+ * title with the arrows that turn the pages INFO / STATS / MOVES / TRAINER, the Pokemon on the left, the page on the
+ * right, and under them the previous and next Pokemon, a description band and BACK. INFO, STATS and MOVES are FireRed's
+ * three pages (its move details are MOVES with a move selected); TRAINER is the trainer memo of its first page, shown on
+ * its own.
  */
 enum { SUI_TAB_INFO = 0, SUI_TAB_STATS, SUI_TAB_MOVES, SUI_TAB_TRAINER, SUI_TABS };
-/* Hit codes (CtrSummaryUi_Hit): the tabs, the previous / next Pokemon, BACK, a move card or row, the details' CANCEL. */
-enum { SUI_HIT_TAB = 0, SUI_HIT_PREV = 10, SUI_HIT_NEXT = 11, SUI_HIT_BACK = 12, SUI_HIT_MOVE = 20, SUI_HIT_CANCEL = 24,
-       SUI_HIT_IVTOGGLE = 30 /* the STATS page's EXP / IV-EV switch */ };
+/* Hit codes (CtrSummaryUi_Hit): the previous / next Pokemon, BACK, the arrows that turn the pages, a move card or row,
+ * the details' CANCEL. SUI_HIT_TAB + tab is what a page arrow asks for (CtrSummaryUi_PageStep). */
+enum { SUI_HIT_TAB = 0, SUI_HIT_PREV = 10, SUI_HIT_NEXT = 11, SUI_HIT_BACK = 12, SUI_HIT_PAGE_PREV = 13,
+       SUI_HIT_PAGE_NEXT = 14, SUI_HIT_MOVE = 20, SUI_HIT_CANCEL = 24,
+       SUI_HIT_IVTOGGLE = 30 /* the STATS page: EXP or IV / EV */ };
 /* FireRed's Summary pages (pokemon_summary_screen.h PSS_PAGE_*). */
 enum { SUI_PAGE_INFO = 0, SUI_PAGE_SKILLS, SUI_PAGE_MOVES, SUI_PAGE_MOVES_INFO };
 typedef struct {
@@ -625,6 +633,7 @@ typedef struct {
     uint8_t trainer;                /* TRAINER is shown (FireRed is on its first page) */
     uint8_t ivView;                 /* STATS shows the IVs, EVs and Hidden Power instead of the experience */
     uint8_t loading;                /* nothing reported yet: the frame only */
+    uint8_t frameType;              /* OPTIONS -> FRAME (0-9): the windows' frame */
 } CtrSummaryUiView;
 
 void CtrSummaryUi_Draw(uint16_t *canvas, const CtrSummaryUiView *view);
@@ -634,5 +643,8 @@ void CtrSummaryUi_Update(uint16_t *canvas, const CtrSummaryUiView *old, const Ct
 int CtrSummaryUi_Hit(const CtrSummaryUiView *view, int x, int y);
 /* The tab `view` shows (SUI_TAB_*). */
 int CtrSummaryUi_Tab(const CtrSummaryUiView *view);
+/* The page an arrow turns to from the one shown: the next one the Pokemon has (an Egg has INFO and TRAINER) toward
+ * `dir` (-1 back, 1 on), SUI_TAB_*; -1 with none that way, or while nothing is reported. */
+int CtrSummaryUi_PageStep(const CtrSummaryUiView *view, int dir);
 
 #endif
