@@ -1144,9 +1144,9 @@
   },
   {
    "path": "3ds_port/src/3ds_field_card_impl.h",
-   "sha256": "06f4f648834cf3f65121ed07e7211e9f555feafd5a1cf4c3ff32e931d7e895b0",
+   "sha256": "efb6414025058f2f4e675b4cb52f56ba5aec911654af1907fa6265091dd5f13e",
    "review_status": "reviewed",
-   "credit": "alex61194 (original distribution work with disclosed AI assistance)",
+   "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
    "basis": "Reviewed text-only source/documentation; no ROM/game payloads or generated media; synthetic fixtures only"
   },
@@ -1400,7 +1400,7 @@
   },
   {
    "path": "3ds_port/src/3ds_poketouch.c",
-   "sha256": "6edd5c11328125bf0c58ab4c1e4c6374ee81689b5a99c41b19ce1a8985b54568",
+   "sha256": "5d8459ad15d9b229d45bd6fef766475604bba88744c57c868117cabfe0e73354",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -1998,7 +1998,7 @@
    "credit": "alex61194 with disclosed AI assistance; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT for original port/test contributions; external game rights unchanged",
    "basis": "Original chrome rendering and synthetic fixtures; runtime pack assets remain external; geometry and viewport preserved",
-   "sha256": "0a53a5412c5ae01fc2e055a97ef212475b80c740e1850844a3cf7b20eb589428"
+   "sha256": "e7b04c8465c04c7cf992ccd624e1dbb6e5d652e1fd037d53319043b200482b3a"
   },
   {
    "path": "3ds_port/tests/rex_test.c",
@@ -6920,7 +6920,7 @@
   },
   {
    "path": "3ds_port/include/3ds_lower_layout.h",
-   "sha256": "3c75e820372c5abdfec007dcf7c8f5a4e829352efdfa15228a6b44730f0d6c2c",
+   "sha256": "34f0ff69618a08d87562046b0d8531f885abff9c7d5528e8ce60f2bb9392f030",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -6928,7 +6928,7 @@
   },
   {
    "path": "3ds_port/tests/lower_layout_test.c",
-   "sha256": "7d3d91de85b8b1f1a167c1f0acd0a9a5301f5bacf3038f6f08c536e1c55ef848",
+   "sha256": "d8a944a798074d7a236b3b426f0f8a78d2e16bb8be83b01ee7a37c5bcf61a338",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

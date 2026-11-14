@@ -225,6 +225,15 @@ static const CtrPokeTouchRect kSavePlayer = { 212, 4, 104, 172 };
 static const CtrPokeTouchRect kSaveNote = { 4, 180, 192, 56 };
 static const CtrPokeTouchRect kSaveNoteWide = { 4, 180, 312, 56 };
 
+/* The Trainer Card (phase 2): the card as one window (a touch anywhere on it turns it over), its front (the title and
+ * stars with the ID, the lines NAME, MONEY, POKeDEX and TIME, the trainer's picture, the eight badges at 2x) or its back
+ * (FireRed's records), the band and BACK. */
+static const CtrPokeTouchRect kCard = { 4, 4, 312, 172 };
+static const CtrPokeTouchRect kCardNote = { 4, 180, 248, 56 };
+static const CtrPokeTouchRect kCardBack = { 256, 180, 60, 56 };
+#define CARD_BADGE 32
+#define CARD_BADGE_GAP 4
+
 /* The party menu's window for `rows` rows (1 to PARTY_MENU_ROWS), and its row i: 8 px in from the frame, 16 px tall. */
 static inline CtrPokeTouchRect PartyMenuWindow(int rows)
 {

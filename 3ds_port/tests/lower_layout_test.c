@@ -520,6 +520,20 @@ static void options(void)
     }
 }
 
+/* The Trainer Card: one window across the page, the band and BACK under it; inside its frame, the eight badges at 2x
+ * in a row and the trainer's 64x64 picture beside four lines. */
+static void card(void)
+{
+    const CtrPokeTouchRect *view[3] = {&kCard, &kCardNote, &kCardBack};
+
+    Framed(&kCard);
+    assert(kCard.x == 4 && kCard.y == 4 && kCard.x + kCard.w == 316);
+    BandAndBack(&kCardNote, &kCardBack, Bottom(&kCard));
+    Apart(view, 3);
+    assert(8 * CARD_BADGE + 7 * CARD_BADGE_GAP <= kCard.w - 16 && CARD_BADGE == 2 * 16);
+    assert(kCard.h - 16 >= 16 + 4 * 18 + 8 + CARD_BADGE && kCard.w - 16 >= 200 + 64);
+}
+
 int main(void)
 {
     home();
@@ -529,6 +543,7 @@ int main(void)
     bag();
     dex();
     options();
+    card();
     printf("PASS lower layout%s\n", LOWER_LAYOUT_PROVISIONAL ? " (provisional values)" : "");
     return 0;
 }

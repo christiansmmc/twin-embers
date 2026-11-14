@@ -1,17 +1,17 @@
-/* The player's Trainer Card in the viewport (3ds_poketouch.h CtrPokeTouchCard), included at the end of 3ds_poketouch.c
- * after the Pokedex, whose picture helpers it shares. A remote for FireRed's own card: a light card with an amber band,
- * its front (FireRed's labels and numbers, the trainer's front picture, the stars and the eight badge slots) or its back
- * (FireRed's records). Every word, number and picture is the card's (CtrBottomCard_*, CtrPokeTouch_Card*), but for the
- * port's title and hint (3ds_ui_strings.h). */
-
-static const CtrPokeTouchRect sFCCard = {4, 4, 240, 160};
+/* The player's Trainer Card as a page (3ds_poketouch.h CtrPokeTouchCard; phase 2), included at the end of 3ds_poketouch.c
+ * after the Pokedex, whose picture helpers it shares. A remote for FireRed's own card: the card is one window with the
+ * player's frame, its front (the title and stars with the ID, FireRed's NAME, MONEY, POKeDEX and TIME, the trainer's
+ * front picture, the eight badges at 2x in their places) or its back (FireRed's records); a touch anywhere on it turns
+ * it over with the card's own key, and the inside is the light grey while held. The band says so; BACK is the card's
+ * own exit. Every word, number and picture is the card's (CtrBottomCard_*, CtrPokeTouch_Card*), but for the port's
+ * title and hint (3ds_ui_strings.h). */
 
 int CtrPokeTouch_CardHit(const CtrPokeTouchView *v, int x, int y)
 {
-    return v->card.on && UiIn(&sFCCard, x, y);
+    return v->card.on && UiIn(&kCard, x, y);
 }
 
-/* A flat five-pointed star, 11 pixels across, for the card's stars. */
+/* A flat five-pointed star, 11 pixels across, for the card's stars (the port's own shape). */
 static void FCStar(int x, int y, uint16_t c, uint16_t sh)
 {
     static const char *const kStar[11] = {
@@ -40,111 +40,93 @@ static void FCTrainer(int x, int y)
     UiImage(px, pal565, 64, 64, 64, x, y, 1, 1);
 }
 
-static void FCBadges(const CtrPokeTouchCard *c, int x, int y)
+/* The eight badges at twice their size in a row along the card's bottom, each in its place: FireRed's badge once earned,
+ * an empty place (the light grey) before. */
+static void FCBadges(const CtrPokeTouchCard *c)
 {
     static unsigned char tiles[0x400];
     static unsigned short pal[16];
     static uint8_t px[128 * 16];
     static uint16_t pal565[16];
     int ok = CtrPokeTouch_CardBadges(tiles, pal);
+    int x0 = kCard.x + 8 + (kCard.w - 16 - (8 * CARD_BADGE + 7 * CARD_BADGE_GAP)) / 2;
+    int y = kCard.y + kCard.h - 8 - 4 - CARD_BADGE;
 
     if (ok) {
         FDTiles(tiles, 128, 16, px);
         FDPal(pal, pal565);
     }
     for (int i = 0; i < 8; ++i) {
-        int sx = x + i * 28;
+        int sx = x0 + i * (CARD_BADGE + CARD_BADGE_GAP);
 
-        UiRoundFill(sx, y, 26, 26, 5, UI_RGB(206, 196, 184));
-        UiRoundFill(sx + 1, y + 1, 24, 24, 4, UI_RGB(236, 230, 220));
         if (ok && (c->badges & (1u << i)))
-            UiImage(px + i * 16, pal565, 128, 16, 16, sx + 5, y + 5, 1, 1);
+            UiImage(px + i * 16, pal565, 128, 16, 16, sx, y, 2, 1);
+        else
+            Fill(sx + 6, y + 6, CARD_BADGE - 12, CARD_BADGE - 12, KitInk(3));
     }
 }
 
-/* The amber band at the top of the card, with `title` on it. */
-static int FCBand(const char *title)
-{
-    const CtrPokeTouchRect *r = &sFCCard;
-
-    EmGradFill(r->x + 1, r->y + 1, r->w - 2, 26, 4, kEmAmber.top, kEmAmber.bottom);
-    Fill(r->x + 1, r->y + 27, r->w - 2, 1, kEmAmber.lip);
-    UiText(title, r->x + 12, r->y + 8, kEmAmber.ink, kEmAmber.inkSh, 1, r->x + r->w - 8);
-    return r->x + 12 + UiTextWidth(title, 1);
-}
-
-/* A labelled row: the label on the left, the value right-aligned at `right`, a hairline under it. */
-static void FCRow(const char *label, const char *value, int x, int right, int y)
-{
-    UiText(label, x, y, EM_DARK, EM_DARK_SH, 1, right - UiTextWidth(value, 1) - 6);
-    UiTextRight(value, right, y, EM_VALUE, EM_DARK_SH, 1);
-    Fill(x - 2, y + 15, right - x + 4, 1, UI_RGB(214, 204, 192));
-}
-
-static void FCFront(const CtrPokeTouchCard *c)
+/* The front: the title (its first word only when the stars and the ID would not fit after it) with the stars, the ID,
+ * a rule; NAME, MONEY, POKeDEX (once the player has it) and TIME; the trainer's picture; the badges. */
+static void FCFront(const CtrPokeTouchCard *c, int x, int right)
 {
     char text[24], label[24], title[24];
-    int stars = c->stars < 5 ? c->stars : 5, idLeft;
+    int stars = c->stars < 5 ? c->stars : 5, top = kCard.y + 8, idLeft, y = top + 26;
+    int picX = right - 64 - 4, valueRight = picX - 12;
 
     snprintf(text, sizeof(text), "%s%05u", c->label[1], (unsigned)c->id);
-    idLeft = sFCCard.x + sFCCard.w - 12 - UiTextWidth(text, 1);
-    /* The title, its first word only when the stars and the ID would not fit after it (Spanish "FICHA ENTRENADOR"). */
+    idLeft = right - UiTextWidth(text, 1);
+    KitText(text, idLeft, top, right);
     snprintf(title, sizeof(title), "%s", CtrUiText(UIS_CARD_TITLE));
-    if (sFCCard.x + 12 + UiTextWidth(title, 1) + 8 + stars * 13 > idLeft - 4 && strchr(title, ' '))
+    if (x + UiTextWidth(title, 1) + 8 + stars * 13 > idLeft - 4 && strchr(title, ' '))
         *strchr(title, ' ') = 0;
-    int x = FCBand(title) + 8;
-
+    KitText(title, x, top, idLeft - 4);
     for (int i = 0; i < stars; ++i)
-        FCStar(x + i * 13, sFCCard.y + 7, UI_RGB(255, 236, 140), kEmAmber.lip);
-    UiTextRight(text, sFCCard.x + sFCCard.w - 12, sFCCard.y + 8, kEmAmber.ink, kEmAmber.inkSh, 1);
+        FCStar(x + UiTextWidth(title, 1) + 8 + i * 13, top + 2, RGB(248, 200, 48), KitInk(3));
+    Fill(x, top + 18, right - x, 1, KitInk(3));
     /* NAME: FireRed's label ends in ": " */
     snprintf(label, sizeof(label), "%s", c->label[0]);
     for (int n = (int)strlen(label); n > 0 && (label[n - 1] == ' ' || label[n - 1] == ':'); --n)
         label[n - 1] = 0;
-    FCRow(label, c->name, 16, 156, 40);
+    SLine(x, valueRight, y, label, c->name);
     snprintf(text, sizeof(text), "%s%u", c->label[3], (unsigned)c->money);
-    FCRow(c->label[2], text, 16, 156, 61);
+    SLine(x, valueRight, y += 18, c->label[2], text);
     if (c->hasDex) {
         snprintf(text, sizeof(text), "%u", (unsigned)c->caught);
-        FCRow(c->label[4], text, 16, 156, 82);
+        SLine(x, valueRight, y += 18, c->label[4], text);
     }
     snprintf(text, sizeof(text), "%u:%02u", (unsigned)c->hours, (unsigned)c->minutes);
-    FCRow(c->label[5], text, 16, 156, c->hasDex ? 103 : 82);
-    UiRoundFill(166, 36, 72, 84, 5, UI_RGB(214, 204, 192));
-    EmGradFill(167, 37, 70, 82, 4, UI_RGB(255, 246, 226), UI_RGB(246, 222, 186));
-    FCTrainer(170, 48);
-    FCBadges(c, 12, 130);
+    SLine(x, valueRight, y += 18, c->label[5], text);
+    FCTrainer(picX, top + 24);
+    FCBadges(c);
 }
 
-static void FCBack(const CtrPokeTouchCard *c)
+/* The back: the player's name, a rule and FireRed's records. */
+static void FCBack(const CtrPokeTouchCard *c, int x, int right)
 {
-    FCBand(c->name);
+    int top = kCard.y + 8;
+
+    KitText(c->name, x, top, right);
+    Fill(x, top + 18, right - x, 1, KitInk(3));
     for (int i = 0; i < c->rows && i < PT_CARD_ROWS; ++i)
-        FCRow(c->row[i].label, c->row[i].value, 16, 232, 42 + 22 * i);
+        SLine(x, right, top + 26 + 24 * i, c->row[i].label, c->row[i].value);
 }
 
-static void FCardFrame(const CtrPokeTouchView *v)
+static void FCardPageDraw(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchCard *c = &v->card;
-    const CtrPokeTouchRect *r = &sFCCard;
+    const CtrPokeTouchRect *r = &kCard;
+    int x = r->x + 8, right = r->x + r->w - 8;
 
-    EmSurface();
-    TsBgRect(r->x - 4, r->y - 4, r->w + 8, r->h + 8);
-    UiRoundFill(r->x, r->y, r->w, r->h, 6, c->pressed ? EM_STRIPE : kEmCream.edge);   /* held: an amber edge */
-    EmGradFill(r->x + 1, r->y + 1, r->w - 2, r->h - 2, 5, kEmCream.top, kEmCream.bottom);
+    Fill(0, 0, W, H, BPageBg());
+    FPageWindow(r, v->frameType);
+    if (c->pressed)
+        Fill(x, r->y + 8, r->w - 16, r->h - 16, KitInk(3));
     if (c->back)
-        FCBack(c);
+        FCBack(c, x, right);
     else
-        FCFront(c);
-    sUiS = &sUiNavy;
-}
-
-static void FCardNote(const CtrPokeTouchView *v, int w)
-{
-    (void)v;
-    EmSurface();
-    EmNote(NOTE_X, NOTE_Y, w, NOTE_H);
-    UiText(CtrUiText(UIS_CARD_TITLE), NOTE_X + 12, NOTE_Y + 6, EM_DARK, EM_DARK_SH, 1, NOTE_X + w - 4);
-    BPWrap(CtrUiText(UIS_CARD_TURN), NOTE_X + 12, NOTE_Y + 21, w - 18, 3, EM_DIM, EM_DARK_SH);
-    sUiS = &sUiNavy;
+        FCFront(c, x, right);
+    FPageBand(&kCardNote, CtrUiText(UIS_CARD_TITLE), CtrUiText(UIS_CARD_TURN), 0);
+    if (v->backVisible)
+        FPageBack(v, &kCardBack);
 }

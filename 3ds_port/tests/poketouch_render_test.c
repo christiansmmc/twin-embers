@@ -89,8 +89,15 @@ int CtrPokeTouch_DexCaughtMarker(unsigned char *tiles, unsigned short *palette)
 { (void)tiles; (void)palette; return 0; }
 int CtrPokeTouch_CardTrainerPic(unsigned char *tiles, unsigned short *palette)
 { (void)tiles; (void)palette; return 0; }
+/* The card's badges: none, or (cardArtOk) a sheet of solid badges in palette colour 1, pure green. */
+static int cardArtOk;
 int CtrPokeTouch_CardBadges(unsigned char *tiles, unsigned short *palette)
-{ (void)tiles; (void)palette; return 0; }
+{
+    if (!cardArtOk)
+        return 0;
+    memset(tiles, 0x11, 0x400); memset(palette, 0, 32); palette[1] = 0x03E0;
+    return 1;
+}
 int CtrPokeTouch_MonIcon(unsigned species, unsigned personality, int egg, unsigned char *tiles, unsigned short *palette)
 {
     (void)species; (void)personality; (void)egg; (void)tiles; (void)palette;
@@ -741,6 +748,28 @@ static void preview_pages(const CtrPokeTouchView *base)
         ShotOf(&v, "save_2_done");
         v.save = 0; v.backVisible = 1;
     }
+    {
+        CtrPokeTouchCard *c = &v.card;
+        static const char *const labels[6] = {"NAME: ", "IDNo.", "MONEY", "\xc2\xa5", "POKeDEX", "TIME"};
+        static const char *const records[5][2] = {{"HALL OF FAME DEBUT", "0:00"}, {"POKeMON TRADES", "3"},
+                                                  {"BERRY CRUSH PAIRS", "0"}, {"LINK BATTLES", "W1 L2"}, {"UNION TRADES", "0"}};
+
+        memset(c, 0, sizeof(*c));
+        c->on = 1; c->id = 12345; c->money = 3000; c->hasDex = 1; c->caught = 25; c->hours = 12; c->minutes = 34;
+        c->stars = 2; c->badges = 0x0B; snprintf(c->name, sizeof(c->name), "RED");
+        for (int i = 0; i < 6; ++i)
+            snprintf(c->label[i], sizeof(c->label[i]), "%s", labels[i]);
+        c->rows = 5;
+        for (int i = 0; i < 5; ++i) {
+            snprintf(c->row[i].label, sizeof(c->row[i].label), "%s", records[i][0]);
+            snprintf(c->row[i].value, sizeof(c->row[i].value), "%s", records[i][1]);
+        }
+        cardArtOk = 1;
+        ShotOf(&v, "card_1_front");
+        c->back = 1; ShotOf(&v, "card_2_back");
+        cardArtOk = 0;
+        memset(c, 0, sizeof(*c));
+    }
 }
 
 /* The page colour round every window: the screen's 4 px margin. */
@@ -1042,6 +1071,59 @@ static void save_page(const CtrPokeTouchView *base)
     v.frameType = base->frameType; update(&old, &v);
     CtrPokeTouch_Draw(canvas, base);
 }
+
+/* The Trainer Card as a page: the card one window (a touch anywhere on it is the card's own turn), the earned badges at
+ * 2x in their places, the grey inside while held, its back; the band and BACK. */
+static void card_page(const CtrPokeTouchView *base)
+{
+    CtrPokeTouchView v = *base, old;
+    CtrPokeTouchCard *c = &v.card;
+    const int bx = kCard.x + 8 + (kCard.w - 16 - (8 * CARD_BADGE + 7 * CARD_BADGE_GAP)) / 2;
+
+    v.home = 0; v.backVisible = 1; v.backEnabled = 1; v.backPressed = 0;
+    memset(c, 0, sizeof(*c));
+    c->on = 1; c->id = 12345; c->money = 3000; c->hasDex = 1; c->caught = 25; c->hours = 12; c->minutes = 34;
+    c->stars = 2; c->badges = 0x05;
+    snprintf(c->name, sizeof(c->name), "RED");
+    for (int i = 0; i < 6; ++i)
+        snprintf(c->label[i], sizeof(c->label[i]), "L%d", i);
+    c->rows = 3;
+    for (int i = 0; i < 3; ++i) {
+        snprintf(c->row[i].label, sizeof(c->row[i].label), "RECORD %d", i);
+        snprintf(c->row[i].value, sizeof(c->row[i].value), "%d", i * 10);
+    }
+    cardArtOk = 1;
+    CtrPokeTouch_Draw(canvas, &v);
+    old = v;
+    const int outline = !KitFrameReady(KIT_FRAME_STD, v.frameType);
+    assert(CtrPokeTouch_FieldPageShown(&v));
+    PageMargin();
+    assert(!outline || (at(kCard.x, kCard.y + 20) == KitInk(2) && at(kCardBack.x, kCardBack.y + 20) == KitInk(2)));
+    /* card_hit: the card's window, nothing else; BACK is the card's own exit */
+    assert(CtrPokeTouch_CardHit(&v, kCard.x + 1, kCard.y + 1) && CtrPokeTouch_CardHit(&v, kCard.x + kCard.w - 1, kCard.y + kCard.h - 1));
+    assert(!CtrPokeTouch_CardHit(&v, kCardNote.x + 30, kCardNote.y + 20) && !CtrPokeTouch_CardHit(&v, kCardBack.x + 30, kCardBack.y + 20));
+    assert(CtrPokeTouch_BackHit(&v, kCardBack.x + 30, kCardBack.y + 28) && !CtrPokeTouch_BackHit(&v, kCard.x + 30, kCard.y + 28));
+    /* card_badges: badges 0 and 2 earned, at 2x in their places; the others empty */
+    for (int i = 0; i < 8; ++i) {
+        int x = bx + i * (CARD_BADGE + CARD_BADGE_GAP), y = kCard.y + kCard.h - 8 - 4 - CARD_BADGE;
+
+        assert((ColorIn(x, y, CARD_BADGE, CARD_BADGE, GbaColor(0x03E0)) == CARD_BADGE * CARD_BADGE) == (i == 0 || i == 2));
+    }
+    /* held: the card's inside grey */
+    c->pressed = 1; update(&old, &v);
+    assert(at(kCard.x + 10, kCard.y + kCard.h - 10) == KitInk(3));
+    c->pressed = 0; update(&old, &v);
+    assert(at(kCard.x + 10, kCard.y + kCard.h - 10) == KitInk(1));
+    /* its back: the records; no badges */
+    c->back = 1; update(&old, &v);
+    assert(!ColorIn(kCard.x, kCard.y, kCard.w, kCard.h, GbaColor(0x03E0)));
+    c->hasDex = 0; c->back = 0; c->stars = 5; update(&old, &v);
+    v.backPressed = 1; update(&old, &v);
+    v.backPressed = 0; v.frameType = 2; update(&old, &v);
+    v.frameType = base->frameType; update(&old, &v);
+    cardArtOk = 0;
+    CtrPokeTouch_Draw(canvas, base);
+}
 #endif
 
 int main(int argc, char **argv)
@@ -1103,6 +1185,7 @@ int main(int argc, char **argv)
     dex_page(&v);
     options_page(&v);
     save_page(&v);
+    card_page(&v);
 #else
     for(int x=4;x<244;++x) for(int y=4;y<164;++y) assert(at(x,y)==Gba(0x5ab3));
 #endif
