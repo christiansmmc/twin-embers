@@ -629,6 +629,7 @@ typedef struct {
     uint8_t trainer;                /* TRAINER is shown (FireRed is on its first page) */
     uint8_t ivView;                 /* STATS shows the IVs, EVs and Hidden Power instead of the experience */
     uint8_t loading;                /* nothing reported yet: the frame only */
+    uint8_t frameType;              /* OPTIONS -> FRAME (0-9): the windows' frame */
 } CtrSummaryUiView;
 
 void CtrSummaryUi_Draw(uint16_t *canvas, const CtrSummaryUiView *view);

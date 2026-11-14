@@ -270,6 +270,50 @@ int main(void) {
 }
 ''')
 
+    def test_pages_take_the_frame(self):
+        """OPTIONS -> FRAME reaches every page drawn in the kit: the battle's views (commands, moves, the Party, the
+        Bag) through BattleCommon, and the Summary through SummaryFill. The Party and the Summary used to stay on the
+        first frame."""
+        fills = (ROOT / '3ds_port/src/3ds_bottom_battle_fill_impl.h').read_text(encoding='utf-8')
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        common = function(fills, 'BattleCommon')
+        summary = function(bottom, 'SummaryFill')
+        self.run_c('''
+#include <assert.h>
+#include <string.h>
+#include "3ds_poketouch.h"
+#include "3ds_summary.h"
+static int option;
+int CtrPokeTouch_OptionGet(int id) { return id == PT_OPT_FRAME ? option : 0; }
+static struct { int down, inside, btn; } sBat;
+static unsigned sBatAnim;
+static void PartyFill(uint8_t a[6], uint8_t b[6], uint8_t c[6], uint16_t d[6]) { (void)a; (void)b; (void)c; (void)d; }
+static int BattleActiveSlot(void) { return 0; }
+static unsigned CtrBottomParty_Level(int s) { (void)s; return 5; }
+static void CtrBottomParty_Nickname(int s, char *o) { (void)s; o[0] = 0; }
+static unsigned CtrBottomParty_IconSpecies(int s) { (void)s; return 1; }
+static unsigned CtrBottomParty_HP(int s) { (void)s; return 1; }
+static unsigned CtrBottomParty_MaxHP(int s) { (void)s; return 1; }
+enum { SUMPLAN_NONE = 0 };
+static struct { int kind; } sSumPlan;
+static struct { int down, inside, btn, trainer, ivView; unsigned serial; CtrSummaryView latch; } sSum;
+unsigned CtrBottomSummary_Serial(void) { return 1; }
+void CtrBottomSummary_GetView(CtrSummaryView *v) { memset(v, 0, sizeof(*v)); v->serial = 1; strcpy(v->species, "X"); }
+unsigned CtrBottomSummary_IconSpecies(void) { return 1; }
+''' + common + '\n' + summary + '''
+int main(void) {
+    CtrBattleView v;
+    CtrSummaryUiView s;
+    for (option = 0; option < 10; ++option) {
+        BattleCommon(&v);
+        assert(v.frameType == option);
+        SummaryFill(&s);
+        assert(s.frameType == option);
+    }
+    return 0;
+}
+''')
+
     def test_home_pick_dropped(self):
         """The map's hint has the party's window while a place is picked (or the Party's FLY waits); the final review
         found nothing a player would try gave the party back. A tap on the hint does, and so does any button in the

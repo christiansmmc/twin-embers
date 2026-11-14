@@ -209,10 +209,10 @@ static void STriangle(int cx, int cy, int dir, uint16_t colour)
 }
 
 /* A framed cell with a triangle: the light grey inside while held, the triangle toned while it cannot be used. */
-static void SArrowCell(const CtrPokeTouchRect *r, int dir, int on, int pressed)
+static void SArrowCell(const CtrSummaryUiView *v, const CtrPokeTouchRect *r, int dir, int on, int pressed)
 {
     Fill(r->x, r->y, r->w, r->h, BPageBg());
-    KitPanel(r, KIT_FRAME_STD, 0);
+    KitPanel(r, KIT_FRAME_STD, v->frameType);
     if (pressed)
         Fill(r->x + 8, r->y + 8, r->w - 16, r->h - 16, KitInk(3));
     STriangle(r->x + r->w / 2, r->y + r->h / 2, dir, Tone(KitInk(2), on));
@@ -229,14 +229,14 @@ static void STitle(const CtrSummaryUiView *v)
     int tab = CtrSummaryUi_Tab(v), right = r->x + r->w - 8;
 
     Fill(r->x, r->y, r->w, r->h, BPageBg());
-    KitPanel(r, KIT_FRAME_STD, 0);
+    KitPanel(r, KIT_FRAME_STD, v->frameType);
     if (!v->loading) {
         KitText(kTitle[tab], r->x + 8, r->y + 8, right - 4 * 9 - 4);
         for (int i = 0; i < SUI_TABS; ++i)
             Fill(right - 4 * 9 + 3 + 9 * i, r->y + 12, 6, 6, i == tab ? KitInk(2) : KitInk(3));
     }
-    SArrowCell(&kSumPagePrev, 2, CtrSummaryUi_PageStep(v, -1) >= 0, v->pressed == SUI_HIT_PAGE_PREV);
-    SArrowCell(&kSumPageNext, 3, CtrSummaryUi_PageStep(v, 1) >= 0, v->pressed == SUI_HIT_PAGE_NEXT);
+    SArrowCell(v, &kSumPagePrev, 2, CtrSummaryUi_PageStep(v, -1) >= 0, v->pressed == SUI_HIT_PAGE_PREV);
+    SArrowCell(v, &kSumPageNext, 3, CtrSummaryUi_PageStep(v, 1) >= 0, v->pressed == SUI_HIT_PAGE_NEXT);
 }
 
 /* The Pokemon's column: its name and gender sign, Lv and its ailment's tag, its picture (or its icon at 2x without
@@ -248,7 +248,7 @@ static void SMon(const CtrSummaryUiView *v)
     int x = r->x + 8, right = r->x + r->w - 8, top = r->y + 8;
 
     Fill(r->x, r->y, r->w, r->h, BPageBg());
-    KitPanel(r, KIT_FRAME_STD, 0);
+    KitPanel(r, KIT_FRAME_STD, v->frameType);
     if (v->loading)
         return;
     if (!SPic(v, r->x + 22, top + 30))
@@ -450,7 +450,7 @@ static void SPageBody(const CtrSummaryUiView *v)
     int x = r->x + 8, right = r->x + r->w - 8, top = r->y + 8;
 
     Fill(r->x, r->y, r->w, r->h, BPageBg());
-    KitPanel(r, KIT_FRAME_STD, 0);
+    KitPanel(r, KIT_FRAME_STD, v->frameType);
     if (v->loading)
         return;
     switch (CtrSummaryUi_Tab(v)) {
@@ -505,7 +505,7 @@ static void SBack(const CtrSummaryUiView *v)
     CtrPokeTouchRect in = BPageInside(&kSumBack);
 
     Fill(kSumBack.x, kSumBack.y, kSumBack.w, kSumBack.h, BPageBg());
-    KitPanel(&kSumBack, KIT_FRAME_STD, 0);
+    KitPanel(&kSumBack, KIT_FRAME_STD, v->frameType);
     KitRow(&in, CTR_TR("BACK", "ATR\xC3\x81S", "Zur\xC3\xBC" "ck"), v->pressed == SUI_HIT_BACK, 1);
 }
 
@@ -513,8 +513,8 @@ static void SMonCells(const CtrSummaryUiView *v)
 {
     int on = SSwitchEnabled(v);
 
-    SArrowCell(&kSumMonPrev, 0, on, on && v->pressed == SUI_HIT_PREV);
-    SArrowCell(&kSumMonNext, 1, on, on && v->pressed == SUI_HIT_NEXT);
+    SArrowCell(v, &kSumMonPrev, 0, on, on && v->pressed == SUI_HIT_PREV);
+    SArrowCell(v, &kSumMonNext, 1, on, on && v->pressed == SUI_HIT_NEXT);
 }
 
 void CtrSummaryUi_Draw(uint16_t *canvas, const CtrSummaryUiView *v)

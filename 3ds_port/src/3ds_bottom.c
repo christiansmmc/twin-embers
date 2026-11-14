@@ -1940,6 +1940,7 @@ static void SummaryFill(CtrSummaryUiView *v)
         sSum.trainer = 0;
     v->trainer = (uint8_t)(sSum.trainer && v->data.page == SUI_PAGE_INFO);
     v->ivView = (uint8_t)sSum.ivView;
+    v->frameType = (uint8_t)CtrPokeTouch_OptionGet(PT_OPT_FRAME);
     v->icon = (uint16_t)(v->loading ? 0 : CtrBottomSummary_IconSpecies());
     v->pressed = (int16_t)(sSum.down && sSum.inside ? sSum.btn : -1);
 }

@@ -558,6 +558,10 @@ static void summary_page(const CtrSummaryUiView *base)
     assert(SumCellPressed(&kSumMonPrev) && !SumCellPressed(&kSumPageNext));
     v.pressed = SUI_HIT_BACK; settle_summary(&old, &v); old = v;
     v.pressed = -1; settle_summary(&old, &v); old = v;
+    /* summary_frame_type: the windows are drawn with the player's FRAME (the kit asked for that type) */
+    v.frameType = 3; settle_summary(&old, &v); old = v;
+    assert(sKitStd.type == 3);
+    v.frameType = 0; settle_summary(&old, &v); old = v;
     /* STATS: the page answers as the IV / EV switch; both arrows */
     v.data.page = SUI_PAGE_SKILLS; settle_summary(&old, &v); old = v;
     assert(CtrSummaryUi_Hit(&v, kSumPage.x + 50, kSumPage.y + 50) == SUI_HIT_IVTOGGLE);

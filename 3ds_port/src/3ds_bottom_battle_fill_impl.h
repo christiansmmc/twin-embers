@@ -54,6 +54,7 @@ static void HudFrameSync(int type)
 static void BattleCommon(CtrBattleView *v)
 {
     memset(v, 0, sizeof(*v));
+    v->frameType = (uint8_t)CtrPokeTouch_OptionGet(PT_OPT_FRAME);     /* every battle page's windows, the Party's too */
     v->pressed = (int16_t)(sBat.down && sBat.inside ? sBat.btn : -1);
     v->cursor = -1;
     PartyFill(v->party, v->partyHp, v->partyStatus, v->partyIcon);
@@ -251,7 +252,6 @@ static void BattleFill(CtrBattleView *v)
     int state = CtrBattle_State();
 
     BattleCommon(v);
-    v->frameType = (uint8_t)CtrPokeTouch_OptionGet(PT_OPT_FRAME);
     HudFrameSync(v->frameType);
     v->state = state == BATTLE_ACTION ? BUI_ACTION : state == BATTLE_MOVE ? BUI_MOVE
              : state == BATTLE_TARGET ? BUI_TARGET : state == BATTLE_SAFARI ? BUI_SAFARI : BUI_IDLE;
