@@ -190,6 +190,12 @@ static void Fill(Canvas *c, int x, int y, int w, int h, Rgb v)
 /* The bars as FireRed's: a dark tag with the bar's name, then a flat track with a dark edge and a light inside. */
 static const Rgb TAG = {64, 72, 80}, TRACK_EDGE = {64, 64, 64}, TRACK_IN = {228, 228, 220};
 
+/* HP's and EXP's tags are one width (EXP's), so their bars start at the same x. */
+static int TagW(void)
+{
+    return 4 + (int)AsciiWidth(true, "EXP") + 4;
+}
+
 static void Tag(Canvas *c, int x, int y, int w, const char *text, Rgb ink)
 {
     Fill(c, x, y, w, 9, TAG);
@@ -203,15 +209,15 @@ static void Track(Canvas *c, int x, int y, int w, int h, int filled, Rgb fill)
     if (filled > 0) Fill(c, x + 1, y + 1, filled, h - 2, fill);
 }
 
-/* HP from x on track row y to `end`: the 16-pixel "HP" tag, then a 7-pixel track filled as FireRed's (over half green,
- * over a fifth yellow, else red). */
+/* HP from x on track row y to `end`: the "HP" tag, then a 7-pixel track filled as FireRed's (over half green, over a
+ * fifth yellow, else red). */
 static void HpRow(Canvas *c, int x, int y, int end, unsigned pixels)
 {
     const Rgb fill = pixels > CTR_HUD_HP_PIXELS * 50 / 100 ? (Rgb){88, 208, 128}
                    : pixels > CTR_HUD_HP_PIXELS * 20 / 100 ? (Rgb){248, 200, 56} : (Rgb){240, 88, 72};
-    int tx = x + 18, inner = end - tx - 2;
+    int tx = x + TagW() + 2, inner = end - tx - 2;
 
-    Tag(c, x, y - 1, 16, CTR_TR("HP", "PS", "KP"), (Rgb){248, 208, 56});
+    Tag(c, x, y - 1, TagW(), CTR_TR("HP", "PS", "KP"), (Rgb){248, 208, 56});
     if (pixels > CTR_HUD_HP_PIXELS) pixels = CTR_HUD_HP_PIXELS;
     int fw = (int)lrintf((float)inner * (float)pixels / CTR_HUD_HP_PIXELS);
     if (pixels && !fw) fw = 1;
@@ -221,7 +227,7 @@ static void HpRow(Canvas *c, int x, int y, int end, unsigned pixels)
 /* EXP from x on tag row y to `end`: its tag, then a 5-pixel track filled in blue. */
 static void ExpRow(Canvas *c, int x, int y, int end, unsigned pixels)
 {
-    int tw = 4 + (int)AsciiWidth(true, "EXP") + 4, tx = x + tw + 2, inner = end - tx - 2;
+    int tw = TagW(), tx = x + tw + 2, inner = end - tx - 2;
 
     Tag(c, x, y, tw, "EXP", (Rgb){120, 200, 248});
     if (pixels > CTR_HUD_EXP_PIXELS) pixels = CTR_HUD_EXP_PIXELS;
@@ -296,8 +302,8 @@ static void Numbers(const CtrHudState *s, char *out)
 #define PLAYER_W 136
 #define PLAYER_H 49
 #define LOW_H 36                           /* the Safari Zone's box */
-/* The player's boxes in a double battle: one row for the name and one for the bar, so both fit under the foe's ground. */
-#define DOUBLE_H 26
+/* The player's boxes in a double battle: one row for the name and one for the bar inside the frame's rims. */
+#define DOUBLE_H 32
 #define PAD 10                             /* from the box's sides to its text and bars */
 
 /* The pack's frame (CtrHud_SetFrame), as the lower screen's kit draws it. */
@@ -331,10 +337,10 @@ static void Window(Canvas *c, int w, int h)
         }
 }
 
-/* The HP row's start (its track on row y): after the status tag when there is one, else 28 in. */
+/* The HP row's start (its track on row y): after the status tag when there is one, else the box's margin. */
 static int HpStart(Canvas *c, const CtrHudState *s, int y)
 {
-    return HasStatus(s) ? PAD + StatusTag(c, PAD, y - 1, s->status) + 3 : 28;
+    return HasStatus(s) ? PAD + StatusTag(c, PAD, y - 1, s->status) + 3 : PAD;
 }
 
 static void FoeBox(Canvas *c, const CtrHudState *s)
@@ -345,7 +351,7 @@ static void FoeBox(Canvas *c, const CtrHudState *s)
     Window(c, w, FOE_H);
     if (!s->noBall)
     {
-        Ball(c, 9, 7, s->caught);
+        Ball(c, 9, 9, s->caught);       /* its 11 rows centred on the name's capitals (rows 10 to 18) */
         nx = 22;
     }
     Name(c, nx, 17, s);
@@ -362,10 +368,11 @@ static void PlayerBox(Canvas *c, const CtrHudState *s)
     Name(c, PAD, 14, s);
     Level(c, w - PAD, 14, s->level);
     HpRow(c, HpStart(c, s, 19), 19, w - PAD, s->hpPixels);
-    /* The last row: EXP on the left, "hp/max" right-aligned beside it. */
+    /* The last row: EXP from the same x as HP, ending where the widest "hp/max" would start; the numbers right-aligned
+     * after it. */
     Numbers(s, numbers);
     Ascii(c, false, w - PAD - (int)AsciiWidth(false, numbers), 41, numbers, sInk, &sInkShadow);
-    ExpRow(c, PAD, 32, w - PAD - 48, s->expPixels);
+    ExpRow(c, PAD, 32, w - PAD - (int)AsciiWidth(false, "999/999") - 4, s->expPixels);
 }
 
 /* A double battle's player box: the name row, then HP with its numbers beside the bar. */
@@ -375,12 +382,12 @@ static void PlayerDoubleBox(Canvas *c, const CtrHudState *s)
     char numbers[12];
 
     Window(c, w, DOUBLE_H);
-    Name(c, PAD, 11, s);
-    Level(c, w - PAD, 11, s->level);
+    Name(c, PAD, 14, s);
+    Level(c, w - PAD, 14, s->level);
     Numbers(s, numbers);
     int nw = (int)AsciiWidth(false, numbers);
-    Ascii(c, false, w - PAD - nw, 20, numbers, sInk, &sInkShadow);
-    HpRow(c, HasStatus(s) ? PAD + StatusTag(c, PAD, 12, s->status) + 3 : PAD, 13, w - PAD - nw - 4, s->hpPixels);
+    Ascii(c, false, w - PAD - nw, 25, numbers, sInk, &sInkShadow);
+    HpRow(c, HasStatus(s) ? PAD + StatusTag(c, PAD, 18, s->status) + 3 : PAD, 19, w - PAD - nw - 4, s->hpPixels);
 }
 
 /* The Safari Zone's box: SAFARI BALLS, a Poke Ball and how many are left below. */
@@ -446,8 +453,8 @@ static const struct { uint8_t kind; bool doubles; uint8_t position; int16_t gbaX
     {CTR_HUD_SAFARI, false, 0, 126, 72, 260, 154},
     {CTR_HUD_FOE, true, 1, 12, 3, 24, 4},
     {CTR_HUD_FOE, true, 3, 0, 28, 6, 46},
-    {CTR_HUD_PLAYER_DOUBLE, true, 0, 127, 59, 252, 136},
-    {CTR_HUD_PLAYER_DOUBLE, true, 2, 139, 84, 260, 164},
+    {CTR_HUD_PLAYER_DOUBLE, true, 0, 127, 59, 252, 126},
+    {CTR_HUD_PLAYER_DOUBLE, true, 2, 139, 84, 260, 160},
 };
 
 static void Anchor(const CtrHudState *s, float *dx, float *dy)
