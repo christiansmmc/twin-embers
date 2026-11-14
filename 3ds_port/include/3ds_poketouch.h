@@ -38,9 +38,10 @@ enum { PT_FLY_NONE, PT_FLY_UNVISITED, PT_FLY_NO_MON, PT_FLY_NO_BADGE, PT_FLY_NO_
 
 typedef struct { int16_t x, y, w, h; } CtrPokeTouchRect;
 
-/* The viewport: the GBA picture's 240x160, pixel for pixel. */
-#define PT_VIEW_X 4
-#define PT_VIEW_Y 4
+/* The viewport: the GBA picture's 240x160, pixel for pixel, inside the frame's window in the middle of the page
+ * (3ds_lower_layout.h kViewFrame; 3ds_video.c draws the picture here). */
+#define PT_VIEW_X 40
+#define PT_VIEW_Y 14
 #define PT_VIEW_W 240
 #define PT_VIEW_H 160
 /* The HOME map: FireRed's own Region Map art, drawn passively over the field's

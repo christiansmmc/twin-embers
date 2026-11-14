@@ -313,6 +313,15 @@ static inline CtrPokeTouchRect NameKey(int cols, int row, int col)
     return r;
 }
 
+/* FireRed's own picture on the lower screen (phase 2: the Fame Checker, Teachy TV, mail, Easy Chat, the Hall of Fame,
+ * the Pokedex's AREA, a link's Trainer Card, the PC's own screens): the GBA picture 1:1 at (PT_VIEW_X, PT_VIEW_Y) inside
+ * a window with the player's frame in the middle of the page, the band (what the screen is) and BACK under it; without
+ * BACK the band is whole. */
+static const CtrPokeTouchRect kViewFrame = { 32, 4, 256, 180 };
+static const CtrPokeTouchRect kViewNote = { 4, 188, 248, 48 };
+static const CtrPokeTouchRect kViewNoteWide = { 4, 188, 312, 48 };
+static const CtrPokeTouchRect kViewBack = { 256, 188, 60, 48 };
+
 /* The idle screen (while FireRed's screen above needs nothing from this one): the page's colour, and the project's logo
  * in a panel with the dialogue frame in its middle when there is one to show. */
 static const CtrPokeTouchRect kIdlePanel = { 32, 48, 256, 144 };

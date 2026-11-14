@@ -880,6 +880,11 @@ static void preview_pages(const CtrPokeTouchView *base)
     }
     CtrPokeTouch_DrawIdle(canvas, 1);
     Shot("idle");
+    v.viewport = 1; v.backVisible = 1; v.backEnabled = 1;
+    snprintf(v.bar[0], sizeof(v.bar[0]), "FAME CHECKER"); snprintf(v.bar[1], sizeof(v.bar[1]), "Use the game's own controls.");
+    snprintf(v.bar[2], sizeof(v.bar[2]), "BACK is the B button.");
+    ShotOf(&v, "view_1_gba");
+    v.viewport = 0;
 }
 
 /* The page colour round every window: the screen's 4 px margin. */
@@ -1502,6 +1507,43 @@ static void idle_page(const CtrPokeTouchView *base)
     CtrPokeTouch_Draw(canvas, base);
 }
 
+/* FireRed's own picture as a page (the Fame Checker, mail, the Pokedex's AREA...): the frame's window round the picture
+ * in the middle of the page (the picture's place black under the GPU's picture), the band with what the screen is and
+ * BACK, the band whole without BACK; any other view without a page of its own (nothing to show) gets the same frame. */
+static void frame_page(const CtrPokeTouchView *base)
+{
+    CtrPokeTouchView v = *base, old;
+    int gx, gy;
+
+    v.home = 0; v.viewport = 1; v.backVisible = 1; v.backEnabled = 1; v.backPressed = 0;
+    snprintf(v.bar[0], sizeof(v.bar[0]), "FAME CHECKER"); snprintf(v.bar[1], sizeof(v.bar[1]), "Use the game's own controls.");
+    snprintf(v.bar[2], sizeof(v.bar[2]), "BACK is the B button.");
+    CtrPokeTouch_Draw(canvas, &v);
+    old = v;
+    const int outline = !KitFrameReady(KIT_FRAME_STD, v.frameType);
+    assert(CtrPokeTouch_FieldPageShown(&v) && !CtrPokeTouch_HomePageShown(&v));
+    PageMargin();
+    assert(!outline || (at(kViewFrame.x, kViewFrame.y + 20) == KitInk(2) && at(kViewBack.x, kViewBack.y + 20) == KitInk(2)));
+    assert(at(PT_VIEW_X, PT_VIEW_Y) == 0 && at(PT_VIEW_X + PT_VIEW_W - 1, PT_VIEW_Y + PT_VIEW_H - 1) == 0);
+    assert(at(PT_VIEW_X - 1, PT_VIEW_Y + 20) != 0 && at(PT_VIEW_X + 20, PT_VIEW_Y + PT_VIEW_H) != 0);
+    assert(CtrPokeTouch_ViewportToGba(PT_VIEW_X, PT_VIEW_Y, &gx, &gy) && gx == 0 && gy == 0);
+    assert(CtrPokeTouch_BackHit(&v, kViewBack.x + 30, kViewBack.y + 24) && !CtrPokeTouch_BackHit(&v, kViewNote.x + 30, kViewNote.y + 24));
+    assert(!CtrPokeTouch_BackHit(&v, PT_VIEW_X + 100, PT_VIEW_Y + 80));
+    v.backPressed = 1; update(&old, &v);
+    assert(at(kViewBack.x + kViewBack.w - 10, kViewBack.y + 10) == KitInk(3));
+    v.backPressed = 0; v.backEnabled = 0; update(&old, &v);
+    /* no BACK: the band whole */
+    v.backVisible = 0; update(&old, &v);
+    assert(!CtrPokeTouch_BackHit(&v, kViewBack.x + 30, kViewBack.y + 24) && at(kViewBack.x + 30, kViewBack.y + 24) != KitInk(3));
+    snprintf(v.bar[0], sizeof(v.bar[0]), "POKeMON STORAGE SYSTEM"); update(&old, &v);
+    /* a view with nothing of its own to show: the frame's window empty */
+    v.viewport = 0; update(&old, &v);
+    assert(at(PT_VIEW_X + 10, PT_VIEW_Y + 10) == KitInk(1));
+    v.frameType = 3; update(&old, &v);
+    v.frameType = base->frameType; update(&old, &v);
+    CtrPokeTouch_Draw(canvas, base);
+}
+
 /* The naming keyboard as a page: the name's window, the three tabs (capitals, small letters, symbols, left to right;
  * the page shown underlined), the page's keys, DELETE and OK; FireRed's arrow on its cursor (a key, the tab its page
  * button turns to, DELETE or OK) or what is held. No BACK: DELETE is its B. */
@@ -1598,9 +1640,9 @@ int main(int argc, char **argv)
         for(int i=0;i<PT_COUNT;++i) if(UiIn(&expected[i],x,y)) hit=i;
         assert(CtrPokeTouch_HitTest(x,y)==hit);
         int gx=-1,gy=-1;
-        int inside=x>=4&&x<244&&y>=4&&y<164;
+        int inside=x>=PT_VIEW_X&&x<PT_VIEW_X+PT_VIEW_W&&y>=PT_VIEW_Y&&y<PT_VIEW_Y+PT_VIEW_H;
         assert(CtrPokeTouch_ViewportToGba(x,y,&gx,&gy)==inside);
-        if(inside) assert(gx==x-4&&gy==y-4);
+        if(inside) assert(gx==x-PT_VIEW_X&&gy==y-PT_VIEW_Y);
     }
     CtrPokeTouchView v={0}; v.selected=v.pressed=PT_NONE;
     v.home=1; v.playerX=v.playerY=v.cursorX=v.cursorY=-1;
@@ -1633,6 +1675,7 @@ int main(int argc, char **argv)
     learn_page(&v);
     name_page(&v);
     idle_page(&v);
+    frame_page(&v);
 #else
     for(int x=4;x<244;++x) for(int y=4;y<164;++y) assert(at(x,y)==Gba(0x5ab3));
 #endif
@@ -1658,7 +1701,7 @@ int main(int argc, char **argv)
         v.optCount=2; strcpy(v.optLabel[0],"SOUND"); strcpy(v.optValue[0],"MONO");
         v.savePressed=PT_SAVE_NONE;
         update(&old,&v);
-        if(viewports) for(int x=4;x<244;++x) for(int y=4;y<164;++y) {
+        if(viewports) for(int x=PT_VIEW_X;x<PT_VIEW_X+PT_VIEW_W;++x) for(int y=PT_VIEW_Y;y<PT_VIEW_Y+PT_VIEW_H;++y) {
             uint16_t c=at(x,y); fwrite(&c,2,1,viewports);
         }
     }

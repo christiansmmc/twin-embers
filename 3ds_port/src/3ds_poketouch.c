@@ -942,6 +942,7 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
 #include "3ds_field_bag_impl.h"
 #include "3ds_field_page_impl.h"
 #include "3ds_options_page_impl.h"
+#include "3ds_view_page_impl.h"
 #include "3ds_field_dex_impl.h"
 #include "3ds_field_card_impl.h"
 #include "3ds_field_learn_impl.h"
@@ -950,10 +951,10 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
 #include "3ds_field_box_impl.h"
 
 /* ---- The field's pages: which view is one, its BACK, its drawing ---- */
+/* Every view but HOME and the BAG: the field's views each have a page, FireRed's picture has its frame's. */
 bool CtrPokeTouch_FieldPageShown(const CtrPokeTouchView *v)
 {
-    return !v->viewport && !CtrPokeTouch_BagPageShown(v) && (v->dex.on || v->card.on || v->box.on || v->choice.on || v->learn.on || v->name.on || v->options
-                                                         || v->save);
+    return !CtrPokeTouch_HomePageShown(v) && !CtrPokeTouch_BagPageShown(v);
 }
 
 /* BACK's cell on the page shown (none without the view's BACK, or while the page has no room for it). */
@@ -961,6 +962,8 @@ static const CtrPokeTouchRect *FieldPageBack(const CtrPokeTouchView *v)
 {
     if (!v->backVisible)
         return NULL;
+    if (v->viewport)
+        return &kViewBack;
     if (v->dex.on)
         return FDexBackRect(v);
     if (v->card.on)
@@ -977,12 +980,14 @@ static const CtrPokeTouchRect *FieldPageBack(const CtrPokeTouchView *v)
         return NULL;                    /* NO and B leave SAVE */
     if (v->options)
         return &kOptBack;
-    return NULL;
+    return &kViewBack;
 }
 
 static void FieldPageDraw(const CtrPokeTouchView *v)
 {
-    if (v->dex.on)
+    if (v->viewport)
+        ViewPageDraw(v);
+    else if (v->dex.on)
         FDexPageDraw(v);
     else if (v->card.on)
         FCardPageDraw(v);
@@ -998,6 +1003,8 @@ static void FieldPageDraw(const CtrPokeTouchView *v)
         SavePageDraw(v);
     else if (v->options)
         OptionsPageDraw(v);
+    else
+        ViewPageDraw(v);
 }
 
 bool CtrPokeTouch_BackHit(const CtrPokeTouchView *v, int x, int y)

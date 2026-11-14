@@ -702,9 +702,32 @@ static void idle(void)
     assert(kIdlePanel.w - 32 >= 224 && kIdlePanel.h - 16 >= 126);
 }
 
+/* FireRed's picture: 240x160 inside the frame's window, which sits in the middle of the page; the band 4 px under it
+ * (two lines), BACK beside it; the whole band without BACK. */
+static void viewport(void)
+{
+    const CtrPokeTouchRect pic = {PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H};
+    const CtrPokeTouchRect *view[3] = {&kViewFrame, &kViewNote, &kViewBack};
+
+    assert(PT_VIEW_W == 240 && PT_VIEW_H == 160);
+    Framed(&kViewFrame);
+    InFrame(&pic, &kViewFrame);
+    assert(kViewFrame.x * 2 + kViewFrame.w == 320 && kViewFrame.y == 4);
+    assert(pic.x - kViewFrame.x == 8 && kViewFrame.x + kViewFrame.w - (pic.x + pic.w) == 8);
+    assert(pic.y - kViewFrame.y - 8 == Bottom(&kViewFrame) - 8 - Bottom(&pic));   /* centred in it */
+    Dialogue(&kViewNote);
+    assert(kViewNote.x == 4 && kViewNote.y == Bottom(&kViewFrame) + 4 && Bottom(&kViewNote) == 236 && kViewNote.h - 16 >= 2 * 14);
+    Button(&kViewBack);
+    assert(kViewBack.x == kViewNote.x + kViewNote.w + 4 && kViewBack.x + kViewBack.w == 316 && kViewBack.y == kViewNote.y);
+    Apart(view, 3);
+    Dialogue(&kViewNoteWide);
+    assert(kViewNoteWide.x == 4 && kViewNoteWide.x + kViewNoteWide.w == 316 && kViewNoteWide.y == kViewNote.y);
+}
+
 int main(void)
 {
     idle();
+    viewport();
     home();
     battle();
     party();
