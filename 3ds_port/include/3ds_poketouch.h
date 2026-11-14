@@ -608,15 +608,18 @@ int CtrBattleUi_Hit(const CtrBattleView *view, int x, int y);
 /*
  * The Pokemon Summary (3ds_summary_ui.inc, CtrSummaryUi_*): the whole lower screen while FireRed's Summary of the party
  * runs hidden behind it, from the field's Party or the battle's (the same screen for both). It shows what the Summary
- * reports (CtrSummaryView) in the premium design: a header with the Pokemon (icon, nickname, gender, number, species,
- * level) and the buttons for the previous and next one, the tabs INFO / STATS / MOVES / TRAINER, the page and a footer
- * with BACK. INFO, STATS and MOVES are FireRed's three pages (its move details are MOVES with a move selected);
- * TRAINER is the trainer memo of its first page, shown on its own.
+ * reports (CtrSummaryView) as a page in the kit's look, FireRed's own arrangement (phase 2, the owner's "3"): the page's
+ * title with the arrows that turn the pages INFO / STATS / MOVES / TRAINER, the Pokemon on the left, the page on the
+ * right, and under them the previous and next Pokemon, a description band and BACK. INFO, STATS and MOVES are FireRed's
+ * three pages (its move details are MOVES with a move selected); TRAINER is the trainer memo of its first page, shown on
+ * its own.
  */
 enum { SUI_TAB_INFO = 0, SUI_TAB_STATS, SUI_TAB_MOVES, SUI_TAB_TRAINER, SUI_TABS };
-/* Hit codes (CtrSummaryUi_Hit): the tabs, the previous / next Pokemon, BACK, a move card or row, the details' CANCEL. */
-enum { SUI_HIT_TAB = 0, SUI_HIT_PREV = 10, SUI_HIT_NEXT = 11, SUI_HIT_BACK = 12, SUI_HIT_MOVE = 20, SUI_HIT_CANCEL = 24,
-       SUI_HIT_IVTOGGLE = 30 /* the STATS page's EXP / IV-EV switch */ };
+/* Hit codes (CtrSummaryUi_Hit): the previous / next Pokemon, BACK, the arrows that turn the pages, a move card or row,
+ * the details' CANCEL. SUI_HIT_TAB + tab is what a page arrow asks for (CtrSummaryUi_PageStep). */
+enum { SUI_HIT_TAB = 0, SUI_HIT_PREV = 10, SUI_HIT_NEXT = 11, SUI_HIT_BACK = 12, SUI_HIT_PAGE_PREV = 13,
+       SUI_HIT_PAGE_NEXT = 14, SUI_HIT_MOVE = 20, SUI_HIT_CANCEL = 24,
+       SUI_HIT_IVTOGGLE = 30 /* the STATS page: EXP or IV / EV */ };
 /* FireRed's Summary pages (pokemon_summary_screen.h PSS_PAGE_*). */
 enum { SUI_PAGE_INFO = 0, SUI_PAGE_SKILLS, SUI_PAGE_MOVES, SUI_PAGE_MOVES_INFO };
 typedef struct {
@@ -635,5 +638,8 @@ void CtrSummaryUi_Update(uint16_t *canvas, const CtrSummaryUiView *old, const Ct
 int CtrSummaryUi_Hit(const CtrSummaryUiView *view, int x, int y);
 /* The tab `view` shows (SUI_TAB_*). */
 int CtrSummaryUi_Tab(const CtrSummaryUiView *view);
+/* The page an arrow turns to from the one shown: the next one the Pokemon has (an Egg has INFO and TRAINER) toward
+ * `dir` (-1 back, 1 on), SUI_TAB_*; -1 with none that way, or while nothing is reported. */
+int CtrSummaryUi_PageStep(const CtrSummaryUiView *view, int dir);
 
 #endif

@@ -642,7 +642,7 @@
   },
   {
    "path": "3ds_port/include/3ds_poketouch.h",
-   "sha256": "631b375240266fad912044568fd2f5c57423caec272d1f6a8a659b8746a8d27e",
+   "sha256": "1e6f98c0bbf008e920e263592a6d1771f664de5ae1f2d1b09457b6b9433a7e48",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -995,7 +995,7 @@
   },
   {
    "path": "3ds_port/src/3ds_battle_ui_impl.h",
-   "sha256": "22d6743430a46ac0e392e992e605dadca29364e51a23c51b02c851b7de253972",
+   "sha256": "2aa23b498ebb175d4e1c688f94c2cd6505db8fbacd39d04e4ce37ab1ec375b56",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -1034,7 +1034,7 @@
   },
   {
    "path": "3ds_port/src/3ds_bottom.c",
-   "sha256": "71349837c7672a6185fb2e88d8b1d4a05af42a3f6dfa8fd7bd9b008a542f2cdd",
+   "sha256": "46a36e1e4473390a4c436cfb43cc50ee816cc62dfb00ee5cac87dfe59c9d037f",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -1491,9 +1491,9 @@
   },
   {
    "path": "3ds_port/src/3ds_summary_ui_impl.h",
-   "sha256": "acf058fc38d2bb26faa3c64db2e388aa968ec863422755d26b9ccff25b272f2b",
+   "sha256": "be96a1cfdce463758f104360d7ba7443c688c94164a9dd832f0da6d5d3eafa10",
    "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
+   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
    "basis": "Pinned 96f95e0 Git blob verified; reviewed port-only text, no media/payload; inherited notices and external-game scope preserved; test fixtures synthetic",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
@@ -1701,7 +1701,7 @@
   },
   {
    "path": "3ds_port/tests/battle_ui_render_test.c",
-   "sha256": "62b21da82708007b0381e49b7145c2b0acd712799c8d9a1a4950287c4ba35183",
+   "sha256": "388efc9af3a880ee0fccf9072f043cc13fa7b792840387ba029c5160f2338ad1",
    "review_status": "reviewed",
    "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -6920,7 +6920,7 @@
   },
   {
    "path": "3ds_port/include/3ds_lower_layout.h",
-   "sha256": "81c10563a6a8375bbab1e79b8e7b71ab995ca9d67cfca89f6e759fcadf6f1e90",
+   "sha256": "5e3d9c3cb5c721e98f280ef5d21c880daaed9cdb19b0d03d4ac45e3bd9de6036",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -6928,7 +6928,7 @@
   },
   {
    "path": "3ds_port/tests/lower_layout_test.c",
-   "sha256": "b2b39b1dcb2bdc8394bf000058dbcac5f435b0fe72402b63c7039c62c53ae23a",
+   "sha256": "41cc2093f210afb63ae3a61aa64871a8ba70b7a37d4b829abf3df11769987569",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

@@ -1944,13 +1944,21 @@ static void SummaryFill(CtrSummaryUiView *v)
     v->pressed = (int16_t)(sSum.down && sSum.inside ? sSum.btn : -1);
 }
 
-/* What a control does, through the Summary's own plans and keys: a tab turns FireRed's pages to its page (out of the
- * move details first), the previous and next Pokemon are its UP and DOWN, BACK is its B; a move card opens the details
- * on that move, a row there moves the cursor to it, and the selected row (or CANCEL) is chosen with A. */
+/* What a control does, through the Summary's own plans and keys: a page arrow turns FireRed's pages to the page it
+ * leads to (out of the move details first), as a tab of that page would; the previous and next Pokemon are its UP and
+ * DOWN, BACK is its B; a move card opens the details on that move, a row there moves the cursor to it, and the selected
+ * row (or CANCEL) is chosen with A. */
 static void SummaryAct(int hit)
 {
     int page = CtrBottomSummary_Page();
 
+    if (hit == SUI_HIT_PAGE_PREV || hit == SUI_HIT_PAGE_NEXT) {
+        int tab = sHaveShown && sShown.summaryUi ? CtrSummaryUi_PageStep(&sShown.sum, hit == SUI_HIT_PAGE_PREV ? -1 : 1) : -1;
+
+        if (tab >= 0)
+            SummaryAct(SUI_HIT_TAB + tab);
+        return;
+    }
     if (hit >= SUI_HIT_TAB && hit < SUI_HIT_TAB + SUI_TABS) {
         static const int target[SUI_TABS] = {SUI_PAGE_INFO, SUI_PAGE_SKILLS, SUI_PAGE_MOVES, SUI_PAGE_INFO};
         int tab = hit - SUI_HIT_TAB;

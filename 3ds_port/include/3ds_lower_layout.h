@@ -87,6 +87,35 @@ static const CtrPokeTouchRect kPartyCancel = { 256, 188, 60, 48 };
 #define PARTY_MENU_ROWS 8
 static const CtrPokeTouchRect kPartyLevelUp = { 162, 4, 154, 118 };
 
+/* The Summary (phase 2, the owner's "3", FireRed's own arrangement): the page's title with its dots and the arrows that
+ * turn the pages (INFO, STATS, MOVES, TRAINER), the Pokemon on the left (name, Lv, its picture, its types) and the page
+ * on the right; under them the previous and next Pokemon, the description band (dialogue frame) and BACK. The moves
+ * page's four rows (two lines each) and the details' five (the moves and CANCEL) are inside the page's frame, the
+ * details' type, power and accuracy under their rows. */
+static const CtrPokeTouchRect kSumTitle = { 4, 4, 248, 30 };
+static const CtrPokeTouchRect kSumPagePrev = { 256, 4, 28, 30 };
+static const CtrPokeTouchRect kSumPageNext = { 288, 4, 28, 30 };
+static const CtrPokeTouchRect kSumMon = { 4, 38, 108, 146 };
+static const CtrPokeTouchRect kSumPage = { 116, 38, 200, 146 };
+static const CtrPokeTouchRect kSumMonPrev = { 4, 188, 28, 48 };
+static const CtrPokeTouchRect kSumMonNext = { 36, 188, 28, 48 };
+static const CtrPokeTouchRect kSumNote = { 68, 188, 184, 48 };
+static const CtrPokeTouchRect kSumBack = { 256, 188, 60, 48 };
+
+static inline CtrPokeTouchRect SumMoveCard(int i)
+{
+    CtrPokeTouchRect r = { (int16_t)(kSumPage.x + 8), (int16_t)(kSumPage.y + 8 + 32 * i), (int16_t)(kSumPage.w - 16), 30 };
+
+    return r;
+}
+
+static inline CtrPokeTouchRect SumMoveRow(int i)
+{
+    CtrPokeTouchRect r = { (int16_t)(kSumPage.x + 8), (int16_t)(kSumPage.y + 8 + 16 * i), (int16_t)(kSumPage.w - 16), 16 };
+
+    return r;
+}
+
 /* The party menu's window for `rows` rows (1 to PARTY_MENU_ROWS), and its row i: 8 px in from the frame, 16 px tall. */
 static inline CtrPokeTouchRect PartyMenuWindow(int rows)
 {

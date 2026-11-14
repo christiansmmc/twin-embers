@@ -506,6 +506,111 @@ static void party_page(CtrBattleView *v, CtrBattleView *old)
     CtrBattleUi_Draw(canvas, v);
 }
 
+/* The Summary as a page (phase 2, the owner's "3"): its frames, the arrows that turn the pages, the previous and next
+ * Pokemon, the rows of the moves pages, BACK; every step through settle_summary (an update equals a full draw). `base`
+ * is INFO of a Pokemon with two types, PSN, four moves; the test font is blank but for the arrow. */
+static int SumCellPressed(const CtrPokeTouchRect *r)
+{
+    CtrPokeTouchRect in = {(int16_t)(r->x + 8), (int16_t)(r->y + 8), (int16_t)(r->w - 16), (int16_t)(r->h - 16)};
+
+    return ColorIn(&in, KitInk(3)) > in.w * in.h / 2;
+}
+
+static void summary_page(const CtrSummaryUiView *base)
+{
+    CtrSummaryUiView v = *base, old = *base;
+    CtrPokeTouchRect margin = {0, 0, 4, H};
+    const CtrPokeTouchRect *cells[5] = {&kSumPagePrev, &kSumPageNext, &kSumMonPrev, &kSumMonNext, &kSumBack};
+
+    CtrSummaryUi_Draw(canvas, &v);
+    /* summary_frames: the page's colour round the windows; the title, the Pokemon, the page and the cells framed (the
+     * kit's outline without the pack), the band in the dialogue frame */
+    assert(ColorIn(&margin, BPageBg()) == 4 * H);
+    assert(at(kSumTitle.x, kSumTitle.y + 15) == KitInk(2) && at(kSumMon.x, kSumMon.y + 40) == KitInk(2));
+    assert(at(kSumPage.x, kSumPage.y + 40) == KitInk(2) && at(kSumNote.x + 20, kSumNote.y + 24) == KitInk(1));
+    for (int i = 0; i < 5; ++i)
+        assert(at(cells[i]->x, cells[i]->y + 12) == KitInk(2));
+    /* summary_types: the Pokemon's two types as flat labels in its column */
+    assert(ColorIn(&kSumMon, UiTypeColor(v.data.typeIds[0])) > 0 && ColorIn(&kSumMon, UiTypeColor(v.data.typeIds[1])) > 0);
+    /* summary_status: its ailment's tag beside Lv */
+    assert(ColorIn(&kSumMon, SStatusColor(v.data.status)) > 0);
+    /* summary_page_steps: the pages in order INFO, STATS, MOVES, TRAINER; none before the first or after the last */
+    assert(CtrSummaryUi_PageStep(&v, -1) == -1 && CtrSummaryUi_PageStep(&v, 1) == SUI_TAB_STATS);
+    assert(CtrSummaryUi_Hit(&v, kSumPagePrev.x + 14, kSumPagePrev.y + 15) == -1);
+    assert(CtrSummaryUi_Hit(&v, kSumPageNext.x + 14, kSumPageNext.y + 15) == SUI_HIT_PAGE_NEXT);
+    assert(CtrSummaryUi_Hit(&v, kSumMonPrev.x + 14, kSumMonPrev.y + 24) == SUI_HIT_PREV);
+    assert(CtrSummaryUi_Hit(&v, kSumMonNext.x + 14, kSumMonNext.y + 24) == SUI_HIT_NEXT);
+    assert(CtrSummaryUi_Hit(&v, kSumBack.x + 30, kSumBack.y + 24) == SUI_HIT_BACK);
+    assert(CtrSummaryUi_Hit(&v, kSumPage.x + 50, kSumPage.y + 50) == -1);
+    assert(CtrSummaryUi_Hit(&v, kSumNote.x + 50, kSumNote.y + 24) == -1 && CtrSummaryUi_Hit(&v, kSumMon.x + 50, kSumMon.y + 50) == -1);
+    /* summary_arrow_disabled: an arrow with no page that way is greyed, its triangle toned */
+    {
+        CtrPokeTouchRect in = {(int16_t)(kSumPagePrev.x + 8), (int16_t)(kSumPagePrev.y + 8), 12, 14};
+        CtrPokeTouchRect next = {(int16_t)(kSumPageNext.x + 8), (int16_t)(kSumPageNext.y + 8), 12, 14};
+
+        assert(ColorIn(&in, Tone(KitInk(2), 0)) > 0 && ColorIn(&in, KitInk(2)) == 0);
+        assert(ColorIn(&next, KitInk(2)) > 0);
+    }
+    /* summary_pressed: a cell held shows the light grey inside */
+    v.pressed = SUI_HIT_PAGE_NEXT; settle_summary(&old, &v); old = v;
+    assert(SumCellPressed(&kSumPageNext) && !SumCellPressed(&kSumMonPrev));
+    v.pressed = SUI_HIT_PREV; settle_summary(&old, &v); old = v;
+    assert(SumCellPressed(&kSumMonPrev) && !SumCellPressed(&kSumPageNext));
+    v.pressed = SUI_HIT_BACK; settle_summary(&old, &v); old = v;
+    v.pressed = -1; settle_summary(&old, &v); old = v;
+    /* STATS: the page answers as the IV / EV switch; both arrows */
+    v.data.page = SUI_PAGE_SKILLS; settle_summary(&old, &v); old = v;
+    assert(CtrSummaryUi_Hit(&v, kSumPage.x + 50, kSumPage.y + 50) == SUI_HIT_IVTOGGLE);
+    assert(CtrSummaryUi_Hit(&v, kSumPagePrev.x + 14, kSumPagePrev.y + 15) == SUI_HIT_PAGE_PREV);
+    assert(CtrSummaryUi_PageStep(&v, -1) == SUI_TAB_INFO && CtrSummaryUi_PageStep(&v, 1) == SUI_TAB_MOVES);
+    v.ivView = 1; settle_summary(&old, &v); old = v;
+    v.pressed = SUI_HIT_IVTOGGLE; settle_summary(&old, &v); old = v;
+    v.pressed = -1; v.ivView = 0; settle_summary(&old, &v); old = v;
+    /* MOVES: four rows of two lines, each opening its details */
+    v.data.page = SUI_PAGE_MOVES; settle_summary(&old, &v); old = v;
+    for (int i = 0; i < 4; ++i) {
+        CtrPokeTouchRect c = SumMoveCard(i);
+
+        assert(CtrSummaryUi_Hit(&v, c.x + c.w / 2, c.y + c.h / 2) == SUI_HIT_MOVE + i);
+        assert(ColorIn(&c, UiTypeColor(v.data.moveTypeIds[i])) > 0);    /* its type's label */
+    }
+    assert(CtrSummaryUi_PageStep(&v, 1) == SUI_TAB_TRAINER);
+    v.pressed = SUI_HIT_MOVE + 2; settle_summary(&old, &v); old = v;
+    v.pressed = -1; settle_summary(&old, &v); old = v;
+    /* the details: the rows and CANCEL, FireRed's arrow on its cursor; no other Pokemon from here */
+    v.data.page = SUI_PAGE_MOVES_INFO; v.data.cursor = 1; settle_summary(&old, &v); old = v;
+    for (int i = 0; i < 5; ++i) {
+        CtrPokeTouchRect r = SumMoveRow(i), a = {r.x, r.y, 8, 16};
+
+        assert(CtrSummaryUi_Hit(&v, r.x + r.w / 2, r.y + r.h / 2) == (i < 4 ? SUI_HIT_MOVE + i : SUI_HIT_CANCEL));
+        assert(ColorIn(&a, KitInk(2)) == (i == 1 ? 8 * 14 : 0));
+    }
+    assert(CtrSummaryUi_Hit(&v, kSumMonPrev.x + 14, kSumMonPrev.y + 24) == -1);
+    assert(ColorIn(&kSumPage, UiTypeColor(v.data.moveTypeIds[1])) > 0);   /* the chosen move's type in the details */
+    v.data.cursor = 4; settle_summary(&old, &v); old = v;
+    v.data.swapping = 1; v.data.swapCursor = 1; v.data.cursor = 3; settle_summary(&old, &v); old = v;
+    {
+        CtrPokeTouchRect cancel = SumMoveRow(4);
+
+        assert(CtrSummaryUi_Hit(&v, cancel.x + 20, cancel.y + 8) == -1);
+    }
+    v.data.swapping = 0; v.data.cursor = 0; settle_summary(&old, &v); old = v;
+    /* TRAINER: the last page */
+    v.data.page = SUI_PAGE_INFO; v.trainer = 1; settle_summary(&old, &v); old = v;
+    assert(CtrSummaryUi_PageStep(&v, 1) == -1 && CtrSummaryUi_PageStep(&v, -1) == SUI_TAB_MOVES);
+    assert(CtrSummaryUi_Hit(&v, kSumPageNext.x + 14, kSumPageNext.y + 15) == -1);
+    /* an Egg: INFO and TRAINER only, no types */
+    v.trainer = 0; v.data.egg = 1; settle_summary(&old, &v); old = v;
+    assert(CtrSummaryUi_PageStep(&v, 1) == SUI_TAB_TRAINER);
+    assert(ColorIn(&kSumMon, UiTypeColor(v.data.typeIds[0])) == 0);
+    v.data.egg = 0; settle_summary(&old, &v); old = v;
+    /* loading: the frame only, BACK alone answers */
+    v.loading = 1; settle_summary(&old, &v); old = v;
+    assert(CtrSummaryUi_Hit(&v, kSumPageNext.x + 14, kSumPageNext.y + 15) == -1);
+    assert(CtrSummaryUi_Hit(&v, kSumBack.x + 30, kSumBack.y + 24) == SUI_HIT_BACK);
+    CtrSummaryUi_Draw(canvas, base);    /* the canvas back to the caller's view, for its next settle */
+}
+
 /* arrow_follows_cursor_and_press: the arrow (a solid 8x14 here) is in the cell of FireRed's cursor, or in the one held
  * under a touch; never in two. */
 static void arrow_follows_cursor_and_press(const CtrBattleView *base)
@@ -1107,8 +1212,12 @@ int main(int argc, char **argv)
             names(sv.data.power[k], 8, "90"); names(sv.data.accuracy[k], 8, "100"); sv.data.moveTypeIds[k] = mi[k];
         }
         names(sv.data.moveDesc, 256, "A powerful fire attack that may burn the target.");
+        names(sv.data.status, 8, "PSN");
         so = sv;
         CtrSummaryUi_Draw(canvas, &so);   /* the screen opens drawn in full; updates follow */
+#ifndef BATTLE_UI_BEFORE
+        summary_page(&sv);
+#endif
         for (tab = 0; tab < 5; ++tab) {
             static const char *const nm[5] = {"16_summary_info", "17_summary_stats", "18_summary_moves", "19_summary_move_details",
                                               "20_summary_trainer"};
@@ -1179,7 +1288,7 @@ int main(int argc, char **argv)
                             fprintf(stderr, "summary page %d keeps the navy theme colour %04x at %d\n", page, navy[j], n);
                             assert(0);
                         }
-                assert(at(1, 100) == EMBER_BG(1, 100));
+                assert(at(1, 100) == BPageBg());    /* reworked: the page's own colour */
             }
         }
     }

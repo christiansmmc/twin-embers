@@ -279,11 +279,61 @@ static void party(void)
     assert(Bottom(&kPartyLevelUp) == Bottom(&kPartySlot[3]) && kPartyLevelUp.h - 16 >= 6 * 16);
 }
 
+/* The Summary: the title and its two arrows across the top, the Pokemon and the page under them 4 px apart, the
+ * bottom row (previous, next, the band, BACK) 4 px under those, all 4 px apart and within the screen's 4 px margin;
+ * the moves page's rows and the details' rows inside the page's frame, the details leaving room for three more lines. */
+static void summary(void)
+{
+    const CtrPokeTouchRect *view[10] = {&kSumTitle, &kSumPagePrev, &kSumPageNext, &kSumMon, &kSumPage,
+                                        &kSumMonPrev, &kSumMonNext, &kSumNote, &kSumBack};
+    int n = 9;
+
+    Framed(&kSumTitle);
+    assert(kSumTitle.h - 16 >= 14);
+    Button(&kSumPagePrev);
+    Button(&kSumPageNext);
+    Framed(&kSumMon);
+    Framed(&kSumPage);
+    Button(&kSumMonPrev);
+    Button(&kSumMonNext);
+    Dialogue(&kSumNote);
+    assert(kSumNote.h - 16 >= 2 * 14);
+    Button(&kSumBack);
+    Apart(view, n);
+    assert(kSumPagePrev.x == kSumTitle.x + kSumTitle.w + 4 && kSumPageNext.x == kSumPagePrev.x + kSumPagePrev.w + 4);
+    assert(kSumPageNext.x + kSumPageNext.w == 316 && kSumTitle.x == 4 && kSumTitle.y == 4);
+    assert(kSumMon.y == Bottom(&kSumTitle) + 4 && kSumPage.y == kSumMon.y && kSumPage.x == kSumMon.x + kSumMon.w + 4);
+    assert(kSumPage.x + kSumPage.w == 316 && Bottom(&kSumPage) == Bottom(&kSumMon));
+    assert(kSumMon.w - 16 >= 80 && kSumMon.h - 16 >= 2 * 14 + 64 + 14);   /* name, Lv, the picture, the types */
+    assert(kSumMonPrev.y == Bottom(&kSumMon) + 4 && Bottom(&kSumBack) == 236);
+    assert(kSumMonNext.x == kSumMonPrev.x + kSumMonPrev.w + 4 && kSumNote.x == kSumMonNext.x + kSumMonNext.w + 4);
+    assert(kSumBack.x == kSumNote.x + kSumNote.w + 4 && kSumBack.x + kSumBack.w == 316);
+    for (int i = 0; i < 4; ++i) {
+        CtrPokeTouchRect c = SumMoveCard(i);
+
+        Row(&c);
+        assert(c.h >= 2 * 14);
+        InFrame(&c, &kSumPage);
+    }
+    for (int i = 0; i < 5; ++i) {
+        CtrPokeTouchRect r = SumMoveRow(i);
+
+        Row(&r);
+        InFrame(&r, &kSumPage);
+    }
+    {
+        CtrPokeTouchRect last = SumMoveRow(4);
+
+        assert(kSumPage.y + kSumPage.h - 8 - Bottom(&last) >= 4 + 14 + 2 * 14);   /* a rule, the type, power, accuracy */
+    }
+}
+
 int main(void)
 {
     home();
     battle();
     party();
+    summary();
     printf("PASS lower layout%s\n", LOWER_LAYOUT_PROVISIONAL ? " (provisional values)" : "");
     return 0;
 }
