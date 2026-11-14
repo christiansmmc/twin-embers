@@ -197,7 +197,7 @@ Copy `twinembers.sav` somewhere safe first. Replace the `.3dsx`, rebuild the pac
 | SELECT, L, R | As in the original game |
 | Touch | PokéTouch screens, battle commands, PC storage |
 
-Turbo works while exploring and in battle. It skips drawing frames, not game logic, so the game still plays correctly at speed.
+Turbo works while exploring and in battle. It skips drawing frames, not game logic, so the game still plays correctly at speed. The lower screen's home page shows the speed (SPEED), and tapping it steps it like START.
 
 ---
 
