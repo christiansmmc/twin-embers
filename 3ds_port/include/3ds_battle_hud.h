@@ -16,6 +16,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/* Whose healthboxes and message box the battle shows: 1 the port's own design (this file's boxes and
+ * 3ds_battle_textbox_impl.h's panel), 0 FireRed's own, as the game draws them. 0 is the fork owner's call (2026-11-13),
+ * to match the reworked lower screen; the design stays compiled behind this switch. */
+#ifndef CTR_PORT_BATTLE_HUD
+#define CTR_PORT_BATTLE_HUD 0
+#endif
+
 #define CTR_HUD_BATTLERS 4
 #define CTR_HUD_NAME_LEN 12              /* FireRed's 10-character nickname and its EOS, in the game's charset */
 #define CTR_HUD_HP_PIXELS 48             /* FireRed's HP bar */

@@ -283,10 +283,12 @@ static void BoxDraw(Tex3DS_SubTexture sub, float x, float y, const C2D_ImageTint
         Error(3, "Citro2D geometry submission failed");
 }
 
-/* The panel and the windows over it, in place of the frame. False when there is no frame to replace: the GBA's band
- * is drawn then. */
+/* The panel and the windows over it, in place of the frame. False when there is no frame to replace, or with FireRed's
+ * own box chosen (CTR_PORT_BATTLE_HUD 0): the GBA's band is drawn then. */
 static bool DrawBattleBox(unsigned map, unsigned size, unsigned chars, unsigned first, unsigned scrollY, unsigned rows)
 {
+    if (!CTR_PORT_BATTLE_HUD)
+        return false;                   /* FireRed's own box (3ds_battle_hud.h) */
     if (!BoxFramed(map, size, first, scrollY, rows) || !BoxInit()) return false;
     BoxText(map, size, chars, first, scrollY, rows);
 

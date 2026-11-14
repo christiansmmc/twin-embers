@@ -678,7 +678,8 @@ void CtrHud_Box(unsigned battler, unsigned kind, unsigned position, bool doubles
     b->state.name[0] = EOS;
     b->dirty = true;
     sUnfaded = unfadedPalette;
-    if (b->state.kind != CTR_HUD_OFF) CtrVideo_SetBattleHud(CtrHud_Match, CtrHud_Image);
+    /* With FireRed's own boxes (CTR_PORT_BATTLE_HUD 0) the compositor is never handed these: the game's sprites show. */
+    if (CTR_PORT_BATTLE_HUD && b->state.kind != CTR_HUD_OFF) CtrVideo_SetBattleHud(CtrHud_Match, CtrHud_Image);
 }
 
 #define SET(battler, field, value) do { Box *b_ = BoxOf(battler); \
