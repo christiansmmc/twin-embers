@@ -270,6 +270,85 @@ int main(void) {
 }
 ''')
 
+    def test_summary_turns_on_press(self):
+        """The owner found the Summary slow to turn pages by touch, and MOVES <-> TRAINER slow on the D-pad: both acted
+        on release. The page arrows and the previous / next Pokemon act on the touch's press (BACK, a move, the IV / EV
+        switch still on release, so sliding off cancels them); RIGHT on MOVES and LEFT on TRAINER act on the key's
+        press, and the plan they start is not dropped for that key being held (a key pressed after it still drops
+        it)."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        names = ['SumPlanClear', 'SumPlanStart', 'SumPlanPress', 'RunSumPlan', 'ProcessSummaryTouch']
+        code = '\n'.join(function(bottom, n) for n in names)
+        start = bottom.index('static struct {\n    int kind;\n    int target;')
+        plan = bottom[start:bottom.index('} sSumPlan;', start) + len('} sSumPlan;')]
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include <string.h>
+#include "3ds_input.h"
+#include "3ds_poketouch.h"
+#include "3ds_summary.h"
+#define K_A (1u << 0)
+#define K_B (1u << 1)
+#define K_RIGHT (1u << 4)
+#define K_LEFT (1u << 5)
+#define K_UP (1u << 6)
+enum { HIT_NONE = 0xFF, HIT_PANEL = 0x50 };
+enum { SUMPLAN_NONE = 0, SUMPLAN_PAGE, SUMPLAN_MOVE, SUMPLAN_PRESS };
+#define SUMMARY_MOVES 2
+#define SUMMARY_MOVES_INFO 3
+static uint16_t sInjected;
+static CtrInput sIn;
+const CtrInput *CtrInput_Get(void) { return &sIn; }
+static int page = SUI_PAGE_MOVES, asked = -1, acted = -1, hitCode = -1;
+void CtrSummary_AskMove(int row) { (void)row; }
+void CtrSummary_AskPage(int p) { asked = p; }
+int CtrBottomSummary_Page(void) { return page; }
+int CtrBottomSummary_Mon(void) { return 0; }
+unsigned CtrBottomSummary_Serial(void) { return 1; }
+int CtrBottomSummary_Ready(void) { return 1; }
+int CtrBottomSummary_MoveCursor(void) { return 0; }
+int CtrSummaryUi_Hit(const CtrSummaryUiView *v, int x, int y) { (void)v; (void)x; (void)y; return hitCode; }
+static struct { CtrSummaryUiView sum; unsigned char summaryUi; } sShown;
+static int sHaveShown = 1;
+static struct { int down, inside, btn, trainer, ivView; } sSum;
+static void SummaryAct(int hit) { acted = hit; }
+''' + plan + '\n' + code + '''
+static void Frame(void) { ProcessSummaryTouch(&sIn); RunSumPlan(); }
+int main(void) {
+    sShown.summaryUi = 1;
+    /* RIGHT on MOVES: TRAINER on the press, the plan asks FireRed for INFO while RIGHT stays held */
+    sIn.down = sIn.held = K_RIGHT; Frame();
+    assert(sSum.trainer == 1 && sSumPlan.kind == SUMPLAN_PAGE && asked == SUI_PAGE_INFO);
+    sIn.down = 0; Frame();                      /* still held: the plan goes on (its release frame) */
+    assert(sSumPlan.kind == SUMPLAN_PAGE);
+    sIn.held = K_RIGHT | K_A; sIn.down = K_A; Frame();
+    assert(sSumPlan.kind == SUMPLAN_NONE);      /* a key pressed after it drops it */
+    /* LEFT on TRAINER (FireRed on INFO): MOVES on the press */
+    page = SUI_PAGE_INFO; sShown.sum.trainer = 1; sIn.held = sIn.down = K_LEFT; asked = -1; Frame();
+    assert(sSum.trainer == 0 && asked == SUI_PAGE_MOVES);
+    SumPlanClear(); sIn.held = sIn.down = 0; Frame();
+    /* a page arrow and the next Pokemon act on the touch's press */
+    hitCode = SUI_HIT_PAGE_NEXT; sIn.touchActive = sIn.touchDown = 1; acted = -1; Frame();
+    assert(acted == SUI_HIT_PAGE_NEXT);
+    sIn.touchDown = 0; acted = -1; Frame(); sIn.touchActive = 0; sIn.touchUp = 1; Frame();
+    assert(acted == -1);                        /* once: not again on release */
+    sIn.touchUp = 0;
+    hitCode = SUI_HIT_NEXT; sIn.touchActive = sIn.touchDown = 1; Frame();
+    assert(acted == SUI_HIT_NEXT);
+    sIn.touchDown = 0; sIn.touchActive = 0; Frame();
+    /* BACK on release, and not when the touch slid off */
+    hitCode = SUI_HIT_BACK; acted = -1; sIn.touchActive = sIn.touchDown = 1; Frame();
+    assert(acted == -1);
+    sIn.touchDown = 0; sIn.touchActive = 0; Frame();
+    assert(acted == SUI_HIT_BACK);
+    acted = -1; sIn.touchActive = sIn.touchDown = 1; Frame();
+    hitCode = -1; sIn.touchDown = 0; Frame(); sIn.touchActive = 0; Frame();
+    assert(acted == -1);
+    return 0;
+}
+''')
+
     def test_bag_page_cancel_and_drag(self):
         """The BAG's page: its CANCEL (and a tap off the item menu) is the Bag's B, sent through the Bag's plan as the
         old bar's BACK was; a drag over the rows moves the selection a row per BAG_ROW_H (the page's 30 px rows)."""

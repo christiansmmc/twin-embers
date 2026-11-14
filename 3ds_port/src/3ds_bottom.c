@@ -1815,6 +1815,7 @@ static struct {
     int steps;
     int release;
     uint16_t keys;
+    uint16_t held;                  /* the keys held when it began (the D-pad's own, for TRAINER): they may stay held */
 } sSumPlan;
 
 static void SumPlanClear(void)
@@ -1836,6 +1837,7 @@ static void SumPlanStart(int kind, int target, int activate, uint16_t keys)
     sSumPlan.expect = CtrBottomSummary_Page();
     sSumPlan.mon = CtrBottomSummary_Mon();
     sSumPlan.serial = CtrBottomSummary_Serial();
+    sSumPlan.held = (uint16_t)(CtrInput_Get()->held & 0x3ffu);
 }
 
 static void SumPlanPress(uint16_t keys, int expect)
@@ -1851,8 +1853,10 @@ static void RunSumPlan(void)
 
     if (sSumPlan.kind == SUMPLAN_NONE)
         return;
-    /* Physical controls always win. */
-    if (CtrInput_Get()->held & 0x3ffu) {
+    /* Physical controls always win: a key pressed after the plan began drops it (the one that began it may stay held,
+     * and once let go it counts again). */
+    sSumPlan.held &= CtrInput_Get()->held;
+    if (CtrInput_Get()->held & 0x3ffu & ~sSumPlan.held) {
         SumPlanClear();
         return;
     }
@@ -1986,25 +1990,25 @@ static void SummaryAct(int hit)
 }
 
 /* Press, track, release: a control is pressed while a touch that began on it stays on it, and acts once when released
- * there; sliding off cancels it. A held physical button wins. */
+ * there; sliding off cancels it. Turning the pages and the Pokemon acts on the press instead, as FireRed's keys do (the
+ * owner found it slow on release). A held physical button wins. */
 static int ProcessSummaryTouch(const CtrInput *in)
 {
     int hit = in->touchActive && sHaveShown && sShown.summaryUi
             ? CtrSummaryUi_Hit(&sShown.sum, (int)in->touchX, (int)in->touchY) : -1;
 
     /* TRAINER, the last tab, is the port's (FireRed's first page shown as its memo), so the D-pad reaches it here: RIGHT
-     * on the moves page goes to it, LEFT from it back to the moves (on release, as the plan walks FireRed's pages with its
-     * own LEFT and RIGHT, which a held key would cancel). */
-    if (sSumPlan.kind == SUMPLAN_NONE && sHaveShown && sShown.summaryUi && !sShown.sum.loading && CtrBottomSummary_Ready()
-        && !(in->held & 0x3ffu)) {
+     * on the moves page goes to it, LEFT from it back to the moves, on the press as FireRed's own pages turn (the plan
+     * lets the key that began it stay held; FireRed's RIGHT on its last page and LEFT on its first do nothing). */
+    if (sSumPlan.kind == SUMPLAN_NONE && sHaveShown && sShown.summaryUi && !sShown.sum.loading && CtrBottomSummary_Ready()) {
         int page = CtrBottomSummary_Page();
 
-        if ((in->up & K_RIGHT) && page == SUI_PAGE_MOVES && !sShown.sum.data.egg) {
+        if ((in->down & K_RIGHT) && page == SUI_PAGE_MOVES && !sShown.sum.data.egg) {
             sSum.trainer = 1;
             SumPlanStart(SUMPLAN_PAGE, SUI_PAGE_INFO, 0, 0);
             return HIT_NONE;
         }
-        if ((in->up & K_LEFT) && page == SUI_PAGE_INFO && sShown.sum.trainer) {
+        if ((in->down & K_LEFT) && page == SUI_PAGE_INFO && sShown.sum.trainer) {
             sSum.trainer = 0;
             if (!sShown.sum.data.egg)
                 SumPlanStart(SUMPLAN_PAGE, SUI_PAGE_MOVES, 0, 0);
@@ -2021,6 +2025,11 @@ static int ProcessSummaryTouch(const CtrInput *in)
         return HIT_NONE;
     }
     if (in->touchDown) {
+        if (hit == SUI_HIT_PAGE_PREV || hit == SUI_HIT_PAGE_NEXT || hit == SUI_HIT_PREV || hit == SUI_HIT_NEXT) {
+            sSum.down = sSum.inside = 0;
+            SummaryAct(hit);
+            return HIT_PANEL;
+        }
         sSum.down = sSum.inside = hit >= 0;
         sSum.btn = hit;
         return HIT_NONE;
