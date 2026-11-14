@@ -27,7 +27,7 @@ static void Row(void *ctx, const char *text, size_t length)
 static void Layout(struct Screen *s, const char *title, const char *detail)
 {
     memset(s, 0, sizeof(*s));
-    CtrError_WrapText("twinembers data error", Row, s);
+    CtrError_WrapText("classicfirered3ds data error", Row, s);
     CtrError_WrapText(title, Row, s);
     CtrError_WrapText(detail, Row, s);
     CtrError_WrapText("Press A to exit.", Row, s);
@@ -51,20 +51,23 @@ int main(void)
 {
     struct Screen s;
 
-    /* Missing pack: the two help lines are separated, the path keeps its indent. */
-    Layout(&s, "twinembers data pack missing.",
-           "Use twinembers Builder with your own\n"
+    /* Missing pack: the help lines are separated, the folder and the file keep their indent (the whole path is
+     * longer than a row, so it is written as two lines rather than split inside a word). */
+    Layout(&s, "classicfirered3ds data pack missing.",
+           "Use the Builder with your own\n"
            "Pokemon FireRed ROM to create it, then\n"
            "install it as:\n\n"
-           "  /3ds/twinembers/twinembers.pak");
+           "  /3ds/classicfirered3ds/\n"
+           "  classicfirered3ds.pak");
     CheckScreen(&s);
-    assert(!strcmp(s.rows[4], "Use twinembers Builder with your own"));
+    assert(!strcmp(s.rows[4], "Use the Builder with your own"));
     assert(s.rows[5][0] == 0);
     assert(!strcmp(s.rows[6], "Pokemon FireRed ROM to create it, then"));
     assert(!strcmp(s.rows[8], "install it as:"));
-    assert(!strcmp(s.rows[10], "  /3ds/twinembers/twinembers.pak"));
-    assert(!strcmp(s.rows[12], "Press A to exit."));
-    assert(s.count == 14);
+    assert(!strcmp(s.rows[10], "  /3ds/classicfirered3ds/"));
+    assert(!strcmp(s.rows[12], "  classicfirered3ds.pak"));
+    assert(!strcmp(s.rows[14], "Press A to exit."));
+    assert(s.count == 16);
 
     /* A 41-column line no longer leaves its full stop alone on the next row. */
     Layout(&s, "The game data could not be loaded.",
@@ -84,18 +87,19 @@ int main(void)
 
     /* The two engine-data messages: RomFS not opened (with its error), and a 3DSX without engine data. */
     Layout(&s, "The game's own files can't be opened.",
-           "Start twinembers.3dsx from the Homebrew Launcher or the HOME Menu shortcut, as\n"
-           "  /3ds/twinembers/twinembers.3dsx\n"
+           "Start classicfirered3ds.3dsx from the Homebrew Launcher, as\n"
+           "  /3ds/classicfirered3ds/\n"
+           "  classicfirered3ds.3dsx\n"
            "without renaming or moving it.\n\nError 0xC8804478");
     CheckScreen(&s);
-    assert(!strcmp(s.rows[4], "Start twinembers.3dsx from the Homebrew"));
-    Layout(&s, "This twinembers.3dsx has no engine data.",
+    assert(!strcmp(s.rows[4], "Start classicfirered3ds.3dsx from the"));
+    Layout(&s, "This classicfirered3ds.3dsx has no engine data.",
            "Its RomFS lacks engine/abi.bin. Download the 3DSX again, or build it with:\n"
            "  make CLEAN_RELEASE=1 verify-game-3dsx");
     CheckScreen(&s);
 
     /* A word longer than a row is split rather than overflowing. */
-    Layout(&s, "x", "/3ds/twinembers/an/unusually/long/path/without/any/spaces.pak");
+    Layout(&s, "x", "/3ds/classicfirered3ds/an/unusually/long/path/without/any/spaces.pak");
     CheckScreen(&s);
     assert(strlen(s.rows[4]) == CTR_ERROR_COLUMNS);
 
