@@ -16,11 +16,15 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Whose healthboxes and message box the battle shows: 1 the port's own design (this file's boxes and
- * 3ds_battle_textbox_impl.h's panel), 0 FireRed's own, as the game draws them. 0 is the fork owner's call (2026-11-13),
- * to match the reworked lower screen; the design stays compiled behind this switch. */
+/* Whose healthboxes the battle shows: 1 the port's (this file's, drawn at the screen's resolution), 0 FireRed's own
+ * sprites, which the battle's 1.5x zoom renders unevenly. And whose message box: 1 the port's navy panel
+ * (3ds_battle_textbox_impl.h), 0 FireRed's own frame, drawn 1:1. The fork owner's call (2026-11-13): the port's boxes,
+ * FireRed's message box. */
 #ifndef CTR_PORT_BATTLE_HUD
-#define CTR_PORT_BATTLE_HUD 0
+#define CTR_PORT_BATTLE_HUD 1
+#endif
+#ifndef CTR_PORT_BATTLE_TEXTBOX
+#define CTR_PORT_BATTLE_TEXTBOX 0
 #endif
 
 #define CTR_HUD_BATTLERS 4

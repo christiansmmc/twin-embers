@@ -464,11 +464,11 @@ build/battle_gen4_test.exe: tests/battle_gen4_test.c src/3ds_battle_gen4.c inclu
 
 build/battle_hud_test.exe: tests/battle_hud_test.c src/3ds_battle_hud.c include/3ds_battle_hud.h include/3ds_video.h
 	@mkdir -p build
-	gcc -std=c11 -O2 -Wall -Wextra -Werror -Iinclude -DCTR_PORT_BATTLE_HUD=1 tests/battle_hud_test.c src/3ds_battle_hud.c -lm -o $@
+	gcc -std=c11 -O2 -Wall -Wextra -Werror -Iinclude tests/battle_hud_test.c src/3ds_battle_hud.c -lm -o $@
 
 build/battle_hud_classic_test.exe: tests/battle_hud_test.c src/3ds_battle_hud.c include/3ds_battle_hud.h include/3ds_video.h
 	@mkdir -p build
-	gcc -std=c11 -O2 -Wall -Wextra -Werror -Iinclude tests/battle_hud_test.c src/3ds_battle_hud.c -lm -o $@
+	gcc -std=c11 -O2 -Wall -Wextra -Werror -Iinclude -DCTR_PORT_BATTLE_HUD=0 -DBATTLE_HUD_CLASSIC tests/battle_hud_test.c src/3ds_battle_hud.c -lm -o $@
 
 build/leafgreen_test.exe: tests/leafgreen_test.c src/3ds_leafgreen.c include/3ds_leafgreen.h
 	@mkdir -p build

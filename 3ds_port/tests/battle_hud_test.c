@@ -1,7 +1,7 @@
 /* The port's healthboxes (src/3ds_battle_hud.c) on the host: which OAM tiles are a box's, the boxes' sizes and
  * anchors, their bars and redraws. The font is synthetic: every glyph a 4x7 block of ink, 5 pixels wide.
- * Built twice: with CTR_PORT_BATTLE_HUD=1 for the port's design, and as it ships, where FireRed draws its own boxes
- * and the port must not take their place. */
+ * Built twice: as it ships (the port's boxes), and with CTR_PORT_BATTLE_HUD=0, where FireRed draws its own boxes and
+ * the port must not take their place. */
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
@@ -51,8 +51,8 @@ int main(void)
     unsigned battler = 9;
 
     MakeFonts();
-#if !CTR_PORT_BATTLE_HUD
-    /* classic_boxes: FireRed's own healthboxes; the compositor is never handed the port's. */
+#ifdef BATTLE_HUD_CLASSIC
+    /* classic_boxes (built with CTR_PORT_BATTLE_HUD=0): FireRed's own healthboxes; the compositor is never handed the port's. */
     CtrHud_Box(0, CTR_HUD_PLAYER, 0, false, 0x100, 0x300, UNFADED);
     CtrHud_Box(1, CTR_HUD_FOE, 1, false, 0x200, 0x310, UNFADED);
     CtrHud_Box(0, CTR_HUD_SAFARI, 0, false, 0x100, 0xFFFF, UNFADED);
