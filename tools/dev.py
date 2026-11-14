@@ -3,6 +3,7 @@
     python tools/dev.py build                  incremental build into build/dev
     python tools/dev.py pak [--rom FILE] [-- BUILDER OPTIONS]
                                                the data pack, made by this fork's Builder from your own ROM
+    python tools/dev.py test                   host test suites: bootstrap build/host-tests, verify-host, python suites
     python tools/dev.py run                    build, copy to Azahar's SD card and start Azahar
     python tools/dev.py send [--ip IP]         build and run it on the 3DS once (Homebrew Launcher: press Y)
     python tools/dev.py install [--ip IP] [--pak]
@@ -150,6 +151,46 @@ def build(args=None):
     print(f'Built {IMAGE.relative_to(ROOT)}')
 
 
+# ---- host tests --------------------------------------------------------------------------------------------
+
+SUITES = ['test_poketouch_render', 'test_battle_ui', 'test_column_labels', 'test_option_labels', 'test_storage_touch',
+          'test_storage_controller', 'test_easychat_plan', 'test_field_presentation', 'test_bag_pockets',
+          'test_first_battle']
+
+
+def test(args=None):
+    """CI's host checks, one PASS/FAIL line per stage; exits non-zero if any stage fails."""
+    bash = DEVKITPRO / 'msys2/usr/bin/bash.exe'
+    gcc = DEVKITPRO / 'msys2/usr/bin/gcc.exe'
+    if not bash.exists():
+        raise SystemExit(f'devkitPro not found at {DEVKITPRO} (set DEVKITPRO_WIN)')
+    hosts = ROOT / 'build/host-tests'
+    results = []
+
+    def stage(name, command, **options):
+        print(f'--- {name}', flush=True)
+        ok = subprocess.run(command, **options).returncode == 0
+        results.append((name, ok))
+        print(f'{"PASS" if ok else "FAIL"}  {name}', flush=True)
+
+    if not (hosts / '3ds_port/Makefile').exists():
+        stage('bootstrap build/host-tests',
+              [sys.executable, str(ROOT / 'tools/bootstrap.py'), '--dir', str(hosts)])
+    with tempfile.TemporaryDirectory() as shim:
+        # The MSYS shell has no python3; the Makefile's helper steps call it.
+        script = f'#!/bin/sh\nexec {shlex.quote(msys(sys.executable))} "$@"\n'
+        Path(shim, 'python3').write_bytes(script.encode())
+        command = f'export PATH={shlex.quote(msys(shim))}:$PATH && make -C {shlex.quote(msys(hosts / "3ds_port"))} verify-host'
+        stage('verify-host', [str(bash), '-lc', command], env={**os.environ, 'MSYSTEM': 'MSYS'})
+    # These suites call a bare gcc; the MSYS compiler only finds its headers inside the MSYS shell.
+    suites = f'cd {shlex.quote(msys(ROOT / "tools"))} && {shlex.quote(msys(sys.executable))} -m unittest {" ".join(SUITES)}'
+    stage('python suites', [str(bash), '-lc', suites], env={**os.environ, 'MSYSTEM': 'MSYS'})
+    stage('test_data_runtime', [sys.executable, 'test_data_runtime.py', '--cc', str(gcc)], cwd=ROOT / 'tools')
+    print('\n'.join(f'{"PASS" if ok else "FAIL"}  {name}' for name, ok in results))
+    if not all(ok for _, ok in results):
+        raise SystemExit(1)
+
+
 # ---- data pack ---------------------------------------------------------------------------------------------
 
 def pak(args):
@@ -251,6 +292,7 @@ def main():
     p.add_argument('builder_options', nargs=argparse.REMAINDER,
                    help='after --: Builder options such as --gen4-sprites (remembered)')
     p.set_defaults(func=pak)
+    sub.add_parser('test', help='host test suites (the CI checks)').set_defaults(func=test)
     sub.add_parser('run', help='build and start in Azahar').set_defaults(func=run)
     p = sub.add_parser('send', help='build and run once on the 3DS (3dslink)')
     p.add_argument('--ip')
