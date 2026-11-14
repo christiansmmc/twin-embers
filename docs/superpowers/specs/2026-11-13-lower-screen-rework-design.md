@@ -131,7 +131,8 @@ message, and the rework adds nothing for them (no new game logic, no new bridge 
   RUN / SPEED window with the turbo's speed, a SPEED tap stepping it like START; the party's six with their HP bars
   have the window the contextual message had. The idle "Tap a destination" is gone; the map's other hints (a place
   picked, the Party's FLY) take the party's window until a tap on it or a button gives the party back.
-- Battle moves: the note shows accuracy, STAB and the description; the effect chance is no longer shown.
+- Battle moves: the note is the description in three lines with the STAB tag at the first one's right (every
+  English description fits); the accuracy is on the move's card only; the effect chance is no longer shown.
 - The top screen's turbo badge is gone: HOME's SPEED line shows the speed.
 
 Both battle views keep the D-pad and A/B in step with the touch screen (the arrow follows the game's cursor).

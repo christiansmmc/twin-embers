@@ -436,6 +436,50 @@ static void moves_and_targets(const CtrBattleView *base)
     assert(ColorIn(&kBatMoveNote, kBStabColor) > 0);
     v.move[0].stab = 0; settle(&old, &v); old = v;
     assert(ColorIn(&kBatMoveNote, kBStabColor) == 0);
+    /* note_description_three_lines (the owner's pick after the final review): the note is the description alone, from
+     * its first line to its third (the card shows the accuracy); with STAB its first line stops 4 px short of the tag.
+     * Q is the only glyph with ink here: nine 60 px words, three to a 208 px line. */
+    {
+        const CtrPokeTouchRect *n = &kBatMoveNote;
+        int x = n->x + 16, right = n->x + n->w - 16, top = n->y + 6, tag = UiTextWidth("STAB", 1) + 8;
+        char saved[sizeof(v.move[0].desc)];
+        static uint8_t savedFont[sizeof(font)];
+
+        memcpy(saved, v.move[0].desc, sizeof(saved));
+        memcpy(savedFont, font, sizeof(font));
+        for (int y = 3; y <= 11; ++y)
+            for (int px = 0; px <= 4; ++px) {
+                uint8_t *src = font + 0xCB * 64 + ((y / 8) * 2 + px / 8) * 16 + (y % 8) * 2;
+                unsigned bits = ((unsigned)src[1] << 8 | src[0]) | 1u << ((7 - px % 8) * 2);
+
+                src[0] = (uint8_t)bits;
+                src[1] = (uint8_t)(bits >> 8);
+            }
+        memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        snprintf(v.move[0].desc, sizeof(v.move[0].desc), "%s",
+                 "QQQQQQQQQQ QQQQQQQQQQ QQQQQQQQQQ QQQQQQQQQQ QQQQQQQQQQ QQQQQQQQQQ QQQQQQQQQQ QQQQQQQQQQ QQQQQQQQQQ");
+        CtrBattleUi_Draw(canvas, &v);
+        for (int line = 0; line < 3; ++line) {
+            CtrPokeTouchRect band = {(int16_t)x, (int16_t)(top + line * 14), (int16_t)(right - x), 14};
+
+            assert(ColorIn(&band, KitInk(2)) > 0);
+        }
+        v.move[0].stab = 1;
+        CtrBattleUi_Draw(canvas, &v);
+        {
+            CtrPokeTouchRect first = {(int16_t)x, (int16_t)top, (int16_t)(right - tag - 4 - x), 14};
+            CtrPokeTouchRect beside = {(int16_t)(right - tag - 4), (int16_t)top, (int16_t)(tag + 4), 14};
+
+            assert(ColorIn(&first, KitInk(2)) > 0 && ColorIn(&beside, KitInk(2)) == 0);
+            assert(ColorIn(&beside, kBStabColor) > 0);
+        }
+        v.move[0].stab = 0;
+        memcpy(v.move[0].desc, saved, sizeof(saved));
+        memcpy(font, savedFont, sizeof(font));
+        memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        CtrBattleUi_Draw(canvas, &v);
+        old = v;
+    }
     v.pressed = BUI_CANCEL; settle(&old, &v); old = v;
     v.pressed = -1; settle(&old, &v); old = v;
     v.move[3].present = 1; settle(&old, &v); old = v;

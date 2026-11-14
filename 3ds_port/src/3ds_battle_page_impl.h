@@ -350,37 +350,30 @@ static void BPageMove(const CtrBattleView *v, int i)
     }
 }
 
-/* The note under the moves, in the dialogue frame: the accuracy of the move under the controller's cursor and its STAB
- * tag, then its description in two lines (or whether it is physical or special). Three 14 px lines from 6 px in keep
- * the glyphs inside the frame's 40 px interior. */
+/* The note under the moves, in the dialogue frame: the description of the move under the controller's cursor in three
+ * lines (or whether it is physical or special), its STAB tag at the first line's right, that line stopping 4 px short
+ * of it; the accuracy is on the card (the owner's pick: every English description fits). Three 14 px lines from 6 px
+ * in keep the glyphs inside the frame's 40 px interior. */
 static void BPageMoveNote(const CtrBattleView *v)
 {
     const CtrPokeTouchRect *n = &kBatMoveNote;
     int sel = v->cursor >= 0 && v->cursor < 4 && v->move[v->cursor].present ? v->cursor : 0;
     const CtrBattleMove *m = &v->move[sel];
-    int x = n->x + 16, top = n->y + 6, right = n->x + n->w - 16;
-    char text[24];
+    int x = n->x + 16, top = n->y + 6, right = n->x + n->w - 16, tag = 0;
 
     Fill(n->x, n->y, n->w, n->h, BPageBg());
     KitPanel(n, KIT_FRAME_DIALOGUE, 0);
     if (!m->present)
         return;
-    {
-        const char *acc = m->accuracy[0] && m->accuracy[0] != '-' ? m->accuracy : "--";
-
-        snprintf(text, sizeof(text), "%s%s", acc, acc[0] == '-' ? "" : "%");
-        BPageField(CTR_TR("ACC", "PRE", "Gen"), text, x, top, right);
-    }
     if (m->stab) {
-        int w = UiTextWidth("STAB", 1) + 8;
-
-        Fill(right - w, top + 2, w, KIT_LINE_H - 3, kBStabColor);
-        UiText("STAB", right - w + 4, top + 3, RGB(255, 255, 255), KitInk(2), 1, right);
+        tag = UiTextWidth("STAB", 1) + 8;
+        Fill(right - tag, top + 2, tag, KIT_LINE_H - 3, kBStabColor);
+        UiText("STAB", right - tag + 4, top + 3, RGB(255, 255, 255), KitInk(2), 1, right);
     }
-    KitWrap(m->desc[0] ? m->desc
-                       : m->type < 10 ? CTR_TR("Physical move", "Ataque f\xC3\xADsico", "Physischer Angriff")
-                                      : CTR_TR("Special move", "Ataque especial", "Spezialangriff"),
-            x, top + KIT_LINE_H, right - x, 2);
+    KitWrapFirst(m->desc[0] ? m->desc
+                            : m->type < 10 ? CTR_TR("Physical move", "Ataque f\xC3\xADsico", "Physischer Angriff")
+                                           : CTR_TR("Special move", "Ataque especial", "Spezialangriff"),
+                 x, top, right - x - (tag ? tag + 4 : 0), right - x, 3);
 }
 
 /* A target: the arrow and its name, FOE or ALLY; its level and what the move does to it; its HP (and the numbers for

@@ -300,16 +300,17 @@ static void KitWrapCopy(char *line, const char *s, int n)
     line[n] = 0;
 }
 
-/* Text wrapped at spaces and line breaks into at most maxLines lines `width` wide from lineTop, KIT_LINE_H apart; a
- * word wider than a line is cut at its end. A line break (FireRed's descriptions keep the ones of its own window) is a
- * space here. Breaking only there keeps UTF-8 and the raw-code escapes whole. Returns the lines drawn. */
-UI_FN int KitWrap(const char *s, int x, int lineTop, int width, int maxLines)
+/* Text wrapped at spaces and line breaks into at most maxLines lines from lineTop, KIT_LINE_H apart, the first
+ * firstWidth wide and the others `width`; a word wider than a line is cut at its end. A line break (FireRed's
+ * descriptions keep the ones of its own window) is a space here. Breaking only there keeps UTF-8 and the raw-code
+ * escapes whole. Returns the lines drawn. */
+UI_FN int KitWrapFirst(const char *s, int x, int lineTop, int firstWidth, int width, int maxLines)
 {
     char line[128];
     int lines = 0;
 
     while (lines < maxLines) {
-        int fit = 0, end = 0;
+        int fit = 0, end = 0, room = lines ? width : firstWidth;
 
         while (*s == ' ' || *s == '\n')
             ++s;
@@ -319,7 +320,7 @@ UI_FN int KitWrap(const char *s, int x, int lineTop, int width, int maxLines)
             while (s[end] && s[end] != ' ' && s[end] != '\n' && end < (int)sizeof(line) - 1)
                 ++end;
             KitWrapCopy(line, s, end);
-            if (fit > 0 && UiTextWidth(line, 1) > width)
+            if (fit > 0 && UiTextWidth(line, 1) > room)
                 break;
             fit = end;
             if (!s[end] || end >= (int)sizeof(line) - 1)
@@ -327,9 +328,15 @@ UI_FN int KitWrap(const char *s, int x, int lineTop, int width, int maxLines)
             ++end;                          /* past the space, to the next word */
         }
         KitWrapCopy(line, s, fit);
-        KitText(line, x, lineTop + lines * KIT_LINE_H, x + width);
+        KitText(line, x, lineTop + lines * KIT_LINE_H, x + room);
         ++lines;
         s += fit;
     }
     return lines;
+}
+
+/* KitWrapFirst with every line `width` wide. */
+UI_FN int KitWrap(const char *s, int x, int lineTop, int width, int maxLines)
+{
+    return KitWrapFirst(s, x, lineTop, width, width, maxLines);
 }

@@ -382,6 +382,13 @@ static void wrap_lines(void)
         assert(KitWrap("\n\nAA", 8, 8, 80, 2) == 1);
         Untouched(8, 8, 80, 14);
     }
+    /* wrap_first_line: the first line can be narrower than the rest (the move note's, beside its STAB tag): "AAA BBB"
+     * (41) does not fit the first 40 px, so BBB starts the second line, which takes "BBB CCC" (41) in its 80 */
+    Clear();
+    assert(KitWrapFirst("AAA BBB CCC", 8, 8, 40, 80, 3) == 2);
+    assert(Count(8, 8, 18, 14, KitInk(2)) > 0 && Count(8 + 24, 8, 56, 14, KitInk(2)) == 0);
+    assert(Count(8 + 24, 22, 17, 14, KitInk(2)) > 0);
+    Untouched(8, 8, 80, 2 * 14);
 }
 
 static void type_label_flat(void)

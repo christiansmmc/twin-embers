@@ -185,8 +185,8 @@ static void battle(void)
     view[n++] = &kBatParty;
     Apart(view, n);
     /* The moves: the party's balls on top as on the commands, four cards a little apart (4 to 7 px, as the owner
-     * asked), the note in the dialogue frame with three lines (ACC and STAB, two of description) and CANCEL under them,
-     * lined up with the cards' outer edges. */
+     * asked), the note in the dialogue frame with three lines (the description, STAB at the first one's right) and
+     * CANCEL under them, lined up with the cards' outer edges. */
     n = 0;
     for (int i = 0; i < 4; ++i) {
         Button(&kBatMove[i]);
