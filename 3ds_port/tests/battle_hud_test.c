@@ -142,20 +142,21 @@ int main(void)
     CtrHud_Level(0, 12);
     assert(sImage(0)->version == version);
 
-    /* The foe's box: 152x36 at the design's (10, 22). */
+    /* The foe's box: 152x40 at the design's (10, 22). */
     CtrHud_Name(1, NAME, CTR_HUD_FEMALE, true);
     const CtrHudImage *foe = sImage(1);
-    assert(foe->width == 152 && foe->height == 36);
+    assert(foe->width == 152 && foe->height == 40);
     sx = 12 * CTR_BATTLE_ZOOM + 200 - 120 * CTR_BATTLE_ZOOM + foe->dx;
     sy = 14 * CTR_BATTLE_ZOOM + 192 - 112 * CTR_BATTLE_ZOOM + foe->dy;
     assert(fabsf(sx - 10) < 0.01f && fabsf(sy - 22) < 0.01f);
-    /* Its Poke Ball before the name: grey until the species is caught. */
-    assert(Rgb(Pixel(foe, 9 + 4, 4 + 2)) == 0xAAAEBA);
+    /* Its Poke Ball before the name, clear of the frame (the rims whole above it): grey until the species is caught. */
+    assert(Rgb(Pixel(foe, 9 + 4, 7 + 2)) == 0xAAAEBA);
+    assert(Rgb(Pixel(foe, 9 + 4, 2)) == 0x3E4C6B && Rgb(Pixel(foe, 9 + 4, 4)) == 0xA7B6D3 && Rgb(Pixel(foe, 9 + 4, 6)) == 0xFFFFFF);
     CtrHud_Caught(1, true);
-    assert(Rgb(Pixel(sImage(1), 9 + 4, 4 + 2)) == 0xE8382C);
+    assert(Rgb(Pixel(sImage(1), 9 + 4, 7 + 2)) == 0xE8382C);
     /* A trainer's Pokemon: no Poke Ball. */
     CtrHud_NoBall(1, true);
-    assert(Rgb(Pixel(sImage(1), 9 + 4, 4 + 2)) != 0xE8382C);
+    assert(Rgb(Pixel(sImage(1), 9 + 4, 7 + 2)) != 0xE8382C);
     CtrHud_NoBall(1, false);
 
     /* A double battle: four boxes, the player's low ones (no EXP bar), 64x32 pairs. */
@@ -176,6 +177,11 @@ int main(void)
     assert(Rgb(Pixel(low, 12, 22)) == 0xA7B6D3 && Rgb(Pixel(low, 12, 16)) == 0xE8B828);
     sx = 0 * CTR_BATTLE_ZOOM + 200 - 120 * CTR_BATTLE_ZOOM + sImage(3)->dx;
     assert(fabsf(sx - 6) < 0.01f);
+    /* The foe's two boxes, 40 high, one over the other with 2 rows between: tops at 4 and 46. */
+    sy = 3 * CTR_BATTLE_ZOOM + 192 - 112 * CTR_BATTLE_ZOOM + sImage(1)->dy;
+    assert(fabsf(sy - 4) < 0.01f && sImage(1)->height == 40);
+    sy = 28 * CTR_BATTLE_ZOOM + 192 - 112 * CTR_BATTLE_ZOOM + sImage(3)->dy;
+    assert(fabsf(sy - 46) < 0.01f);
 
     /* The Safari Zone after it: the right-hand battlers go, the player's box is the Safari Zone's, with no HP bar
      * sprite. */

@@ -291,7 +291,7 @@ static void Numbers(const CtrHudState *s, char *out)
 }
 
 #define FOE_W 152
-#define FOE_H 36
+#define FOE_H 40                           /* tall enough for the Poke Ball clear of the frame */
 /* The player's boxes are kept clear of the foe's ground: narrower than the foe's. */
 #define PLAYER_W 136
 #define PLAYER_H 49
@@ -345,12 +345,12 @@ static void FoeBox(Canvas *c, const CtrHudState *s)
     Window(c, w, FOE_H);
     if (!s->noBall)
     {
-        Ball(c, 9, 4, s->caught);
+        Ball(c, 9, 7, s->caught);
         nx = 22;
     }
-    Name(c, nx, 14, s);
-    Level(c, w - PAD, 14, s->level);
-    HpRow(c, HpStart(c, s, 21), 21, w - PAD, s->hpPixels);
+    Name(c, nx, 17, s);
+    Level(c, w - PAD, 17, s->level);
+    HpRow(c, HpStart(c, s, 25), 25, w - PAD, s->hpPixels);
 }
 
 static void PlayerBox(Canvas *c, const CtrHudState *s)
@@ -444,8 +444,8 @@ static const struct { uint8_t kind; bool doubles; uint8_t position; int16_t gbaX
     {CTR_HUD_FOE, false, 1, 12, 14, 10, 22},
     {CTR_HUD_PLAYER, false, 0, 126, 72, 260, 141},
     {CTR_HUD_SAFARI, false, 0, 126, 72, 260, 154},
-    {CTR_HUD_FOE, true, 1, 12, 3, 24, 6},
-    {CTR_HUD_FOE, true, 3, 0, 28, 6, 44},
+    {CTR_HUD_FOE, true, 1, 12, 3, 24, 4},
+    {CTR_HUD_FOE, true, 3, 0, 28, 6, 46},
     {CTR_HUD_PLAYER_DOUBLE, true, 0, 127, 59, 252, 136},
     {CTR_HUD_PLAYER_DOUBLE, true, 2, 139, 84, 260, 164},
 };
