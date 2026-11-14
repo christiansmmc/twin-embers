@@ -1663,6 +1663,7 @@ static void BattleCommon(CtrBattleView *v)
 
             v->partyHp[i] = (uint8_t)(CtrBottomParty_IsEgg(i) || !max ? 100 : hp >= max ? 100 : hp ? (hp * 100 / max ? hp * 100 / max : 1) : 0);
             v->partyStatus[i] = (uint8_t)(st > 6 ? 0 : st);
+            v->partyIcon[i] = (uint16_t)CtrBottomParty_IconSpecies(i);
         }
     }
     {                                   /* the Pokemon in the field: the action screen's footer and icon */

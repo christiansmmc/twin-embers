@@ -27,31 +27,33 @@ static const CtrPokeTouchRect kHomeBike = { 264, 136, 40, 40 };
 /* The message band at the bottom, in the dialogue frame. */
 static const CtrPokeTouchRect kHomeMessage = { 4, 180, 312, 56 };
 
+/* The party on top of every battle page: six slots 48 px apart, each Pokemon's own party icon (32x32) with FireRed's
+ * HP bar under it (the owner's "B"). */
+static const CtrPokeTouchRect kBatParty = { 16, 0, 288, 38 };
 /* Battle commands: FIGHT, BAG, POKéMON, RUN; kBatActionBall is their place when the quick ball shows (a wild
- * battle), beside kBatBall and its two arrows. The party's six balls are on every battle page. */
-static const CtrPokeTouchRect kBatParty = { 64, 4, 192, 24 };
+ * battle), beside kBatBall and its two arrows. */
 static const CtrPokeTouchRect kBatAction[4] = {
-    { 8, 32, 304, 96 }, { 8, 136, 96, 96 }, { 112, 136, 96, 96 }, { 216, 136, 96, 96 },
+    { 8, 40, 304, 88 }, { 8, 136, 96, 96 }, { 112, 136, 96, 96 }, { 216, 136, 96, 96 },
 };
 static const CtrPokeTouchRect kBatActionBall[4] = {
-    { 8, 32, 304, 96 }, { 8, 136, 72, 96 }, { 84, 136, 72, 96 }, { 240, 136, 72, 96 },
+    { 8, 40, 304, 88 }, { 8, 136, 72, 96 }, { 84, 136, 72, 96 }, { 240, 136, 72, 96 },
 };
 static const CtrPokeTouchRect kBatBall = { 160, 136, 72, 64 };
 static const CtrPokeTouchRect kBatBallArrow[2] = { { 160, 208, 24, 24 }, { 208, 208, 24, 24 } };
 /* The Safari Zone: BALL, BAIT, ROCK, RUN. */
 static const CtrPokeTouchRect kBatSafari[4] = {
-    { 8, 32, 152, 96 }, { 160, 32, 152, 96 }, { 8, 136, 152, 96 }, { 160, 136, 152, 96 },
+    { 8, 40, 152, 88 }, { 160, 40, 152, 88 }, { 8, 136, 152, 96 }, { 160, 136, 152, 96 },
 };
 
-/* Moves (and, in a double battle, the targets): four cards 4 px apart under the party's balls, the note with the
+/* Moves (and, in a double battle, the targets): four cards 4 px apart under the party, the note with the
  * dialogue frame (ACC and STAB, then two lines of the move's description), CANCEL. */
 static const CtrPokeTouchRect kBatMove[4] = {
-    { 6, 32, 152, 64 }, { 162, 32, 152, 64 }, { 6, 100, 152, 64 }, { 162, 100, 152, 64 },
+    { 6, 40, 152, 64 }, { 162, 40, 152, 64 }, { 6, 108, 152, 64 }, { 162, 108, 152, 64 },
 };
 static const CtrPokeTouchRect kBatMoveNote = { 6, 176, 240, 56 };
 static const CtrPokeTouchRect kBatCancel = { 250, 176, 64, 56 };
 static const CtrPokeTouchRect kBatTarget[4] = {
-    { 6, 32, 152, 64 }, { 162, 32, 152, 64 }, { 6, 100, 152, 64 }, { 162, 100, 152, 64 },
+    { 6, 40, 152, 64 }, { 162, 40, 152, 64 }, { 6, 108, 152, 64 }, { 162, 108, 152, 64 },
 };
 
 #endif

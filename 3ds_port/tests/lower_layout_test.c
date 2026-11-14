@@ -93,7 +93,9 @@ static void battle(void)
     const CtrPokeTouchRect *view[8];
     int n;
 
+    /* The party: six slots, each a 32 px party icon with FireRed's HP bar under it. */
     Row(&kBatParty);
+    assert(kBatParty.h >= 32 + 6 && kBatParty.w >= 6 * 40);
     /* The commands, the quick ball and its arrows, the Safari's four are framed cells. */
     for (int i = 0; i < 4; ++i) {
         Framed(&kBatAction[i]);

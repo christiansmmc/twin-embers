@@ -352,6 +352,35 @@ static void quick_ball_states(const CtrBattleView *base)
     CtrBattleUi_Draw(canvas, base);         /* the canvas back to the caller's view, for its next settle */
 }
 
+/* party_icons: each Pokemon's own party icon (frame 0, from the pack) in its slot, 48 px apart, toned when fainted, none
+ * for an empty slot; FireRed's HP bar under it. A changed icon redraws the page. */
+static void party_icons(const CtrBattleView *base)
+{
+    CtrBattleView v = *base, old = *base;
+
+    v.state = BUI_ACTION; v.pressed = -1; v.ball = CTR_QUICK_BALL_NONE;
+    for (int k = 0; k < 6; ++k)
+        v.partyIcon[k] = v.party[k] ? (uint16_t)(25 + k) : 0;
+    settle(&old, &v); old = v;
+    for (int k = 0; k < 6; ++k) {
+        CtrPokeTouchRect icon = {(int16_t)(kBatParty.x + 48 * k + 8), kBatParty.y, 32, 32};
+        CtrPokeTouchRect hp = {(int16_t)(kBatParty.x + 48 * k + 10), (int16_t)(kBatParty.y + 33), 28, 4};
+        uint16_t c = sBPIcon[k].pal[1];
+
+        if (!v.party[k]) {
+            assert(ColorIn(&hp, KitInk(2)) == 0);
+            continue;
+        }
+        if (v.party[k] == 2)
+            assert(ColorIn(&icon, c) == 0 && ColorIn(&icon, Tone(c, 0)) > 32 * 32 / 2);
+        else
+            assert(ColorIn(&icon, c) > 32 * 32 / 2);
+        assert(ColorIn(&hp, KitInk(2)) > 0);
+    }
+    v.partyIcon[0] = 99; settle(&old, &v); old = v;
+    CtrBattleUi_Draw(canvas, base);         /* the canvas back to the caller's view, for its next settle */
+}
+
 /* The arrow at the start of a move or target cell's first line (8 px wide, the line's 14 rows): 8x14 of ink when there. */
 static int ArrowAtLine(const CtrPokeTouchRect *r)
 {
@@ -593,6 +622,7 @@ int main(int argc, char **argv)
     action_hit_centres(&v);
     arrow_follows_cursor_and_press(&v);
     quick_ball_states(&v);
+    party_icons(&v);
     v.showCursor = 0; settle(&old, &v); old = v;
 #endif
 

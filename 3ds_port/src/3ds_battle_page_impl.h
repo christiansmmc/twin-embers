@@ -163,18 +163,35 @@ static void BPageBallArrow(const CtrBattleView *v, int next)
     }
 }
 
-/* The party's six balls (the port's own marks, as on the old strip) and an HP bar under each. */
+/* The party: in each slot the Pokemon's own party icon (frame 0, from the pack), toned when it has fainted, with an
+ * amber dot at its corner for a status condition, and FireRed's HP bar under it. Without its icon a slot shows the
+ * port's ball mark instead; an empty slot shows the empty ring. */
 static void BPageParty(const CtrBattleView *v)
 {
     const CtrPokeTouchRect *s = &kBatParty;
 
     Fill(s->x, s->y, s->w, s->h, BPageBg());
     for (int i = 0; i < 6; ++i) {
-        int cx = s->x + 16 + 32 * i, kind = v->party[i];
+        int x = s->x + 48 * i + 8, kind = v->party[i];
+        int status = kind == 3 || (v->partyStatus[i] >= 1 && v->partyStatus[i] <= 6);
 
-        BBall(cx, s->y + 10, kind, kind == 3 || (v->partyStatus[i] >= 1 && v->partyStatus[i] <= 6));
+        if (kind && v->partyIcon[i] && BPartyIcon(i, v->partyIcon[i])) {
+            for (int y = 0; y < 32; ++y)
+                for (int px = 0; px < 32; ++px) {
+                    uint8_t index = sBPIcon[i].pixels[y * 32 + px];
+
+                    if (index)
+                        Px(x + px, s->y + y, Tone(sBPIcon[i].pal[index], kind != 2));
+                }
+            if (status) {
+                UiDisc(x + 28, s->y + 4, 3, UI_RGB(110, 40, 6));
+                UiDisc(x + 28, s->y + 4, 2, UI_RGB(255, 200, 60));
+            }
+        } else {
+            BBall(x + 16, s->y + 16, kind, status);
+        }
         if (kind)
-            KitHpBar(cx - 10, s->y + 19, 20, kind == 2 ? 0 : v->partyHp[i], 100);
+            KitHpBar(x + 2, s->y + 33, 28, kind == 2 ? 0 : v->partyHp[i], 100);
     }
 }
 

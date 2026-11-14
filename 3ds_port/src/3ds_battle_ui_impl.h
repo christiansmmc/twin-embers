@@ -1046,7 +1046,7 @@ static int BPartyMenuOnly(const CtrBattleView *a, const CtrBattleView *b)
 static int BScreenChanged(const CtrBattleView *a, const CtrBattleView *b)
 {
     if (a->state != b->state || a->frameType != b->frameType || memcmp(a->party, b->party, sizeof(b->party)) || memcmp(a->partyHp, b->partyHp, sizeof(b->partyHp))
-        || memcmp(a->partyStatus, b->partyStatus, sizeof(b->partyStatus)))
+        || memcmp(a->partyStatus, b->partyStatus, sizeof(b->partyStatus)) || memcmp(a->partyIcon, b->partyIcon, sizeof(b->partyIcon)))
         return 1;
     if (b->state == BUI_ACTION)
         return strcmp(a->activeName, b->activeName) || a->activeLevel != b->activeLevel || a->activeIcon != b->activeIcon
