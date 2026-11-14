@@ -6470,7 +6470,7 @@
   },
   {
    "path": "tools/test_field_presentation.py",
-   "sha256": "6d9a920595ca43ba6c63a1ebd14523c987f0a012b4712e7dc1a637528cc3726a",
+   "sha256": "da1fc3f62c949ea5d8502375da9931975bb045b344584bc0b71be72d9152a98c",
    "review_status": "reviewed",
    "credit": "alex61194; Twin Embers Port contributors; inherited/adapted upstream portions as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; external game/dependency rights excluded",
@@ -6985,6 +6985,14 @@
   {
    "path": "patches/pokefirered/0239-lower-screen-shows-destination.json",
    "sha256": "d8fef829d82321f29002a419dae38ed73cf30f9270e01e0dcf47b0df14e1bb60",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "patches/pokefirered/0240-party-switch-shows-new-places.json",
+   "sha256": "20bc62f0bff876a5d2f5542c0abeee666eed2b6c74a0f6025f11693a5045aa0d",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

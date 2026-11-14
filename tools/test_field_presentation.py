@@ -436,6 +436,37 @@ int main(void) {
 }
 ''')
 
+    def test_party_switch_shows_the_new_places(self):
+        """FireRed swaps two Pokemon's data only once both have slid out of sight (SwitchPartyMon at the end of
+        Task_SlideSelectedSlotsOffscreen): the owner saw the lower screen's cards change about a second after the
+        pick. While they slide out, the bridge shows each of the two slots with the Pokemon about to be there; before
+        and after, every slot is its own."""
+        name = '0240-party-switch-shows-new-places.json'
+        shown = function(additions(name, 'src/party_menu.c'), 'CtrBottomParty_ShownMon')
+        self.run_c('''
+#include <assert.h>
+typedef unsigned char u8;
+typedef signed char s8;
+typedef void (*TaskFunc)(u8);
+enum { PARTY_ACTION_CHOOSE_MON, PARTY_ACTION_SWITCH, PARTY_ACTION_SWITCHING };
+static struct { u8 action; s8 slotId, slotId2; } gPartyMenu;
+static void Task_SlideSelectedSlotsOffscreen(u8 t) { (void)t; }
+static TaskFunc active;
+static int FuncIsActiveTask(TaskFunc f) { return f == active; }
+''' + shown + '''
+int main(void) {
+    gPartyMenu.action = PARTY_ACTION_SWITCH; gPartyMenu.slotId = 1; gPartyMenu.slotId2 = 4;
+    for (int i = 0; i < 6; ++i)
+        assert(CtrBottomParty_ShownMon(i) == i);        /* choosing where: nothing moved yet */
+    gPartyMenu.action = PARTY_ACTION_SWITCHING; active = Task_SlideSelectedSlotsOffscreen;
+    assert(CtrBottomParty_ShownMon(1) == 4 && CtrBottomParty_ShownMon(4) == 1);
+    assert(CtrBottomParty_ShownMon(0) == 0 && CtrBottomParty_ShownMon(5) == 5);
+    active = 0;                                         /* swapped, sliding back in: every slot its own */
+    assert(CtrBottomParty_ShownMon(1) == 1 && CtrBottomParty_ShownMon(4) == 4);
+    return 0;
+}
+''')
+
     def test_touch_shows_where_it_goes(self):
         """The owner saw the arrow go to a touched tab or Pokemon, back to where it was, then to it again. A Party slot
         touched (the Party takes the touch on its next frame) is shown as the selection until the Party's cursor is
