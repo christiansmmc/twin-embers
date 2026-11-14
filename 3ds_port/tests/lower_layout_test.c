@@ -135,15 +135,22 @@ static void battle(void)
     }
     view[n++] = &kBatParty;
     Apart(view, n);
-    /* The moves: the party's balls on top as on the commands, four cards apart from each other (8 px at least, as the
-     * owner asked), the note in the dialogue frame with three lines (ACC and STAB, two of description), CANCEL. */
+    /* The moves: the party's balls on top as on the commands, four cards a little apart (4 to 7 px, as the owner
+     * asked), the note in the dialogue frame with three lines (ACC and STAB, two of description) and CANCEL under them,
+     * lined up with the cards' outer edges. */
     n = 0;
     for (int i = 0; i < 4; ++i) {
         Button(&kBatMove[i]);
         view[n++] = &kBatMove[i];
     }
-    assert(kBatMove[1].x - (kBatMove[0].x + kBatMove[0].w) >= 8 && kBatMove[3].x - (kBatMove[2].x + kBatMove[2].w) >= 8);
-    assert(kBatMove[2].y - (kBatMove[0].y + kBatMove[0].h) >= 8 && kBatMove[3].y - (kBatMove[1].y + kBatMove[1].h) >= 8);
+    {
+        int across = kBatMove[1].x - (kBatMove[0].x + kBatMove[0].w), down = kBatMove[2].y - (kBatMove[0].y + kBatMove[0].h);
+
+        assert(across >= 4 && across < 8 && down >= 4 && down < 8);
+        assert(kBatMove[3].x - (kBatMove[2].x + kBatMove[2].w) == across && kBatMove[3].y - (kBatMove[1].y + kBatMove[1].h) == down);
+        assert(kBatCancel.x - (kBatMoveNote.x + kBatMoveNote.w) == across);
+    }
+    assert(kBatMoveNote.x == kBatMove[0].x && kBatCancel.x + kBatCancel.w == kBatMove[1].x + kBatMove[1].w);
     Framed(&kBatMoveNote);
     assert(kBatMoveNote.h >= 56);
     Button(&kBatCancel);

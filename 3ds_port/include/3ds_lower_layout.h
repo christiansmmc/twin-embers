@@ -43,15 +43,15 @@ static const CtrPokeTouchRect kBatSafari[4] = {
     { 8, 32, 152, 96 }, { 160, 32, 152, 96 }, { 8, 136, 152, 96 }, { 160, 136, 152, 96 },
 };
 
-/* Moves (and, in a double battle, the targets): four cards 8 px apart under the party's balls, the note with the
+/* Moves (and, in a double battle, the targets): four cards 4 px apart under the party's balls, the note with the
  * dialogue frame (ACC and STAB, then two lines of the move's description), CANCEL. */
 static const CtrPokeTouchRect kBatMove[4] = {
-    { 4, 32, 152, 64 }, { 164, 32, 152, 64 }, { 4, 104, 152, 64 }, { 164, 104, 152, 64 },
+    { 6, 32, 152, 64 }, { 162, 32, 152, 64 }, { 6, 100, 152, 64 }, { 162, 100, 152, 64 },
 };
-static const CtrPokeTouchRect kBatMoveNote = { 4, 176, 240, 56 };
-static const CtrPokeTouchRect kBatCancel = { 252, 176, 64, 56 };
+static const CtrPokeTouchRect kBatMoveNote = { 6, 176, 240, 56 };
+static const CtrPokeTouchRect kBatCancel = { 250, 176, 64, 56 };
 static const CtrPokeTouchRect kBatTarget[4] = {
-    { 4, 32, 152, 64 }, { 164, 32, 152, 64 }, { 4, 104, 152, 64 }, { 164, 104, 152, 64 },
+    { 6, 32, 152, 64 }, { 162, 32, 152, 64 }, { 6, 100, 152, 64 }, { 162, 100, 152, 64 },
 };
 
 #endif

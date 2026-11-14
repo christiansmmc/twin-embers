@@ -6920,7 +6920,7 @@
   },
   {
    "path": "3ds_port/include/3ds_lower_layout.h",
-   "sha256": "11a4d666a43f5d2e5940996cead5dde7f37a6674aaf572a392e464b6d1f0aa88",
+   "sha256": "093da3f5e4bb9f5e7a8598a6a75582c1bbc5aafca72062765052d13a4e53e4c5",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -6928,7 +6928,7 @@
   },
   {
    "path": "3ds_port/tests/lower_layout_test.c",
-   "sha256": "1c508522184fd43db17cd86f1c38b4a333cdc9a8473706dec1820c8989670350",
+   "sha256": "6b997af4605aee8160a90f4ce5411831afb695670ecee3a96320d50ba7928278",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
