@@ -284,6 +284,35 @@ static const CtrPokeTouchRect kLearnTitle = { 4, 4, 312, 30 };
 static const CtrPokeTouchRect kLearnNote = { 4, 188, 248, 48 };
 static const CtrPokeTouchRect kLearnBack = { 256, 188, 60, 48 };
 
+/* The naming keyboard (phase 2): the name being written in a window (the Pokemon's icon, a place per letter, the gender
+ * sign), the three pages' tabs in a window beside it, the page's keys in a window under them (eight, or the page's own
+ * count, across, 26 px tall), FireRed's question and the hint in the band, DELETE and OK beside it as the quantity box's
+ * OK and CANCEL. */
+static const CtrPokeTouchRect kNameEntry = { 4, 4, 196, 48 };
+static const CtrPokeTouchRect kNamePages = { 204, 4, 112, 48 };
+static const CtrPokeTouchRect kNameKeys = { 4, 56, 312, 120 };
+static const CtrPokeTouchRect kNameNote = { 4, 180, 192, 56 };
+static const CtrPokeTouchRect kNameDelete = { 200, 180, 56, 56 };
+static const CtrPokeTouchRect kNameOk = { 260, 180, 56, 56 };
+#define NAME_KEY_H 26
+
+/* A page's tab in the tabs' window, left to right. */
+static inline CtrPokeTouchRect NameTab(int slot)
+{
+    CtrPokeTouchRect r = { (int16_t)(kNamePages.x + 8 + 32 * slot), (int16_t)(kNamePages.y + 8), 32, 32 };
+
+    return r;
+}
+
+/* The key at (row, col) of a page `cols` keys across. */
+static inline CtrPokeTouchRect NameKey(int cols, int row, int col)
+{
+    int pitch = (kNameKeys.w - 16) / (cols > 0 ? cols : 1);
+    CtrPokeTouchRect r = { (int16_t)(kNameKeys.x + 8 + pitch * col), (int16_t)(kNameKeys.y + 8 + NAME_KEY_H * row), (int16_t)pitch, NAME_KEY_H };
+
+    return r;
+}
+
 /* A choice of the field (phase 2: a script's multichoice, YES / NO, the PC's menus): FireRed's menu window at the bottom
  * right as the Party's, as wide as its longest row needs (CHOICE_MIN_W to CHOICE_MAX_W, always 4 more than whole tiles so
  * the band beside it stays on whole tiles), the question in the band beside it; a grid (two or more columns) is a

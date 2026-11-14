@@ -657,6 +657,43 @@ static void learn(void)
     assert(kSumPage.y + kSumPage.h - 8 - Bottom(&last) >= 4 + 2 * 14);
 }
 
+/* The naming keyboard: the name's window and the tabs' window side by side, the keys' window 4 px under them, the band,
+ * DELETE and OK 4 px under that (as the quantity box's OK and CANCEL); the tabs inside their window's frame; every key
+ * of a page of six or eight across inside the keys' window's frame, 24 px or more each way. */
+static void naming(void)
+{
+    const CtrPokeTouchRect *view[6] = {&kNameEntry, &kNamePages, &kNameKeys, &kNameNote, &kNameDelete, &kNameOk};
+
+    Framed(&kNameEntry);
+    Framed(&kNamePages);
+    Framed(&kNameKeys);
+    assert(kNameEntry.x == 4 && kNameEntry.y == 4 && kNamePages.x == kNameEntry.x + kNameEntry.w + 4);
+    assert(kNamePages.x + kNamePages.w == 316 && kNamePages.h == kNameEntry.h && kNameEntry.h - 16 >= 32);
+    assert(kNameKeys.x == 4 && kNameKeys.x + kNameKeys.w == 316 && kNameKeys.y == Bottom(&kNameEntry) + 4);
+    Dialogue(&kNameNote);
+    assert(kNameNote.x == 4 && kNameNote.y == Bottom(&kNameKeys) + 4 && Bottom(&kNameNote) == 236 && kNameNote.h >= 56);
+    Button(&kNameDelete);
+    Button(&kNameOk);
+    assert(kNameDelete.x == kNameNote.x + kNameNote.w + 4 && kNameOk.x == kNameDelete.x + kNameDelete.w + 4);
+    assert(kNameOk.x + kNameOk.w == 316 && kNameDelete.y == kNameNote.y && kNameOk.h == kNameNote.h);
+    assert(kNameDelete.x == kBagQtyOk.x && kNameOk.x == kBagQtyCancel.x);
+    Apart(view, 6);
+    for (int i = 0; i < 3; ++i) {
+        CtrPokeTouchRect t = NameTab(i);
+
+        Button(&t);
+        InFrame(&t, &kNamePages);
+    }
+    for (int cols = 6; cols <= PT_NAME_COLS; cols += 2)
+        for (int row = 0; row < PT_NAME_ROWS; ++row)
+            for (int col = 0; col < cols; ++col) {
+                CtrPokeTouchRect k = NameKey(cols, row, col);
+
+                Button(&k);
+                InFrame(&k, &kNameKeys);
+            }
+}
+
 int main(void)
 {
     home();
@@ -670,6 +707,7 @@ int main(void)
     box();
     choice();
     learn();
+    naming();
     printf("PASS lower layout%s\n", LOWER_LAYOUT_PROVISIONAL ? " (provisional values)" : "");
     return 0;
 }

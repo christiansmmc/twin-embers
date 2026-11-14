@@ -1,52 +1,10 @@
-/* FireRed's naming screen in the viewport (3ds_poketouch.h CtrPokeTouchName), included at the end of 3ds_poketouch.c
- * after the Pokedex, whose picture helpers it shares. A remote for FireRed's own keyboard: the name so far on an amber
- * band, one slot per letter it takes, tabs for its three pages with DELETE and OK, and the keys of its page (FireRed's
- * own characters) on light keys, FireRed's cursor amber. The question and, for a Pokemon, its picture are in the note.
- * Every character is FireRed's (CtrBottomNaming_*), but for the tabs' and buttons' labels (3ds_ui_strings.h). */
-
-static const CtrPokeTouchRect sFNBand = {4, 4, 240, 34};
-static const CtrPokeTouchRect sFNDelete = {142, 42, 50, 22};
-static const CtrPokeTouchRect sFNOk = {194, 42, 50, 22};
-
-static CtrPokeTouchRect FNTab(int page)
-{
-    /* Left to right: capitals, small letters, then FireRed's symbols page. */
-    static const int8_t kSlot[3] = {2, 0, 1};
-    CtrPokeTouchRect r = {(int16_t)(4 + 46 * kSlot[page]), 42, 44, 22};
-    return r;
-}
-
-static CtrPokeTouchRect FNKey(const CtrPokeTouchName *n, int row, int col)
-{
-    int pitch = n->cols > 6 ? 30 : 40;
-    int left = 4 + (240 - (pitch * n->cols - 2)) / 2;
-    CtrPokeTouchRect r = {(int16_t)(left + pitch * col), (int16_t)(68 + 24 * row), (int16_t)(pitch - 2), 22};
-    return r;
-}
-
-int CtrPokeTouch_NameHit(const CtrPokeTouchView *v, int x, int y)
-{
-    const CtrPokeTouchName *n = &v->name;
-
-    if (!n->on)
-        return -1;
-    for (int p = 0; p < 3; ++p) {
-        CtrPokeTouchRect r = FNTab(p);
-        if (UiIn(&r, x, y))
-            return PT_NAME_HIT_TAB + p;
-    }
-    if (UiIn(&sFNDelete, x, y))
-        return PT_NAME_HIT_DELETE;
-    if (UiIn(&sFNOk, x, y))
-        return PT_NAME_HIT_OK;
-    for (int row = 0; row < PT_NAME_ROWS; ++row)
-        for (int col = 0; col < n->cols && col < PT_NAME_COLS; ++col) {
-            CtrPokeTouchRect r = FNKey(n, row, col);
-            if (n->key[row][col] != 0xff && UiIn(&r, x, y))
-                return PT_NAME_HIT_KEY + row * PT_NAME_COLS + col;
-        }
-    return -1;
-}
+/* FireRed's naming screen as a page (3ds_poketouch.h CtrPokeTouchName; phase 2), included at the end of 3ds_poketouch.c
+ * after the Pokedex, whose picture helpers it shares. A remote for FireRed's own keyboard: the name so far in a window
+ * (the Pokemon's icon, a place per letter it takes, the gender sign), the three pages' tabs in a window beside it (the
+ * page shown underlined), the page's keys (FireRed's own characters) in a window under them, FireRed's question and the
+ * hint in the band, DELETE and OK beside it. FireRed's arrow marks its cursor (a key, the tab its page button turns to,
+ * DELETE or OK) or what is held. Every character is FireRed's (CtrBottomNaming_*), but for the tabs' and buttons' labels
+ * (3ds_ui_strings.h). Its FireRed text helpers (FNChar, FNText) are shared with the PC box. */
 
 /* One FireRed code as text for UiText: its glyph as it is (GlyphCode's 0x01 escape), the space as a space. */
 static const char *FNChar(uint8_t code, char out[3])
@@ -137,104 +95,153 @@ static void FNSpaceMark(int cx, int y, uint16_t c)
     Fill(cx + 6, y + 3, 1, 3, c);
 }
 
-static void FNEntry(const CtrPokeTouchName *n)
+/* Each page's tab, left to right: capitals, small letters, then FireRed's symbols page (FireRed's page numbers). */
+static const int8_t kFNPageSlot[3] = {2, 0, 1};
+static const int kFNPageLabel[3] = {UIS_NAME_SYMBOLS, UIS_NAME_UPPER, UIS_NAME_LOWER};
+
+int CtrPokeTouch_NameHit(const CtrPokeTouchView *v, int x, int y)
 {
-    const CtrPokeTouchRect *b = &sFNBand;
-    int slots = n->maxChars ? n->maxChars : 1, pitch = 16, x0 = b->x + (b->w - pitch * slots) / 2;
+    const CtrPokeTouchName *n = &v->name;
+
+    if (!n->on)
+        return -1;
+    for (int p = 0; p < 3; ++p) {
+        CtrPokeTouchRect r = NameTab(kFNPageSlot[p]);
+
+        if (UiIn(&r, x, y))
+            return PT_NAME_HIT_TAB + p;
+    }
+    if (UiIn(&kNameDelete, x, y))
+        return PT_NAME_HIT_DELETE;
+    if (UiIn(&kNameOk, x, y))
+        return PT_NAME_HIT_OK;
+    for (int row = 0; row < PT_NAME_ROWS; ++row)
+        for (int col = 0; col < n->cols && col < PT_NAME_COLS; ++col) {
+            CtrPokeTouchRect r = NameKey(n->cols, row, col);
+
+            if (n->key[row][col] != 0xff && UiIn(&r, x, y))
+                return PT_NAME_HIT_KEY + row * PT_NAME_COLS + col;
+        }
+    return -1;
+}
+
+/* The arrow's place: what is held under a touch, else FireRed's cursor (`cursorHere`). */
+static int FNChosen(const CtrPokeTouchName *n, int code, int cursorHere)
+{
+    return n->pressed >= 0 ? n->pressed == code : cursorHere;
+}
+
+/* The Pokemon being named: its icon (FireRed's, as its naming screen shows it) at (x, y). */
+static void FNIcon(unsigned species, int x, int y)
+{
+    static unsigned char tiles[1024];
+    static unsigned short pal[16];
+    static uint8_t px[32 * 32];
+    static uint16_t pal565[16];
+
+    if (!species || !CtrPokeTouch_MonIcon(species, 0, 0, tiles, pal))
+        return;
+    FDTiles(tiles, 32, 32, px);
+    FDPal(pal, pal565);
+    UiImage(px, pal565, 32, 32, 32, x, y, 1, 1);
+}
+
+/* The name so far: the Pokemon's icon, a place per letter it takes (the one the next letter takes underlined in ink),
+ * the gender sign after them in blue or red. */
+static void FNEntry(const CtrPokeTouchView *v)
+{
+    const CtrPokeTouchName *n = &v->name;
+    const CtrPokeTouchRect *r = &kNameEntry;
+    int slots = n->maxChars ? n->maxChars : 1, x0 = r->x + 8 + (n->species ? 40 : 0), right = r->x + r->w - 8;
+    int pitch = (right - x0 - 12) / slots, top = r->y + 8 + (32 - KIT_LINE_H) / 2 - 2;
     char g[3];
 
-    UiRoundFill(b->x, b->y, b->w, b->h, 5, kEmAmber.lip);
-    EmGradFill(b->x + 1, b->y + 1, b->w - 2, b->h - 2, 4, kEmAmber.top, kEmAmber.bottom);
+    if (pitch > 10)
+        pitch = 10;
+    FPageWindow(r, v->frameType);
+    if (n->species)
+        FNIcon(n->species, r->x + 8, r->y + 8);
     for (int i = 0; i < slots; ++i) {
         int sx = x0 + i * pitch;
 
         if (i < n->len && n->text[i]) {
             FNChar(n->text[i], g);
-            UiText(g, sx + (pitch - UiTextWidth(g, 2)) / 2, b->y + 7, kEmAmber.ink, kEmAmber.inkSh, 2, sx + pitch);
+            KitText(g, sx + (pitch - UiTextWidth(g, 1)) / 2, top, sx + pitch);
         }
-        /* The slot the next letter takes is the brighter one. */
-        Fill(sx + 2, b->y + 27, pitch - 4, 2, i == n->len ? EM_WHITE : kEmAmber.lip);
+        Fill(sx + 1, top + KIT_LINE_H + 2, pitch - 2, 2, i == n->len ? KitInk(2) : KitInk(3));
     }
     if (n->gender) {
         char sign[3];
 
         FNChar(n->gender == 2 ? 0xb6 : 0xb5, sign);
-        UiText(sign, x0 + slots * pitch + 4, b->y + 10, n->gender == 2 ? UI_RGB(255, 214, 214) : UI_RGB(210, 232, 255),
-               kEmAmber.inkSh, 1, b->x + b->w - 4);
+        UiText(sign, x0 + slots * pitch + 4, top + 3, n->gender == 2 ? kPPageFemale : kPPageMale, KitInk(3), 1, right);
     }
 }
 
-static void FNButton(const CtrPokeTouchRect *r, const char *label, const EmPal *p, int pressed)
+/* The tabs: the page shown underlined; FireRed's arrow on the one held, or, while FireRed's cursor is on its page button,
+ * on the page its A turns to. */
+static void FNTabs(const CtrPokeTouchView *v)
 {
-    int fy = EmButton(r->x, r->y, r->w, r->h, p, FB_DEPTH, pressed);
-
-    EmLabel(label, r->x, r->w, fy, r->h - FB_DEPTH, p);
-}
-
-static void FNTabs(const CtrPokeTouchName *n)
-{
-    static const int kLabel[3] = {UIS_NAME_SYMBOLS, UIS_NAME_UPPER, UIS_NAME_LOWER};
+    const CtrPokeTouchName *n = &v->name;
     int onButtons = n->curCol >= n->cols;
 
+    FPageWindow(&kNamePages, v->frameType);
     for (int p = 0; p < 3; ++p) {
-        CtrPokeTouchRect r = FNTab(p);
-        /* The cursor on the page button (FireRed's first button): the tab its A turns to is the one it marks. */
-        const EmPal *pal = onButtons && n->curRow == 0 && p == (n->page + 1) % 3 ? &kEmViolet
-                         : n->page == p ? &kEmAmber : &kEmCream;
+        CtrPokeTouchRect t = NameTab(kFNPageSlot[p]);
+        const char *label = CtrUiText(kFNPageLabel[p]);
+        int top = t.y + (t.h - KIT_LINE_H) / 2, x = t.x + KIT_ARROW_W + 1;
 
-        FNButton(&r, CtrUiText(kLabel[p]), pal, n->pressed == PT_NAME_HIT_TAB + p);
+        Fill(t.x, t.y, t.w, t.h, n->pressed == PT_NAME_HIT_TAB + p ? KitInk(3) : KitInk(1));
+        if (FNChosen(n, PT_NAME_HIT_TAB + p, onButtons && n->curRow == 0 && p == (n->page + 1) % 3))
+            KitText(KIT_ARROW, t.x + 1, top, x);
+        KitText(label, x, top, t.x + t.w);
+        if (n->page == p)
+            Fill(x, t.y + t.h - 5, UiTextWidth(label, 1), 2, KitInk(2));
     }
-    FNButton(&sFNDelete, CtrUiText(UIS_NAME_DELETE), onButtons && n->curRow == 1 ? &kEmAmber : &kEmCream,
-             n->pressed == PT_NAME_HIT_DELETE);
-    FNButton(&sFNOk, CtrUiText(UIS_NAME_OK), onButtons && n->curRow == 2 ? &kEmAmber : &kEmViolet,
-             n->pressed == PT_NAME_HIT_OK);
 }
 
-static void FNKeys(const CtrPokeTouchName *n)
+/* The page's keys (FireRed's own characters; the space key's mark), FireRed's arrow on its cursor or the key held. */
+static void FNKeys(const CtrPokeTouchView *v)
 {
+    const CtrPokeTouchName *n = &v->name;
+    int onButtons = n->curCol >= n->cols;
     char g[3];
 
+    FPageWindow(&kNameKeys, v->frameType);
     for (int row = 0; row < PT_NAME_ROWS; ++row)
         for (int col = 0; col < n->cols && col < PT_NAME_COLS; ++col) {
-            CtrPokeTouchRect r = FNKey(n, row, col);
+            CtrPokeTouchRect k = NameKey(n->cols, row, col);
             uint8_t code = n->key[row][col];
-            const EmPal *p = n->curCol == col && n->curRow == row ? &kEmAmber : &kEmCream;
-            int fy;
+            int hit = PT_NAME_HIT_KEY + row * PT_NAME_COLS + col, top = k.y + (k.h - KIT_LINE_H) / 2;
 
             if (code == 0xff)
                 continue;
-            fy = EmButton(r.x, r.y, r.w, r.h, p, FB_DEPTH, n->pressed == PT_NAME_HIT_KEY + row * PT_NAME_COLS + col);
+            Fill(k.x, k.y, k.w, k.h, n->pressed == hit ? KitInk(3) : KitInk(1));
+            if (FNChosen(n, hit, !onButtons && n->curCol == col && n->curRow == row))
+                KitText(KIT_ARROW, k.x + 2, top, k.x + 2 + KIT_ARROW_W);
             if (code == 0)
-                FNSpaceMark(r.x + r.w / 2, fy + 5, p->ink);
-            else
-                EmLabel(FNChar(code, g), r.x, r.w, fy, r.h - FB_DEPTH, p);
+                FNSpaceMark(k.x + k.w / 2, top + 2, KitInk(2));
+            else {
+                FNChar(code, g);
+                KitText(g, k.x + (k.w - UiTextWidth(g, 1)) / 2, top, k.x + k.w);
+            }
         }
 }
 
-static void FNameFrame(const CtrPokeTouchView *v)
+static void FNamePageDraw(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchName *n = &v->name;
-
-    EmSurface();
-    TsBgRect(PT_VIEW_X - 4, PT_VIEW_Y - 4, PT_VIEW_W + 8, PT_VIEW_H + 8);
-    FNEntry(n);
-    FNTabs(n);
-    FNKeys(n);
-    sUiS = &sUiNavy;
-}
-
-static void FNameNote(const CtrPokeTouchView *v, int w)
-{
-    const CtrPokeTouchName *n = &v->name;
+    int onButtons = n->curCol >= n->cols;
     char title[66];
-    int textW = n->species ? w - 76 : w - 18;
 
-    EmSurface();
-    EmNote(NOTE_X, NOTE_Y, w, NOTE_H);
+    Fill(0, 0, W, H, BPageBg());
+    FNEntry(v);
+    FNTabs(v);
+    FNKeys(v);
     FNText(n->title, (int)sizeof(n->title), title, (int)sizeof(title));
-    UiText(title, NOTE_X + 12, NOTE_Y + 6, EM_DARK, EM_DARK_SH, 1, NOTE_X + 12 + textW);
-    BPWrap(CtrUiText(UIS_NAME_HINT), NOTE_X + 12, NOTE_Y + 21, textW, 3, EM_DIM, EM_DARK_SH);
-    if (n->species)
-        FDPicDraw(n->species, NOTE_X + w - 68, NOTE_Y, 0);
-    sUiS = &sUiNavy;
+    FPageBand(&kNameNote, title, CtrUiText(UIS_NAME_HINT), 0);
+    BagCell(&kNameDelete, v->frameType, CtrUiText(UIS_NAME_DELETE),
+            FNChosen(n, PT_NAME_HIT_DELETE, onButtons && n->curRow == 1), n->pressed == PT_NAME_HIT_DELETE, 1);
+    BagCell(&kNameOk, v->frameType, CtrUiText(UIS_NAME_OK),
+            FNChosen(n, PT_NAME_HIT_OK, onButtons && n->curRow == 2), n->pressed == PT_NAME_HIT_OK, 1);
 }

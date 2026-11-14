@@ -8,9 +8,6 @@
  * them with its keys). */
 #include "3ds_ui_strings.h"
 
-/* The old views' pieces the naming keyboard still uses until its turn. */
-#define FB_DEPTH 2
-
 /* ---- The page ---- */
 static const CtrUiString sFBTabLabel[3] = {UIS_BAG_ITEMS, UIS_BAG_KEY_ITEMS, UIS_BAG_BALLS};
 

@@ -861,6 +861,23 @@ static void preview_pages(const CtrPokeTouchView *base)
         l->pressed = PT_LEARN_HIT_ROW + 4; ShotOf(&v, "learn_2_held_new");
         memset(l, 0, sizeof(*l));
     }
+    {
+        CtrPokeTouchName *n = &v.name;
+
+        memset(n, 0, sizeof(*n));
+        n->on = 1; n->page = 1; n->cols = 8; n->maxChars = 10; n->len = 3; n->curCol = 2; n->curRow = 1; n->pressed = -1;
+        n->gender = 1; n->species = 25;
+        memset(n->text, 0xff, sizeof(n->text));
+        n->text[0] = 0xCA; n->text[1] = 0xC3; n->text[2] = 0xC5;
+        for (int r = 0; r < PT_NAME_ROWS; ++r)
+            for (int c = 0; c < PT_NAME_COLS; ++c)
+                n->key[r][c] = (uint8_t)(r * 8 + c < 26 ? 0xBB + r * 8 + c : r == 3 && c == 2 ? 0 : 0xff);
+        memset(n->title, 0xff, sizeof(n->title));
+        BoxText(n->title, sizeof(n->title), "PIKACHU NICKNAME");
+        ShotOf(&v, "name_1");
+        n->curCol = 8; n->curRow = 0; ShotOf(&v, "name_2_page_button");
+        memset(n, 0, sizeof(*n));
+    }
 }
 
 /* The page colour round every window: the screen's 4 px margin. */
@@ -1460,6 +1477,71 @@ static void learn_page(const CtrPokeTouchView *base)
     v.frameType = base->frameType; update(&old, &v);
     CtrPokeTouch_Draw(canvas, base);
 }
+
+/* The naming keyboard as a page: the name's window, the three tabs (capitals, small letters, symbols, left to right;
+ * the page shown underlined), the page's keys, DELETE and OK; FireRed's arrow on its cursor (a key, the tab its page
+ * button turns to, DELETE or OK) or what is held. No BACK: DELETE is its B. */
+static void name_page(const CtrPokeTouchView *base)
+{
+    CtrPokeTouchView v = *base, old;
+    CtrPokeTouchName *n = &v.name;
+    static const int slotPage[3] = {1, 2, 0};
+
+    v.home = 0; v.backVisible = 0;
+    memset(n, 0, sizeof(*n));
+    n->on = 1; n->page = 1; n->cols = 8; n->maxChars = 10; n->len = 3; n->curCol = 2; n->curRow = 1; n->pressed = -1;
+    n->gender = 1; n->species = 25;
+    memset(n->text, 0xff, sizeof(n->text));
+    n->text[0] = 0xBB; n->text[1] = 0xBC; n->text[2] = 0xBD;
+    for (int r = 0; r < PT_NAME_ROWS; ++r)
+        for (int c = 0; c < PT_NAME_COLS; ++c)
+            n->key[r][c] = (uint8_t)(r == 3 && c == 7 ? 0xff : r == 3 && c == 6 ? 0 : 0xBB + r * 8 + c);
+    memset(n->title, 0xff, sizeof(n->title));
+    n->title[0] = 0xD3; n->title[1] = 0xC9;
+    CtrPokeTouch_Draw(canvas, &v);
+    old = v;
+    const int outline = !KitFrameReady(KIT_FRAME_STD, v.frameType);
+    assert(CtrPokeTouch_FieldPageShown(&v));
+    PageMargin();
+    assert(!outline || (at(kNameEntry.x, kNameEntry.y + 20) == KitInk(2) && at(kNamePages.x, kNamePages.y + 20) == KitInk(2)
+                        && at(kNameKeys.x, kNameKeys.y + 20) == KitInk(2) && at(kNameOk.x, kNameOk.y + 20) == KitInk(2)));
+    for (int s = 0; s < 3; ++s) {
+        CtrPokeTouchRect t = NameTab(s);
+
+        assert(CtrPokeTouch_NameHit(&v, t.x + 16, t.y + 16) == PT_NAME_HIT_TAB + slotPage[s]);
+        assert((BagInk(t.x + 8, t.y + t.h - 6, t.w - 8, 3) > 0) == (s == 0));     /* the page shown underlined */
+    }
+    assert(CtrPokeTouch_NameHit(&v, kNameDelete.x + 28, kNameDelete.y + 28) == PT_NAME_HIT_DELETE);
+    assert(CtrPokeTouch_NameHit(&v, kNameOk.x + 28, kNameOk.y + 28) == PT_NAME_HIT_OK);
+    assert(CtrPokeTouch_NameHit(&v, kNameNote.x + 28, kNameNote.y + 28) == -1);
+    for (int r = 0; r < PT_NAME_ROWS; ++r)
+        for (int c = 0; c < 8; ++c) {
+            CtrPokeTouchRect k = NameKey(8, r, c);
+
+            assert(CtrPokeTouch_NameHit(&v, k.x + k.w / 2, k.y + k.h / 2) == (r == 3 && c == 7 ? -1 : PT_NAME_HIT_KEY + r * PT_NAME_COLS + c));
+            assert(ArrowAt(&k) == (r == 1 && c == 2));
+        }
+    assert(!CtrPokeTouch_BackHit(&v, kNameOk.x + 28, kNameOk.y + 28) && !CtrPokeTouch_BackHit(&v, 40, 40));
+    /* a key held: its grey and the arrow; the cursor on FireRed's buttons: OK, DELETE, the tab the page button turns to */
+    n->pressed = PT_NAME_HIT_KEY + 2 * PT_NAME_COLS + 5; update(&old, &v);
+    assert(ArrowAt(&(CtrPokeTouchRect){NameKey(8, 2, 5).x, NameKey(8, 2, 5).y, 8, NAME_KEY_H}));
+    assert(at(NameKey(8, 2, 5).x + NameKey(8, 2, 5).w - 3, NameKey(8, 2, 5).y + 2) == KitInk(3));
+    n->pressed = -1; n->curCol = 8; n->curRow = 2; update(&old, &v);
+    assert(BagInk(kNameOk.x + 8, kNameOk.y + 8, kNameOk.w - 16, kNameOk.h - 16) > 20);
+    n->curRow = 1; update(&old, &v);
+    assert(BagInk(kNameDelete.x + 8, kNameDelete.y + 8, kNameDelete.w - 16, kNameDelete.h - 16) > 20);
+    n->curRow = 0; update(&old, &v);
+    assert(ArrowAt(&(CtrPokeTouchRect){NameTab(1).x, NameTab(1).y, 8, 32}));
+    n->pressed = PT_NAME_HIT_TAB; update(&old, &v);
+    n->pressed = PT_NAME_HIT_OK; update(&old, &v);
+    /* the symbols' page, six across; a full name, a female sign; no Pokemon */
+    n->pressed = -1; n->page = 0; n->cols = 6; n->curCol = 0; n->curRow = 0; update(&old, &v);
+    assert(CtrPokeTouch_NameHit(&v, NameKey(6, 0, 5).x + 10, NameKey(6, 0, 5).y + 10) == PT_NAME_HIT_KEY + 5);
+    n->len = 10; n->gender = 2; n->species = 0; update(&old, &v);
+    v.frameType = 4; update(&old, &v);
+    v.frameType = base->frameType; update(&old, &v);
+    CtrPokeTouch_Draw(canvas, base);
+}
 #endif
 
 int main(int argc, char **argv)
@@ -1525,6 +1607,7 @@ int main(int argc, char **argv)
     box_page(&v);
     choice_page(&v);
     learn_page(&v);
+    name_page(&v);
 #else
     for(int x=4;x<244;++x) for(int y=4;y<164;++y) assert(at(x,y)==Gba(0x5ab3));
 #endif

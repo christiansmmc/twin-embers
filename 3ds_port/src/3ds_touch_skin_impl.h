@@ -139,14 +139,6 @@ static void EmGlowRing(int x, int y, int w, int h)
     }
 }
 
-/* A label centred across [x, x + w) on a face that starts at `fy` and is `fh` tall. */
-static void EmLabel(const char *s, int x, int w, int fy, int fh, const EmPal *p)
-{
-    int tw = UiTextWidth(s, 1);
-
-    UiText(s, x + (w - tw) / 2, fy + (fh - UI_TEXT_H) / 2, p->ink, p->inkSh, 1, x + w);
-}
-
 /* The note card: a light card with an ember stripe on its left; the text is the caller's. */
 static void EmNote(int x, int y, int w, int h)
 {
