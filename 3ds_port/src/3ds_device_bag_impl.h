@@ -29,6 +29,7 @@
 #define DEV_BAG_TEXT        112                             /* a description, a question, a message */
 #define DEV_BAG_MENU        PT_BAG_MENU_MAX
 #define DEV_BAG_SMALL_LINE  9                               /* the small font's lines (the board's 9 px) */
+#define DEV_BAG_READ_X      48                              /* the narrow screen's words (the board's x) */
 #define DEV_BAG_ARROW_OFF   UI_RGB(0xB8, 0xB0, 0xA0)        /* ▲▼ with nothing that way (the board's) */
 #define DEV_BAG_ICON_X      5                               /* a row's icon (12x12) and name, from the row's left */
 #define DEV_BAG_NAME_X      22
@@ -421,8 +422,6 @@ static int DevBagSmallWrap(const char *s, int firstX, int x, int top, int right,
  * mart's money at its right); grey outside the list. */
 static void DevBagKeys(const DevBagPage *p, int held)
 {
-    static const CtrPokeTouchRect kRow = {8, 6, 304, 28};
-
     if (p->keys == DEV_BAG_KEYS_TITLE) {
         CtrPokeTouchRect paper = DevScreen(&kDevBagTitle);
         int top = paper.y + (paper.h - 8) / 2, right = paper.x + paper.w - 6;
@@ -450,7 +449,7 @@ static void DevBagKeys(const DevBagPage *p, int held)
         }
     }
     if (p->state != DEV_BAG_LIST)
-        DevDim(&kRow);
+        DevDim(&kDevBagTitle);                              /* the row's whole band: the title's, over the keys' too */
 }
 
 /* The list's rows on its screen (wide, or narrow beside a column of keys). In the list the chosen row is the one under a
@@ -533,7 +532,7 @@ static void DevBagDesc(const DevBagPage *p, int narrow)
     if (p->selItem)
         DevBagIcon(p->selItem, kDevBagDescIcon.x, kDevBagDescIcon.y, 0);
     if (narrow) {
-        DevBagRead(p->read, &paper, x, right);
+        DevBagRead(p->read, &paper, DEV_BAG_READ_X, right);
         return;
     }
     if (!p->selItem)

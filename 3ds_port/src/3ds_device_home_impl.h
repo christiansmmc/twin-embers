@@ -258,9 +258,10 @@ static void DevHomeSpeed(const CtrPokeTouchView *v)
     DevTextInk(value, r->x + r->w - 5 - vw, r->y + (r->h - UI_TEXT_H) / 2, r->x + r->w - 5, ink, pressed || !on ? ink : DEV_INK_SH);
 }
 
-/* `s` in the small font in at most maxLines lines DEV_LINE_H apart, `width` wide, broken at spaces (DevWrap's rule). A
- * word wider than a line is cut, and words left over are dropped: either counts in sDevKeyCut (the label-fit builds then
- * fail), as a cut key label does. */
+/* `s` in the small font in at most maxLines lines DEV_LINE_H apart, `width` wide, broken at spaces (DevWrap's rule) and
+ * at a line break, which always ends its line (the Party's FLY's hint: where to tap, then the way out). A word wider
+ * than a line is cut, and words left over are dropped: either counts in sDevKeyCut (the label-fit builds then fail), as
+ * a cut key label does. */
 static void DevHomeSmallWrap(const char *s, int x, int top, int width, int maxLines, uint16_t ink)
 {
     char line[PT_BAR_LEN];
@@ -268,19 +269,19 @@ static void DevHomeSmallWrap(const char *s, int x, int top, int width, int maxLi
     for (int lines = 0; lines < maxLines; ++lines) {
         int fit = 0, end = 0;
 
-        while (*s == ' ')
+        while (*s == ' ' || *s == '\n')
             ++s;
         if (!*s)
             return;
         for (;;) {
-            while (s[end] && s[end] != ' ' && end < (int)sizeof(line) - 1)
+            while (s[end] && s[end] != ' ' && s[end] != '\n' && end < (int)sizeof(line) - 1)
                 ++end;
             memcpy(line, s, (size_t)end);
             line[end] = 0;
             if (fit > 0 && DevSmallTextWidth(line) > width)
                 break;
             fit = end;
-            if (!s[end] || end >= (int)sizeof(line) - 1)
+            if (!s[end] || s[end] == '\n' || end >= (int)sizeof(line) - 1)
                 break;
             ++end;                          /* past the space, to the next word */
         }
@@ -291,16 +292,16 @@ static void DevHomeSmallWrap(const char *s, int x, int top, int width, int maxLi
         DevSmallText(line, x, top + lines * DEV_LINE_H, ink, x + width);
         s += fit;
     }
-    while (*s == ' ')
+    while (*s == ' ' || *s == '\n')
         ++s;
     if (*s)
         ++sDevKeyCut;
 }
 
 /* The panel: the place's name (two lines), the line under it (the map's region, as the region key names it; or bar[2]
- * when 3ds_bottom.c has something to say there: why a place picked cannot be flown to, the Party's FLY's hint; a line
- * too long for the panel takes the name's second line too when the name has left it free), the rule, the party, RUN and
- * SPD. */
+ * when 3ds_bottom.c has something to say there: why a place picked cannot be flown to, the dungeon over it, the Party's
+ * FLY's hint; a line too long for the panel, or broken in two, takes the name's second line too when the name has left
+ * it free), the rule, the party, RUN and SPD. */
 static void DevHomePanel(const CtrPokeTouchView *v)
 {
     char name[PT_BAR_LEN], line[PT_BAR_LEN];
@@ -309,7 +310,7 @@ static void DevHomePanel(const CtrPokeTouchView *v)
     DevUpper(name, v->bar[0], sizeof(name));
     DevUpper(line, v->bar[2][0] ? v->bar[2] : RegionName(v->mapGroup), sizeof(line));
     nameLines = DevWrap(name, kDevHomeName.x, kDevHomeName.y + 3, kDevHomeName.w, 2, DEV_INK, DEV_INK_SH);
-    two = nameLines < 2 && DevSmallTextWidth(line) > kDevHomeRegion.w;
+    two = nameLines < 2 && (strchr(line, '\n') || DevSmallTextWidth(line) > kDevHomeRegion.w);
 
     DevHomeSmallWrap(line, kDevHomeRegion.x, kDevHomeRegion.y + 2 - (two ? DEV_LINE_H : 0), kDevHomeRegion.w, two ? 2 : 1,
                      DEV_INK2);

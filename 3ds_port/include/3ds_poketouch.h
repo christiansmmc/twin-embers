@@ -648,7 +648,7 @@ typedef struct {
     char name[6][11];
     uint8_t nameIsSpecies[6];       /* the name is its species' own (shown in capitals), not one the player gave */
     int8_t cursor;                  /* the Party's own selection: a slot 0-5 */
-    uint8_t mode;                   /* BUI_PTY_SWITCH, BUI_PTY_TARGET (an item's target), BUI_PTY_FORCED (no CANCEL) */
+    uint8_t mode;                   /* BUI_PTY_SWITCH, BUI_PTY_TARGET (an item's target), BUI_PTY_FORCED (CANCEL grey) */
     uint8_t panel;                  /* BUI_PTY_*: what the Party has open over the slots */
     uint8_t menuCount;              /* its menu's rows (SHIFT, SUMMARY, CANCEL; YES, NO; the field's up to 8) */
     int8_t menuCursor;

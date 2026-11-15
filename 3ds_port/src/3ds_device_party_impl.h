@@ -7,8 +7,9 @@
  * the HP tag and bar with the numbers and, at the right, the level or what matters more (picking several its place in
  * the order, an item's or a move's verdict, a condition); a faint key when it fainted or may not enter; an egg shows its
  * icon and name only; a slot without a Pokemon is a hole. Under them the screen says what the Party says (its own
- * prompt, or the mode's words) and CANCEL, a dark key, leaves (none when a Pokemon must be sent out); picking several,
- * CONFIRM over a shorter CANCEL. A message is on the screen with FireRed's arrow, the keys grey: a tap anywhere goes on.
+ * prompt, or the mode's words) and CANCEL, a dark key, leaves (grey and not taken when a Pokemon must be sent out);
+ * picking several, CONFIRM over a shorter CANCEL. A message is on the screen with FireRed's arrow, the keys grey: a tap
+ * anywhere goes on.
  * The action menu (and YES / NO): the bays become a column of slim ones and the actions keys beside them, one column of
  * up to four, two beyond with the slim bays narrowed (the game's D-pad walks the same grid, 3ds_party_grid.h); a field
  * move's name in blue, CANCEL dark; the menu's screen under them with the Party's prompt. A Rare Candy's level up: the
@@ -268,7 +269,9 @@ static const char *DevPtyModeWords(const CtrBattleParty *p)
     return CTR_TR("Choose a POK\xC3\xA9MON.", "Elige un POK\xC3\xA9MON.", "W\xC3\xA4hle ein POK\xC3\xA9MON.");
 }
 
-/* CANCEL (and CONFIRM picking several) under the bays: `cursor` and `pressed` choose the sunk one; `dim` greys them. */
+/* CANCEL (and CONFIRM picking several) under the bays: `cursor` and `pressed` choose the sunk one; `dim` greys them.
+ * When a Pokemon must be sent out CANCEL is grey (DevPartyHit does not take it), but FireRed's cursor can still go
+ * to it (SEND OUT then fails), and then it is the chosen key all the same. */
 static void DevPtyLeaveKeys(const CtrBattleParty *p, int cursor, int pressed, int dim)
 {
     const char *cancel = CTR_TR("CANCEL", "CANCELAR", "ZUR\xC3\x9C" "CK");
@@ -285,11 +288,11 @@ static void DevPtyLeaveKeys(const CtrBattleParty *p, int cursor, int pressed, in
             DevDim(&kDevPtyConfirm);
             DevDim(&kDevPtyCancelLow);
         }
-    } else if (p->mode != BUI_PTY_FORCED) {
+    } else {
         sunk = DevChosen(BUI_PTY_CANCEL, cursor, pressed);
         faceY = DevKey(&kDevPtyCancel, DEV_LOOK_DARK, sunk, 6);
         DevKeyWord(&kDevPtyCancel, faceY, DEV_LOOK_DARK, sunk, cancel);
-        if (dim)
+        if (dim || p->mode == BUI_PTY_FORCED)
             DevDim(&kDevPtyCancel);
     }
 }

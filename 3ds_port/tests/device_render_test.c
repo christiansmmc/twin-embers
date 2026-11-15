@@ -993,7 +993,8 @@ static void SuiteHome(void)
     v.flyOk = 1;
     DevCheckTouch(&old, &v);
     shot("selection");
-    /* flypick: FLY chosen in the Party, the map waits for a town (the hint in two lines); a Pokemon held */
+    /* flypick: FLY chosen in the Party, the map waits for a town; the hint in two lines, where to tap and the way out
+     * (v0.6.0's "Any button: cancel"), each line whole; a Pokemon held */
     v.pressed = PT_HOME_PARTY + 2;
     v.running = 0;
     v.cursorX = v.cursorY = -1;
@@ -1002,6 +1003,22 @@ static void SuiteHome(void)
     snprintf(v.bar[2], PT_BAR_LEN, "%s", CtrUiText(UIS_FLY_PICK));
     DevCheckTouch(&old, &v);
     assert(Count(212, 33, 90, 7, DEV_INK2) > 0 && Count(212, 46, 90, 7, DEV_INK2) > 0);   /* the hint takes two lines */
+    {
+        const char *pick = CtrUiText(UIS_FLY_PICK), *out = strchr(pick, '\n');
+        char first[PT_BAR_LEN], second[PT_BAR_LEN];
+        int w1, w2;
+
+        assert(out && !strchr(out + 1, '\n') && (size_t)(out - pick) < sizeof(first));
+        memcpy(first, pick, (size_t)(out - pick));
+        first[out - pick] = 0;
+        DevUpper(second, first, sizeof(second));
+        w1 = DevSmallTextWidth(second);
+        DevUpper(second, out + 1, sizeof(second));
+        w2 = DevSmallTextWidth(second);
+        /* each line ends where its own words do: the break is the string's, not the width's */
+        assert(w1 <= 90 && w2 <= 90 && Count(212 + w1 - 4, 33, 4, 7, DEV_INK2) > 0 && Count(212 + w1, 33, 90 - w1, 7, DEV_INK2) == 0);
+        assert(Count(212 + w2 - 4, 46, 4, 7, DEV_INK2) > 0 && Count(212 + w2, 46, 90 - w2, 7, DEV_INK2) == 0);
+    }
     shot("flypick");
     /* sevii: another map; a place that cannot be flown to says why */
     assert(CtrPokeTouch_MapPrepare(PT_MAP_SEVII123, 0));
@@ -1488,8 +1505,18 @@ static void SuiteParty(void)
     shot("teach");
     memset(v.pty.tag, 0, sizeof(v.pty.tag)); v.pty.mode = BUI_PTY_SWITCH; DevCheckBattle(&old, &v);
 
-    v.pty.mode = BUI_PTY_FORCED; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 275, 205) == -1 && at(275, 205) == DEV_SHELL_RED);
+    /* FORCED (a Pokemon must be sent out): CANCEL grey, never taken; FireRed's cursor can still be on it (SEND OUT
+     * then fails), and then it is the chosen key, sunk with its LED, grey all the same; a touch on a bay is chosen */
+    v.pty.mode = BUI_PTY_FORCED; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 275, 205) == -1 && CtrBattleUi_Hit(&v, 302, 190) == -1);
+    assert(at(245, 200) == DevBlend(DEV_SHELL_RED, DevKeyFace(DEV_LOOK_DARK, 0), 128) && at(302, 190) != DevBlend(DEV_SHELL_RED, DEV_LED, 128));
     shot("forced");
+    v.pty.cursor = -1; v.pty.button = 1; DevCheckBattle(&old, &v); AssertKey(DevPtyBay(0), DEV_LOOK_KEY, 0);
+    assert(at(245, 200) == DevBlend(DEV_SHELL_RED, DevKeyFace(DEV_LOOK_DARK, 1), 128) && at(302, 190) == DevBlend(DEV_SHELL_RED, DEV_LED, 128));
+    assert(CtrBattleUi_Hit(&v, 275, 205) == -1);
+    shot("forced_cancel");
+    v.pressed = BUI_PTY_SLOT + 1; DevCheckBattle(&old, &v); AssertKey(DevPtyBay(1), DEV_LOOK_KEY, 1);
+    assert(at(302, 190) != DevBlend(DEV_SHELL_RED, DEV_LED, 128));
+    v.pressed = -1; v.pty.cursor = 0; v.pty.button = -1; DevCheckBattle(&old, &v);
     v.pty.mode = BUI_PTY_MULTI; v.pty.button = 1; DevCheckBattle(&old, &v);
     AssertHits(BatHitV, &v, kDevPtyConfirm, BUI_PTY_CONFIRM); AssertHits(BatHitV, &v, kDevPtyCancelLow, BUI_PTY_CANCEL); AssertKey(kDevPtyCancelLow, DEV_LOOK_DARK, 1);
     /* picking several: the order on the picked bays, a Pokemon that may not enter grey; the cursor on CONFIRM */
@@ -1913,7 +1940,8 @@ static const struct { const char *name; int qty; } kBagItem[8] = {
     {"POTION", 5}, {"SUPER POTION", 2}, {"ANTIDOTE", 3}, {"PARLYZ HEAL", 1}, {"ESCAPE ROPE", 2}, {"REPEL", 4},
     {"FULL HEAL", 1}, {"MAX REPEL", 3},
 };
-static const char kBagDesc[] = "A spray-type wound medicine. It restores the HP of one POK\xC3\xA9MON by 50 points.";
+/* The selection's description: port-written words, as long as a game description (three lines of the small font). */
+static const char kBagDesc[] = "Port-written words for this test. They stand in for what a POK\xC3\xA9MON item says here.";
 
 static CtrPokeTouchView BagBoard(void)
 {
@@ -2092,6 +2120,7 @@ static void SuiteBag(void)
     AssertKey(DevBagMenuKey(5, 0), DEV_LOOK_KEY, 1); assert(at(300 + 2, 46 + 2) == DEV_LED && at(20, 72) == DEV_BEZEL);
     assert(Count(16, 48, 168, 16, DEV_INK_DIM) > 0 && Count(16, 48, 168, 128, DEV_INK) == 0 && at(195, 100) == DEV_SHELL_RED);
     assert(Count(46, 196, 136, 30, DEV_INK) > 0 && Count(244, 190, 68, 40, DEV_DARK_INK) > 0);
+    assert(Count(46, 196, 2, 30, DEV_INK) == 0 && Count(48, 196, 2, 30, DEV_INK) > 0);      /* from x 48, the board's */
     v.bag.pressed = PT_BAG_HIT_MENU + 2; DevCheckTouch(&old, &v); AssertKey(DevBagMenuKey(5, 2), DEV_LOOK_KEY, 1); AssertKey(DevBagMenuKey(5, 0), DEV_LOOK_KEY, 0);
     v.bag.pressed = -1; DevCheckTouch(&old, &v);
     v.bag.pressed = PT_BAG_HIT_ROW + 2; assert(DevCheckTouch(&old, &v).count == 0);                 /* the rows take no touch now */
@@ -2139,7 +2168,7 @@ static void SuiteBag(void)
     for (i = 0; i < 8; ++i) { snprintf(v.bag.row[i].name, sizeof(v.bag.row[i].name), "%s BERRY", i & 1 ? "ORAN" : "CHERI"); v.bag.row[i].qty = (uint16_t)(1 + i); }
     strcpy(v.bag.selName, "ORAN BERRY"); DevCheckTouch(&old, &v); AssertKey(kDevBagCaseKey, DEV_LOOK_KEY, 1);
     shot("pouch");
-    v.bag.kind = PT_BAG_KIND_SHOP; strcpy(v.bag.title, "POKe MART"); v.bag.money = 3000; DevCheckTouch(&old, &v); assert(CtrPokeTouch_BagHit(&v, 160, 20) == -1);   /* the title */
+    v.bag.kind = PT_BAG_KIND_SHOP; strcpy(v.bag.title, "POK\xC3\xA9 MART"); v.bag.money = 3000; DevCheckTouch(&old, &v); assert(CtrPokeTouch_BagHit(&v, 160, 20) == -1);   /* the title */
     /* a mart: the title on a screen with the money at its right, prices at the rows' right, how many the Bag holds */
     for (i = 0; i < 8; ++i) { strcpy(v.bag.row[i].name, kBagItem[i].name); v.bag.row[i].qty = 0; v.bag.row[i].price = (uint16_t)(200 + 100 * i); }
     strcpy(v.bag.selName, "SUPER POTION"); v.bag.showOwned = 1; v.bag.owned = 2; strcpy(v.bag.closeName, "Cancel"); DevCheckTouch(&old, &v);
