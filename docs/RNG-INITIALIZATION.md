@@ -69,10 +69,11 @@ python3 tools/test_rng_initialization.py --tree build/rng-test-upstream -v
 make -C build/rng-test-upstream/3ds_port verify-host
 make -C build/rng-test-upstream/3ds_port CLEAN_RELEASE=1 verify-game-3dsx
 make -C 3ds_port rng-test-3dsx
-python3 tools/source_audit.py --history
+python3 tools/source_audit.py --history-since 0afd7a2bdb75a7d1ec2d4d10fb9a84f6f23e08ab
 python3 tools/source_audit.py --release
 ```
 
+The history audit checks every commit after v0.6.0, as this fork's CI does: upstream v0.6.0's own history does not pass `--history`.
 The final command follows `docs/release-decision.json`: it exits 0 and prints that rights are not independently verified. Without that file it exits 2 with **BINARY RELEASE BLOCKED**.
 Windows needs the interpreter/devkitPro paths described in BUILDING.md.
 

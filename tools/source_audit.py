@@ -168,10 +168,16 @@ def snapshot(root,commit=None,excluded=()):
             files[name]=path.read_bytes(); modes.setdefault(name,'100644')
     return files,modes
 
-def history(root,windows=None):
+def history(root,windows=None,since=None):
     if git(root,'rev-parse','--is-shallow-repository').strip()!=b'false': raise ValueError('Full history required')
     commits=git(root,'rev-list','--all').decode().splitlines()
     if not commits: raise ValueError('No committed history')
+    # With `since`, only commits not reachable from it are audited; the current tree and the
+    # manifest's historical rows are validated exactly as before.
+    audited=commits
+    if since is not None:
+        if not re.fullmatch('[0-9a-f]{40}',since): raise ValueError('--history-since needs a full commit id')
+        audited=git(root,'rev-list','--all','--not',since).decode().splitlines()
     current,modes=snapshot(root)
     check(current,modes,windows)
     reviews=json.loads(current[MANIFEST]).get('historical_reviews',[])
@@ -197,7 +203,7 @@ def history(root,windows=None):
         if not re.fullmatch('[0-9a-f]{64}',row.get('sha256','')) or not row.get('basis'):
             raise ValueError('Incomplete historical exclusion')
         seen.add((commit,name)); excluded.setdefault(commit,{})[name]=row['sha256']
-    for commit in commits:
+    for commit in audited:
         files,modes=snapshot(root,commit,excluded.get(commit,{}))
         for name,digest in excluded.get(commit,{}).items():
             raw=files.pop(name,None); modes.pop(name,None)
@@ -207,7 +213,7 @@ def history(root,windows=None):
             if windows and any(raw[n:n+64] in windows for n in range(len(raw)-63)):
                 raise ValueError(f'Exact ROM fragment: {name}')
         check(files,modes,windows,supplements=by_commit.get(commit,()))
-    return len(commits)
+    return len(audited)
 
 DECISION='docs/release-decision.json'
 DECISION_KEYS={'schema','kind','decided_by','date','release_tag','rights_verified','third_party_authorization','statement','assets'}
@@ -247,6 +253,7 @@ def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--root',type=Path,default=ROOT)
     ap.add_argument('--history',action='store_true')
+    ap.add_argument('--history-since',metavar='COMMIT',help='like --history, over the commits not reachable from COMMIT')
     ap.add_argument('--release',action='store_true')
     ap.add_argument('--asset',type=Path,action='append',default=[],help='with --release: a binary that must match the owner decision')
     ap.add_argument('--rom',type=Path,help='optional own-ROM scan; never uploaded')
@@ -264,6 +271,7 @@ def main():
     files,modes=snapshot(args.root)
     result={'reviewed_files':check(files,modes,windows),'binary_release_approved':False,'rom_scan':windows is not None}
     if args.history: result['audited_commits']=history(args.root,windows)
+    elif args.history_since: result['audited_commits']=history(args.root,windows,args.history_since)
     print(json.dumps(result,indent=2))
     return 0
 

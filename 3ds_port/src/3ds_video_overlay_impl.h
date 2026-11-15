@@ -1,9 +1,7 @@
-/* Part of 3ds_video.c (included where the top screen's overlays are drawn): the fast-forward indicator and the FPS counter, with the
- * 3x5 glyph helper they share. They use the file's statics (sStats, Blend, BlendForget, sFastForward is defined here). */
+/* Part of 3ds_video.c (included where the top screen's overlays are drawn): the turbo's speed log and the FPS counter, with the
+ * 3x5 glyph helper it uses. They use the file's statics (sStats, Blend, BlendForget, sFastForward is defined here). */
 /*
- * Fast-forward indicator: >>N in the top-right corner, in the FPS counter's
- * 3x5 pixel font at twice its size, over a translucent box. Drawn last and
- * at zero parallax in both eyes.
+ * The turbo's speed, for the log only: the top screen has no badge for it (the owner's call).
  */
 static unsigned sFastForward = 1;
 
@@ -24,34 +22,6 @@ static void DrawGlyphRuns(const char *b, float x, float y, float p)
             if (n) C2D_DrawRectSolid(x + c * p, y + r * p, 0, n * p, p, C2D_Color32(255, 255, 255, 255));
             c += n ? n : 1;
         }
-}
-
-static void DrawFastForward(C3D_RenderTarget *target)
-{
-    static const char *const glyphs[] = {
-        "100010001010100", /* > */
-        "111001111100111", /* 2 */
-        "111001111001111", /* 3 */
-        "101101111001001", /* 4 */
-    };
-    const float pixel = 2.0f, advance = 4 * pixel;
-    unsigned digit = sFastForward >= 2 && sFastForward <= 4 ? sFastForward - 1 : 0;
-    unsigned shown[3] = {0, 0, digit};
-    float width = 3 * advance + pixel * 3, x0 = 400.0f - 2 - width, y0 = 2;
-
-    C2D_Prepare();
-    C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
-    BlendForget();
-    C2D_SceneBegin(target);
-    C2D_ViewReset();
-    Blend(5, false, false);
-    C2D_DrawRectSolid(x0, y0, 0, width, 5 * pixel + pixel * 4, C2D_Color32(0, 0, 0, 160));
-    for (unsigned i = 0; i < 3; ++i)
-    {
-        const char *bits = glyphs[shown[i]];
-        DrawGlyphRuns(bits, x0 + pixel * 2 + i * advance, y0 + pixel * 2, pixel);
-    }
-    C2D_Flush();
 }
 
 #ifndef CTR_SHOW_FPS
@@ -107,9 +77,6 @@ static void DrawFps(C3D_RenderTarget *target)
     Blend(5, false, false);
     float boxWidth = count * FPS_ADVANCE + FPS_PIXEL * 3, margin = 2.0f;
     float origin = CTR_GAME_WIDTH - margin - boxWidth;
-    /* The fast-forward indicator owns the corner while it shows: the counter sits to its left. */
-    if (sFastForward > 1)
-        origin -= 3 * 2.0f * 4 + 2.0f * 3 + margin;
     C2D_DrawRectSolid(origin, 2, 0, boxWidth, 5 * FPS_PIXEL + FPS_PIXEL * 4,
                       C2D_Color32(0, 0, 0, 160));
     for (unsigned i = 0; i < count; ++i)

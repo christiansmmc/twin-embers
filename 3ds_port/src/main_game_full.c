@@ -2,8 +2,9 @@
  *
  * Unlike the probe main, this boots the pack-backed executable: the NOBITS game
  * tables are filled from the pack (src/3ds_rex.c) before AgbMain() runs. Stage
- * logging goes once to sdmc:/3ds/twinembers/port.log (never per frame).
+ * logging goes once to sdmc:/3ds/classicfirered3ds/port.log (never per frame).
  */
+#include "3ds_app_name.h"
 #include <3ds.h>
 #include <setjmp.h>
 #include <stdlib.h>
@@ -180,17 +181,17 @@ int main(void)
     atexit(ShutdownPlatform);
     consoleInit(GFX_BOTTOM, NULL);
     mkdir("sdmc:/3ds", 0777);
-    mkdir("sdmc:/3ds/twinembers", 0777);
+    mkdir(CTR_APP_DIR, 0777);
     CtrOptions_EmbersInit(CtrPlatform_IsNew3DS());     /* the saved choice, else HIGH on a New 3DS and LOW on an Old one */
     CtrLog_Write(CTR_LOG_BOOT, "embers: %s", !CtrOptions_Embers() ? "OFF" : CtrOptions_EmbersLow() ? "LOW" : "HIGH");
-    if (!CtrFlash_InitMigrating("sdmc:/3ds/twinembers/twinembers.sav",
-                                  "sdmc:/3ds/pokefirered/twinembers.sav",
-                                  "sdmc:/3ds/pokefirered/firered.sav"))
-        CtrPlatform_Fatal("Twin Embers save could not be opened or migrated. Original saves preserved; check SD space and permissions.");
+    if (!CtrFlash_InitMigrating(CTR_APP_FILE(CTR_APP_NAME ".sav"),
+                                  CTR_UPSTREAM_SAVE_PATH,
+                                  "sdmc:/3ds/pokefirered/twinembers.sav"))
+        CtrPlatform_Fatal(CTR_APP_TITLE " save could not be opened or migrated. Original saves preserved; check SD space and permissions.");
     CtrLog_Write(CTR_LOG_FS, "flash initialized");
     atexit(ExitFlash);
     /* The save as it was at this start, kept beside it for a card or a build that fails later. */
-    CtrFlash_Backup("sdmc:/3ds/twinembers/twinembers.sav.bak");
+    CtrFlash_Backup(CTR_APP_FILE(CTR_APP_NAME ".sav.bak"));
     if (!CtrVideo_Init())
         CtrPlatform_Fatal("FireRed compositor init failed");
     BindVideo();

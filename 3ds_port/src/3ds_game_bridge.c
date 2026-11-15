@@ -1,5 +1,6 @@
 /* FireRed keeps ownership of its main loop. This is its VBlank boundary on
  * ARM11, adapted from ZallaxDev's DualScreen game bridge (MIT). */
+#include "3ds_app_name.h"
 #include <3ds.h>
 #include <stdlib.h>
 #include <string.h>
@@ -860,10 +861,10 @@ void VBlankIntrWait(void)
     else if (++sFlashFailures == 1)
         CtrLog_Write(CTR_LOG_FS, "save flush failed; retrying");
     else if (sFlashFailures >= 60)
-        CtrPlatform_ShowError("twinembers save error",
+        CtrPlatform_ShowError(CTR_APP_NAME " save error",
                               "The game could not be written to the SD card, so the last save may be incomplete.",
                               "Check the card (write-protect switch, free space) before playing again. "
-                              "twinembers.sav.bak in /3ds/twinembers/ holds the save from the last start.");
+                              CTR_APP_NAME ".sav.bak in /3ds/" CTR_APP_NAME "/ holds the save from the last start.");
     /* GBA scanline order per frame: VCount match at line 150 advances the
      * m4a PCM ring (m4aSoundVSync), then VBlank at line 160 mixes the fresh
      * slice (SoundMain). Dispatching only VBlank left pcmDmaCounter stuck. */
@@ -917,7 +918,7 @@ int CtrWilds_Max(void)
 }
 
 /* One summary line of the visible wilds' spawn counters (3ds_wilds_core.h, CtrWildsCore_StatsLine), written when the map changes and
- * every 30 s on one map. CtrLog_Write does nothing unless port.log is on (an Old 3DS build, or sdmc:/3ds/twinembers/debug.txt). */
+ * every 30 s on one map. CtrLog_Write does nothing unless port.log is on (an Old 3DS build, or sdmc:/3ds/classicfirered3ds/debug.txt). */
 void CtrWilds_Log(const char *line)
 {
     CtrLog_Write(CTR_LOG_GAME, "%s", line);

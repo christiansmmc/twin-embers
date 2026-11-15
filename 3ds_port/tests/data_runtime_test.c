@@ -18,11 +18,11 @@ int main(int argc, char **argv)
          * there is no pack, so startup must stop with the readable message. */
         assert(!CtrData_Init());
         assert(CtrData_GetBackend() == CTR_DATA_NONE);
-        assert(!strcmp(CtrData_ErrorTitle(), "twinembers data pack missing."));
-        assert(strstr(CtrData_ErrorDetail(), "Use twinembers Builder") != NULL);
+        assert(!strcmp(CtrData_ErrorTitle(), "classicfirered3ds data pack missing."));
+        assert(strstr(CtrData_ErrorDetail(), "Use the Builder") != NULL);
         assert(strstr(CtrData_ErrorDetail(), "FireRed3DS") == NULL);
-        assert(strstr(CtrData_ErrorDetail(), "/3ds/twinembers/twinembers.pak") != NULL
-            || strstr(CtrData_ErrorDetail(), "twinembers.pak") != NULL);
+        assert(strstr(CtrData_ErrorDetail(), "/3ds/classicfirered3ds/") != NULL);
+        assert(strstr(CtrData_ErrorDetail(), "classicfirered3ds.pak") != NULL);
         return 0;
     }
     if (!strcmp(argv[1], "clean-reads-pack"))

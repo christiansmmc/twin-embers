@@ -77,6 +77,27 @@ class Rejections(unittest.TestCase):
                 (root/audit.MANIFEST).write_text(json.dumps(doc))
                 with self.assertRaises(ValueError): audit.history(root)
 
+    def test_history_since_audits_only_later_commits(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            def git(*args): return audit.git(root,*args)
+            def commit(files,message):
+                for name,raw in files.items():
+                    p=root/name; p.parent.mkdir(parents=True,exist_ok=True); p.write_bytes(raw)
+                git('add','.'); git('commit','-qm',message)
+            git('init','-q'); git('config','user.name','Synthetic'); git('config','user.email','synthetic@example.invalid')
+            files=reviewed({'README.md':b'a\n','fix.py':b'print(1)\n'})
+            doc=json.loads(files[audit.MANIFEST]); doc['files'].pop()
+            commit(dict(files,**{audit.MANIFEST:json.dumps(doc).encode()}),'unreviewed base')
+            base=git('rev-parse','HEAD').decode().strip()
+            commit(files,'clean')
+            with self.assertRaises(ValueError): audit.history(root)
+            self.assertEqual(audit.history(root,since=base),1)
+            commit(dict(files,**{'fix.py':b'print(2)\n'}),'changed without review')
+            commit(files,'clean again')
+            with self.assertRaises(ValueError): audit.history(root,since=base)
+            with self.assertRaises(ValueError): audit.history(root,since='nothex')
+
     def test_exact_superseding_historical_review_only(self):
         # A snapshot whose file changed but whose record still names the old
         # bytes: a review may supersede that exact stale record, nothing else.

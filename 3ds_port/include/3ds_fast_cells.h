@@ -13,7 +13,7 @@
  *
  * The caller sets the target, the view and the atlas through Citro2D (a quad of no size, then C2D_Flush) and then
  * calls CtrFastCells_Draw, which puts Citro2D's attribute layout, buffer and texture stage back as they were.
- * sdmc:/3ds/twinembers/fastcells.off keeps the Citro2D path (for comparing on hardware).
+ * sdmc:/3ds/classicfirered3ds/fastcells.off keeps the Citro2D path (for comparing on hardware).
  */
 bool CtrFastCells_Init(void);
 /* The buffers are refilled from the start each frame (call after C3D_FrameBegin). */

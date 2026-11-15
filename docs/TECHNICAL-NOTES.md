@@ -77,12 +77,15 @@ The resulting executable has these properties:
 ## Source checks
 
 ```sh
-python tools/source_audit.py --history
+python tools/source_audit.py --history-since 0afd7a2bdb75a7d1ec2d4d10fb9a84f6f23e08ab
 python -m unittest discover -s builder/tests -v
 python -m unittest discover -s tools -p test_source_audit.py -v
 python -m unittest discover -s tools -p test_audit_clean_release.py -v
 python -m unittest discover -s tools -p test_rex_pipeline.py -v
 ```
+
+This fork's CI audits every commit after v0.6.0 this way: upstream v0.6.0's own
+history does not pass `--history`.
 
 CI uses synthetic fixtures only. Own-ROM tests are enabled locally with
 `FIRERED_TEST_ROM`. CI has no ROM secrets and uploads no game binaries. Tests that

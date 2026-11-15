@@ -1,4 +1,5 @@
 /* Separate ARM11 entry point for the real FireRed link target. */
+#include "3ds_app_name.h"
 #include <3ds.h>
 #include <sys/stat.h>
 
@@ -13,7 +14,7 @@ extern void AgbMain(void);
 
 int main(void)
 {
-    /* Boot stages are logged once to sdmc:/3ds/twinembers/port.log so a
+    /* Boot stages are logged once to sdmc:/3ds/classicfirered3ds/port.log so a
      * failed AgbMain boot can be told apart from a platform init failure. */
     CtrLog_Write(CTR_LOG_BOOT, "native main reached");
     GbaShadow_Reset();
@@ -23,11 +24,11 @@ int main(void)
     gfxInitDefault();
     consoleInit(GFX_BOTTOM, NULL);
     mkdir("sdmc:/3ds", 0777);
-    mkdir("sdmc:/3ds/twinembers", 0777);
-    if (!CtrFlash_InitMigrating("sdmc:/3ds/twinembers/twinembers.sav",
-                                  "sdmc:/3ds/pokefirered/twinembers.sav",
-                                  "sdmc:/3ds/pokefirered/firered.sav"))
-        CtrPlatform_Fatal("Twin Embers save could not be opened or migrated. Original saves preserved; check SD space and permissions.");
+    mkdir(CTR_APP_DIR, 0777);
+    if (!CtrFlash_InitMigrating(CTR_APP_FILE(CTR_APP_NAME ".sav"),
+                                  CTR_UPSTREAM_SAVE_PATH,
+                                  "sdmc:/3ds/pokefirered/twinembers.sav"))
+        CtrPlatform_Fatal(CTR_APP_TITLE " save could not be opened or migrated. Original saves preserved; check SD space and permissions.");
     CtrLog_Write(CTR_LOG_FS, "flash initialized");
     if (!CtrVideo_Init())
         CtrPlatform_Fatal("FireRed compositor init failed");
