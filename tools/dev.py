@@ -177,10 +177,10 @@ def test(args=None):
         stage('bootstrap build/host-tests',
               [sys.executable, str(ROOT / 'tools/bootstrap.py'), '--dir', str(hosts)])
     with tempfile.TemporaryDirectory() as shim:
-        # The MSYS shell has no python3; the Makefile's helper steps call it.
+        # The MSYS shell has no python3 (nor the Windows `py` the Makefile defaults to); the Makefile's helper steps call it.
         script = f'#!/bin/sh\nexec {shlex.quote(msys(sys.executable))} "$@"\n'
         Path(shim, 'python3').write_bytes(script.encode())
-        command = f'export PATH={shlex.quote(msys(shim))}:$PATH && make -C {shlex.quote(msys(hosts / "3ds_port"))} verify-host'
+        command = f'export PATH={shlex.quote(msys(shim))}:$PATH && make -C {shlex.quote(msys(hosts / "3ds_port"))} PYTHON=python3 verify-host'
         stage('verify-host', [str(bash), '-lc', command], env={**os.environ, 'MSYSTEM': 'MSYS'})
     # These suites call a bare gcc; the MSYS compiler only finds its headers inside the MSYS shell.
     suites = f'cd {shlex.quote(msys(ROOT / "tools"))} && {shlex.quote(msys(sys.executable))} -m unittest {" ".join(SUITES)}'
