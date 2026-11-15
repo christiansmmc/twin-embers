@@ -480,6 +480,10 @@ int main(void) {
         name = '0262-lower-screen-shows-destination.json'
         bag = function(additions(name, 'src/item_menu.c'), 'CtrBagShownPocket')
         party = function(additions(name, 'src/party_menu.c'), 'CtrPartyShownSlot')
+        # The eight Bag getters (count, rows shown, cursor, serial, item, pocket name, pocket, quantity) answer for the
+        # pocket shown, and the Party's active slot is the slot shown.
+        self.assertEqual(additions(name, 'src/item_menu.c').count('CtrBagShownPocket()'), 8)
+        self.assertEqual(additions(name, 'src/party_menu.c').count('return CtrPartyShownSlot();'), 1)
         self.run_c('''
 #include <assert.h>
 typedef unsigned char u8;
@@ -526,6 +530,8 @@ int main(void) {
         and after, every slot is its own."""
         name = '0263-party-switch-shows-new-places.json'
         shown = function(additions(name, 'src/party_menu.c'), 'CtrBottomParty_ShownMon')
+        # The lower screen's Party reads each slot through the Pokemon shown there (its ten call sites).
+        self.assertEqual(additions(name, 'src/ctr_bottom_party.c').count('CtrBottomParty_ShownMon(slot)'), 10)
         self.run_c('''
 #include <assert.h>
 typedef unsigned char u8;
@@ -565,7 +571,12 @@ int main(void) {
         button = function(battle, 'PartyButton')
         hold = function(bottom, 'FieldBagHold')
         self.assertIn('PartyEchoCursor(s->cursor)', function(battle, 'BattlePartyFill'))
+        self.assertIn('PartyButton(', function(battle, 'BattlePartyFill'))
+        self.assertIn('PartyEchoKeys(', function(bottom, 'ProcessBattlePartyTouch'))
         self.assertIn('FieldBagHold(', function(fill, 'FieldBagFill'))
+        touch = function(bottom, 'ProcessTouch')
+        # The Party forgets the touched slot when it is left, between two screens too (the sBridging return).
+        self.assertLess(touch.index('PartyEchoMode(mode);'), touch.index('if (sBridging)'))
         self.run_c('''
 #include <assert.h>
 #include <stdint.h>
