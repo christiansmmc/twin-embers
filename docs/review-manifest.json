@@ -54,7 +54,7 @@
   },
   {
    "path": ".github/workflows/source-audit.yml",
-   "sha256": "46ef9a7dc58ecaee0b542e16d70ce8523b345575dcf9db2cb7947a8e6f0cac10",
+   "sha256": "9ec78f02b71c23d6e9a1583704958567b4f9a89c1d7b67979b30c6784a666a08",
    "review_status": "reviewed",
    "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7426,7 +7426,7 @@
   },
   {
    "path": "tools/dev.py",
-   "sha256": "6da15539cee2be390195a131afb4ee6e562c4ea0fd74744dc4deb8c30e1317f3",
+   "sha256": "fad1ab660fc2db078e1b8dab38a2772c737cb7e00da8f9a44946d2459e2d5f81",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7491,6 +7491,22 @@
   {
    "path": "patches/pokefirered/0263-party-switch-shows-new-places.json",
    "sha256": "fe71727d3cf864c45a88b4b50964403f86c4afa69e48836c99fb6b0adb3169b0",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "docs/superpowers/plans/2026-11-15-rework2-02-b-kit-and-boarded-views.md",
+   "sha256": "875fcbd957fc1d37817ae7f29747a1d15cc38002e9e6d5d11937d5ffd9e35881",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "tools/test_dev_tool.py",
+   "sha256": "4f0573e130a5d0055556928337e2054d15f80b9c2f42e75bc96d75862b9fce9a",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
