@@ -54,7 +54,7 @@
   },
   {
    "path": ".github/workflows/source-audit.yml",
-   "sha256": "9ec78f02b71c23d6e9a1583704958567b4f9a89c1d7b67979b30c6784a666a08",
+   "sha256": "af3fbea2c098ac79d7b9d655f08beadb37e0df8a520390c4f97aaef7cf28d6a1",
    "review_status": "reviewed",
    "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -1497,7 +1497,7 @@
   },
   {
    "path": "3ds_port/src/3ds_poketouch.c",
-   "sha256": "e02840f703793db7ad8adc8f89878403f9df1c04dcd40363cfd174cbfd5d048c",
+   "sha256": "53025b199bf57c5f9efb1843cdf6d3be7b179410fd2eb79c45e2396b29ab011e",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -7426,7 +7426,7 @@
   },
   {
    "path": "tools/dev.py",
-   "sha256": "fd5907fa083996fbdffac62d46fb3c0047d09db2421775a23b7bd0c243c35a62",
+   "sha256": "3b7a372739bfe3bb9a043241689c758c4af7466081b0f2d39152f49264009445",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7506,7 +7506,55 @@
   },
   {
    "path": "tools/test_dev_tool.py",
-   "sha256": "df2ee96211309bdf71f085cabb1554da751e803fef05d3f26bd0fe9774936ac8",
+   "sha256": "02281e2fa220a1c7c8e1b79eceffb1ba610710acc4ac86940c54c6b6970f4489",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "3ds_port/include/3ds_device_layout.h",
+   "sha256": "9aaa18744295724e0dac5db1dd76e5e787aa80378b5516924c316285e6f4fb7d",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "3ds_port/src/3ds_device_kit_impl.h",
+   "sha256": "fd2e77bb408373415e8ceb90fd8caab1f26efa976e2fb9f31ddec2d61e830475",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "3ds_port/tests/device_layout_test.c",
+   "sha256": "5700de2cd7d0aded0cfd0b7e51e7191c4ea1c0facc3c4c5a538656550f6b73c7",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "3ds_port/tests/device_render_test.c",
+   "sha256": "f946d2c17a90fd8d2b2612b5ec5f707025f621688ac8c91cc42f4e2474f343c6",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "tools/render_device_views.py",
+   "sha256": "d7f1a609a98ddc50605fd4f036f6611b00350e10c1eae7cf6abe5276829f1019",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "tools/test_device_views.py",
+   "sha256": "ef7c1688565cf3abbf280f9d471ed305735de01f78bbff510c2ac5dddd792692",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

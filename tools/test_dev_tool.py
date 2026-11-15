@@ -104,5 +104,47 @@ class DevTest(unittest.TestCase):
                 self.assertFalse(any('verify-host' in c[-1] for c in bash))
 
 
+class DevRender(unittest.TestCase):
+    def test_render_runs_the_renderer_on_the_pack_in_msys(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            kit, pack, text = Path(tmp) / 'kit', Path(tmp) / 'x.pak', Path(tmp) / 'dev/src/text.c'
+            (kit / 'msys2/usr/bin').mkdir(parents=True)
+            (kit / 'msys2/usr/bin/bash.exe').write_bytes(b'')
+            pack.write_bytes(b'')
+            text.parent.mkdir(parents=True)
+            text.write_text('')
+            commands = []
+
+            def fake_run(command, **options):
+                commands.append((command, options))
+                return mock.Mock(returncode=0)
+
+            with mock.patch.object(dev, 'DEVKITPRO', kit), mock.patch.object(dev, 'PAK', pack), \
+                    mock.patch.object(dev, 'DEV', Path(tmp) / 'dev'), \
+                    mock.patch.object(dev.subprocess, 'run', side_effect=fake_run):
+                dev.render(argparse.Namespace(views=['kit', 'home']))
+            (command, options), = commands
+            self.assertEqual(command[0], str(kit / 'msys2/usr/bin/bash.exe'))
+            self.assertEqual(command[1], '-lc')
+            line = command[2]
+            self.assertIn('tools/render_device_views.py', line)
+            self.assertIn('--pak ' + dev.msys(pack), line)
+            self.assertIn('--text ' + dev.msys(text), line)
+            self.assertIn('--out ' + dev.msys(dev.ROOT / 'build/renders'), line)
+            self.assertTrue(line.endswith(' kit home'))
+            self.assertEqual(options['env']['MSYSTEM'], 'MSYS')
+
+    def test_render_needs_the_pack(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / 'msys2/usr/bin').mkdir(parents=True)
+            (Path(tmp) / 'msys2/usr/bin/bash.exe').write_bytes(b'')
+            with mock.patch.object(dev, 'PAK', Path(tmp) / 'none.pak'), mock.patch.object(dev, 'DEVKITPRO', Path(tmp)), \
+                    mock.patch.object(dev.subprocess, 'run') as run:
+                with self.assertRaises(SystemExit) as stop:
+                    dev.render(argparse.Namespace(views=[]))
+                self.assertIn('pack', str(stop.exception))
+                run.assert_not_called()
+
+
 if __name__ == '__main__':
     unittest.main()

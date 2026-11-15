@@ -1923,6 +1923,7 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
 }
 
 #include "3ds_battle_ui_impl.h"
+#include "3ds_device_kit_impl.h"   /* the red device (style B): its kit, for the B views below */
 #include "3ds_summary_ui_impl.h"
 #include "3ds_field_bag_impl.h"
 #include "3ds_field_dex_impl.h"

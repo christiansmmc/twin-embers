@@ -4,6 +4,7 @@
     python tools/dev.py pak [--rom FILE] [-- BUILDER OPTIONS]
                                                the data pack, made by this fork's Builder from your own ROM
     python tools/dev.py test [SUITE ...]       host test suites: sync build/host-tests, verify-host, python suites (or just SUITE ...)
+    python tools/dev.py render [VIEW ...]      the B views as PNGs under build/renders, with your own pack (never commit them)
     python tools/dev.py run                    build, copy to Azahar's SD card and start Azahar
     python tools/dev.py send [--ip IP]         build and run it on the 3DS once (Homebrew Launcher: press Y)
     python tools/dev.py install [--ip IP] [--pak]
@@ -190,7 +191,7 @@ def remove_tree(path):
 
 SUITES = ['test_poketouch_render', 'test_battle_ui', 'test_column_labels', 'test_option_labels', 'test_storage_touch',
           'test_storage_controller', 'test_easychat_plan', 'test_field_presentation', 'test_bag_pockets',
-          'test_first_battle']
+          'test_first_battle', 'test_device_views']
 
 
 def test(args=None):
@@ -230,6 +231,25 @@ def test(args=None):
     print('\n'.join(f'{"PASS" if ok else "FAIL"}  {name}' for name, ok in results))
     if not all(ok for _, ok in results):
         raise SystemExit(1)
+
+
+# ---- renders -----------------------------------------------------------------------------------------------
+
+def render(args):
+    """The B views drawn by the host harness with the pack's fonts, as PNGs in build/renders (ROM-derived: never committed)."""
+    bash = DEVKITPRO / 'msys2/usr/bin/bash.exe'
+    if not bash.exists():
+        raise SystemExit(f'devkitPro not found at {DEVKITPRO} (set DEVKITPRO_WIN)')
+    need_pak()
+    text = DEV / 'src/text.c'
+    if not text.exists():
+        raise SystemExit('No build/dev yet (the glyph widths come from its src/text.c): python tools/dev.py build')
+    views = ' '.join(shlex.quote(v) for v in (getattr(args, 'views', None) or []))
+    # The harness is built by the MSYS gcc, which only finds its headers inside the MSYS shell.
+    command = (f'cd {shlex.quote(msys(ROOT))} && {shlex.quote(msys(sys.executable))} tools/render_device_views.py '
+               f'--pak {shlex.quote(msys(PAK))} --text {shlex.quote(msys(text))} '
+               f'--out {shlex.quote(msys(ROOT / "build/renders"))}' + (f' {views}' if views else ''))
+    subprocess.run([str(bash), '-lc', command], env={**os.environ, 'MSYSTEM': 'MSYS'}, check=True)
 
 
 # ---- data pack ---------------------------------------------------------------------------------------------
@@ -336,6 +356,9 @@ def main():
     p = sub.add_parser('test', help='host test suites (a subset of the CI checks)')
     p.add_argument('suites', nargs='*', help='only these python suites (no sync, no verify-host)')
     p.set_defaults(func=test)
+    p = sub.add_parser('render', help='the B views as PNGs with your own pack (build/renders, never committed)')
+    p.add_argument('views', nargs='*', help='only these views (default: all)')
+    p.set_defaults(func=render)
     sub.add_parser('run', help='build and start in Azahar').set_defaults(func=run)
     p = sub.add_parser('send', help='build and run once on the 3DS (3dslink)')
     p.add_argument('--ip')
