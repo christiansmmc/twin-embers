@@ -2071,11 +2071,16 @@ static int ProcessSummaryTouch(const CtrInput *in)
 {
     int hit = in->touchActive && sHaveShown && sShown.summaryUi
             ? CtrSummaryUi_Hit(&sShown.sum, (int)in->touchX, (int)in->touchY) : -1;
+    /* A page a plan turned to is shown as soon as FireRed has taken it, while its flip still runs (NavPending): from
+     * then on the screen takes a tap or the TRAINER key again, and the plan that starts replaces the one that arrived
+     * (it waits for the flip to end before it presses anything, as every plan does). */
+    int taken = sSumPlan.kind == SUMPLAN_PAGE && CtrBottomSummary_Page() == sSumPlan.target;
 
     /* TRAINER, the last tab, is the port's (FireRed's first page shown as its memo), so the D-pad reaches it here: RIGHT
-     * on the moves page goes to it, LEFT from it back to the moves, on the press as FireRed's own pages turn (the plan
-     * lets the key that began it stay held; FireRed's RIGHT on its last page and LEFT on its first do nothing). */
-    if (sSumPlan.kind == SUMPLAN_NONE && sHaveShown && sShown.summaryUi && !sShown.sum.loading && CtrBottomSummary_Ready()) {
+     * on the moves page goes to it (while FireRed's flip to the moves page still runs too), LEFT from it back to the
+     * moves (while TRAINER slides in too), on the press as FireRed's own pages turn (the plan lets the key that began
+     * it stay held; FireRed's RIGHT on its last page and LEFT on its first do nothing). */
+    if ((sSumPlan.kind == SUMPLAN_NONE || taken) && sHaveShown && sShown.summaryUi && !sShown.sum.loading) {
         int page = CtrBottomSummary_Page();
 
         if ((in->down & K_RIGHT) && page == SUI_PAGE_MOVES && !sShown.sum.data.egg) {
@@ -2083,14 +2088,14 @@ static int ProcessSummaryTouch(const CtrInput *in)
             SumPlanStart(SUMPLAN_PAGE, SUI_PAGE_INFO, 0, 0);
             return HIT_NONE;
         }
-        if ((in->down & K_LEFT) && page == SUI_PAGE_INFO && sShown.sum.trainer) {
+        if ((in->down & K_LEFT) && page == SUI_PAGE_INFO && sShown.sum.trainer && (taken || CtrBottomSummary_Ready())) {
             sSum.trainer = 0;
             if (!sShown.sum.data.egg)
                 SumPlanStart(SUMPLAN_PAGE, SUI_PAGE_MOVES, 0, 0);
             return HIT_NONE;
         }
     }
-    if (sSumPlan.kind != SUMPLAN_NONE) {        /* what the last tap asked is still being walked: no second plan over it */
+    if (sSumPlan.kind != SUMPLAN_NONE && !taken) {  /* what the last tap asked is still on its way: no plan over it */
         sSum.down = sSum.inside = 0;
         return HIT_NONE;
     }

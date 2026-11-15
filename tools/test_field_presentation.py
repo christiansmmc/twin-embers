@@ -375,6 +375,103 @@ int main(void) {
 }
 ''')
 
+    def test_summary_takes_input_while_its_page_slides_in(self):
+        """A page a plan turned to is shown as soon as FireRed has taken it, while its flip still runs (see above): the
+        next tap or key acts on what is shown. A tab, the previous / next Pokemon and the TRAINER key start their own
+        plan over the one that arrived (it waits for the flip to end before it presses anything), and RIGHT on the
+        moves page reaches TRAINER while FireRed's own flip to the moves page still runs. A plan still on its way (out
+        of the move details first) keeps the screen's input, and a key pressed after a plan began still drops it."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        names = ['SumPlanClear', 'SumPlanStart', 'SumPlanPress', 'RunSumPlan', 'SummaryAct', 'ProcessSummaryTouch']
+        code = '\n'.join(function(bottom, n) for n in names)
+        start = bottom.index('static struct {\n    int kind;\n    int target;')
+        plan = bottom[start:bottom.index('} sSumPlan;', start) + len('} sSumPlan;')]
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include <string.h>
+#include "3ds_input.h"
+#include "3ds_poketouch.h"
+#include "3ds_summary.h"
+#define K_A (1u << 0)
+#define K_B (1u << 1)
+#define K_RIGHT (1u << 4)
+#define K_LEFT (1u << 5)
+#define K_UP (1u << 6)
+#define K_DOWN (1u << 7)
+enum { HIT_NONE = 0xFF, HIT_PANEL = 0x50 };
+enum { SUMPLAN_NONE = 0, SUMPLAN_PAGE, SUMPLAN_MOVE, SUMPLAN_PRESS };
+#define SUMMARY_MOVES 2
+#define SUMMARY_MOVES_INFO 3
+static uint16_t sInjected;
+static CtrInput sIn;
+const CtrInput *CtrInput_Get(void) { return &sIn; }
+static int page = SUI_PAGE_INFO, ready = 1, asked = -1, hitCode = -1;
+void CtrSummary_AskMove(int row) { (void)row; }
+void CtrSummary_AskPage(int p) { asked = p; }
+int CtrBottomSummary_Page(void) { return page; }
+int CtrBottomSummary_Mon(void) { return 0; }
+unsigned CtrBottomSummary_Serial(void) { return 1; }
+int CtrBottomSummary_Ready(void) { return ready; }
+int CtrBottomSummary_MoveCursor(void) { return 0; }
+int CtrSummaryUi_Hit(const CtrSummaryUiView *v, int x, int y) { (void)v; (void)x; (void)y; return hitCode; }
+static struct { CtrSummaryUiView sum; unsigned char summaryUi; } sShown;
+static int sHaveShown = 1;
+static struct { int down, inside, btn, trainer, ivView; } sSum;
+''' + plan + '\n' + code + '''
+static void Frame(void) { ProcessSummaryTouch(&sIn); RunSumPlan(); }
+static void Touch(int hit)
+{ hitCode = hit; sIn.touchActive = sIn.touchDown = 1; Frame(); sIn.touchActive = sIn.touchDown = 0; }
+int main(void) {
+    sShown.summaryUi = 1;
+    /* the MOVES tab on INFO: the plan asks FireRed for MOVES, which takes it (its flip runs, the page shows) */
+    Touch(SUI_HIT_TAB + SUI_TAB_MOVES);
+    assert(sSumPlan.kind == SUMPLAN_PAGE && sSumPlan.target == SUI_PAGE_MOVES && asked == SUI_PAGE_MOVES);
+    page = SUI_PAGE_MOVES; ready = 0; Frame();
+    /* STATS tapped while MOVES slides in: its own plan, pressed when the flip is over */
+    Touch(SUI_HIT_TAB + SUI_TAB_STATS);
+    assert(sSumPlan.kind == SUMPLAN_PAGE && sSumPlan.target == SUI_PAGE_SKILLS && asked == -1);
+    ready = 1; Frame();
+    assert(asked == SUI_PAGE_SKILLS);
+    /* NEXT tapped while STATS slides in: DOWN once the flip is over */
+    page = SUI_PAGE_SKILLS; ready = 0; Frame();
+    Touch(SUI_HIT_NEXT);
+    assert(sSumPlan.kind == SUMPLAN_PRESS && sInjected == 0);
+    ready = 1; Frame();
+    assert(sInjected == K_DOWN && sSumPlan.kind == SUMPLAN_NONE);
+    sInjected = 0;
+    /* RIGHT on MOVES: TRAINER; LEFT pressed as soon as TRAINER shows (FireRed's flip to INFO still runs): MOVES */
+    page = SUI_PAGE_MOVES; asked = -1;
+    sIn.held = sIn.down = K_RIGHT; Frame();
+    assert(sSum.trainer == 1 && sSumPlan.target == SUI_PAGE_INFO && asked == SUI_PAGE_INFO);
+    sIn.held = sIn.down = 0; page = SUI_PAGE_INFO; ready = 0; sShown.sum.trainer = 1; Frame();
+    sIn.held = sIn.down = K_LEFT; Frame();
+    assert(sSum.trainer == 0 && sSumPlan.kind == SUMPLAN_PAGE && sSumPlan.target == SUI_PAGE_MOVES && asked == -1);
+    sIn.down = 0; ready = 1; Frame();                   /* LEFT still held: the plan goes on */
+    assert(asked == SUI_PAGE_MOVES);
+    /* RIGHT while FireRed's own RIGHT still turns STATS to MOVES (no plan): TRAINER once the flip is over */
+    SumPlanClear(); sIn.held = 0; sShown.sum.trainer = 0; asked = -1;
+    page = SUI_PAGE_MOVES; ready = 0;
+    sIn.held = sIn.down = K_RIGHT; Frame();
+    assert(sSum.trainer == 1 && sSumPlan.kind == SUMPLAN_PAGE && sSumPlan.target == SUI_PAGE_INFO && asked == -1);
+    sIn.down = 0; ready = 1; Frame();
+    assert(asked == SUI_PAGE_INFO);
+    /* while TRAINER slides in, a key pressed after the plan began drops it, and a touch with it held does nothing */
+    sIn.held = 0; page = SUI_PAGE_INFO; ready = 0; Frame();
+    sIn.held = sIn.down = K_UP; Touch(SUI_HIT_TAB + SUI_TAB_STATS);
+    assert(sSumPlan.kind == SUMPLAN_NONE);
+    sIn.held = sIn.down = 0; ready = 1; Frame();
+    /* STATS from the move details: B first; on the way (the moves page, not the one asked) a tap is not taken */
+    page = SUI_PAGE_MOVES_INFO;
+    Touch(SUI_HIT_TAB + SUI_TAB_STATS);
+    assert(sSumPlan.kind == SUMPLAN_PAGE && sSumPlan.target == SUI_PAGE_SKILLS && sInjected == K_B);
+    page = SUI_PAGE_MOVES; ready = 0; Frame();
+    Touch(SUI_HIT_TAB + SUI_TAB_INFO);
+    assert(sSumPlan.kind == SUMPLAN_PAGE && sSumPlan.target == SUI_PAGE_SKILLS);
+    return 0;
+}
+''')
+
     def test_bridge_reports_the_destination(self):
         """FireRed moves to a new pocket only at the end of its switch's animation, and its Party's cursor pointer goes
         back to the first Pokemon while two of them slide to their places: the owner saw the Bag's list late and the
