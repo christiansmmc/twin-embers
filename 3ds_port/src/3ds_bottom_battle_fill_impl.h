@@ -43,21 +43,29 @@ static unsigned BatUpperByte(unsigned c, unsigned prev)
     return c >= 'a' && c <= 'z' ? c - ('a' - 'A') : c;
 }
 
-/* Two names the same but for case: FireRed's capitals, or recipe 0251's title case of the species names. */
+/* Two names the same but for case (FireRed's capitals, or recipe 0251's title case of the species names) and for the
+ * spaces they end in: a species name keeps one where its gender sign was (NIDORAN, CtrBattleText), a nickname has none
+ * (CtrBottomParty_Nickname drops them). */
 static int BatSameName(const char *a, const char *b)
 {
+    size_t na = strlen(a), nb = strlen(b);
     unsigned pa = 0, pb = 0;
 
-    for (;;) {
-        unsigned ca = (unsigned char)*a++, cb = (unsigned char)*b++;
+    while (na && a[na - 1] == ' ')
+        --na;
+    while (nb && b[nb - 1] == ' ')
+        --nb;
+    if (na != nb)
+        return 0;
+    for (size_t i = 0; i < na; ++i) {
+        unsigned ca = (unsigned char)a[i], cb = (unsigned char)b[i];
 
         if (BatUpperByte(ca, pa) != BatUpperByte(cb, pb))
             return 0;
-        if (!ca)
-            return 1;
         pa = ca;
         pb = cb;
     }
+    return 1;
 }
 
 /* Whether a Pokemon called `name` is called by its species' own name (shown in capitals then, as FireRed writes it),

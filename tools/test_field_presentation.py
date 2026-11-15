@@ -824,7 +824,7 @@ static int ballCalls;
 static void CtrBottomDex_Name(unsigned species, char *out, int size)
 {
     const char *name = species == 5 ? "Charmeleon" : species == 25 ? "Pikachu" : species == 29 ? "Nidoran\\xE2\\x99\\x80"
-                     : species == 12 ? "Flab\\xC3\\xA9" "b\\xC3\\xA9" : "";
+                     : species == 12 ? "Flab\\xC3\\xA9" "b\\xC3\\xA9" : species == 32 ? "Nidoran " : "";
     (void)size;
     strcpy(out, name);
 }
@@ -845,6 +845,10 @@ int main(void)
     assert(!BatNameIsSpecies("Sparky", 5) && !BatNameIsSpecies("Charmeleo", 5) && !BatNameIsSpecies("Charmeleonx", 5));
     assert(!BatNameIsSpecies("Pikachu", 5) && !BatNameIsSpecies("", 5) && !BatNameIsSpecies("Charmeleon", 300));
     assert(BatNameIsSpecies("FLAB\\xC3\\x89" "B\\xC3\\x89", 12) && BatNameIsSpecies("NIDORAN\\xE2\\x99\\x80", 29));
+    /* trailing spaces on either side do not count: the species name keeps one where its gender sign was (Nidoran),
+     * the nickname has none */
+    assert(BatNameIsSpecies("NIDORAN", 32) && BatNameIsSpecies("Nidoran  ", 32) && BatNameIsSpecies("NIDORAN", 0));
+    assert(!BatNameIsSpecies("NIDORANX", 32) && !BatNameIsSpecies("NIDORA", 32) && !BatNameIsSpecies(" NIDORAN", 32));
     /* a target: any species' name */
     assert(BatNameIsSpecies("PIKACHU", 0) && BatNameIsSpecies("Charmeleon", 0) && !BatNameIsSpecies("Sparky", 0));
     /* IDLE: the quick ball as ACTION fills it; in the Safari Zone its own keys, no ball */

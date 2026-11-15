@@ -522,12 +522,28 @@ UI_FN void DevSmallText(const char *s, int x, int top, uint16_t ink, int limit)
     DevGlyphs(s, x, top - 4, limit, ink, ink, 1);
 }
 
+/* The code of FireRed's capital for the code of an accented small letter (à 0x16 -> À 0x01, ü 0xf6 -> Ü 0xf3, œ 0x25 ->
+ * Œ 0x10 ...), read off LatinCode's table; any other code (a capital, ß, º, a letter without a capital) as it is. */
+UI_FN unsigned DevCapitalCode(unsigned code)
+{
+    if (code == LatinCode(0xc5, 0x93))
+        return LatinCode(0xc5, 0x92);
+    for (unsigned b = 0xa0; b <= 0xbe; ++b)
+        if (b != 0xb7 && LatinCode(0xc3, (unsigned char)b) == code) {
+            unsigned capital = LatinCode(0xc3, (unsigned char)(b - 0x20));
+
+            return capital ? capital : code;
+        }
+    return code;
+}
+
 /* `src` in upper case, as the boards and FireRed write their words, into dst (size bytes, always ended): a-z, and the
- * accented small letters whose capital the game's font has (UTF-8 à..þ, œ: ä->Ä, ó->Ó, ñ->Ñ...), become capitals; the
- * é of POKé (after "POK": POKéMON, POKéDEX, POKé BALL) stays small, as FireRed writes it; anything else (ß, digits,
- * signs, a raw FireRed or Japanese code) is copied as it is. A character that does not fit whole is left out. The B
- * views draw port words and game strings through it (a game string that arrives in proper case, v0.6.0's casing or
- * recipe 0251's, is shown as FireRed has it); a name the player typed is drawn as typed. */
+ * accented small letters whose capital the game's font has (UTF-8 à..þ, œ: ä->Ä, ó->Ó, ñ->Ñ...; and the same letters as
+ * FireRed's own codes escaped by 0x01, as the bridges pass the ones recipe 0251's title case makes), become capitals;
+ * the é of POKé (after "POK": POKéMON, POKéDEX, POKé BALL) stays small, as FireRed writes it; anything else (ß, digits,
+ * signs, another raw FireRed code, a Japanese one) is copied as it is. A character that does not fit whole is left out.
+ * The B views draw port words and game strings through it (a game string that arrives in proper case, v0.6.0's casing
+ * or recipe 0251's, is shown as FireRed has it); a name the player typed is drawn as typed. */
 UI_FN void DevUpper(char *dst, const char *src, size_t size)
 {
     size_t n = 0;
@@ -546,6 +562,8 @@ UI_FN void DevUpper(char *dst, const char *src, size_t size)
             out[1] = (char)(next - 0x20);
         else if (c == 0xc5 && len == 2 && next == 0x93)
             out[1] = (char)0x92;                    /* œ -> Œ */
+        else if (c == 0x01 && len == 2 && !(next == LatinCode(0xc3, 0xa9) && n >= 3 && !memcmp(dst + n - 3, "POK", 3)))
+            out[1] = (char)DevCapitalCode(next);    /* an escaped FireRed code: its capital's */
         if (n + len >= size)
             break;
         memcpy(dst + n, out, len);

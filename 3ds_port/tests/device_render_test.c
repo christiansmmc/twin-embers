@@ -634,6 +634,19 @@ static void KitUpper(void)
 
         assert(GlyphCode(&e) == 0x06 && GlyphCode(&u) == 0xf3);
     }
+    /* Recipe 0251's title case leaves the accented small letters as FireRed's own codes, escaped by 0x01 (the bridges'
+     * CtrBattleText): each becomes its capital's code where the charset has one; POKé's é stays small; a capital, or
+     * a code with no capital, is kept. */
+    DevUpper(out, "Zur\x01\xf6" "ck", sizeof(out));                       /* ü -> Ü */
+    assert(!strcmp(out, "ZUR\x01\xf3" "CK"));
+    DevUpper(out, "K\x01\xf4" "fer, Br\x01\xf5" "tchen", sizeof(out));     /* ä -> Ä, ö -> Ö */
+    assert(!strcmp(out, "K\x01\xf1" "FER, BR\x01\xf2" "TCHEN"));
+    DevUpper(out, "Regi\x01\x23" "n, Espa\x01\x29" "a, Ra\x01\x6f" "z", sizeof(out));   /* ó, ñ, í */
+    assert(!strcmp(out, "REGI\x01\x0e" "N, ESPA\x01\x14" "A, RA\x01\x5a" "Z"));
+    DevUpper(out, "Pok\x01\x1b" "mon, Caf\x01\x1b, \x01\x25" "uf", sizeof(out));       /* POKé stays; é, œ */
+    assert(!strcmp(out, "POK\x01\x1b" "MON, CAF\x01\x06, \x01\x10" "UF"));
+    DevUpper(out, "\x01\xf3\x01\x15\x01\x2a", sizeof(out));               /* Ü, ß, º kept */
+    assert(!strcmp(out, "\x01\xf3\x01\x15\x01\x2a"));
     DevUpper(out, "AB\xC3\xA9", 4);                                       /* a letter that does not fit whole is left out */
     assert(!strcmp(out, "AB"));
     DevUpper(out, "Pok\xC3\xA9mon", 1);
