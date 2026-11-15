@@ -700,6 +700,54 @@ static struct {
     int y0, cursor0, scrolling;         /* the touch-down's row and cursor, and whether it became a drag */
 } sFieldBag = {0, 0, -1, -1, 0, 0, 0, 0};
 
+/* What the field Bag's page does while FireRed is busy or a tab's pocket is being walked to: 1 keeps the last picture
+ * `last` (a message printing; a pocket on the way to the one a tab asked for, so the way is not shown), 0 draws the Bag
+ * as it is (a pocket FireRed has just switched to is drawn while it slides in: its count, cursor and items are the
+ * pocket's own already, so a D-pad switch shows at once). Only for the Bag itself: a case has no pockets. */
+static int FieldBagHold(const CtrPokeTouchBag *last)
+{
+    int pocket = CtrBottomBag_Pocket();
+
+    if (sFieldBag.pocketTarget >= 0 && pocket != sFieldBag.pocketTarget)
+        return 1;
+    if (CtrBottomBag_State() != BAG_BUSY)
+        return 0;
+    return pocket == last->pocket;
+}
+
+/* The Party slot (or CONFIRM 6, CANCEL 7) a tap asked for: the Party takes the touch on its next frame, so until its
+ * cursor is there (or for a short while at most) that slot is shown as the selection, and the arrow does not go back
+ * to where it was for those frames. A physical button drops it. */
+static struct {
+    int slot, wait;
+} sPartyEcho = {-1, 0};
+
+static int PartyEchoCursor(int cursor)
+{
+    if (sPartyEcho.slot < 0)
+        return cursor;
+    if (cursor == sPartyEcho.slot || --sPartyEcho.wait <= 0) {
+        sPartyEcho.slot = -1;
+        return cursor;
+    }
+    return sPartyEcho.slot;
+}
+
+/* A physical button drops the echo; so does the lower screen being anywhere but the Party (it closed, or a Summary,
+ * the field or a battle took over): the next opening must not show a slot touched in the last one. ProcessTouch calls
+ * PartyEchoMode every frame with the mode, which covers the field's Party and the battle's alike. */
+static void PartyEchoKeys(unsigned held)
+{
+    if (held & 0x3ffu)
+        sPartyEcho.slot = -1;
+}
+
+static void PartyEchoMode(int mode)
+{
+    if (mode != MODE_PARTY)
+        sPartyEcho.slot = -1;
+}
+
 /* Dragging a list: a finger on a row that moves this far up or down scrolls instead of tapping, one row per
  * LIST_DRAG_ROW pixels (the lower screen's row pitch), the content following the finger. */
 #define LIST_DRAG_SLOP 8
@@ -916,551 +964,7 @@ static void SummaryBar(const CtrSummaryView *v, CtrPokeTouchView *t)
             snprintf(t->bar[2], PT_BAR_LEN, "%s", sNames[i]);
 }
 
-/* The bar under the Bag: the pocket, the item under the cursor, and the
- * X shortcut when it is the registered item (else the money). */
-static void BagBar(CtrPokeTouchView *v)
-{
-    unsigned item = CtrBottomBag_Item(CtrBottomBag_Cursor());
-
-    CtrBottomBag_PocketName(v->bar[0], PT_BAR_LEN);
-    if (item != 0)
-        CtrBottomBag_ItemName(item, v->bar[1], PT_BAR_LEN);
-    if (item != 0 && item == v->registeredItem)
-        snprintf(v->bar[2], PT_BAR_LEN, CTR_TR("On the X button", "En el bot\xc3\xb3n X", "Auf Taste X"));
-    else if (item != 0 && item == v->bikeItem)
-        snprintf(v->bar[2], PT_BAR_LEN, CTR_TR("On the Y button", "En el bot\xc3\xb3n Y", "Auf Taste Y"));
-    else
-        snprintf(v->bar[2], PT_BAR_LEN, CTR_TR("Money  %u", "Dinero  %u", "Geld  %u"), CtrBottomBag_Money());
-}
-
-/* The field Bag drawn by the lower screen (3ds_field_bag_impl.h) rather than sampled from the GBA picture: the field's
- * own Bag, Party's GIVE Bag, a shop's (selling) and the item PC's (depositing), outside the Pokemon PC. The battle's
- * and the Old Man's demonstration are drawn by the battle screen (BattleBagFill). */
-static int FieldBagNative(void)
-{
-    return CtrBottomBag_TouchDrawn() && !CtrBottomBag_InBattle() && !sStorageSession;
-}
-
-/* What the lower screen draws a list screen from: the Bag's bridge, or a case's. A NULL question has no answer there
- * (the TM Case has no quantity box nor YES/NO). */
-typedef struct {
-    int mode, kind;
-    const ListScreen *list;
-    unsigned (*item)(int index);
-    unsigned (*quantity)(int index);
-    int (*actionCount)(void);
-    void (*actionName)(int index, char *out, int size);
-    int (*tossCount)(void);
-    int (*tossMax)(void);
-    int (*prompt)(char *out, int size);
-    int (*message)(char *out, int size);
-    /* A row's name when it is not its item's (the mailbox: the mail's writer), or NULL. */
-    void (*name)(int index, char *out, int size);
-} FieldList;
-
-/* Defined with the list screens' touch plans below. */
-static const ListScreen sBagScreen, sTMCaseScreen, sPouchScreen, sShopScreen, sItemPcScreen, sMailboxScreen;
-
-static const FieldList sFieldBagList = {
-    MODE_BAG, PT_BAG_KIND_BAG, &sBagScreen, CtrBottomBag_Item, CtrBottomBag_Quantity, CtrBottomBag_ActionCount,
-    CtrBottomBag_ActionName, CtrBottomBag_TossCount, CtrBottomBag_TossMax, CtrBottomBag_Prompt, CtrBottomBag_Message, NULL,
-};
-static const FieldList sFieldTMCaseList = {
-    MODE_TMCASE, PT_BAG_KIND_TMCASE, &sTMCaseScreen, CtrBottomTMCase_Item, CtrBottomTMCase_Quantity,
-    CtrBottomTMCase_ActionCount, CtrBottomTMCase_ActionName, NULL, NULL, NULL, CtrBottomTMCase_Message, NULL,
-};
-static const FieldList sFieldPouchList = {
-    MODE_POUCH, PT_BAG_KIND_POUCH, &sPouchScreen, CtrBottomPouch_Item, CtrBottomPouch_Quantity,
-    CtrBottomPouch_ActionCount, CtrBottomPouch_ActionName, CtrBottomPouch_TossCount, CtrBottomPouch_TossMax,
-    CtrBottomPouch_Prompt, CtrBottomPouch_Message, NULL,
-};
-/* A mart's BUY list: its rows' "quantity" is their price; it has no menu of actions. */
-static int ShopNoActions(void) { return 0; }
-static void ShopNoActionName(int index, char *out, int size) { (void)index; if (size > 0) out[0] = 0; }
-static const FieldList sFieldShopList = {
-    MODE_SHOP, PT_BAG_KIND_SHOP, &sShopScreen, CtrBottomShop_Item, CtrBottomShop_Price, ShopNoActions,
-    ShopNoActionName, CtrBottomShop_Quantity, CtrBottomShop_QuantityMax, CtrBottomShop_Text, CtrBottomShop_Text, NULL,
-};
-/* The item PC's WITHDRAW ITEM list: its menu (WITHDRAW, GIVE, CANCEL), how many, and its messages; no YES/NO. */
-static const FieldList sFieldItemPcList = {
-    MODE_ITEMPC, PT_BAG_KIND_ITEMPC, &sItemPcScreen, CtrBottomItemPc_Item, CtrBottomItemPc_Quantity,
-    CtrBottomItemPc_ActionCount, CtrBottomItemPc_ActionName, CtrBottomItemPc_TossCount, CtrBottomItemPc_TossMax, NULL,
-    CtrBottomItemPc_Message, NULL,
-};
-/* The PC's mailbox: a row per mail (its item, its writer, no count), a mail's menu (READ, MOVE TO BAG, GIVE, EXIT),
- * MOVE TO BAG's YES/NO and the messages. Drawn as the item PC's list. */
-static const FieldList sFieldMailboxList = {
-    MODE_MAILBOX, PT_BAG_KIND_ITEMPC, &sMailboxScreen, CtrBottomMailbox_Item, CtrBottomMailbox_Quantity,
-    CtrBottomMailbox_ActionCount, CtrBottomMailbox_ActionName, NULL, NULL, CtrBottomMailbox_Message,
-    CtrBottomMailbox_Message, CtrBottomMailbox_Name,
-};
-
-/* The list the lower screen draws itself in this mode (the field's Bag and the cases it opens), or NULL. */
-static const FieldList *FieldListFor(int mode)
-{
-    if (mode == MODE_SHOP)
-        return &sFieldShopList;
-    if (mode == MODE_ITEMPC)
-        return &sFieldItemPcList;
-    if (mode == MODE_MAILBOX)
-        return &sFieldMailboxList;
-    if (sStorageSession)
-        return NULL;
-    if (mode == MODE_BAG)
-        return FieldBagNative() ? &sFieldBagList : NULL;
-    return mode == MODE_TMCASE ? &sFieldTMCaseList : mode == MODE_POUCH ? &sFieldPouchList : NULL;
-}
-
-/* A row's name: the item's, and for a TM/HM its move's after it ("TM01 FOCUS PUNCH"). */
-static void FieldListName(const FieldList *f, unsigned item, char *out, int size)
-{
-    CtrBottomBag_ItemName(item, out, size);
-    /* Only a TM/HM has a move: for any other item the move table would be read out of range. */
-    if (f->kind == PT_BAG_KIND_TMCASE || (f->kind == PT_BAG_KIND_SHOP && item >= 289 /* ITEM_TM01 */ && item <= 346 /* ITEM_HM08 */)) {
-        char move[16];
-        int n = (int)strlen(out);
-
-        CtrBottomTMCase_MoveName(item, move, sizeof(move));
-        if (move[0] && n + 1 < size)
-            snprintf(out + n, (size_t)(size - n), " %s", move);
-    }
-}
-
-/* The field Bag (or a case) as it is now: its pocket, the rows around the cursor (CLOSE the row after the last item),
- * the selected item's detail, and what it has open. While it is busy (a pocket sliding in, a message printing) the
- * picture last shown stays. */
-static void FieldBagFill(CtrPokeTouchView *v, int pressed, const FieldList *f)
-{
-    CtrPokeTouchBag *b = &v->bag;
-    const ListScreen *list = f->list;
-    int count, total, state = list->state();
-
-    if (state == BAG_BUSY && sHaveShown && sShown.mode == f->mode && sShown.touch.bag.on) {
-        *b = sShown.touch.bag;
-        b->pressed = -1;
-        return;
-    }
-    memset(b, 0, sizeof(*b));
-    b->on = 1;
-    b->kind = (uint8_t)f->kind;
-    b->moveType = -1;
-    b->pressed = (int16_t)pressed;
-    b->state = (uint8_t)(state == BAG_BUSY ? BAG_LIST : state);
-    if (f->kind == PT_BAG_KIND_BAG) {
-        b->use = (uint8_t)CtrBottomBag_Use();
-        if (b->use == PT_BAG_USE_SELL) {
-            b->money = CtrBottomBag_Money();
-            b->sale = state == BAG_QUANTITY ? CtrBottomBag_SalePrice() : 0;
-        }
-    }
-    if (f->kind == PT_BAG_KIND_TMCASE) {
-        CtrBottomTMCase_Title(b->title, sizeof(b->title));
-        CtrBottomTMCase_CloseLabel(b->closeName, sizeof(b->closeName));
-        b->titleItem = (uint16_t)CtrBottomTMCase_CaseItem();
-    } else if (f->kind == PT_BAG_KIND_POUCH) {
-        CtrBottomPouch_Title(b->title, sizeof(b->title));
-        CtrBottomPouch_CloseLabel(b->closeName, sizeof(b->closeName));
-        b->titleItem = (uint16_t)CtrBottomPouch_PouchItem();
-    } else if (f->kind == PT_BAG_KIND_SHOP) {
-        CtrBottomShop_Title(b->title, sizeof(b->title));
-        snprintf(b->closeName, sizeof(b->closeName), "%s", CtrUiText(UIS_CANCEL));
-        b->money = CtrBottomShop_Money();
-        b->sale = state == BAG_QUANTITY ? CtrBottomShop_Total() : 0;
-    } else if (f->mode == MODE_MAILBOX) {
-        CtrBottomMailbox_Title(b->title, sizeof(b->title));
-        CtrBottomMailbox_CloseLabel(b->closeName, sizeof(b->closeName));
-    } else if (f->kind == PT_BAG_KIND_ITEMPC) {
-        CtrBottomItemPc_Title(b->title, sizeof(b->title));
-        CtrBottomItemPc_CloseLabel(b->closeName, sizeof(b->closeName));
-    } else
-    {
-        b->pocket = (uint8_t)CtrBottomBag_Pocket();
-        b->regX = (uint16_t)CtrPokeTouch_RegisteredItem();
-        b->regY = (uint16_t)CtrPokeTouch_BikeItem();
-    }
-    b->count = (int16_t)(count = list->count());
-    b->cursor = (int16_t)list->cursor();
-    total = count + 1;
-    b->first = (int16_t)(b->cursor - 2 < 0 ? 0 : b->cursor - 2);
-    if (b->first > total - PT_BAG_ROWS)
-        b->first = (int16_t)(total - PT_BAG_ROWS < 0 ? 0 : total - PT_BAG_ROWS);
-    for (int i = 0; i < PT_BAG_ROWS; ++i) {
-        unsigned item = f->item(b->first + i);
-
-        b->row[i].item = (uint16_t)item;
-        if (item) {
-            if (f->kind == PT_BAG_KIND_SHOP)
-                b->row[i].price = (uint16_t)f->quantity(b->first + i);
-            else
-                b->row[i].qty = (uint16_t)f->quantity(b->first + i);
-            if (f->name != NULL)
-                f->name(b->first + i, b->row[i].name, sizeof(b->row[i].name));
-            else
-                FieldListName(f, item, b->row[i].name, sizeof(b->row[i].name));
-        }
-    }
-    if (b->cursor >= 0 && b->cursor < count) {
-        b->selItem = (uint16_t)f->item(b->cursor);
-        if (b->selItem) {
-            int type = -1, power, accuracy, pp;
-
-            if (f->kind == PT_BAG_KIND_TMCASE)
-                CtrBottomTMCase_MoveName(b->selItem, b->selName, sizeof(b->selName));
-            else if (f->name != NULL)
-                f->name(b->cursor, b->selName, sizeof(b->selName));
-            else
-                CtrBottomBag_ItemName(b->selItem, b->selName, sizeof(b->selName));
-            CtrBottomBag_ItemDescription(b->selItem, b->selDesc, sizeof(b->selDesc));
-            if (f->kind == PT_BAG_KIND_SHOP) {
-                b->showOwned = 1;
-                b->owned = BagGetQuantityByItemId((unsigned short)b->selItem);
-            }
-            if ((f->kind == PT_BAG_KIND_TMCASE || f->kind == PT_BAG_KIND_SHOP)
-                && CtrBottomTMCase_MoveInfo(b->selItem, &type, &power, &accuracy, &pp, b->typeName, sizeof(b->typeName)))
-                b->moveType = (int8_t)type;
-        }
-    }
-    if (state == BAG_ACTIONS || state == BAG_YESNO) {
-        int n = state == BAG_YESNO ? 2 : f->actionCount();
-
-        b->menuCount = (uint8_t)(n > PT_BAG_MENU_MAX ? PT_BAG_MENU_MAX : n);
-        b->menuCursor = (int8_t)CtrBottomBag_MenuCursor();
-        for (int i = 0; state == BAG_ACTIONS && i < b->menuCount; ++i)
-            f->actionName(i, b->menuName[i], sizeof(b->menuName[i]));
-    }
-    /* The count chosen last in this list's quantity box, for the YES/NO that confirms it: a message printed between
-     * them (a mart's "and you want 17. That will be...") left the frame shown just before without one, and the
-     * confirmation said x1. A new pick from the list or its menu forgets it. */
-    static int chosenMode = -1;
-    static uint16_t chosen;
-
-    if (state == BAG_LIST || state == BAG_ACTIONS || chosenMode != f->mode) {
-        chosenMode = f->mode;
-        chosen = 0;
-    }
-    if (state == BAG_QUANTITY && f->tossCount != NULL) {
-        b->tossCount = (uint16_t)f->tossCount();
-        b->tossMax = (uint16_t)f->tossMax();
-        chosen = b->tossCount;
-    }
-    if (state == BAG_YESNO && f->prompt != NULL) {
-        f->prompt(b->prompt, sizeof(b->prompt));
-        b->tossCount = chosen ? chosen : 1;   /* one when none was asked */
-    }
-    if (state == BAG_MESSAGE)
-        f->message(b->prompt, sizeof(b->prompt));
-}
-
-/* The player's Trainer Card as the card shows it: its side, FireRed's labels and numbers, and its back's records. */
-static void FieldCardFill(CtrPokeTouchView *v, int pressed)
-{
-    CtrPokeTouchCard *c = &v->card;
-    unsigned n[8];
-    int rows = 0;
-
-    memset(c, 0, sizeof(*c));
-    c->on = 1;
-    c->back = (uint8_t)(CtrBottomCard_OnBack() != 0);
-    c->pressed = (uint8_t)(pressed != 0);
-    CtrBottomCard_Name(c->name, sizeof(c->name));
-    for (int i = 0; i < 6; ++i)
-        CtrBottomCard_Label(i, c->label[i], sizeof(c->label[i]));
-    CtrBottomCard_Numbers(n);
-    c->id = n[0];
-    c->money = n[1];
-    c->hasDex = (uint8_t)n[2];
-    c->caught = (uint16_t)n[3];
-    c->hours = (uint16_t)n[4];
-    c->minutes = (uint8_t)n[5];
-    c->stars = (uint8_t)n[6];
-    c->badges = (uint8_t)n[7];
-    while (rows < PT_CARD_ROWS && CtrBottomCard_BackRow(rows, c->row[rows].label, sizeof(c->row[rows].label),
-                                                         c->row[rows].value, sizeof(c->row[rows].value)))
-        ++rows;
-    c->rows = (uint8_t)rows;
-}
-
-/* The Summary choosing the move to forget, as it is now. While it does not take a key the picture last shown stays. */
-static void FieldLearnFill(CtrPokeTouchView *v, int pressed)
-{
-    CtrPokeTouchLearn *l = &v->learn;
-
-    if (!CtrBottomLearn_Ready() && sHaveShown && sShown.mode == MODE_PARTY_CHILD && sShown.touch.learn.on) {
-        *l = sShown.touch.learn;
-        l->pressed = -1;
-        return;
-    }
-    memset(l, 0, sizeof(*l));
-    l->on = 1;
-    l->pressed = (int16_t)pressed;
-    l->cursor = (int8_t)CtrBottomLearn_Cursor();
-    l->species = (uint16_t)CtrBottomLearn_Species();
-    CtrBottomLearn_Name(l->nickname, sizeof(l->nickname), l->level, sizeof(l->level));
-    CtrBottomLearn_Question(l->question, sizeof(l->question));
-    for (int i = 0; i < PT_LEARN_ROWS; ++i) {
-        int type = -1;
-
-        l->row[i].move = (uint16_t)CtrBottomLearn_Move(i, &type, l->row[i].name, sizeof(l->row[i].name), l->row[i].pp,
-                                                       sizeof(l->row[i].pp), l->row[i].power, sizeof(l->row[i].power),
-                                                       l->row[i].accuracy, sizeof(l->row[i].accuracy));
-        l->row[i].type = (int8_t)type;
-        l->row[i].locked = (uint8_t)(CtrBottomLearn_Locked(i) != 0);
-        CtrBottomLearn_TypeName(type, l->row[i].typeName, sizeof(l->row[i].typeName));
-    }
-    if (l->cursor >= 0 && l->cursor < PT_LEARN_ROWS)
-        CtrBottomLearn_Description(l->row[l->cursor].move, l->desc, sizeof(l->desc));
-}
-
-/* The move to forget, when that is the child screen: drawn here, BACK is the Summary's B. */
-static void LearnSnapshot(Snapshot *s, int mode)
-{
-    if (!CtrBottomLearn_IsOpen())
-        return;
-    FieldLearnFill(&s->touch, sLearnTap.down && sLearnTap.inside ? sLearnTap.code : -1);
-    s->touch.viewport = 0;
-    s->touch.backVisible = 1;
-    s->touch.backEnabled = (uint8_t)BackEnabled(mode);
-    s->touch.backPressed = (uint8_t)(sBack.inside != 0);
-}
-
-#include "3ds_bottom_relearn_impl.h"
-#include "3ds_bottom_mail_impl.h"
-#include "3ds_bottom_easychat_impl.h"
-
-/* The field's choice as FireRed's menu has it: its rows' labels, the cursor, the message box's question. */
-static void ChoiceSnapshot(Snapshot *s, int mode)
-{
-    CtrPokeTouchChoice *c = &s->touch.choice;
-    int n = CtrFieldChoice_Count();
-
-    memset(c, 0, sizeof(*c));
-    c->on = 1;
-    c->count = (uint8_t)(n > PT_CHOICE_MAX ? PT_CHOICE_MAX : n);
-    c->cols = (uint8_t)CtrFieldChoice_Columns();
-    c->cursor = (int8_t)CtrFieldChoice_Cursor();
-    c->pressed = (int16_t)(sChoiceTap.down && sChoiceTap.inside ? sChoiceTap.code : -1);
-    for (int i = 0; i < c->count; ++i)
-        CtrFieldChoice_Label(i, c->label[i], sizeof(c->label[i]));
-    if (CtrBottomStorage_PCMenu())
-        CtrBottomStorage_PCMessage(c->prompt, sizeof(c->prompt));
-    else
-        CtrFieldChoice_Prompt(c->prompt, sizeof(c->prompt));
-    s->touch.viewport = 0;
-    s->touch.backVisible = 1;
-    s->touch.backEnabled = (uint8_t)BackEnabled(mode);
-    s->touch.backPressed = (uint8_t)(sBack.inside != 0);
-}
-
-/* The naming screen as it is now. While it does not take a key (a page turning, the cursor going to OK) the picture
- * last shown stays. */
-static void FieldNameFill(CtrPokeTouchView *v, int pressed)
-{
-    CtrPokeTouchName *n = &v->name;
-    int col, row;
-
-    if (!CtrBottomNaming_Ready() && sHaveShown && sShown.mode == MODE_NAMING && sShown.touch.name.on) {
-        *n = sShown.touch.name;
-        n->pressed = -1;
-        return;
-    }
-    memset(n, 0, sizeof(*n));
-    n->on = 1;
-    n->pressed = (int16_t)pressed;
-    n->page = (uint8_t)CtrBottomNaming_Page();
-    n->cols = (uint8_t)CtrBottomNaming_Columns();
-    n->maxChars = (uint8_t)CtrBottomNaming_MaxChars();
-    if (n->maxChars > PT_NAME_MAX)
-        n->maxChars = PT_NAME_MAX;
-    for (int r = 0; r < PT_NAME_ROWS; ++r)
-        for (int c = 0; c < PT_NAME_COLS; ++c)
-            n->key[r][c] = (uint8_t)CtrBottomNaming_Key(r, c);
-    memset(n->text, 0xff, sizeof(n->text));
-    CtrBottomNaming_Text(n->text, (int)sizeof(n->text));
-    while (n->len < n->maxChars && n->text[n->len] != 0xff)
-        ++n->len;
-    CtrBottomNaming_Title(n->title, (int)sizeof(n->title));
-    n->species = (uint16_t)CtrBottomNaming_Species();
-    n->gender = (uint8_t)CtrBottomNaming_Gender();
-    CtrBottomNaming_Cursor(&col, &row);
-    n->curCol = (int8_t)col;
-    n->curRow = (int8_t)row;
-}
-
-/* A PC box, drawn here while FireRed's box is in a state the port draws (MOVE ITEMS too; not carrying several or
- * marking one). While it does not take a key the picture last shown stays. */
-static void BoxSnapshot(Snapshot *s)
-{
-    CtrPokeTouchBox *b = &s->touch.box;
-
-    if (!CtrBottomStorage_BoxFill(b))
-        return;
-    if (b->state == PT_BOX_STATE_BUSY && sHaveShown && sShown.mode == MODE_STORAGE_BOX && sShown.touch.box.on)
-        *b = sShown.touch.box;
-    b->pressed = (int16_t)(sStoreTouch.active && sStoreTouch.inside ? sStoreTouch.hit : -1);
-    s->touch.viewport = 0;
-}
-
-/* A mart's BUY list or the item PC's WITHDRAW ITEM: drawn here, modal; BACK is its B (CANCEL, or back from how many). */
-static void ShopSnapshot(Snapshot *s, int mode)
-{
-    FieldBagFill(&s->touch, sFieldBag.down && sFieldBag.inside ? sFieldBag.code : -1, FieldListFor(mode));
-    s->touch.viewport = 0;
-    s->touch.backVisible = 1;
-    s->touch.backEnabled = (uint8_t)BackEnabled(mode);
-    s->touch.backPressed = (uint8_t)(sBack.inside != 0);
-}
-
-/* The naming screen: drawn here, modal (no BACK: its own DELETE and OK). */
-static void NameSnapshot(Snapshot *s)
-{
-    FieldNameFill(&s->touch, sNameTap.down && sNameTap.inside ? sNameTap.code : -1);
-    s->touch.viewport = 0;
-}
-
-/* A Pokemon as the Pokedex knows it: number, flags and (once seen) name. */
-static void FieldDexMon(CtrPokeTouchDexMon *m, unsigned species)
-{
-    memset(m, 0, sizeof(*m));
-    if (species == 0)
-        return;
-    m->species = (uint16_t)species;
-    m->number = (uint16_t)CtrBottomDex_Number(species);
-    m->flags = (uint8_t)CtrBottomDex_Flags(species);
-    if (m->flags & 1)
-        CtrBottomDex_Name(species, m->name, sizeof(m->name));
-}
-
-/* The selected Pokemon's types; on its page, its category, size, weight and entry too (FireRed tells them only for a
- * caught one). */
-static void FieldDexDetail(CtrPokeTouchDex *d, int page)
-{
-    unsigned species = d->sel.species;
-    int types[2];
-
-    d->type[0] = d->type[1] = -1;
-    if (CtrBottomDex_Types(species, types, d->typeName[0], d->typeName[1], sizeof(d->typeName[0]))) {
-        d->type[0] = (int8_t)types[0];
-        d->type[1] = (int8_t)types[1];
-    }
-    if (!page)
-        return;
-    CtrBottomDex_Category(species, d->kind, sizeof(d->kind));
-    d->height = (uint16_t)CtrBottomDex_Height(species);
-    d->weight = (uint16_t)CtrBottomDex_Weight(species);
-    CtrBottomDex_Description(species, d->desc, sizeof(d->desc));
-}
-
-/* The Pokedex as it is now, for the lower screen to draw: 0 for its AREA page, which FireRed draws (the viewport
- * shows it). While the Pokedex is busy (a fade, a page flip) the picture last shown stays. */
-static int FieldDexFill(CtrPokeTouchView *v, int pressed)
-{
-    CtrPokeTouchDex *d = &v->dex;
-    int state = CtrBottomDex_State();
-    unsigned counts[4];
-
-    if (state == DEX_PAGE && CtrBottomDex_MonArea()) {
-        memset(d, 0, sizeof(*d));
-        return 0;
-    }
-    if (state == DEX_BUSY) {
-        if (sHaveShown && sShown.mode == MODE_DEX && sShown.touch.dex.on)
-            *d = sShown.touch.dex;
-        else if (sHaveShown && sShown.mode == MODE_DEX && sShown.touch.viewport)
-            return 0;                   /* leaving the AREA page: FireRed's picture until the page is back */
-        else if (CtrBottomDex_Registering())
-            return 0;                   /* a catch's page coming in (its habitat, the zoom): FireRed's picture */
-        else {
-            memset(d, 0, sizeof(*d));
-            d->on = 1;
-        }
-        d->pressed = -1;
-        return 1;
-    }
-    memset(d, 0, sizeof(*d));
-    d->on = 1;
-    d->pressed = (int16_t)pressed;
-    d->state = (uint8_t)state;
-    d->national = (uint8_t)(CtrBottomDex_National() != 0);
-    CtrBottomDex_Counts(counts);
-    d->seen[0] = (uint16_t)counts[0];
-    d->owned[0] = (uint16_t)counts[1];
-    d->seen[1] = (uint16_t)counts[2];
-    d->owned[1] = (uint16_t)counts[3];
-    d->type[0] = d->type[1] = -1;
-    if (state == DEX_MENU) {
-        int n = CtrBottomDex_MenuCount();
-
-        d->menuCount = (uint8_t)(n > PT_DEX_MENU_MAX ? PT_DEX_MENU_MAX : n);
-        for (int i = 0; i < d->menuCount; ++i) {
-            int id = CtrBottomDex_MenuItem(i, d->menu[i].name, sizeof(d->menu[i].name));
-
-            d->menu[i].id = (int8_t)id;
-            d->menu[i].locked = (uint8_t)(!CtrBottomDex_MenuUnlocked(id));
-        }
-        d->menuCursor = (int8_t)CtrBottomDex_Cursor();
-    } else if (state == DEX_LIST) {
-        int count = CtrBottomDex_ListCount();
-
-        d->order = (uint8_t)CtrBottomDex_ListOrder();
-        d->listCount = (int16_t)count;
-        d->listCursor = (int16_t)CtrBottomDex_Cursor();
-        d->listFirst = (int16_t)(d->listCursor - 2 < 0 ? 0 : d->listCursor - 2);
-        if (d->listFirst > count - PT_DEX_ROWS)
-            d->listFirst = (int16_t)(count - PT_DEX_ROWS < 0 ? 0 : count - PT_DEX_ROWS);
-        for (int i = 0; i < PT_DEX_ROWS && d->listFirst + i < count; ++i)
-            FieldDexMon(&d->row[i], CtrBottomDex_ListEntry(d->listFirst + i) & 0xFFFFu);
-        FieldDexMon(&d->sel, CtrBottomDex_ListEntry(d->listCursor) & 0xFFFFu);
-        FieldDexDetail(d, 0);
-    } else if (state == DEX_CATEGORY) {
-        int category, page, pages, slots, slot;
-
-        if (CtrBottomDex_CategoryPage(&category, &page, &pages, &slots, &slot)) {
-            d->category = (uint8_t)category;
-            d->page = (uint8_t)page;
-            d->pages = (uint8_t)pages;
-            d->slots = (uint8_t)(slots > 4 ? 4 : slots);
-            d->slot = (uint8_t)slot;
-            d->canPrev = (uint8_t)(CtrBottomDex_PageCanFlip(-1) != 0);
-            d->canNext = (uint8_t)(CtrBottomDex_PageCanFlip(1) != 0);
-            for (int i = 0; i < d->slots; ++i)
-                FieldDexMon(&d->mon[i], CtrBottomDex_CategorySpecies(i));
-            if (slot >= 0 && slot < d->slots)
-                d->sel = d->mon[slot];
-            FieldDexDetail(d, 0);
-        }
-    } else if (state == DEX_PAGE) {
-        FieldDexMon(&d->sel, CtrBottomDex_MonSpecies());
-        FieldDexDetail(d, 1);
-        d->added = (uint8_t)(CtrBottomDex_Registering() != 0);
-    }
-    return 1;
-}
-
-/* The bar under the TM Case: its title, the TM/HM under the cursor and the
- * move it teaches. */
-static void TMCaseBar(CtrPokeTouchView *v)
-{
-    unsigned item = CtrBottomTMCase_Item(CtrBottomTMCase_Cursor());
-
-    CtrBottomTMCase_Title(v->bar[0], PT_BAR_LEN);
-    if (item != 0) {
-        CtrBottomBag_ItemName(item, v->bar[1], PT_BAR_LEN);
-        CtrBottomTMCase_MoveName(item, v->bar[2], PT_BAR_LEN);
-    }
-}
-
-/* The bar under the Berry Pouch: its name, the berry under the cursor and how
- * many there are. */
-static void PouchBar(CtrPokeTouchView *v)
-{
-    int cursor = CtrBottomPouch_Cursor();
-    unsigned item = CtrBottomPouch_Item(cursor);
-
-    CtrBottomPouch_Title(v->bar[0], PT_BAR_LEN);
-    if (item != 0) {
-        CtrBottomBag_ItemName(item, v->bar[1], PT_BAR_LEN);
-        snprintf(v->bar[2], PT_BAR_LEN, CTR_TR("Quantity  %u", "Cantidad  %u", "Anzahl  %u"), CtrBottomPouch_Quantity(cursor));
-    }
+#include "3ds_bottom_field_fill_impl.h"
 }
 
 /* HOME's selection: a tap on the map selects the map section under it (the
@@ -1700,424 +1204,7 @@ static int sBatTouchLast;           /* the last input was the touch screen: no c
 static unsigned sBatAnim;           /* counts the frames of a battle, for the lead's icon to bounce */
 static int sBatHold, sBatHoldFrames; /* BAG was picked: the upper screen keeps the battle until the Bag shows */
 static int sPouchHold;              /* the battle Bag's Berry Pouch was opened: the upper screen keeps the battle until it is back */
-
-/* The party slot of the Pokemon in the field. The party keeps its order in a battle (a switch changes only which
- * slot the battle points at), so the slot is found by what the battle knows of its left battler: its level, its
- * maximum HP and its name; the closest HP breaks a tie. Slot 0 when nothing matches. */
-static int BattleActiveSlot(void)
-{
-    char name[32], mine[32];
-    int level = 0, hp = 0, maxHp = 0, best = 0, bestScore = -1;
-
-    for (int b = 0; b < CtrBattle_TargetCount() && b < 4; ++b)
-        if (CtrBattle_TargetPosition(b) == 0)
-            if (CtrBattle_TargetInfo(b, name, (int)sizeof(name), &level, &hp, &maxHp))
-                break;
-    if (!maxHp)
-        return 0;
-    for (int i = 0; i < 6; ++i) {
-        int score, same = 0;
-
-        if (CtrBottomParty_SlotEmpty(i) || CtrBottomParty_IsEgg(i)
-            || (int)CtrBottomParty_Level(i) != level || (int)CtrBottomParty_MaxHP(i) != maxHp)
-            continue;
-        CtrBottomParty_Nickname(i, mine);
-        same = strcmp(mine, name) == 0;
-        score = 1000 + (same ? 500 : 0) - abs((int)CtrBottomParty_HP(i) - hp);
-        if (score > bestScore) {
-            bestScore = score;
-            best = i;
-        }
-    }
-    return best;
-}
-
-/* The six ball slots and the touch held under a finger: what every battle screen shares. */
-static void BattleCommon(CtrBattleView *v)
-{
-    memset(v, 0, sizeof(*v));
-    v->pressed = (int16_t)(sBat.down && sBat.inside ? sBat.btn : -1);
-    v->cursor = -1;
-    for (int i = 0; i < 6; ++i) {
-        if (CtrBottomParty_SlotEmpty(i))
-            v->party[i] = 0;
-        else if (CtrBottomParty_HP(i) == 0 && !CtrBottomParty_IsEgg(i))
-            v->party[i] = 2;
-        else if (CtrBottomParty_Status(i) != 0 && !CtrBottomParty_IsEgg(i))
-            v->party[i] = 3;
-        else
-            v->party[i] = 1;
-        if (v->party[i]) {
-            unsigned hp = CtrBottomParty_HP(i), max = CtrBottomParty_MaxHP(i);
-            unsigned st = CtrBottomParty_IsEgg(i) ? 0 : CtrBottomParty_Status(i);
-
-            v->partyHp[i] = (uint8_t)(CtrBottomParty_IsEgg(i) || !max ? 100 : hp >= max ? 100 : hp ? (hp * 100 / max ? hp * 100 / max : 1) : 0);
-            v->partyStatus[i] = (uint8_t)(st > 6 ? 0 : st);
-        }
-    }
-    {                                   /* the Pokemon in the field: the action screen's footer and icon */
-        int slot = BattleActiveSlot();
-
-        if (v->party[slot]) {
-            unsigned level = CtrBottomParty_Level(slot);
-
-            CtrBottomParty_Nickname(slot, v->activeName);
-            v->activeName[sizeof(v->activeName) - 1] = 0;
-            v->activeLevel = (uint8_t)(level > 255 ? 255 : level);
-            v->activeSlot = (uint8_t)slot;
-            v->activeIcon = (uint16_t)CtrBottomParty_IconSpecies(slot);
-            v->activeFrame = (uint8_t)((sBatAnim++ / 15) & 1);
-            v->activeHp = (uint16_t)CtrBottomParty_HP(slot);
-            {
-                /* The types of the species in the field: kept while the species stays (the lookup is two Pokedex flag reads and two
-                 * text conversions); only a found result is kept, so a species not yet in the Pokedex is asked again. */
-                static unsigned sTypesSpecies;
-                static int sTypes[2];
-                static char sTypeName[2][12];
-                unsigned species = CtrBottomParty_Species(slot);
-                int ty[2];
-
-                if (species != 0 && species == sTypesSpecies) {
-                    ty[0] = sTypes[0];
-                    ty[1] = sTypes[1];
-                    memcpy(v->activeTypeName, sTypeName, sizeof(sTypeName));
-                    v->activeType[0] = (int8_t)ty[0];
-                    v->activeType[1] = (int8_t)ty[1];
-                } else if (CtrBottomDex_Types(species, ty, v->activeTypeName[0], v->activeTypeName[1], 12)) {
-                    sTypesSpecies = species;
-                    sTypes[0] = ty[0];
-                    sTypes[1] = ty[1];
-                    memcpy(sTypeName, v->activeTypeName, sizeof(sTypeName));
-                    v->activeType[0] = (int8_t)ty[0];
-                    v->activeType[1] = (int8_t)ty[1];
-                } else
-                    v->activeType[0] = v->activeType[1] = -1;
-            }
-            v->activeMaxHp = (uint16_t)CtrBottomParty_MaxHP(slot);
-        }
-    }
-}
-
-/* The battle Bag as it is now: its pocket, its items (the save's own), the selected one's detail, the open menu or the
- * message it waits on. */
-static void BattleBagFill(CtrBattleView *v)
-{
-    CtrBattleBag *b = &v->bag;
-    int count, shown;
-
-    BattleCommon(v);
-    v->state = BUI_BAG;
-    b->pocket = (uint8_t)CtrBottomBag_Pocket();
-    b->bagState = (uint8_t)CtrBottomBag_State();
-    b->count = (int16_t)(count = CtrBottomBag_Count());
-    b->cursor = (int16_t)CtrBottomBag_Cursor();
-    shown = b->cursor >= count ? count - 1 : b->cursor;
-    b->first = (int16_t)(shown - 2 < 0 ? 0 : shown - 2);
-    if (b->first > count - BUI_BAG_ROWS)
-        b->first = (int16_t)(count - BUI_BAG_ROWS < 0 ? 0 : count - BUI_BAG_ROWS);
-    for (int i = 0; i < BUI_BAG_ROWS; ++i) {
-        unsigned item = CtrBottomBag_Item(b->first + i);
-
-        b->row[i].item = (uint16_t)item;
-        if (item) {
-            b->row[i].qty = (uint16_t)CtrBottomBag_Quantity(b->first + i);
-            CtrBottomBag_ItemName(item, b->row[i].name, sizeof(b->row[i].name));
-        }
-    }
-    if (b->cursor >= 0 && b->cursor < count) {
-        b->selItem = (uint16_t)CtrBottomBag_Item(b->cursor);
-        if (b->selItem) {
-            CtrBottomBag_ItemName(b->selItem, b->selName, sizeof(b->selName));
-            CtrBottomBag_ItemDescription(b->selItem, b->selDesc, sizeof(b->selDesc));
-        }
-    }
-    if (b->bagState == BAG_ACTIONS) {
-        int n = CtrBottomBag_ActionCount();
-
-        b->menuCount = (uint8_t)(n > 3 ? 3 : n);
-        b->menuCursor = (int8_t)CtrBottomBag_MenuCursor();
-        for (int i = 0; i < b->menuCount; ++i)
-            CtrBottomBag_ActionName(i, b->menuName[i], sizeof(b->menuName[i]));
-    }
-    if (b->bagState == BAG_MESSAGE)
-        CtrBottomBag_Message(b->message, sizeof(b->message));
-    b->berries = (uint16_t)CtrBattle_BerryPouch();
-}
-
-static void BatCopy(char *dst, size_t size, const char *src)
-{
-    size_t n = strlen(src);
-
-    if (n >= size)
-        n = size - 1;
-    memcpy(dst, src, n);
-    dst[n] = 0;
-}
-
-/* The Party icons' clock: one tick a frame the Party is drawn (a snapshot is taken every frame). */
-static unsigned sIconTick;
-
-/* FireRed's icon animation (sMonIconAnim_*): two frames held 6, 8, 14 or 22 ticks (+1 each) by the HP bar's colour,
- * and a fainted one's only changes its hop. Bit 0 the frame, bit 1 the hop's phase. */
-static uint8_t PartyIconFrame(unsigned tick, unsigned hp, unsigned maxHp, int egg)
-{
-    unsigned hold = 29, phase;
-
-    if (hp != 0 || egg) {
-        unsigned pct = maxHp ? hp * 100 / maxHp : 100;
-
-        hold = hp == maxHp ? 6 : pct > 50 ? 8 : pct > 20 ? 14 : 22;
-    }
-    phase = (tick / (hold + 1)) & 1;
-    return (uint8_t)((hp != 0 || egg ? phase : 0) | phase << 1);
-}
-
-/* What FireRed's card says in its description box when a TM, HM, tutor or stone is being offered to the Party. These
- * are the game's own words, so the Spanish build matches the Spanish FireRed's (which has no "!" forms). */
-static uint8_t PartyTag(const char *text)
-{
-    static const char kNoUse[] = CTR_TR("No use", "No se usa", "Nutzlos");
-
-    /* The text is the game's raw ALL CAPS (CtrBottomParty_Description does not case it), so compare without case. */
-    if (CtrTextCase_Eq(text, CTR_TR("Able", "Puede", "O.K.")) || CtrTextCase_Eq(text, CTR_TR("Able!", "Puede!", "O.K.")))
-        return BUI_PTY_TAG_ABLE;
-    if (CtrTextCase_Eq(text, CTR_TR("Not able", "No puede", "NEIN")) || CtrTextCase_Eq(text, CTR_TR("Not able!", "No puede!", "NEIN")))
-        return BUI_PTY_TAG_NOT_ABLE;
-    if (CtrTextCase_Eq(text, CTR_TR("Learned", "Aprendido", "KENNT ATT.")))
-        return BUI_PTY_TAG_LEARNED;
-    if (CtrTextCase_EqN(text, kNoUse, sizeof(kNoUse) - 1))
-        return BUI_PTY_TAG_NO_USE;
-    return BUI_PTY_TAG_NONE;
-}
-
-/* The battle Party as the Party is now (the lower screen's own Party snapshot `s`, which reads FireRed's Party): the six
- * slots, the Party's selection, what it was opened for, and its menu or message when it has one open. */
-static void BattlePartyFill(Snapshot *s)
-{
-    CtrBattleView *v = &s->battle;
-    CtrBattleParty *p = &v->pty;
-    int action = CtrBottomParty_Action();
-
-    ++sIconTick;
-
-    BattleCommon(v);
-    v->state = BUI_PARTY;
-    p->cursor = (int8_t)(s->cursor >= 0 && s->cursor < PARTY_SIZE ? s->cursor : -1);
-    /* SEND_OUT cannot be cancelled. Out of battle the Party says what it is for itself (its own prompt). */
-    p->mode = s->chooseMultiple ? BUI_PTY_MULTI : !CtrBottomParty_InBattle() ? BUI_PTY_SWITCH
-            : action == 1 ? BUI_PTY_FORCED : action == 3 ? BUI_PTY_TARGET : BUI_PTY_SWITCH;
-    /* Picking several: FireRed's cursor may be on CONFIRM (slot 6) or CANCEL (7). */
-    p->button = (int8_t)(p->mode == BUI_PTY_MULTI && s->cursor >= PARTY_SIZE ? s->cursor - PARTY_SIZE : -1);
-    p->lead = (uint8_t)(CtrBottomParty_Layout() == 0 ? 1 : 2);
-    p->caption[0] = 0;
-    if (!CtrBottomParty_InBattle() && s->panel != PANEL_MESSAGE)
-        BatCopy(p->caption, sizeof(p->caption), s->message);
-    for (int i = 0; i < PARTY_SIZE; ++i) {
-        p->present[i] = (uint8_t)((s->presentMask >> i) & 1);
-        if (!p->present[i])
-            continue;
-        p->egg[i] = s->isEgg[i];
-        p->status[i] = s->status[i];
-        p->level[i] = s->level[i];
-        p->hp[i] = s->hp[i];
-        p->maxHp[i] = s->maxHp[i];
-        p->icon[i] = s->icon[i];
-        p->iconFrame[i] = PartyIconFrame(sIconTick, s->hp[i], s->maxHp[i], s->isEgg[i]);
-        if (p->mode == BUI_PTY_MULTI) {
-            int entry = CtrBottomParty_EntryState(i);
-
-            p->entry[i] = (uint8_t)(entry < 0 ? BUI_PTY_ABLE : entry);
-        }
-        else
-            p->tag[i] = PartyTag(s->description[i]);
-        snprintf(p->name[i], sizeof(p->name[i]), "%s", s->nick[i]);
-    }
-    {
-        int slot, level, stats[6], gains[6];
-
-        /* A Rare Candy's level up: the card, not the message over the dimmed Party. */
-        if (s->panel == PANEL_MESSAGE && CtrBottomParty_LevelUp(&slot, &level, stats, gains) && slot >= 0 && slot < PARTY_SIZE) {
-            p->panel = BUI_PTY_LEVELUP;
-            p->lvSlot = (uint8_t)slot;
-            p->lvLevel = (uint8_t)level;
-            for (int i = 0; i < 6; ++i) {
-                p->lvStat[i] = (uint16_t)stats[i];
-                p->lvGain[i] = (int16_t)gains[i];
-            }
-            BatCopy(p->message, sizeof(p->message), s->message);
-            s->battleUi = 1;
-            s->touch.viewport = 0;
-            return;
-        }
-    }
-    if (s->panel == PANEL_ACTIONS || s->panel == PANEL_YESNO) {
-        int n = s->panel == PANEL_YESNO ? 2 : s->actionCount > 8 ? 8 : s->actionCount;
-
-        p->panel = s->panel == PANEL_YESNO ? BUI_PTY_YESNO : BUI_PTY_ACTIONS;
-        p->menuCount = (uint8_t)n;
-        p->menuCursor = s->actionCursor;
-        if (sPlan.kind == PLAN_MENU && sPlan.target < n)
-            p->menuCursor = (int8_t)sPlan.target;      /* the row touched, not the cursor on its way there */
-        for (int i = 0; i < n; ++i)
-            BatCopy(p->menuName[i], sizeof(p->menuName[i]), s->panel == PANEL_YESNO ? (i == 0 ? CTR_TR("Yes", "S\xC3\xAD", "Ja") : CTR_TR("No", "No", "Nein")) : s->actionNames[i]);
-    } else if (s->panel == PANEL_MESSAGE) {
-        p->panel = BUI_PTY_TEXT;
-        BatCopy(p->message, sizeof(p->message), s->message);
-    }
-    s->battleUi = 1;
-    s->touch.viewport = 0;
-}
-
-/* The battle screen as the controller is now: nothing but what FireRed reports. */
-static void BattleFill(CtrBattleView *v)
-{
-    int state = CtrBattle_State();
-
-    BattleCommon(v);
-    v->state = state == BATTLE_ACTION ? BUI_ACTION : state == BATTLE_MOVE ? BUI_MOVE
-             : state == BATTLE_TARGET ? BUI_TARGET : state == BATTLE_SAFARI ? BUI_SAFARI : BUI_IDLE;
-    if (v->state == BUI_TARGET) {
-        /* The cards: opposing battlers on top (left, right), the player's below. Only the ones the controller's own
-         * rule (the one its D-pad walks by) lets the move be aimed at are shown. */
-        static const int8_t card[4] = {2, 0, 3, 1};     /* by FireRed's position: PLAYER_LEFT, OPPONENT_LEFT, PLAYER_RIGHT, OPPONENT_RIGHT */
-        int cursor = CtrBattle_TargetCursor();
-
-        v->cursor = -1;
-
-        for (int b = 0; b < CtrBattle_TargetCount() && b < 4; ++b) {
-            int position = CtrBattle_TargetPosition(b), i;
-            CtrBattleTarget *t;
-            int level = 0, hp = 0, maxHp = 0;
-
-            if (position < 0 || position > 3 || !CtrBattle_TargetLegal(b))
-                continue;
-            i = card[position];
-            t = &v->target[i];
-            if (!CtrBattle_TargetInfo(b, t->name, (int)sizeof(t->name), &level, &hp, &maxHp))
-                continue;
-            t->present = 1;
-            t->battler = (int8_t)b;
-            t->side = (uint8_t)((position & 1) == 0);
-            t->level = (uint8_t)(level > 255 ? 255 : level);
-            t->hp = (uint16_t)hp;
-            t->maxHp = (uint16_t)maxHp;
-            t->matchup = (uint8_t)CtrBattle_TargetMatchup(b);
-            if (b == cursor)
-                v->cursor = (int8_t)i;
-        }
-        v->showCursor = !sBatTouchLast;
-        return;
-    }
-    if (v->state == BUI_SAFARI) {
-        v->cursor = (int8_t)CtrBattle_ActionCursor();
-        v->showCursor = !sBatTouchLast;
-        return;
-    }
-    if (v->state == BUI_ACTION) {
-        unsigned item, qty;
-        int place, count;
-
-        v->cursor = (int8_t)CtrBattle_ActionCursor();
-        v->showCursor = !sBatTouchLast;
-        v->ball = (uint8_t)CtrBattle_QuickBall(&item, &qty, &place, &count);
-        v->runBlocked = (uint8_t)!CtrBattle_CanRun();
-        if (v->ball != CTR_QUICK_BALL_NONE) {
-            v->ballItem = (uint16_t)item;
-            v->ballQty = (uint16_t)(qty > 999 ? 999 : qty);
-            v->ballPlace = (uint8_t)place;
-            v->ballCount = (uint8_t)count;
-            if (item)
-                CtrBottomBag_ItemName(item, v->ballName, sizeof(v->ballName));
-        }
-    }
-    if (v->state != BUI_MOVE)
-        return;
-    v->cursor = (int8_t)CtrBattle_MoveCursor();
-    v->showCursor = !sBatTouchLast;
-    for (int i = 0; i < 4; ++i) {
-        unsigned move = CtrBattle_Move(i);
-        CtrBattleMove *m = &v->move[i];
-        unsigned power, acc;
-
-        if (move == 0)
-            continue;
-        m->present = 1;
-        m->type = (uint8_t)CtrBattle_MoveType(move);
-        CtrBattle_MoveName(move, m->name, sizeof(m->name));
-        CtrBattle_TypeName(m->type, m->typeName, sizeof(m->typeName));
-        if (CtrOptions_MoveDetails())
-            CtrBattle_MoveDescription(move, m->desc, sizeof(m->desc));
-        else
-            m->desc[0] = 0;
-        {
-            int pp, maxPp;
-
-            if (CtrBattle_MovePP(i, &pp, &maxPp)) {
-                m->pp = (uint8_t)(pp < 0 ? 0 : pp > 255 ? 255 : pp);
-                m->maxPp = (uint8_t)(maxPp < 0 ? 0 : maxPp > 255 ? 255 : maxPp);
-            }
-        }
-        if (CtrOptions_TypeMatchup())
-            m->matchup = (uint8_t)CtrBattle_MoveMatchup(move);
-        else
-            m->matchup = CTR_FX_NONE;
-        m->stab = (uint8_t)(CtrBattle_MoveStab(move) != 0);
-        m->effectChance = (uint8_t)CtrBattle_MoveEffectChance(move);
-        m->priority = (int8_t)CtrBattle_MovePriority(move);
-        power = CtrBattle_MovePower(move);
-        if (power)
-            snprintf(m->power, sizeof(m->power), "%u", power > 999 ? 999 : power);
-        else
-            snprintf(m->power, sizeof(m->power), "-");
-        acc = CtrBattle_MoveAccuracy(move);
-        if (acc)
-            snprintf(m->accuracy, sizeof(m->accuracy), "%u", acc > 999 ? 999 : acc);
-        else
-            snprintf(m->accuracy, sizeof(m->accuracy), "-");
-    }
-}
-
-/* SAVE's view: FireRed's own save information (the facts SaveStatToString prints), the player's
- * icon key, and the dialogue's text for the state. No BACK: NO, B and the sidebar leave. */
-static void SaveFill(CtrPokeTouchView *v)
-{
-    unsigned minutes = CtrSave_PlayMinutes();
-
-    v->save = 1;
-    v->saveState = (uint8_t)sSave.state;
-    v->saveSel = (uint8_t)sSave.sel;
-    v->savePressed = (uint8_t)(sSave.down && sSave.inside ? sSave.down : PT_SAVE_NONE);
-    v->playerFemale = (uint8_t)(CtrPokeTouch_PlayerFemale() != 0);
-    CtrPokeTouch_PlayerName(v->playerName, (int)sizeof(v->playerName));
-    v->saveBadges = (uint8_t)CtrSave_BadgeCount();
-    v->saveHasDex = (uint8_t)(CtrSave_HasPokedex() != 0);
-    v->saveDex = (uint16_t)CtrSave_DexCaught();
-    v->saveHours = (uint16_t)CtrSave_PlayHours();
-    v->saveMinutes = (uint8_t)(minutes > 59 ? 59 : minutes);
-    v->saveMoney = CtrSave_Money();
-    switch (sSave.state) {
-    case SAVE_WRITING:
-        snprintf(v->bar[0], PT_BAR_LEN, CTR_TR("Saving...", "Guardando...", "Speichern..."));
-        snprintf(v->bar[1], PT_BAR_LEN, CTR_TR("Don't turn off the power.", "No apagues la consola.", "Nicht ausschalten."));
-        break;
-    case SAVE_SUCCESS:
-        snprintf(v->bar[0], PT_BAR_LEN, CTR_TR("Game saved!", "\xc2\xa1Partida guardada!", "Spiel gespeichert!"));
-        break;
-    case SAVE_ERROR:
-        snprintf(v->bar[0], PT_BAR_LEN, CTR_TR("Could not save.", "No se pudo guardar.", "Speichern fehlgeschlagen."));
-        snprintf(v->bar[1], PT_BAR_LEN, CTR_TR("Try again.", "Prueba otra vez.", "Bitte erneut versuchen."));
-        break;
-    default:
-        if (CtrSave_IsDifferentFile()) {
-            snprintf(v->bar[0], PT_BAR_LEN, CTR_TR("Another game is saved.", "Ya hay otra partida.", "Anderer Spielstand da."));
-            snprintf(v->bar[1], PT_BAR_LEN, CTR_TR("Overwrite it?", "\xc2\xbfSobrescribirla?", "\xc3\x9c" "berschreiben?"));
-        } else {
-            snprintf(v->bar[0], PT_BAR_LEN, CTR_TR("Save your game?", "\xc2\xbfGuardar la partida?", "Spiel speichern?"));
-            v->bar[1][0] = 0;
-        }
-        break;
-    }
-}
+#include "3ds_bottom_battle_fill_impl.h"
 
 static void SnapshotState(Snapshot *s, int mode, int pressed)
 {
@@ -2811,6 +1898,7 @@ static struct {
     int steps;
     int release;
     uint16_t keys;
+    uint16_t held;                  /* the keys held when it began (the D-pad's own, for TRAINER): they may stay held */
 } sSumPlan;
 
 static void SumPlanClear(void)
@@ -2832,6 +1920,7 @@ static void SumPlanStart(int kind, int target, int activate, uint16_t keys)
     sSumPlan.expect = CtrBottomSummary_Page();
     sSumPlan.mon = CtrBottomSummary_Mon();
     sSumPlan.serial = CtrBottomSummary_Serial();
+    sSumPlan.held = (uint16_t)(CtrInput_Get()->held & 0x3ffu);
 }
 
 static void SumPlanPress(uint16_t keys, int expect)
@@ -2847,8 +1936,10 @@ static void RunSumPlan(void)
 
     if (sSumPlan.kind == SUMPLAN_NONE)
         return;
-    /* Physical controls always win. */
-    if (CtrInput_Get()->held & 0x3ffu) {
+    /* Physical controls always win: a key pressed after the plan began drops it (the one that began it may stay held,
+     * and once let go it counts again). */
+    sSumPlan.held &= CtrInput_Get()->held;
+    if (CtrInput_Get()->held & 0x3ffu & ~sSumPlan.held) {
         SumPlanClear();
         return;
     }
@@ -2933,6 +2024,7 @@ static void SummaryFill(CtrSummaryUiView *v)
         v->data = sSum.latch;
     else
         v->loading = 1;
+    v->data.ready = 0;              /* FireRed's input readiness: not drawn, so not a change that redraws the page */
     if (now.page != SUI_PAGE_INFO && sSumPlan.kind == SUMPLAN_NONE)
         sSum.trainer = 0;
     v->trainer = (uint8_t)(sSum.trainer && v->data.page == SUI_PAGE_INFO);
@@ -2973,32 +2065,37 @@ static void SummaryAct(int hit)
 }
 
 /* Press, track, release: a control is pressed while a touch that began on it stays on it, and acts once when released
- * there; sliding off cancels it. A held physical button wins. */
+ * there; sliding off cancels it. Turning the pages (the tabs) and the Pokemon acts on the press instead, as FireRed's keys
+ * do (the owner found it slow on release). A held physical button wins. */
 static int ProcessSummaryTouch(const CtrInput *in)
 {
     int hit = in->touchActive && sHaveShown && sShown.summaryUi
             ? CtrSummaryUi_Hit(&sShown.sum, (int)in->touchX, (int)in->touchY) : -1;
+    /* A page a plan turned to is shown as soon as FireRed has taken it, while its flip still runs (NavPending): from
+     * then on the screen takes a tap or the TRAINER key again, and the plan that starts replaces the one that arrived
+     * (it waits for the flip to end before it presses anything, as every plan does). */
+    int taken = sSumPlan.kind == SUMPLAN_PAGE && CtrBottomSummary_Page() == sSumPlan.target;
 
     /* TRAINER, the last tab, is the port's (FireRed's first page shown as its memo), so the D-pad reaches it here: RIGHT
-     * on the moves page goes to it, LEFT from it back to the moves (on release, as the plan walks FireRed's pages with its
-     * own LEFT and RIGHT, which a held key would cancel). */
-    if (sSumPlan.kind == SUMPLAN_NONE && sHaveShown && sShown.summaryUi && !sShown.sum.loading && CtrBottomSummary_Ready()
-        && !(in->held & 0x3ffu)) {
+     * on the moves page goes to it (while FireRed's flip to the moves page still runs too), LEFT from it back to the
+     * moves (while TRAINER slides in too), on the press as FireRed's own pages turn (the plan lets the key that began
+     * it stay held; FireRed's RIGHT on its last page and LEFT on its first do nothing). */
+    if ((sSumPlan.kind == SUMPLAN_NONE || taken) && sHaveShown && sShown.summaryUi && !sShown.sum.loading) {
         int page = CtrBottomSummary_Page();
 
-        if ((in->up & K_RIGHT) && page == SUI_PAGE_MOVES && !sShown.sum.data.egg) {
+        if ((in->down & K_RIGHT) && page == SUI_PAGE_MOVES && !sShown.sum.data.egg) {
             sSum.trainer = 1;
             SumPlanStart(SUMPLAN_PAGE, SUI_PAGE_INFO, 0, 0);
             return HIT_NONE;
         }
-        if ((in->up & K_LEFT) && page == SUI_PAGE_INFO && sShown.sum.trainer) {
+        if ((in->down & K_LEFT) && page == SUI_PAGE_INFO && sShown.sum.trainer && (taken || CtrBottomSummary_Ready())) {
             sSum.trainer = 0;
             if (!sShown.sum.data.egg)
                 SumPlanStart(SUMPLAN_PAGE, SUI_PAGE_MOVES, 0, 0);
             return HIT_NONE;
         }
     }
-    if (sSumPlan.kind != SUMPLAN_NONE) {        /* what the last tap asked is still being walked: no second plan over it */
+    if (sSumPlan.kind != SUMPLAN_NONE && !taken) {  /* what the last tap asked is still on its way: no plan over it */
         sSum.down = sSum.inside = 0;
         return HIT_NONE;
     }
@@ -3008,6 +2105,11 @@ static int ProcessSummaryTouch(const CtrInput *in)
         return HIT_NONE;
     }
     if (in->touchDown) {
+        if (hit == SUI_HIT_PREV || hit == SUI_HIT_NEXT || (hit >= SUI_HIT_TAB && hit < SUI_HIT_TAB + SUI_TABS)) {
+            sSum.down = sSum.inside = 0;
+            SummaryAct(hit);
+            return HIT_PANEL;
+        }
         sSum.down = sSum.inside = hit >= 0;
         sSum.btn = hit;
         return HIT_NONE;
@@ -4118,8 +3220,12 @@ static void ProcessBattleBagTouch(const CtrInput *in)
             }
         } else if (sBatBag.pocketTarget >= 0) {
             int pocket = CtrBottomBag_Pocket();
+            /* FireRed reports the pocket it slides in from the slide's first frame: Items (the way back) is drawn at
+             * once, but the Key Items pocket is only the way to the Berry Pouch (BERRIES), so the picture holds
+             * (NavPending) until that slide is over. */
+            int there = pocket == sBatBag.pocketTarget && (state != BAG_BUSY || sBatBag.berryWait <= 0);
 
-            if (pocket == sBatBag.pocketTarget || --sBatBag.pocketWait <= 0)
+            if (there || --sBatBag.pocketWait <= 0)
                 sBatBag.pocketTarget = -1;
             else if (state == BAG_LIST)
                 BagPlanStart(list, BAGPLAN_PRESS, 0, 0, pocket < sBatBag.pocketTarget ? K_RIGHT : K_LEFT);
@@ -4309,6 +3415,7 @@ static void ProcessBattlePartyTouch(const CtrInput *in)
 
     if (in->touchActive && sHaveShown)
         btn = CtrBattleUi_Hit(&sShown.battle, (int)in->touchX, (int)in->touchY);
+    PartyEchoKeys(in->held);
     if ((in->held & 0x3ffu) || !ready) {
         sBat.down = sBat.inside = 0;
         return;
@@ -4327,15 +3434,14 @@ static void ProcessBattlePartyTouch(const CtrInput *in)
     if (sBat.inside) {
         int code = sBat.btn, open = CtrBottomParty_SelectionOpen() || CtrBottomParty_YesNoOpen();
 
-        if (code >= BUI_PTY_SLOT && code < BUI_PTY_SLOT + 6) {
-            if (!open && CtrBottomParty_IsOpen() && !CtrBottomParty_CanAdvanceText())
-                CtrBottomParty_TouchSlot(code - BUI_PTY_SLOT);
-        } else if (code == BUI_PTY_CANCEL) {
-            if (!open && CtrBottomParty_IsOpen() && !CtrBottomParty_CanAdvanceText())
-                CtrBottomParty_TouchSlot(PARTY_SIZE + 1);
-        } else if (code == BUI_PTY_CONFIRM) {
-            if (!open && CtrBottomParty_IsOpen() && !CtrBottomParty_CanAdvanceText())
-                CtrBottomParty_TouchSlot(PARTY_SIZE);
+        int slot = code >= BUI_PTY_SLOT && code < BUI_PTY_SLOT + 6 ? code - BUI_PTY_SLOT
+                 : code == BUI_PTY_CANCEL ? PARTY_SIZE + 1 : code == BUI_PTY_CONFIRM ? PARTY_SIZE : -1;
+
+        if (slot >= 0) {
+            if (!open && CtrBottomParty_IsOpen() && !CtrBottomParty_CanAdvanceText() && CtrBottomParty_TouchSlot(slot)) {
+                sPartyEcho.slot = slot;         /* shown as the selection until the Party's cursor is there */
+                sPartyEcho.wait = 30;
+            }
         } else if (code >= BUI_PTY_MENU && code < BUI_PTY_MENU + 8) {
             if (open)
                 PlanStart(PLAN_MENU, code - BUI_PTY_MENU);
@@ -5091,6 +4197,7 @@ static int ProcessTouch(int mode)
         sFieldDex.down = sFieldDex.inside = sFieldDex.scrolling = 0;
         sFieldDex.code = -1;
     }
+    PartyEchoMode(mode);
     if (mode != MODE_NAMING) {
         sNameTap.down = sNameTap.inside = 0;
         sNameTap.code = -1;
@@ -5554,7 +4661,10 @@ void CtrBottom_Init(void)
 /* FireRed reaches some screens through others: the Bag's BALLS from ITEMS through KEY ITEMS, a Summary's TRAINER from MOVES
  * through STATS, a move's row through the details. The lower screen shows where a touch asked to go, never the way: while the
  * backend is on its way (the plan a tap started has not arrived and is still walking) the last complete picture stays, and the
- * destination is presented in one update. Only what a finger pressed is let go, so the control does not stay held down. */
+ * destination is presented in one update. Only what a finger pressed is let go, so the control does not stay held down.
+ * A Summary page is presented as soon as FireRed has taken it (its page is the one asked: the Summary turns there in one
+ * flip, CtrSummary_AskPage), while that flip still runs, as a page turned by FireRed's own keys is: waiting for the
+ * flip's end made every touched page, and TRAINER always, slow (the owner's finding). */
 static int NavPending(int mode)
 {
     if (!sHaveShown || mode != sShown.mode)
@@ -5566,7 +4676,7 @@ static int NavPending(int mode)
     }
     if (sShown.mode == MODE_SUMMARY && sShown.summaryUi) {
         if (sSumPlan.kind == SUMPLAN_PAGE)
-            return !(CtrBottomSummary_Ready() && CtrBottomSummary_Page() == sSumPlan.target);
+            return CtrBottomSummary_Page() != sSumPlan.target;
         return sSumPlan.kind == SUMPLAN_MOVE;
     }
     return 0;
