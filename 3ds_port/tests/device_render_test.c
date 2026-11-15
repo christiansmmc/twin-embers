@@ -11,13 +11,14 @@
  *   DEVICE_WIDTHS=file        the normal font's 256 glyph widths; DEVICE_SMALL_WIDTHS=file the small font's
  *   DEVICE_FONT_W=n           the stub glyph width
  *
- * usage: device_render_test <suite>   (kit, home, battle, or all; prints PASS device <suite>) */
+ * usage: device_render_test <suite>   (kit, home, battle, party, summary, bag, or all; prints PASS device <suite>) */
 #include <assert.h>
 #ifndef PT_SOURCE
 #define PT_SOURCE "3ds_poketouch.c"
 #endif
 #include PT_SOURCE
 #include "3ds_text_case_views.h"   /* the game names in proper case, as 3ds_bottom.c gives them */
+#include "3ds_nature.h"            /* the Summary's nature marks */
 #include "3ds_pak.h"
 
 /* ---- Fonts: the stubs, or the pack's glyphs ------------------------------------------------------------------------ */
@@ -128,7 +129,7 @@ static void ReadWidths(const char *path, uint8_t widths[256])
     fclose(f);
 }
 
-/* ---- Game bridges: battle_ui_render_test.c's set and poketouch_render_test.c's map art --------------------------- */
+/* ---- Game bridges: the battle's (the ember drawer's harness had them) and poketouch_render_test.c's map art ------- */
 
 /* The pack's files with FIRERED_TEST_PAK; else the two item icons, synthesised: a literal-only GBA LZ stream of 24x24
  * 4bpp tiles (3x3) and of a palette, so the full-size icon path runs without game data. */
@@ -247,13 +248,41 @@ int CtrBottomParty_Icon(int slot, unsigned char *tiles, unsigned short *pal)
     return 1;
 }
 
+/* The Summary's Pokemon: none, unless a suite asks for synthetic art (sumArt 1: a 64x64 picture, 2: an 80x80 one, 3: only
+ * the icon): a disc of index 1 (red) with a ring of index 2 (blue) round it, and the icon a square of index 1. */
+static int sumArt __attribute__((unused));
+#define SUM_ART_RED 0x001f      /* GBA BGR555 */
+#define SUM_ART_BLUE 0x7c00
+static int SumArtIndex(int x, int y, int size)
+{
+    int dx = 2 * x + 1 - size, dy = 2 * y + 1 - size, d = dx * dx + dy * dy, r = size - 8;
+
+    return d <= r * r ? 1 : d <= size * size ? 2 : 0;
+}
 unsigned CtrBottomSummary_IconSpecies(void) { return 0; }
 int CtrBottomSummary_Icon(unsigned char *tiles, unsigned short *pal)
-{ (void)tiles; (void)pal; return 0; }
+{
+    if (!sumArt) return 0;
+    memset(tiles, 0x11, 512); memset(pal, 0, 32); pal[1] = SUM_ART_RED; return 1;
+}
 int CtrBottomSummary_Pic(unsigned char *tiles, unsigned short *pal, int *flip)
-{ (void)tiles; (void)pal; (void)flip; return 0; }
+{
+    if (sumArt != 1) return 0;
+    memset(tiles, 0, 0x800); memset(pal, 0, 32); pal[1] = SUM_ART_RED; pal[2] = SUM_ART_BLUE; *flip = 0;
+    for (int y = 0; y < 64; ++y)
+        for (int x = 0; x < 64; ++x)
+            tiles[(y / 8 * 8 + x / 8) * 32 + y % 8 * 4 + x % 8 / 2] |= (unsigned char)(SumArtIndex(x, y, 64) << (x & 1) * 4);
+    return 1;
+}
 int CtrBottomSummary_Pic80(unsigned char *pixels, unsigned short *pal, int *flip)
-{ (void)pixels; (void)pal; (void)flip; return 0; }
+{
+    if (sumArt != 2) return 0;
+    memset(pixels, 0, 80 * 80 / 2); memset(pal, 0, 32); pal[1] = SUM_ART_RED; pal[2] = SUM_ART_BLUE; *flip = 0;
+    for (int y = 0; y < 80; ++y)
+        for (int x = 0; x < 80; ++x)
+            pixels[y * 40 + x / 2] |= (unsigned char)(SumArtIndex(x, y, 80) << (x & 1) * 4);
+    return 1;
+}
 int CtrPokeTouch_Wallpaper(unsigned id, unsigned short *rgb555)
 { (void)id; (void)rgb555; return 0; }
 
@@ -964,7 +993,8 @@ static void SuiteHome(void)
     v.flyOk = 1;
     DevCheckTouch(&old, &v);
     shot("selection");
-    /* flypick: FLY chosen in the Party, the map waits for a town (the hint in two lines); a Pokemon held */
+    /* flypick: FLY chosen in the Party, the map waits for a town; the hint in two lines, where to tap and the way out
+     * (v0.6.0's "Any button: cancel"), each line whole; a Pokemon held */
     v.pressed = PT_HOME_PARTY + 2;
     v.running = 0;
     v.cursorX = v.cursorY = -1;
@@ -973,6 +1003,22 @@ static void SuiteHome(void)
     snprintf(v.bar[2], PT_BAR_LEN, "%s", CtrUiText(UIS_FLY_PICK));
     DevCheckTouch(&old, &v);
     assert(Count(212, 33, 90, 7, DEV_INK2) > 0 && Count(212, 46, 90, 7, DEV_INK2) > 0);   /* the hint takes two lines */
+    {
+        const char *pick = CtrUiText(UIS_FLY_PICK), *out = strchr(pick, '\n');
+        char first[PT_BAR_LEN], second[PT_BAR_LEN];
+        int w1, w2;
+
+        assert(out && !strchr(out + 1, '\n') && (size_t)(out - pick) < sizeof(first));
+        memcpy(first, pick, (size_t)(out - pick));
+        first[out - pick] = 0;
+        DevUpper(second, first, sizeof(second));
+        w1 = DevSmallTextWidth(second);
+        DevUpper(second, out + 1, sizeof(second));
+        w2 = DevSmallTextWidth(second);
+        /* each line ends where its own words do: the break is the string's, not the width's */
+        assert(w1 <= 90 && w2 <= 90 && Count(212 + w1 - 4, 33, 4, 7, DEV_INK2) > 0 && Count(212 + w1, 33, 90 - w1, 7, DEV_INK2) == 0);
+        assert(Count(212 + w2 - 4, 46, 4, 7, DEV_INK2) > 0 && Count(212 + w2, 46, 90 - w2, 7, DEV_INK2) == 0);
+    }
     shot("flypick");
     /* sevii: another map; a place that cannot be flown to says why */
     assert(CtrPokeTouch_MapPrepare(PT_MAP_SEVII123, 0));
@@ -1256,7 +1302,7 @@ static void SuiteBattle(void)
     v.safari = 0; v.move[1].pp = 15; v.target[1].hp = 80; assert(DevCheckBattle(&old, &v).count == 0);
     v.shell = 1; assert(DevWhole(DevCheckBattle(&old, &v)) && at(160, 100) == DEV_SHELL_BLUE);
     v.shell = 0; DevCheckBattle(&old, &v);
-    /* to the ember Bag and back: the whole screen each way */
+    /* to the Bag and back: the whole screen each way */
     v.state = BUI_BAG; assert(DevWhole(DevCheckBattle(&old, &v)));
     v.state = BUI_ACTION; assert(DevWhole(DevCheckBattle(&old, &v)));
 
@@ -1324,12 +1370,863 @@ static void SuiteBattle(void)
     assert(sDevKeyCut == 0);
 }
 
+/* ---- party: the bays, the action menu, YES / NO, a message, the level up, picking several (boards B · POKeMON) -------- */
+
+/* The board's Party: CHARMELEON 112/112 Lv36 (the cursor), PIDGEOTTO 62/94 Lv31, RATICATE 24/70 poisoned, NIDORINO
+ * 0/76 fainted, ONIX 5/64 Lv25 and a hole; the menu's rows the board's (SUMMARY, SWITCH, ITEM, CUT, FLY, CANCEL) and two
+ * more for a menu of eight. Names as FireRed has them, each its species' own. */
+static CtrBattleView PtyBoard(void)
+{
+    static const struct {
+        const char *name;
+        int level, hp, max, status;
+    } kMon[5] = {{"CHARMELEON", 36, 112, 112, 0}, {"PIDGEOTTO", 31, 62, 94, 0}, {"RATICATE", 28, 24, 70, 1},
+                 {"NIDORINO", 30, 0, 76, 0}, {"ONIX", 25, 5, 64, 0}};
+    static const char *const kMenu[8] = {"SUMMARY", "SWITCH", "ITEM", "CUT", "FLY", "CANCEL", "SURF", "STRENGTH"};
+    CtrBattleView v;
+    CtrBattleParty *p = &v.pty;
+
+    memset(&v, 0, sizeof(v));
+    v.state = BUI_PARTY;
+    v.pressed = -1;
+    v.cursor = -1;
+    p->cursor = 0;
+    p->button = -1;
+    p->mode = BUI_PTY_SWITCH;
+    p->lead = 1;
+    for (int i = 0; i < 5; ++i) {
+        p->present[i] = 1;
+        p->level[i] = (uint8_t)kMon[i].level;
+        p->hp[i] = (uint16_t)kMon[i].hp;
+        p->maxHp[i] = (uint16_t)kMon[i].max;
+        p->status[i] = (uint8_t)kMon[i].status;
+        p->icon[i] = (uint16_t)(i + 1);
+        strcpy(p->name[i], kMon[i].name);
+        p->nameIsSpecies[i] = 1;
+    }
+    for (int i = 0; i < 8; ++i)
+        strcpy(p->menuName[i], kMenu[i]);
+    return v;
+}
+
+/* With small letters wider than capitals: `a` and `b` drawn alike (or not, `same` 0). */
+static void PtySamePixels(const CtrBattleView *a, const CtrBattleView *b, int same)
+{
+    static uint16_t first[W * H];
+    static uint8_t keepWidths[256], keepSmall[256];
+
+    memcpy(keepWidths, fontWidths, sizeof(keepWidths));
+    memcpy(keepSmall, smallWidths, sizeof(keepSmall));
+    for (unsigned c = 0xd5; c <= 0xee; ++c)        /* a..z */
+        fontWidths[c] = smallWidths[c] = 7;
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    CtrBattleUi_Draw(canvas, a);
+    memcpy(first, canvas, sizeof(first));
+    CtrBattleUi_Draw(canvas, b);
+    if ((memcmp(first, canvas, sizeof(first)) == 0) != same) {
+        fprintf(stderr, "%s: panel %d, names %s / %s: drawn %s\n", gSuite, a->pty.panel, a->pty.name[0], b->pty.name[0],
+                same ? "differently" : "alike");
+        assert(0);
+    }
+    memcpy(fontWidths, keepWidths, sizeof(keepWidths));
+    memcpy(smallWidths, keepSmall, sizeof(keepSmall));
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+}
+
+/* Upper case (decision 5): a Pokemon's name in capitals when it is its species' own whatever case it arrives in, a
+ * nickname as typed (the bays, the slim bays, the level up); the menu's names in capitals. */
+static void PtyUpperCase(CtrBattleView v)
+{
+    CtrBattleView other;
+
+    v.pty.panel = BUI_PTY_NONE;
+    other = v;
+    strcpy(other.pty.name[0], "Charmeleon");
+    strcpy(other.pty.name[1], "Pidgeotto");
+    PtySamePixels(&v, &other, 1);
+    strcpy(v.pty.name[0], "SPARKY");
+    strcpy(other.pty.name[0], "Sparky");
+    v.pty.nameIsSpecies[0] = other.pty.nameIsSpecies[0] = 0;
+    PtySamePixels(&v, &other, 0);
+    v.pty.panel = other.pty.panel = BUI_PTY_ACTIONS;
+    v.pty.menuCount = other.pty.menuCount = 6;
+    strcpy(other.pty.name[0], "SPARKY");
+    strcpy(v.pty.menuName[0], "SUMMARY");
+    strcpy(v.pty.menuName[3], "CUT");
+    strcpy(other.pty.menuName[0], "Summary");
+    strcpy(other.pty.menuName[3], "Cut");
+    PtySamePixels(&v, &other, 1);
+    strcpy(other.pty.name[0], "Sparky");
+    PtySamePixels(&v, &other, 0);
+    v.pty.panel = other.pty.panel = BUI_PTY_LEVELUP;
+    strcpy(other.pty.name[0], "SPARKY");
+    v.pty.lvSlot = other.pty.lvSlot = 1;                    /* PIDGEOTTO and Pidgeotto, its species' own */
+    PtySamePixels(&v, &other, 1);
+}
+
+static void SuiteParty(void)
+{
+    CtrBattleView v = PtyBoard(), old = v;
+    int i;
+    uint16_t dim = DevBlend(DEV_SHELL_RED, DEV_KEY, 128);
+
+    CtrBattleUi_Draw(canvas, &old);
+    DevCheckBattle(&old, &v);
+    /* the plan's suite: the bays and CANCEL hit where they are drawn; the hole not hit */
+    for (i = 0; i < 5; ++i) AssertHits(BatHitV, &v, DevPtyBay(i), BUI_PTY_SLOT + i);
+    assert(CtrBattleUi_Hit(&v, 238, 145) == -1 && at(238, 150) == DevBlend(DEV_SHELL_RED, 0, 72));      /* the hole */
+    AssertKey(DevPtyBay(0), DEV_LOOK_KEY, 1); AssertKey(DevPtyBay(3), DEV_LOOK_FAINT, 0); AssertHits(BatHitV, &v, kDevPtyCancel, BUI_PTY_CANCEL);
+    /* the board's pieces: the chosen bay's LED; RATICATE's PSN and NIDORINO's FNT at the right; NIDORINO's HP grey;
+     * CHARMELEON's bar, ONIX's numbers in the low ink; the screen's words; CANCEL dark */
+    assert(at(146, 18) == DEV_LED && at(128, 105) == DEV_PSN && at(284, 105) == DEV_FNT);
+    assert(at(202, 93) == UI_RGB(0x8A, 0x8A, 0x8A) && at(60, 41) == DEV_HP_FRAME && at(61, 42) == DEV_HP_GREEN);
+    assert(Count(100, 145, 48, 9, DEV_LOW_INK) > 0 && Count(120, 33, 28, 9, DEV_LOW_INK) == 0);
+    assert(Count(14, 186, 210, 40, DEV_INK) > 0 && Count(46, 19, 90, 8, DEV_SUNK_INK) > 0 && Count(202, 75, 90, 8, DEV_FAINT_INK) > 0);
+    AssertKey(kDevPtyCancel, DEV_LOOK_DARK, 0); assert(Count(238, 180, 74, 50, DEV_DARK_INK) > 0 && at(146, 18 + 56) != DEV_LED);
+    for (i = 0; i < 6; ++i)                                                    /* icons at 1:1, not hopping */
+        if (i != 5) assert(at(DevPtyBay(i).x + 4 + 2, DevPtyBay(i).y + (i ? 0 : 2) + 9 + 2) != DevKeyFace(i == 3 ? DEV_LOOK_FAINT : DEV_LOOK_KEY, !i));
+    shot("bays");
+    /* the touch sinks one key of the group: a bay, CANCEL; the cursor on CANCEL (FireRed's slot 7) sinks it */
+    v.pressed = BUI_PTY_SLOT + 2; DevCheckBattle(&old, &v); AssertKey(DevPtyBay(2), DEV_LOOK_KEY, 1); AssertKey(DevPtyBay(0), DEV_LOOK_KEY, 0);
+    v.pressed = BUI_PTY_CANCEL; DevCheckBattle(&old, &v); AssertKey(DevPtyBay(0), DEV_LOOK_KEY, 0); assert(at(302, 190) == DEV_LED);
+    v.pressed = -1; v.pty.cursor = -1; v.pty.button = 1; DevCheckBattle(&old, &v); assert(at(302, 190) == DEV_LED);
+    v.pty.cursor = 0; v.pty.button = -1; DevCheckBattle(&old, &v); assert(at(302, 190) != DEV_LED);
+    /* not drawn: the icons' frames, the column layout, the battle's own fields */
+    v.pty.iconFrame[1] = 3; v.pty.lead = 2; v.activeFrame = 1; v.cursor = 2; v.move[0].present = 1; v.activeHp = 9;
+    v.party[3] = 2; v.bag.count = 3; v.ball = CTR_QUICK_BALL_READY; v.target[1].present = 1; v.showCursor = 1;
+    assert(DevCheckBattle(&old, &v).count == 0);
+    v.shell = 2; assert(DevWhole(DevCheckBattle(&old, &v)) && at(238, 150) == DevBlend(DEV_SHELL_GREEN, 0, 72));
+    v.shell = 0; DevCheckBattle(&old, &v);
+    /* an item's verdict at the right (TARGET), before a condition */
+    v.pty.mode = BUI_PTY_TARGET; v.pty.tag[0] = BUI_PTY_TAG_ABLE; v.pty.tag[2] = BUI_PTY_TAG_NOT_ABLE; v.pty.tag[4] = BUI_PTY_TAG_LEARNED;
+    DevCheckBattle(&old, &v); assert(at(146, 50) == UI_RGB(56, 168, 88) && at(146, 104) == UI_RGB(112, 112, 128) && at(146, 160) == UI_RGB(70, 132, 214));
+    shot("teach");
+    memset(v.pty.tag, 0, sizeof(v.pty.tag)); v.pty.mode = BUI_PTY_SWITCH; DevCheckBattle(&old, &v);
+
+    /* FORCED (a Pokemon must be sent out): CANCEL grey, never taken; FireRed's cursor can still be on it (SEND OUT
+     * then fails), and then it is the chosen key, sunk with its LED, grey all the same; a touch on a bay is chosen */
+    v.pty.mode = BUI_PTY_FORCED; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 275, 205) == -1 && CtrBattleUi_Hit(&v, 302, 190) == -1);
+    assert(at(245, 200) == DevBlend(DEV_SHELL_RED, DevKeyFace(DEV_LOOK_DARK, 0), 128) && at(302, 190) != DevBlend(DEV_SHELL_RED, DEV_LED, 128));
+    shot("forced");
+    v.pty.cursor = -1; v.pty.button = 1; DevCheckBattle(&old, &v); AssertKey(DevPtyBay(0), DEV_LOOK_KEY, 0);
+    assert(at(245, 200) == DevBlend(DEV_SHELL_RED, DevKeyFace(DEV_LOOK_DARK, 1), 128) && at(302, 190) == DevBlend(DEV_SHELL_RED, DEV_LED, 128));
+    assert(CtrBattleUi_Hit(&v, 275, 205) == -1);
+    shot("forced_cancel");
+    v.pressed = BUI_PTY_SLOT + 1; DevCheckBattle(&old, &v); AssertKey(DevPtyBay(1), DEV_LOOK_KEY, 1);
+    assert(at(302, 190) != DevBlend(DEV_SHELL_RED, DEV_LED, 128));
+    v.pressed = -1; v.pty.cursor = 0; v.pty.button = -1; DevCheckBattle(&old, &v);
+    v.pty.mode = BUI_PTY_MULTI; v.pty.button = 1; DevCheckBattle(&old, &v);
+    AssertHits(BatHitV, &v, kDevPtyConfirm, BUI_PTY_CONFIRM); AssertHits(BatHitV, &v, kDevPtyCancelLow, BUI_PTY_CANCEL); AssertKey(kDevPtyCancelLow, DEV_LOOK_DARK, 1);
+    /* picking several: the order on the picked bays, a Pokemon that may not enter grey; the cursor on CONFIRM */
+    v.pty.cursor = -1; v.pty.button = 0; v.pty.entry[0] = BUI_PTY_FIRST + 1; v.pty.entry[1] = BUI_PTY_FIRST; v.pty.entry[2] = BUI_PTY_NOT_ABLE;
+    v.pty.entry[3] = v.pty.entry[4] = BUI_PTY_ABLE; DevCheckBattle(&old, &v);
+    AssertKey(kDevPtyConfirm, DEV_LOOK_KEY, 1); AssertKey(DevPtyBay(2), DEV_LOOK_FAINT, 0); AssertKey(DevPtyBay(0), DEV_LOOK_KEY, 0);
+    assert(at(146, 50) == DEV_BLUE_INK && at(302, 50) == DEV_BLUE_INK && at(146, 160) != DEV_BLUE_INK);
+    shot("multi");
+    v.pty.button = 1; v.pty.cursor = 0; memset(v.pty.entry, 0, sizeof(v.pty.entry)); DevCheckBattle(&old, &v);
+    v.pty.mode = BUI_PTY_SWITCH; v.pty.panel = BUI_PTY_ACTIONS; v.pty.menuCount = 3; v.pty.menuCursor = 0; v.pty.menuDark = 0x04; DevCheckBattle(&old, &v);
+    for (i = 0; i < 3; ++i) AssertHits(BatHitV, &v, DevPtyMenuKey(3, i), BUI_PTY_MENU + i);
+    AssertKey(DevPtyMenuKey(3, 2), DEV_LOOK_DARK, 0); assert(CtrBattleUi_Hit(&v, 100, 20) == -1);           /* bays: not while a menu is open */
+    /* the slim bays: the chosen one sunk, the hole; the menu's screen with the Party's words; the first row chosen */
+    AssertKey(DevPtySlim(3, 0), DEV_LOOK_KEY, 1); AssertKey(DevPtySlim(3, 1), DEV_LOOK_KEY, 0); AssertKey(DevPtySlim(3, 3), DEV_LOOK_FAINT, 0);
+    assert(at(100, 8 + 28 * 5 + 12) == DevBlend(DEV_SHELL_RED, 0, 72) && Count(14, 188, 292, 38, DEV_INK) > 0);
+    AssertKey(DevPtyMenuKey(3, 0), DEV_LOOK_KEY, 1); AssertKey(DevPtyMenuKey(3, 1), DEV_LOOK_KEY, 0);
+    v.pressed = BUI_PTY_MENU + 1; DevCheckBattle(&old, &v); AssertKey(DevPtyMenuKey(3, 1), DEV_LOOK_KEY, 1); AssertKey(DevPtyMenuKey(3, 0), DEV_LOOK_KEY, 0);
+    v.pressed = -1; DevCheckBattle(&old, &v);
+    strcpy(v.pty.menuName[0], "SHIFT"); strcpy(v.pty.menuName[1], "SUMMARY"); strcpy(v.pty.menuName[2], "CANCEL"); DevCheckBattle(&old, &v);
+    shot("menu3");
+    strcpy(v.pty.menuName[0], "SUMMARY"); strcpy(v.pty.menuName[1], "SWITCH"); strcpy(v.pty.menuName[2], "ITEM");
+    v.pty.menuCount = 6; v.pty.menuBlue = 0x18; v.pty.menuDark = 0x20; DevCheckBattle(&old, &v);
+    assert(CtrBattleUi_Hit(&v, 175, 20) == BUI_PTY_MENU && CtrBattleUi_Hit(&v, 175, 76) == BUI_PTY_MENU + 2 && CtrBattleUi_Hit(&v, 269, 20) == BUI_PTY_MENU + 3 && CtrBattleUi_Hit(&v, 269, 76) == BUI_PTY_MENU + 5);
+    /* field moves in blue, CANCEL dark; the slim bays narrowed */
+    assert(Count(226, 8, 86, 24, DEV_BLUE_INK) > 0 && Count(226, 36, 86, 24, DEV_BLUE_INK) > 0 && Count(132, 8, 86, 54, DEV_BLUE_INK) == 0);
+    AssertKey(DevPtyMenuKey(6, 5), DEV_LOOK_DARK, 0); assert(at(128, 20) == DEV_SHELL_RED);
+    v.pty.caption[0] = 0; strcpy(v.pty.caption, "Do what with this POK\xC3\xA9MON?"); DevCheckBattle(&old, &v);
+    shot("menu6");
+    v.pty.menuCount = 8; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 269, 104) == BUI_PTY_MENU + 7);
+    {
+        static const char *const kEight[8] = {"SUMMARY", "CUT", "FLY", "SURF", "STRENGTH", "SWITCH", "ITEM", "CANCEL"};
+
+        for (i = 0; i < 8; ++i) strcpy(v.pty.menuName[i], kEight[i]);
+        v.pty.menuBlue = 0x1E; v.pty.menuDark = 0x80; v.pty.menuCursor = 3; DevCheckBattle(&old, &v);
+        AssertKey(DevPtyMenuKey(8, 3), DEV_LOOK_KEY, 1); AssertKey(DevPtyMenuKey(8, 7), DEV_LOOK_DARK, 0);
+        shot("menu8");
+        /* a long word on a chosen key clears its LED (a German field move) */
+        strcpy(v.pty.menuName[1], "ZERTRUEMMERER"); v.pty.menuCursor = 1; DevCheckBattle(&old, &v);
+        assert(at(209, 44) == DEV_LED && Count(205, 40, 12, 10, DEV_BLUE_INK) == 0 && Count(140, 40, 64, 10, DEV_BLUE_INK) > 0);
+        strcpy(v.pty.menuName[1], "CUT");
+        v.pty.menuCursor = 0;
+    }
+    v.pty.panel = BUI_PTY_YESNO; v.pty.menuCount = 2; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 259, 20) == BUI_PTY_MENU && CtrBattleUi_Hit(&v, 259, 48) == BUI_PTY_MENU + 1);
+    strcpy(v.pty.menuName[0], "YES"); strcpy(v.pty.menuName[1], "NO"); v.pty.menuBlue = v.pty.menuDark = 0;
+    strcpy(v.pty.caption, "Switch places?"); DevCheckBattle(&old, &v); AssertKey(DevPtyMenuKey(2, 1), DEV_LOOK_KEY, 0);
+    shot("yesno");
+    v.pty.menuName[5][0] = 'X'; v.pty.menuBlue = 0x20; assert(DevCheckBattle(&old, &v).count == 0);      /* rows past the menu: not drawn */
+    v.pty.panel = BUI_PTY_TEXT; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 10, 10) == BUI_PTY_MESSAGE && CtrBattleUi_Hit(&v, 300, 230) == BUI_PTY_MESSAGE);
+    /* a message: on the screen, the keys grey and none chosen */
+    strcpy(v.pty.message, "CHARMELEON is already in battle!"); DevCheckBattle(&old, &v);
+    assert(at(11, 33) == dim && at(241, 205) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, 128) && Count(14, 186, 210, 40, DEV_INK) > 0);
+    v.pressed = BUI_PTY_MESSAGE; v.pty.menuCount = 5; assert(DevCheckBattle(&old, &v).count == 0);         /* nothing to sink */
+    v.pressed = -1; v.pty.menuCount = 2;
+    shot("message");
+    v.pty.panel = BUI_PTY_LEVELUP; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 160, 100) == BUI_PTY_MESSAGE); AssertKey(kDevPtyCancel, DEV_LOOK_KEY, 1);
+    /* a level up: the stats and their gains on the tall screen, the message, OK */
+    {
+        static const uint16_t kStat[6] = {120, 80, 74, 86, 72, 98};
+
+        v.pty.lvSlot = 0; v.pty.lvLevel = 37;
+        for (i = 0; i < 6; ++i) { v.pty.lvStat[i] = kStat[i]; v.pty.lvGain[i] = (int16_t)(2 + (i & 1)); }
+        strcpy(v.pty.message, "CHARMELEON grew to Lv. 37!"); DevCheckBattle(&old, &v);
+        assert(at(302, 190) == DEV_LED && Count(14, 14, 292, 154, DEV_FX_SUPER) > 0 && Count(14, 14, 292, 20, DEV_INK) > 0);
+        assert(Count(14, 186, 210, 40, DEV_INK) > 0 && at(20, 20) == DEV_PAPER);
+        v.pressed = BUI_PTY_MESSAGE; v.pty.cursor = 3; v.pty.mode = BUI_PTY_TARGET; assert(DevCheckBattle(&old, &v).count == 0);
+        v.pressed = -1; v.pty.cursor = 0; v.pty.mode = BUI_PTY_SWITCH; DevCheckBattle(&old, &v);
+        shot("levelup");
+    }
+    PtyUpperCase(v);
+    CtrBattleUi_Draw(canvas, &old);
+    v.pty.button = -1; v.pty.caption[0] = 0;                                   /* the cursor on a slot again, no prompt */
+    v.pty.panel = BUI_PTY_NONE; DevCheckBattle(&old, &v); v.pty.iconFrame[0] ^= 1; assert(DevCheckBattle(&old, &v).count == 0);   /* icons are not animated in B */
+    /* to the battle's commands and the Bag and back: the whole screen each way */
+    v.state = BUI_ACTION; assert(DevWhole(DevCheckBattle(&old, &v)));
+    v.state = BUI_PARTY; assert(DevWhole(DevCheckBattle(&old, &v)));
+    v.state = BUI_BAG; assert(DevWhole(DevCheckBattle(&old, &v)));
+    v.state = BUI_PARTY; assert(DevWhole(DevCheckBattle(&old, &v)));
+    v.pty.egg[1] = 1; DevCheckBattle(&old, &v); AssertHits(BatHitV, &v, DevPtyBay(1), BUI_PTY_SLOT + 1);   /* an egg: no bar, still a bay */
+    assert(Count(164 + 38, 8 + 29, 100, 9, DEV_HP_FRAME) == 0 && Count(164 + 38, 8 + 29, 100, 9, DEV_HP_LABEL) == 0);
+    for (i = 1; i < 6; ++i) v.pty.present[i] = 0;                                                          /* a party of one */
+    DevCheckBattle(&old, &v);
+    for (i = 1; i < 6; ++i) { CtrPokeTouchRect r = DevPtyBay(i); assert(CtrBattleUi_Hit(&v, r.x + 74, r.y + 40) == -1 && at(r.x + 74, r.y + 40) == DevBlend(DEV_SHELL_RED, 0, 72)); }
+    shot("one");
+    assert(sDevKeyCut == 0);                      /* main prints PASS device party */
+}
+
+/* ---- summary: INFO, STATS (IV/EV), MOVES, the move details, MEMO (boards B · Resumo) ---------------------------------- */
+
+static int SumHitV(const void *view, int x, int y)
+{
+    return CtrSummaryUi_Hit((const CtrSummaryUiView *)view, x, y);
+}
+
+/* The boards' Pokemon: CHARMELEON (its species' own name), male, Lv36, No.005, OT RED, no item, ADAMANT (3), BLAZE,
+ * 112/112; ATTACK 84, DEFENSE 66, SP. ATK 70, SP. DEF 68, SPEED 85, 41 % of the way to Lv37 (Medium Slow); FLAMETHROWER
+ * 15/15 (FIRE, 95, 100), SCRATCH 15/35, GROWL 40/40 (a status move), BRICK BREAK 3/15 (FIGHTING). Strings as FireRed
+ * has them (the B views are upper case); FireRed's cursor on the first move. */
+static CtrSummaryUiView SumBoard(void)
+{
+    static const char *const kMove[4] = {"FLAMETHROWER", "SCRATCH", "GROWL", "BRICK BREAK"};
+    static const char *const kType[4] = {"FIRE", "NORMAL", "NORMAL", "FIGHTING"};
+    static const unsigned char kTypeId[4] = {10, 0, 0, 1};
+    static const char *const kPp[4] = {"15/15", "15/35", "40/40", "3/15"};
+    static const char *const kPower[4] = {"95", "40", "---", "75"};
+    static const char *const kStat[5] = {"84", "66", "70", "68", "85"};
+    static const unsigned char kIv[6] = {25, 30, 14, 31, 19, 28}, kEv[6] = {6, 0, 0, 252, 0, 252};
+    CtrSummaryUiView v;
+    CtrSummaryView *d = &v.data;
+
+    memset(&v, 0, sizeof(v));
+    v.pressed = -1;
+    v.icon = 5;
+    d->serial = 1;
+    d->origin = CTR_SUMMARY_FIELD_PARTY;
+    d->page = SUI_PAGE_INFO;
+    strcpy(d->nickname, "CHARMELEON");
+    strcpy(d->species, "CHARMELEON");
+    strcpy(d->level, "36");
+    strcpy(d->gender, "M");
+    strcpy(d->status, "OK");
+    strcpy(d->dex, "005");
+    strcpy(d->ot, "RED");
+    strcpy(d->id, "24601");
+    strcpy(d->item, "NONE");
+    strcpy(d->types[0], "FIRE");
+    strcpy(d->types[1], "FIRE");
+    d->typeIds[0] = d->typeIds[1] = 10;
+    strcpy(d->nature, "ADAMANT");
+    d->natureId = 3;
+    strcpy(d->hp, "112/112");
+    d->hpCur = d->hpMax = 112;
+    for (int i = 0; i < 5; ++i)
+        strcpy(d->stats[i], kStat[i]);
+    strcpy(d->exp, "41000");
+    strcpy(d->nextExp, "2808");
+    strcpy(d->ability, "BLAZE");
+    strcpy(d->abilityDesc, "Powers up FIRE moves in a pinch.");
+    strcpy(d->memo, "ADAMANT nature.\nMet at Lv5, PALLET TOWN.");
+    for (int i = 0; i < 4; ++i) {
+        d->moves[i] = (unsigned short)(i + 1);
+        strcpy(d->moveNames[i], kMove[i]);
+        strcpy(d->pp[i], kPp[i]);
+        strcpy(d->moveTypes[i], kType[i]);
+        d->moveTypeIds[i] = kTypeId[i];
+        strcpy(d->power[i], kPower[i]);
+        strcpy(d->accuracy[i], "100");
+    }
+    memcpy(d->iv, kIv, sizeof(kIv));
+    memcpy(d->ev, kEv, sizeof(kEv));
+    d->hpType = 12;
+    d->hpPower = 70;
+    strcpy(d->hpTypeName, "GRASS");
+    return v;
+}
+
+/* With small letters wider than capitals: `a` and `b` drawn alike (or not, `same` 0). */
+static void SumSamePixels(const CtrSummaryUiView *a, const CtrSummaryUiView *b, int same)
+{
+    static uint16_t first[W * H];
+    static uint8_t keepWidths[256], keepSmall[256];
+
+    memcpy(keepWidths, fontWidths, sizeof(keepWidths));
+    memcpy(keepSmall, smallWidths, sizeof(keepSmall));
+    for (unsigned c = 0xd5; c <= 0xee; ++c)        /* a..z */
+        fontWidths[c] = smallWidths[c] = 7;
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    CtrSummaryUi_Draw(canvas, a);
+    memcpy(first, canvas, sizeof(first));
+    CtrSummaryUi_Draw(canvas, b);
+    if ((memcmp(first, canvas, sizeof(first)) == 0) != same) {
+        fprintf(stderr, "%s: page %d, trainer %d, names %s / %s: drawn %s\n", gSuite, a->data.page, a->trainer,
+                a->data.nickname, b->data.nickname, same ? "differently" : "alike");
+        assert(0);
+    }
+    memcpy(fontWidths, keepWidths, sizeof(keepWidths));
+    memcpy(smallWidths, keepSmall, sizeof(keepSmall));
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+}
+
+/* Upper case (decision 5): FireRed's names arrive in capitals or in recipe 0251's title case and are drawn alike, on
+ * every page; the Pokemon's name in capitals when it is its species' own, a nickname as typed. */
+static void SumUpperCase(CtrSummaryUiView v)
+{
+    static const int kPage[5] = {SUI_PAGE_INFO, SUI_PAGE_SKILLS, SUI_PAGE_MOVES, SUI_PAGE_MOVES_INFO, SUI_PAGE_INFO};
+    CtrSummaryUiView proper;
+
+    for (int k = 0; k < 5; ++k) {
+        v.data.page = kPage[k];
+        v.trainer = k == 4;
+        v.data.cursor = 0;
+        proper = v;
+        strcpy(proper.data.nickname, "Charmeleon");
+        strcpy(proper.data.species, "Charmeleon");
+        strcpy(proper.data.item, "None");
+        strcpy(proper.data.types[0], "Fire");
+        strcpy(proper.data.types[1], "Fire");
+        strcpy(proper.data.nature, "Adamant");
+        strcpy(proper.data.ability, "Blaze");
+        strcpy(proper.data.moveNames[0], "Flamethrower");
+        strcpy(proper.data.moveNames[3], "Brick Break");
+        strcpy(proper.data.moveTypes[0], "Fire");
+        strcpy(proper.data.hpTypeName, "Grass");
+        SumSamePixels(&v, &proper, 1);
+    }
+    v.data.page = SUI_PAGE_INFO;
+    v.trainer = 0;
+    strcpy(v.data.nickname, "SPARKY");
+    proper = v;
+    strcpy(proper.data.nickname, "Sparky");
+    SumSamePixels(&v, &proper, 0);
+}
+
+/* The plan's suite (the tabs, the arrows, BACK, the switch and the move rows hit where they are drawn; the chosen tab;
+ * the arrows off in the move details; CANCEL inverted under FireRed's cursor; an egg's pages; the frame while loading),
+ * the boards' pieces, what is not drawn, upper case, sparse data, then the states for the eye. */
+static void SuiteSummary(void)
+{
+    CtrSummaryUiView sv = SumBoard(), so = sv;
+    CtrPokeTouchRect r;
+    uint16_t dimKey = DevBlend(DEV_SHELL_RED, DEV_KEY, 128), dimDark = DevBlend(DEV_SHELL_RED, DEV_BEZEL, 128);
+    uint16_t bar = UI_RGB(0x8A, 0x94, 0xA8), fire = UiTypeColor(10), red = GbaColor(SUM_ART_RED), blue = GbaColor(SUM_ART_BLUE);
+    int i;
+
+    assert(CtrNature_Up(3) == 0 && CtrNature_Down(3) == 2 && CtrNature_Up(15) == 2 && CtrNature_Down(15) == 0
+           && CtrNature_Up(10) == 4 && CtrNature_Up(0) == -1 && CtrNature_Down(24) == -1 && CtrNature_Up(25) == -1);
+    for (i = 0; i < 25; ++i) {          /* the five with n / 5 == n % 5 are neutral; each other raises one stat, lowers another */
+        int up = CtrNature_Up(i), down = CtrNature_Down(i);
+
+        assert(i / 5 == i % 5 ? up == -1 && down == -1 : up >= 0 && up <= 4 && down >= 0 && down <= 4 && up != down);
+    }
+    sumArt = 1;
+    CtrSummaryUi_Draw(canvas, &so);
+    DevCheckSummary(&so, &sv);
+    for (i = 0; i < 4; ++i) AssertHits(SumHitV, &sv, kDevSumTab[i], SUI_HIT_TAB + i);
+    AssertHits(SumHitV, &sv, kDevSumPrev, SUI_HIT_PREV); AssertHits(SumHitV, &sv, kDevSumNext, SUI_HIT_NEXT); AssertHits(SumHitV, &sv, kDevSumBack, SUI_HIT_BACK);
+    AssertKey(kDevSumTab[0], DEV_LOOK_KEY, 1); AssertKey(kDevSumPrev, DEV_LOOK_DARK, 0);
+    /* INFO, the board's pieces: the chosen tab's LED, the others up; the arrows and BACK dark with their light ink; the
+     * left column's paper, the picture in its box, the FIRE chip; the rows' labels and values, the HP bar, the EXP chip
+     * and bar; the ability's name and its description on the note */
+    assert(at(54, 15) == DEV_LED);
+    for (i = 1; i < 4; ++i) AssertKey(kDevSumTab[i], DEV_LOOK_KEY, 0);
+    AssertKey(kDevSumNext, DEV_LOOK_DARK, 0); AssertKey(kDevSumBack, DEV_LOOK_DARK, 0);
+    assert(Count(252, 8, 28, 24, DEV_DARK_INK) > 0 && Count(284, 8, 28, 24, DEV_DARK_INK) > 0 && Count(244, 188, 68, 42, DEV_DARK_INK) > 0);
+    assert(at(16, 48) == DEV_PAPER2 && at(116, 172) == DEV_PAPER2 && at(119, 48) == DEV_PAPER);
+    assert(at(66, 114) == red && at(35, 83) == DEV_PAPER2 && at(97, 145) == DEV_PAPER2 && Count(34, 82, 64, 64, blue) > 0);
+    assert(at(21, 155) == fire && Count(20, 154, 92, 12, fire) > 0);
+    assert(Count(126, 50, 172, 96, DEV_INK) > 0 && Count(126, 50, 60, 96, DEV_INK2) > 0);
+    assert(at(126, 150) == DEV_HP_FRAME && at(128, 152) == DEV_HP_GREEN && at(296, 152) == DEV_HP_GREEN);
+    assert(at(126, 159) == DEV_HP_FRAME && Count(126, 159, 172, 9, DEV_EXP_LABEL) > 0 && Count(126, 159, 172, 9, DEV_EXP) > 0);
+    assert(Count(14, 194, 216, 32, DEV_SUNK_INK) > 0 && Count(14, 194, 216, 32, DEV_INK) > 0);
+    shot("info");
+
+    sv.data.page = SUI_PAGE_SKILLS; DevCheckSummary(&so, &sv); assert(CtrSummaryUi_Hit(&sv, 263, 55) == SUI_HIT_IVTOGGLE); AssertKey(kDevSumTab[1], DEV_LOOK_KEY, 1);
+    /* STATS: the switch hit round where it is drawn, its STATS half shown; the nature's name; ATTACK raised (red, ▲),
+     * SP. ATK lowered (blue, ▼), the others in the secondary ink; a bar each, HP's (the largest) full; the EXP line */
+    AssertRowHits(SumHitV, &sv, kDevSumIvSwitchHit, SUI_HIT_IVTOGGLE); AssertKey(kDevSumTab[0], DEV_LOOK_KEY, 0);
+    assert(Count(229, 50, 34, 11, DEV_SHELL_BLUE) > 0 && Count(264, 50, 33, 11, DEV_SHELL_BLUE) == 0 && at(228, 55) == DEV_BUTTON_EDGE);
+    assert(Count(126, 49, 96, 13, DEV_INK2) > 0);
+    assert(Count(126, 79, 64, 13, DEV_STAT_UP) > 0 && Count(126, 107, 64, 13, DEV_BLUE_INK) > 0);
+    assert(Count(126, 65, 172, 84, DEV_STAT_UP) == Count(126, 79, 64, 13, DEV_STAT_UP));
+    assert(Count(126, 65, 172, 84, DEV_BLUE_INK) == Count(126, 107, 64, 13, DEV_BLUE_INK));
+    for (i = 0; i < 6; ++i) {
+        assert(Count(126, 65 + 14 * i, 172, 13, bar) > 0 && Count(282, 65 + 14 * i, 16, 13, DEV_INK) > 0);
+        if (i != 1 && i != 3) assert(Count(126, 65 + 14 * i, 48, 13, DEV_INK2) > 0);
+    }
+    assert(Count(126, 65, 172, 13, UI_RGB(0xE2, 0xE2, 0xDA)) == 0 && Count(126, 93, 172, 13, UI_RGB(0xE2, 0xE2, 0xDA)) > 0);
+    assert(Count(126, 152, 172, 9, DEV_EXP) > 0 && Count(126, 152, 172, 9, DEV_INK2) > 0);
+    assert(Count(14, 194, 216, 32, DEV_SUNK_INK) > 0);
+    shot("stats");
+    /* a neutral nature marks nothing; a held touch on the switch draws nothing */
+    sv.data.natureId = 6; DevCheckSummary(&so, &sv);
+    assert(Count(126, 65, 172, 84, DEV_STAT_UP) == 0 && Count(126, 65, 172, 84, DEV_BLUE_INK) == 0);
+    sv.data.natureId = 3; DevCheckSummary(&so, &sv);
+    sv.pressed = SUI_HIT_IVTOGGLE; assert(DevCheckSummary(&so, &sv).count == 0);
+    sv.pressed = -1; DevCheckSummary(&so, &sv);
+
+    sv.ivView = 1; DevCheckSummary(&so, &sv);
+    sv.ivView = 0; assert(DevWhole(DevCheckSummary(&so, &sv)));                 /* the switch: the screen whole */
+    sv.ivView = 1; assert(DevWhole(DevCheckSummary(&so, &sv)));
+    /* IV / EV: the switch's other half; a bar each (the IVs), Hidden Power's type and power on the last line */
+    assert(Count(229, 50, 34, 11, DEV_SHELL_BLUE) == 0 && Count(264, 50, 33, 11, DEV_SHELL_BLUE) > 0);
+    for (i = 0; i < 6; ++i) assert(Count(126, 65 + 14 * i, 172, 13, bar) > 0);
+    assert(Count(126, 150, 172, 13, UiTypeColor(12)) > 0 && Count(126, 150, 172, 13, DEV_EXP) == 0);
+    shot("ivev");
+
+    sv.data.page = SUI_PAGE_MOVES; DevCheckSummary(&so, &sv);
+    for (i = 0; i < 4; ++i) AssertRowHits(SumHitV, &sv, DevSumRow(i), SUI_HIT_MOVE + i);
+    assert(CtrSummaryUi_Hit(&sv, 263, 55) != SUI_HIT_IVTOGGLE && CtrSummaryUi_Hit(&sv, 212, 159) == -1);
+    /* MOVES: the rows on the paper, none chosen, each with its type's band; SCRATCH's PP at half, BRICK BREAK's at a
+     * quarter (FireRed's colours); the icon, the name and the level, a rule, the Pokemon's type; no CANCEL row */
+    AssertKey(kDevSumTab[2], DEV_LOOK_KEY, 1);
+    for (i = 0; i < 4; ++i) assert(at(126, DevSumRow(i).y + 2) == DEV_PAPER);
+    assert(at(132, 58) == fire && at(132, 82) == UiTypeColor(0) && at(132, 130) == UiTypeColor(1));
+    assert(Count(250, 76, 50, 22, DEV_PP_HALF) > 0 && Count(250, 124, 50, 22, DEV_PP_QUARTER) > 0 && Count(250, 52, 50, 22, DEV_INK) > 0);
+    assert(at(30, 62) == red && at(60, 62) != red && at(20, 90) == DEV_HP_TRACK && at(21, 98) == fire);
+    assert(Count(124, 148, 176, 22, DEV_INK) == 0 && Count(124, 148, 176, 22, DEV_INK2) == 0);
+    assert(Count(14, 194, 216, 32, DEV_INK) > 0);
+    shot("moves");
+    /* a held touch inverts its row */
+    sv.pressed = SUI_HIT_MOVE + 2; DevCheckSummary(&so, &sv); assert(at(126, 102) == DEV_BEZEL && at(126, 54) == DEV_PAPER);
+    sv.pressed = -1; DevCheckSummary(&so, &sv);
+
+    /* the details: FireRed's cursor inverts its row; the move's type and category, POWER and ACCURACY in the left
+     * column; its description on the note; the arrows grey and not taken; CANCEL under the moves */
+    sv.data.page = SUI_PAGE_MOVES_INFO; sv.data.cursor = 0; strcpy(sv.data.moveDesc, "A powerful fire attack that may inflict a burn.");
+    DevCheckSummary(&so, &sv);
+    AssertKey(kDevSumTab[2], DEV_LOOK_KEY, 1);
+    assert(at(126, 54) == DEV_BEZEL && Count(124, 52, 176, 22, DEV_PAPER) > 0 && at(126, 78) == DEV_PAPER);
+    assert(at(21, 98) == fire && Count(20, 97, 92, 12, DEV_CAT_SPECIAL) > 0 && Count(20, 116, 92, 30, DEV_INK) > 0 && Count(20, 116, 92, 30, DEV_INK2) > 0);
+    assert(at(255, 20) == dimDark && at(287, 20) == dimDark && Count(124, 148, 176, 22, DEV_INK2) > 0);
+    AssertRowHits(SumHitV, &sv, DevSumRow(0), SUI_HIT_MOVE);
+    assert(Count(14, 194, 216, 32, DEV_INK) > 0);
+    shot("details");
+    sv.data.cursor = 2; strcpy(sv.data.moveDesc, "Reduces the foe's ATTACK."); DevCheckSummary(&so, &sv);   /* GROWL: no category */
+    assert(at(126, 102) == DEV_BEZEL && Count(20, 97, 92, 12, DEV_CAT_SPECIAL) == 0 && Count(20, 97, 92, 12, DEV_CAT_PHYSICAL) == 0);
+    sv.data.cursor = 3; strcpy(sv.data.moveDesc, "Destroys barriers like LIGHT SCREEN."); DevCheckSummary(&so, &sv);   /* FIGHTING: physical */
+    assert(Count(20, 97, 92, 12, DEV_CAT_PHYSICAL) > 0);
+    sv.data.moveDesc[0] = 0;                                                    /* CANCEL: no description */
+    sv.data.page = SUI_PAGE_MOVES_INFO; sv.data.cursor = 4; DevCheckSummary(&so, &sv);
+    AssertRowHits(SumHitV, &sv, DevSumRow(4), SUI_HIT_CANCEL); assert(at(130, 159) == DEV_BEZEL);        /* the cursor on CANCEL: its row inverted */
+    assert(CtrSummaryUi_Hit(&sv, 266, 20) == -1 && CtrSummaryUi_Hit(&sv, 298, 20) == -1);                 /* ▲▼ off in the details */
+    assert(Count(124, 148, 176, 22, DEV_PAPER) > 0 && at(126, 54) == DEV_PAPER);
+    assert(Count(14, 194, 216, 32, DEV_INK) == 0);                              /* CANCEL: nothing to describe */
+    shot("details_cancel");
+    /* a touch held on what is not drawn (the review's race: FireRed starts a swap under a touch on the CANCEL it hides; a
+     * slot without a move) chooses nothing: FireRed's cursor row stays inverted, and the touch's end draws nothing */
+    sv.data.cursor = 1; DevCheckSummary(&so, &sv);
+    sv.data.swapping = 1; sv.data.swapCursor = 1; sv.pressed = SUI_HIT_CANCEL; DevCheckSummary(&so, &sv);
+    assert(at(126, 78) == DEV_BEZEL);
+    sv.pressed = -1; assert(DevCheckSummary(&so, &sv).count == 0);
+    sv.data.swapping = 0; sv.data.moves[3] = 0; DevCheckSummary(&so, &sv);
+    sv.pressed = SUI_HIT_MOVE + 3; DevCheckSummary(&so, &sv); assert(at(126, 78) == DEV_BEZEL);
+    sv.pressed = -1; assert(DevCheckSummary(&so, &sv).count == 0);
+    sv.data.moves[3] = 4; sv.data.cursor = 4; DevCheckSummary(&so, &sv);
+    sv.data.swapping = 1; DevCheckSummary(&so, &sv); assert(CtrSummaryUi_Hit(&sv, 212, 159) == -1);
+    /* a swap: no CANCEL; the move being moved framed, the cursor's row inverted; the hint on the note */
+    sv.data.swapCursor = 1; sv.data.cursor = 2; DevCheckSummary(&so, &sv); assert(CtrSummaryUi_Hit(&sv, 212, 159) == -1);
+    assert(at(130, 159) == DEV_PAPER && Count(124, 148, 176, 22, DEV_INK) == 0 && Count(124, 148, 176, 22, DEV_INK2) == 0);
+    assert(at(124, 86) == DEV_BEZEL && at(126, 86) == DEV_PAPER && at(126, 110) == DEV_BEZEL && Count(14, 194, 216, 32, DEV_INK) > 0);
+    shot("swap");
+    /* a battle's Summary: FireRed moves no move in a battle, so no swap hint on the note */
+    sv.data.origin = CTR_SUMMARY_BATTLE_PARTY; DevCheckSummary(&so, &sv); assert(Count(14, 194, 216, 32, DEV_INK) == 0);
+    sv.data.swapping = 0; DevCheckSummary(&so, &sv); assert(Count(14, 194, 216, 32, DEV_INK) == 0);         /* no description */
+    sv.data.origin = CTR_SUMMARY_FIELD_PARTY; DevCheckSummary(&so, &sv); assert(Count(14, 194, 216, 32, DEV_INK) > 0);
+    sv.data.swapping = 1; DevCheckSummary(&so, &sv);
+    sv.data.swapCursor = 3; assert(DevCheckSummary(&so, &sv).count == 1);
+    strcpy(sv.data.moveDesc, "Reduces the foe's ATTACK."); assert(DevCheckSummary(&so, &sv).count == 0);   /* the hint, not it */
+    sv.data.swapping = 0; sv.data.swapCursor = 0; sv.data.cursor = 4; sv.data.moveDesc[0] = 0; DevCheckSummary(&so, &sv);
+    sv.data.swapCursor = 2; assert(DevCheckSummary(&so, &sv).count == 0);                    /* not swapping: not drawn */
+
+    sv.data.swapping = 0; sv.trainer = 1; sv.data.page = SUI_PAGE_INFO; DevCheckSummary(&so, &sv); AssertKey(kDevSumTab[3], DEV_LOOK_KEY, 1);
+    /* MEMO: the left column as INFO's; OT, ID No., the nature, the ribbons and FireRed's memo; the arrows back; the hint */
+    AssertKey(kDevSumTab[0], DEV_LOOK_KEY, 0); AssertKey(kDevSumPrev, DEV_LOOK_DARK, 0);
+    assert(at(66, 114) == red && at(21, 155) == fire && Count(126, 50, 172, 64, DEV_INK) > 0 && Count(126, 50, 60, 64, DEV_INK2) > 0);
+    assert(Count(126, 116, 172, 56, DEV_INK) > 0 && Count(14, 194, 216, 32, DEV_INK) > 0);
+    shot("memo");
+
+    /* not drawn: where the Summary was opened from, FireRed's readiness, the cursor and a description outside the details,
+     * the IV / EV view outside STATS */
+    sv.data.origin = CTR_SUMMARY_PC_BOX; sv.data.ready = 1; sv.data.cursor = 1; sv.ivView = 0; strcpy(sv.data.moveDesc, "x");
+    assert(DevCheckSummary(&so, &sv).count == 0);
+    sv.data.moveDesc[0] = 0;
+    /* the shell's colour: the whole screen */
+    sv.shell = 2; assert(DevWhole(DevCheckSummary(&so, &sv)) && at(1, 100) == DEV_SHELL_GREEN);
+    sv.shell = 0; DevCheckSummary(&so, &sv);
+    /* the 80x80 picture, whole and centred on the box; without a picture, the icon at 2x in the box */
+    sumArt = 2; sv.data.serial = 2; DevCheckSummary(&so, &sv);
+    assert(at(66, 114) == red && Count(26, 74, 80, 8, blue) > 0 && Count(26, 146, 80, 8, blue) > 0);
+    sumArt = 3; sv.data.serial = 3; DevCheckSummary(&so, &sv);
+    assert(at(34 + 4, 82 + 4) == red && at(34 + 60, 82 + 60) == red && Count(34, 82, 64, 64, blue) == 0);
+    sumArt = 1; sv.data.serial = 1; DevCheckSummary(&so, &sv);
+    SumUpperCase(sv);
+    CtrSummaryUi_Draw(canvas, &so);
+
+    /* a Pokemon with two moves: the others not drawn as moves and not taken */
+    sv.trainer = 0; sv.data.page = SUI_PAGE_MOVES; sv.data.moves[2] = sv.data.moves[3] = 0;
+    sv.data.moveNames[2][0] = sv.data.moveNames[3][0] = sv.data.pp[2][0] = sv.data.pp[3][0] = 0; DevCheckSummary(&so, &sv);
+    for (i = 2; i < 4; ++i) {
+        r = DevSumRow(i);
+        assert(CtrSummaryUi_Hit(&sv, r.x + 80, r.y + 10) == -1 && at(r.x + 8, r.y + 10) != UiTypeColor(0));
+    }
+    sv = SumBoard(); sv.trainer = 1; DevCheckSummary(&so, &sv);
+
+    sv.data.egg = 1; DevCheckSummary(&so, &sv); assert(CtrSummaryUi_Hit(&sv, 96, 20) == -1 && CtrSummaryUi_Hit(&sv, 156, 20) == -1 && CtrSummaryUi_Hit(&sv, 216, 20) == SUI_HIT_TAB + 3);
+    /* an egg: STATS and MOVES grey; its name, no gender, level or types; the memo and how soon it hatches */
+    assert(at(kDevSumTab[1].x + 3, 20) == dimKey && at(kDevSumTab[2].x + 3, 20) == dimKey);
+    AssertKey(kDevSumTab[0], DEV_LOOK_KEY, 0); AssertKey(kDevSumTab[3], DEV_LOOK_KEY, 1);
+    assert(Count(20, 63, 98, 12, DEV_MALE) == 0 && Count(20, 154, 92, 12, fire) == 0);
+    sv.pressed = SUI_HIT_TAB + 1; DevCheckSummary(&so, &sv); AssertKey(kDevSumTab[3], DEV_LOOK_KEY, 1);    /* a grey tab: not chosen */
+    sv.pressed = -1; assert(DevCheckSummary(&so, &sv).count == 0);
+    strcpy(sv.data.nickname, "EGG"); strcpy(sv.data.species, "EGG"); strcpy(sv.data.hatch, "It appears to move occasionally. It may be close to hatching.");
+    DevCheckSummary(&so, &sv); assert(Count(126, 50, 172, 120, DEV_INK) > 0);
+    shot("egg");
+    sv.trainer = 0; DevCheckSummary(&so, &sv); assert(Count(126, 50, 172, 120, DEV_INK) > 0 && Count(20, 154, 92, 12, fire) == 0);
+    shot("egg_info");
+    sv.trainer = 1;
+
+    sv.loading = 1; DevCheckSummary(&so, &sv); assert(CtrSummaryUi_Hit(&sv, 36, 20) == -1 && CtrSummaryUi_Hit(&sv, 278, 209) == SUI_HIT_BACK);
+    /* loading: the frame only, every tab and arrow grey, BACK taken */
+    for (i = 0; i < 4; ++i) assert(at(kDevSumTab[i].x + 3, 20) == dimKey);
+    assert(at(255, 20) == dimDark && at(287, 20) == dimDark); AssertKey(kDevSumBack, DEV_LOOK_DARK, 0);
+    assert(Count(14, 46, 292, 128, DEV_INK) == 0 && Count(14, 194, 216, 32, DEV_INK) == 0);
+    sv.pressed = SUI_HIT_BACK; DevCheckSummary(&so, &sv); AssertKey(kDevSumBack, DEV_LOOK_DARK, 1);
+    sumArt = 0;
+    assert(sDevKeyCut == 0);                      /* main prints PASS device summary */
+}
+
+/* ---- bag: the field Bag, a case, a mart's BUY, the item PC, the mailbox, the battle Bag (boards B · BAG) -------------- */
+
+static int BagHitV(const void *view, int x, int y)
+{
+    return CtrPokeTouch_BagHit((const CtrPokeTouchView *)view, x, y);
+}
+
+/* The board's Items pocket: the first eight of nine, FireRed's cursor on SUPER POTION (row 1) with its description; no
+ * pocket asked for; the item's menu (USE GIVE TOSS REGISTER CANCEL, and CHECK before CANCEL for a menu of six) ready for
+ * its state. Names as FireRed has them. */
+static const struct { const char *name; int qty; } kBagItem[8] = {
+    {"POTION", 5}, {"SUPER POTION", 2}, {"ANTIDOTE", 3}, {"PARLYZ HEAL", 1}, {"ESCAPE ROPE", 2}, {"REPEL", 4},
+    {"FULL HEAL", 1}, {"MAX REPEL", 3},
+};
+/* The selection's description: port-written words, as long as a game description (three lines of the small font). */
+static const char kBagDesc[] = "Port-written words for this test. They stand in for what a POK\xC3\xA9MON item says here.";
+
+static CtrPokeTouchView BagBoard(void)
+{
+    static const char *const kMenu[6] = {"USE", "GIVE", "TOSS", "REGISTER", "CANCEL", "CANCEL"};
+    CtrPokeTouchView v;
+    CtrPokeTouchBag *b = &v.bag;
+
+    memset(&v, 0, sizeof(v));
+    v.selected = v.pressed = PT_NONE;
+    v.optPressed = -1;
+    b->on = 1;
+    b->kind = PT_BAG_KIND_BAG;
+    b->asked = 0xFF;
+    b->state = PT_BAG_STATE_LIST;
+    b->count = 9;
+    b->cursor = 1;
+    b->moveType = -1;
+    b->pressed = -1;
+    for (int i = 0; i < 8; ++i) {
+        b->row[i].item = (uint16_t)(13 + i);
+        b->row[i].qty = (uint16_t)kBagItem[i].qty;
+        strcpy(b->row[i].name, kBagItem[i].name);
+    }
+    b->selItem = 14;
+    strcpy(b->selName, "SUPER POTION");
+    strcpy(b->selDesc, kBagDesc);
+    for (int i = 0; i < 6; ++i)
+        strcpy(b->menuName[i], kMenu[i]);
+    return v;
+}
+
+/* The battle's Bag with the same rows: the Items pocket, no Berry Pouch; its menu USE, CANCEL. */
+static CtrBattleView BagBattle(void)
+{
+    CtrBattleView v;
+    CtrBattleBag *b = &v.bag;
+
+    memset(&v, 0, sizeof(v));
+    v.state = BUI_BAG;
+    v.pressed = -1;
+    v.cursor = -1;
+    b->count = 9;
+    b->cursor = 1;
+    for (int i = 0; i < 8; ++i) {
+        b->row[i].item = (uint16_t)(13 + i);
+        b->row[i].qty = (uint16_t)kBagItem[i].qty;
+        strcpy(b->row[i].name, kBagItem[i].name);
+    }
+    b->selItem = 14;
+    strcpy(b->selName, "SUPER POTION");
+    strcpy(b->selDesc, kBagDesc);
+    strcpy(b->menuName[0], "USE");
+    strcpy(b->menuName[1], "CANCEL");
+    return v;
+}
+
+/* With small letters wider than capitals: `a` and `b` drawn alike (or not, `same` 0). */
+static void BagSamePixels(const CtrPokeTouchView *a, const CtrPokeTouchView *b, int same)
+{
+    static uint16_t first[W * H];
+    static uint8_t keepWidths[256], keepSmall[256];
+
+    memcpy(keepWidths, fontWidths, sizeof(keepWidths));
+    memcpy(keepSmall, smallWidths, sizeof(keepSmall));
+    for (unsigned c = 0xd5; c <= 0xee; ++c)        /* a..z */
+        fontWidths[c] = smallWidths[c] = 7;
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    CtrPokeTouch_Draw(canvas, a);
+    memcpy(first, canvas, sizeof(first));
+    CtrPokeTouch_Draw(canvas, b);
+    if ((memcmp(first, canvas, sizeof(first)) == 0) != same) {
+        fprintf(stderr, "%s: kind %d state %d, rows %s / %s: drawn %s\n", gSuite, a->bag.kind, a->bag.state,
+                a->bag.row[0].name, b->bag.row[0].name, same ? "differently" : "alike");
+        assert(0);
+    }
+    memcpy(fontWidths, keepWidths, sizeof(keepWidths));
+    memcpy(smallWidths, keepSmall, sizeof(keepSmall));
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+}
+
+/* Upper case (decision 5): FireRed's names in any case drawn in capitals (the rows, the selection, the menu, a case's
+ * name, a TM's type, CLOSE's word); a mailbox's writers as typed. */
+static void BagUpperCase(CtrPokeTouchView v)
+{
+    CtrPokeTouchView other;
+
+    v.bag.state = PT_BAG_STATE_ACTIONS;
+    v.bag.menuCount = 5;
+    other = v;
+    strcpy(other.bag.row[0].name, "Potion");
+    strcpy(other.bag.row[1].name, "Super Potion");
+    strcpy(other.bag.selName, "Super Potion");
+    strcpy(other.bag.menuName[0], "Use");
+    strcpy(other.bag.menuName[4], "Cancel");
+    BagSamePixels(&v, &other, 1);
+    v.bag.state = other.bag.state = PT_BAG_STATE_LIST;
+    v.bag.kind = other.bag.kind = PT_BAG_KIND_TMCASE;
+    strcpy(v.bag.title, "TM CASE");
+    strcpy(other.bag.title, "Tm Case");
+    v.bag.moveType = other.bag.moveType = 4;
+    strcpy(v.bag.typeName, "GROUND");
+    strcpy(other.bag.typeName, "Ground");
+    strcpy(v.bag.closeName, "CLOSE");
+    strcpy(other.bag.closeName, "Close");
+    BagSamePixels(&v, &other, 1);
+    v.bag.kind = other.bag.kind = PT_BAG_KIND_ITEMPC;
+    v.bag.moveType = other.bag.moveType = -1;
+    v.bag.typed = other.bag.typed = 1;
+    strcpy(v.bag.row[1].name, "MOM");
+    strcpy(other.bag.row[1].name, "MOM");
+    strcpy(v.bag.row[0].name, "Rick");
+    strcpy(other.bag.row[0].name, "Rick");
+    BagSamePixels(&v, &other, 1);
+    strcpy(v.bag.row[0].name, "RICK");
+    BagSamePixels(&v, &other, 0);
+}
+
+/* The plan's suite (every key hit where it is drawn, the cursor's row inverted, CLOSE sunk for the game's cursor on its
+ * row, the item's menu, how many, YES / NO, a message, a case, a mart, the battle's Bag), the review's checks (a touch
+ * chooses, what is not drawn, upper case, the shell, the ways in and out), then the states for the eye. */
+static void SuiteBag(void)
+{
+    CtrPokeTouchView v = BagBoard(), old = v, home;
+    CtrBattleView bv = BagBattle(), bo = bv;
+    const uint16_t arrowOff = UI_RGB(0xB8, 0xB0, 0xA0);
+    int i;
+
+    CtrPokeTouch_Draw(canvas, &old);
+    DevCheckTouch(&old, &v);
+    /* the plan's suite */
+    for (i = 0; i < 3; ++i) AssertHits(BagHitV, &v, kDevBagPocket[i], PT_BAG_HIT_TAB + i);
+    AssertKey(kDevBagPocket[0], DEV_LOOK_KEY, 1);
+    v.bag.asked = 2; DevCheckTouch(&old, &v); AssertKey(kDevBagPocket[2], DEV_LOOK_KEY, 1); AssertKey(kDevBagPocket[0], DEV_LOOK_KEY, 0); v.bag.asked = 0xFF;
+    for (i = 0; i < 8; ++i) AssertRowHits(BagHitV, &v, DevBagRow(i, 0), PT_BAG_HIT_ROW + i);
+    assert(at(20, 72) == DEV_BEZEL);                                                                  /* row 1, the cursor's, inverted */
+    assert(CtrPokeTouch_BagHit(&v, 294, 73) == -1 && CtrPokeTouch_BagHit(&v, 294, 147) == PT_BAG_HIT_DOWN);   /* nothing above yet */
+    AssertHits(BagHitV, &v, kDevBagClose, PT_BAG_HIT_CLOSE);
+    DevCheckTouch(&old, &v);
+    /* the board's pieces: the pocket's LED, the rows on the paper with their counts at the right, the cursor's row in
+     * the paper's ink, ▲ grey and ▼ dark, the item's icon and description, CLOSE dark */
+    assert(at(94, 15) == DEV_LED && at(200, 15) != DEV_LED && at(20, 56) == DEV_PAPER);
+    assert(Count(232, 48, 22, 16, DEV_INK) > 0 && Count(232, 64, 22, 16, DEV_PAPER) > 0 && Count(40, 64, 60, 16, DEV_PAPER) > 0);
+    assert(Count(290, 70, 9, 7, arrowOff) > 0 && Count(290, 144, 9, 7, DEV_KEY_INK) > 0);
+    assert(at(22, 51) != DEV_PAPER && Count(18, 199, 24, 24, DEV_PAPER) < 24 * 24 && Count(46, 197, 180, 27, DEV_INK) > 0);
+    AssertKey(kDevBagClose, DEV_LOOK_DARK, 0); assert(Count(244, 190, 68, 40, DEV_DARK_INK) > 0);
+    shot("items");
+    /* a touch chooses: a row (the cursor's not), ▼; ▲ cannot go up, so its touch draws nothing; what the page does not
+     * draw (the column, the bar, BACK, the registered items outside Key Items, the quantity box's maximum) draws nothing */
+    v.bag.pressed = PT_BAG_HIT_ROW + 3; DevCheckTouch(&old, &v); assert(at(20, 104) == DEV_BEZEL && at(20, 72) == DEV_PAPER);
+    v.bag.pressed = PT_BAG_HIT_DOWN; DevCheckTouch(&old, &v); AssertKey(kDevBagDown, DEV_LOOK_KEY, 1); assert(at(20, 72) == DEV_BEZEL);
+    v.bag.pressed = PT_BAG_HIT_CLOSE; DevCheckTouch(&old, &v); AssertKey(kDevBagClose, DEV_LOOK_DARK, 1); assert(at(20, 72) == DEV_PAPER);
+    v.bag.pressed = PT_BAG_HIT_TAB + 1; DevCheckTouch(&old, &v); AssertKey(kDevBagPocket[1], DEV_LOOK_KEY, 1); AssertKey(kDevBagPocket[0], DEV_LOOK_KEY, 0);
+    v.bag.pressed = -1; DevCheckTouch(&old, &v);
+    v.bag.pressed = PT_BAG_HIT_UP; assert(DevCheckTouch(&old, &v).count == 0);
+    v.bag.pressed = -1; strcpy(v.bar[0], "Items"); v.enabled[PT_BAG] = 1; v.backVisible = 1; v.registeredItem = 13;
+    v.bag.regX = 13; v.bag.tossMax = 99; v.bag.titleItem = 7; strcpy(v.bag.prompt, "?"); v.bag.money = 500;
+    assert(DevCheckTouch(&old, &v).count == 0);
+    v.bag.prompt[0] = 0;
+    v.shell = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && at(1, 100) == DEV_SHELL_BLUE);
+    v.shell = 0; DevCheckTouch(&old, &v);
+    v.bag.cursor = v.bag.count; DevCheckTouch(&old, &v); AssertKey(kDevBagClose, DEV_LOOK_DARK, 1);     /* the game's cursor on CLOSE BAG */
+    assert(at(20, 72) == DEV_PAPER && Count(46, 197, 180, 27, DEV_INK) == 0);
+    shot("close");
+    v.bag.count = 0; v.bag.cursor = 0; DevCheckTouch(&old, &v); assert(CtrPokeTouch_BagHit(&v, 138, 56) == -1); AssertKey(kDevBagClose, DEV_LOOK_DARK, 1);
+    assert(Count(16, 48, 244, 16, DEV_BEZEL) == 0 && Count(16, 48, 244, 128, DEV_INK2) > 0);            /* no rows: the pocket is empty */
+    shot("empty");
+    v.bag.count = 9; v.bag.cursor = 1;
+    /* the item menu: USE GIVE TOSS REGISTER CANCEL */
+    v.bag.state = PT_BAG_STATE_ACTIONS; v.bag.menuCount = 5; v.bag.menuCursor = 0; DevCheckTouch(&old, &v);
+    for (i = 0; i < 5; ++i) AssertHits(BagHitV, &v, DevBagMenuKey(5, i), PT_BAG_HIT_MENU + i);
+    AssertKey(DevBagMenuKey(5, 4), DEV_LOOK_DARK, 0); assert(CtrPokeTouch_BagHit(&v, 56, 20) == -1 && CtrPokeTouch_BagHit(&v, 196, 56) == -1);
+    assert(at(11, 20) == DevBlend(DEV_SHELL_RED, DEV_SUNK, 128));                                     /* the pockets at half strength */
+    /* the narrow list, its words grey but the cursor's row; USE sunk with its LED; the narrow screen says what is selected */
+    AssertKey(DevBagMenuKey(5, 0), DEV_LOOK_KEY, 1); assert(at(300 + 2, 46 + 2) == DEV_LED && at(20, 72) == DEV_BEZEL);
+    assert(Count(16, 48, 168, 16, DEV_INK_DIM) > 0 && Count(16, 48, 168, 128, DEV_INK) == 0 && at(195, 100) == DEV_SHELL_RED);
+    assert(Count(46, 196, 136, 30, DEV_INK) > 0 && Count(244, 190, 68, 40, DEV_DARK_INK) > 0);
+    assert(Count(46, 196, 2, 30, DEV_INK) == 0 && Count(48, 196, 2, 30, DEV_INK) > 0);      /* from x 48, the board's */
+    v.bag.pressed = PT_BAG_HIT_MENU + 2; DevCheckTouch(&old, &v); AssertKey(DevBagMenuKey(5, 2), DEV_LOOK_KEY, 1); AssertKey(DevBagMenuKey(5, 0), DEV_LOOK_KEY, 0);
+    v.bag.pressed = -1; DevCheckTouch(&old, &v);
+    v.bag.pressed = PT_BAG_HIT_ROW + 2; assert(DevCheckTouch(&old, &v).count == 0);                 /* the rows take no touch now */
+    v.bag.pressed = -1; strcpy(v.bag.menuName[5], "X"); assert(DevCheckTouch(&old, &v).count == 0); /* rows past the menu */
+    shot("menu");
+    v.bag.menuCount = 6; strcpy(v.bag.menuName[4], "CHECK"); strcpy(v.bag.menuName[5], "CANCEL");
+    DevCheckTouch(&old, &v); AssertHits(BagHitV, &v, DevBagMenuKey(6, 5), PT_BAG_HIT_MENU + 5);
+    AssertKey(DevBagMenuKey(6, 5), DEV_LOOK_DARK, 0); AssertKey(DevBagMenuKey(6, 4), DEV_LOOK_KEY, 0);
+    shot("menu6");
+    v.bag.state = PT_BAG_STATE_QUANTITY; DevCheckTouch(&old, &v);
+    assert(CtrPokeTouch_BagHit(&v, 256, 55) == PT_BAG_HIT_QTY_UP && CtrPokeTouch_BagHit(&v, 256, 137) == PT_BAG_HIT_QTY_DOWN
+           && CtrPokeTouch_BagHit(&v, 256, 173) == PT_BAG_HIT_QTY_OK && CtrPokeTouch_BagHit(&v, 256, 212) == PT_BAG_HIT_QTY_CANCEL);
+    /* how many: the count on its screen, OK a key, CANCEL dark, the question; a touch sinks its key */
+    v.bag.tossCount = 3; DevCheckTouch(&old, &v);
+    AssertKey(kDevBagQtyUp, DEV_LOOK_KEY, 0); AssertKey(kDevBagQtyOk, DEV_LOOK_KEY, 0); AssertKey(kDevBagQtyCancel, DEV_LOOK_DARK, 0);
+    assert(Count(206, 82, 100, 28, DEV_INK) > 0 && Count(46, 196, 136, 30, DEV_INK) > 0 && at(203, 79) == DEV_BEZEL);
+    v.bag.pressed = PT_BAG_HIT_QTY_UP; DevCheckTouch(&old, &v); AssertKey(kDevBagQtyUp, DEV_LOOK_KEY, 1);
+    v.bag.pressed = -1; DevCheckTouch(&old, &v);
+    shot("quantity");
+    /* selling: what that many fetch and the money */
+    v.bag.use = PT_BAG_USE_SELL; v.bag.sale = 450; v.bag.money = 3000; DevCheckTouch(&old, &v); assert(Count(206, 96, 100, 12, DEV_INK2) > 0);
+    v.bag.use = PT_BAG_USE_FIELD; v.bag.sale = 0; v.bag.money = 0;
+    v.bag.state = PT_BAG_STATE_YESNO; DevCheckTouch(&old, &v); assert(CtrPokeTouch_BagHit(&v, 256, 55) == PT_BAG_HIT_MENU && CtrPokeTouch_BagHit(&v, 256, 93) == PT_BAG_HIT_MENU + 1);
+    /* YES / NO: two keys, YES the cursor's; the question on the narrow screen */
+    strcpy(v.bag.prompt, "Throw away 3 of this item?"); DevCheckTouch(&old, &v);
+    AssertKey(DevBagMenuKey(2, 0), DEV_LOOK_KEY, 1); AssertKey(DevBagMenuKey(2, 1), DEV_LOOK_KEY, 0); assert(Count(46, 196, 136, 30, DEV_INK) > 0);
+    shot("yesno");
+    v.bag.state = PT_BAG_STATE_MESSAGE; DevCheckTouch(&old, &v); assert(CtrPokeTouch_BagHit(&v, 5, 5) == PT_BAG_HIT_MESSAGE && CtrPokeTouch_BagHit(&v, 315, 235) == PT_BAG_HIT_MESSAGE);
+    /* a message: on the list's screen with its arrow; the pockets, the arrows and CLOSE grey, none sunk */
+    strcpy(v.bag.prompt, "Threw away 3 SUPER POTIONS."); DevCheckTouch(&old, &v);
+    assert(Count(14, 46, 248, 132, DEV_INK) > 0 && Count(14, 46, 248, 132, DEV_BEZEL) == 0 && at(11, 20) == DevBlend(DEV_SHELL_RED, DEV_SUNK, 128));
+    assert(at(279, 73) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128) && at(247, 210) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, 128));
+    v.bag.pressed = PT_BAG_HIT_MESSAGE; assert(DevCheckTouch(&old, &v).count == 0);
+    v.bag.pressed = -1;
+    shot("message");
+    v.bag.state = PT_BAG_STATE_LIST; v.bag.kind = PT_BAG_KIND_TMCASE; strcpy(v.bag.title, "TM CASE"); DevCheckTouch(&old, &v);
+    AssertKey(kDevBagCaseKey, DEV_LOOK_KEY, 1); assert(CtrPokeTouch_BagHit(&v, 160, 20) == -1);
+    /* a TM: its type's chip before the description; HMs without a count */
+    for (i = 0; i < 8; ++i) { snprintf(v.bag.row[i].name, sizeof(v.bag.row[i].name), "TM%02d DIG", 26 + i); v.bag.row[i].qty = (uint16_t)(i == 7 ? 0 : 1); }
+    strcpy(v.bag.row[7].name, "HM01 CUT"); strcpy(v.bag.selName, "DIG"); strcpy(v.bag.closeName, "CLOSE");
+    v.bag.moveType = 4; strcpy(v.bag.typeName, "GROUND"); DevCheckTouch(&old, &v);
+    assert(Count(46, 197, 60, 10, UiTypeColor(4)) > 0 && Count(232, 160, 22, 16, DEV_INK) == 0 && Count(232, 144, 22, 16, DEV_INK) > 0);
+    shot("tmcase");
+    v.bag.kind = PT_BAG_KIND_POUCH; strcpy(v.bag.title, "BERRY POUCH"); v.bag.moveType = -1;
+    for (i = 0; i < 8; ++i) { snprintf(v.bag.row[i].name, sizeof(v.bag.row[i].name), "%s BERRY", i & 1 ? "ORAN" : "CHERI"); v.bag.row[i].qty = (uint16_t)(1 + i); }
+    strcpy(v.bag.selName, "ORAN BERRY"); DevCheckTouch(&old, &v); AssertKey(kDevBagCaseKey, DEV_LOOK_KEY, 1);
+    shot("pouch");
+    v.bag.kind = PT_BAG_KIND_SHOP; strcpy(v.bag.title, "POK\xC3\xA9 MART"); v.bag.money = 3000; DevCheckTouch(&old, &v); assert(CtrPokeTouch_BagHit(&v, 160, 20) == -1);   /* the title */
+    /* a mart: the title on a screen with the money at its right, prices at the rows' right, how many the Bag holds */
+    for (i = 0; i < 8; ++i) { strcpy(v.bag.row[i].name, kBagItem[i].name); v.bag.row[i].qty = 0; v.bag.row[i].price = (uint16_t)(200 + 100 * i); }
+    strcpy(v.bag.selName, "SUPER POTION"); v.bag.showOwned = 1; v.bag.owned = 2; strcpy(v.bag.closeName, "Cancel"); DevCheckTouch(&old, &v);
+    assert(at(9, 20) == DEV_BEZEL && Count(250, 12, 56, 16, DEV_INK) > 0 && Count(222, 48, 32, 16, DEV_INK) > 0);
+    assert(Count(46, 197, 60, 10, DEV_BLUE_INK) > 0);
+    v.bag.state = PT_BAG_STATE_QUANTITY; v.bag.sale = 1400; DevCheckTouch(&old, &v); AssertKey(kDevBagQtyCancel, DEV_LOOK_DARK, 0);
+    assert(at(11, 20) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, 128));                                   /* the title grey */
+    v.bag.state = PT_BAG_STATE_LIST; v.bag.sale = 0; DevCheckTouch(&old, &v);
+    shot("shop");
+    v.bag.kind = PT_BAG_KIND_ITEMPC; strcpy(v.bag.title, "WITHDRAW ITEM"); v.bag.money = 0; v.bag.showOwned = 0;
+    for (i = 0; i < 8; ++i) { v.bag.row[i].price = 0; v.bag.row[i].qty = (uint16_t)kBagItem[i].qty; }
+    DevCheckTouch(&old, &v); AssertHits(BagHitV, &v, kDevBagClose, PT_BAG_HIT_CLOSE);
+    shot("itempc");
+    strcpy(v.bag.title, "MAILBOX"); v.bag.typed = 1; v.bag.count = 3; v.bag.cursor = 0;
+    for (i = 0; i < 3; ++i) { strcpy(v.bag.row[i].name, i ? "MOM" : "Rick"); v.bag.row[i].item = (uint16_t)(121 + i); v.bag.row[i].qty = 0; }
+    strcpy(v.bag.selName, "Rick"); v.bag.selItem = 121; strcpy(v.bag.selDesc, "A MAIL to be held by a POK\xC3\xA9MON.");
+    DevCheckTouch(&old, &v); assert(CtrPokeTouch_BagHit(&v, 138, 48 + 16 * 3 + 8) == -1 && CtrPokeTouch_BagHit(&v, 138, 48 + 8) == PT_BAG_HIT_ROW);
+    shot("mailbox");
+    BagUpperCase(BagBoard());
+    /* the way in and out: HOME and the Bag, each whole */
+    CtrPokeTouch_Draw(canvas, &old);
+    home = BagBoard(); home.bag.on = 0; home.home = 1; home.playerX = home.playerY = home.cursorX = home.cursorY = -1;
+    assert(DevWhole(DevCheckTouch(&old, &home)));
+    v = BagBoard(); assert(DevWhole(DevCheckTouch(&old, &v)));
+    /* the battle Bag */
+    CtrBattleUi_Draw(canvas, &bo);
+    DevCheckBattle(&bo, &bv); AssertKey(kDevBagPocket[0], DEV_LOOK_KEY, 1);
+    assert(CtrBattleUi_Hit(&bv, 56, 20) == -1 && CtrBattleUi_Hit(&bv, 160, 20) == -1);                 /* no Berry Pouch: no BERRIES */
+    assert(at(160, 20) == DEV_SHELL_RED && at(264, 20) == DEV_SHELL_RED && at(20, 72) == DEV_BEZEL);
+    shot("battle");
+    bv.bag.berries = 365; DevCheckBattle(&bo, &bv); AssertHits(BatHitV, &bv, kDevBagPocket[1], BUI_BAG_BERRIES);
+    AssertRowHits(BatHitV, &bv, DevBagRow(0, 0), BUI_BAG_ROW); AssertHits(BatHitV, &bv, kDevBagClose, BUI_BAG_CANCEL);
+    /* BERRIES under a touch is the one sunk; the battle's own fields are not drawn; to the commands and back, whole */
+    AssertKey(kDevBagPocket[1], DEV_LOOK_KEY, 0); assert(at(264, 20) == DEV_SHELL_RED);
+    shot("battle_berries");
+    bv.pressed = BUI_BAG_BERRIES; DevCheckBattle(&bo, &bv); AssertKey(kDevBagPocket[1], DEV_LOOK_KEY, 1); AssertKey(kDevBagPocket[0], DEV_LOOK_KEY, 0);
+    bv.pressed = BUI_BAG_DOWN; DevCheckBattle(&bo, &bv); AssertKey(kDevBagDown, DEV_LOOK_KEY, 1); AssertKey(kDevBagPocket[0], DEV_LOOK_KEY, 1);
+    bv.pressed = -1; DevCheckBattle(&bo, &bv);
+    bv.activeHp = 7; bv.party[2] = 2; bv.cursor = 2; bv.showCursor = 1; bv.bag.bagState = 3; assert(DevCheckBattle(&bo, &bv).count == 0);
+    strcpy(bv.bag.row[0].name, "Potion"); assert(DevCheckBattle(&bo, &bv).count == 0);           /* drawn as POTION all the same */
+    strcpy(bv.bag.row[0].name, "POTION"); DevCheckBattle(&bo, &bv);
+    bv.state = BUI_ACTION; assert(DevWhole(DevCheckBattle(&bo, &bv)));
+    bv.state = BUI_BAG; assert(DevWhole(DevCheckBattle(&bo, &bv)));
+    bv.bag.menuCount = 2; DevCheckBattle(&bo, &bv); AssertHits(BatHitV, &bv, DevBagMenuKey(2, 0), BUI_BAG_MENU); AssertHits(BatHitV, &bv, DevBagMenuKey(2, 1), BUI_BAG_MENU + 1);
+    AssertKey(DevBagMenuKey(2, 1), DEV_LOOK_DARK, 0); assert(CtrBattleUi_Hit(&bv, 160, 20) == -1 && CtrBattleUi_Hit(&bv, 50, 60) == -1);
+    bv.bag.menuCount = 0; strcpy(bv.bag.message, "..."); DevCheckBattle(&bo, &bv); assert(CtrBattleUi_Hit(&bv, 5, 5) == BUI_BAG_MESSAGE);
+    assert(sDevKeyCut == 0);                      /* main prints PASS device bag */
+}
+
 /* ---- main --------------------------------------------------------------------------------------------------------- */
 
 static const struct { const char *name; void (*run)(void); } kSuites[] = {
     {"kit", SuiteKit},
     {"home", SuiteHome},
     {"battle", SuiteBattle},
+    {"party", SuiteParty},
+    {"summary", SuiteSummary},
+    {"bag", SuiteBag},
 };
 
 int main(int argc, char **argv)
@@ -1338,7 +2235,7 @@ int main(int argc, char **argv)
     int all = argc > 1 && !strcmp(argv[1], "all"), ran = 0;
 
     if (argc != 2) {
-        fprintf(stderr, "usage: device_render_test <suite> (kit, home, all)\n");
+        fprintf(stderr, "usage: device_render_test <suite> (kit, home, battle, party, summary, bag, all)\n");
         return 2;
     }
     gOut = getenv("DEVICE_OUT");

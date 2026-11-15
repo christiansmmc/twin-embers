@@ -21,7 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PORT = ROOT / '3ds_port'
-VIEWS = ['kit', 'home', 'battle']     # the harness's suites, in its order
+VIEWS = ['kit', 'home', 'battle', 'party', 'summary', 'bag']     # the harness's suites, in its order
 
 
 def glyph_widths(text, name):

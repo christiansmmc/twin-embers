@@ -57,14 +57,14 @@ typedef enum {
     UIS_BOX_CLOSE,
     UIS_BOX_IN_HAND,
     UIS_BOX_NO_ITEM,
-    UIS_PTY_CONFIRM,
     UIS_NAME_UPPER,
     UIS_NAME_LOWER,
     UIS_NAME_SYMBOLS,
     UIS_NAME_DELETE,
     UIS_NAME_OK,
     UIS_NAME_HINT,
-    UIS_FLY_PICK,           /* HOME's line under the place: the Party's FLY waits for a town (two lines of the small font) */
+    UIS_FLY_PICK,           /* HOME's line under the place: the Party's FLY waits for a town, and any button leaves (two
+                             * lines of the small font, broken at the \n: 18 small letters at most each) */
     UIS_FLY_UNVISITED,      /* ... and why a place picked cannot be flown to (one line: 18 small letters at most) */
     UIS_FLY_NO_MON,
     UIS_FLY_NO_BADGE,
@@ -124,14 +124,13 @@ static const char *const kCtrUiStrings[UIS_COUNT] = {
     [UIS_BOX_CLOSE] = CTR_TR("Close box", "Cerrar", "Schlie\xC3\x9F" "en"),
     [UIS_BOX_IN_HAND] = CTR_TR("In hand", "En la mano", "In der Hand"),
     [UIS_BOX_NO_ITEM] = CTR_TR("No item held.", "No lleva ning\xC3\xBAn objeto.", "Tr\xC3\xA4gt kein Item."),
-    [UIS_PTY_CONFIRM] = CTR_TR("Confirm", "Confirmar", "Best\xC3\xA4tigen"),
     [UIS_NAME_UPPER] = CTR_TR("ABC", "ABC", "ABC"),
     [UIS_NAME_LOWER] = CTR_TR("abc", "abc", "abc"),
     [UIS_NAME_SYMBOLS] = CTR_TR("123", "123", "123"),
     [UIS_NAME_DELETE] = CTR_TR("Delete", "Borrar", "L\xC3\x96SCHEN"),
     [UIS_NAME_OK] = CTR_TR("OK", "OK", "OK"),
     [UIS_NAME_HINT] = CTR_TR("Touch a key to write it, and OK when the name is ready.", "Toca una tecla para escribirla, y OK cuando el nombre est\xC3\xA9 listo.", "Taste ber\xC3\xBChren zum Schreiben, OK wenn fertig."),
-    [UIS_FLY_PICK] = CTR_TR("Tap a town to go there.", "Toca un pueblo para ir.", "Ort antippen zum Hinfliegen."),
+    [UIS_FLY_PICK] = CTR_TR("Tap a town.\nAny button: cancel", "Toca un pueblo.\nBotones: cancelar", "Ort antippen.\nTasten: Zur\xC3\xBC" "ck"),
     [UIS_FLY_UNVISITED] = CTR_TR("Not visited yet", "A\xc3\xban sin visitar", "Noch nicht besucht"),
     [UIS_FLY_NO_MON] = CTR_TR("No one knows Fly", "Nadie sabe Vuelo", "Fliegen fehlt"),
     [UIS_FLY_NO_BADGE] = CTR_TR("Needs a new Badge", "Falta una medalla", "Neuer Orden n\xC3\xB6tig"),

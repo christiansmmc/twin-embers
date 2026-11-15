@@ -177,6 +177,207 @@ static int BattleFaults(void)
     return faults;
 }
 
+/* The Party's action menu: the keys DevPtyMenuKey draws and the D-pad rule the game's input follows (3ds_party_grid.h,
+ * recipe 0257) must agree. Judged from the drawn rectangles alone: UP / DOWN go to the neighbour above or below in the same
+ * drawn column and wrap at its ends, LEFT / RIGHT to the other column at the same height, or at the lowest row of the right
+ * column when it is shorter. (The ember drawer's harness's check, on the red device's keys: 28 px a row, 24 tall, one
+ * column at x 206 or two at 132 and 226.) */
+static void PartyMenuGrid(void)
+{
+    for (int n = 1; n <= 8; ++n) {
+        CtrPokeTouchRect r[8];
+        int xs[2], nx = 0;
+
+        for (int i = 0; i < n; ++i) {
+            r[i] = DevPtyMenuKey(n, i);
+            assert(Inside(r[i]) && r[i].h == 24 && r[i].w == (n > 4 ? 86 : 106));
+            assert(r[i].x == (n <= 4 ? 206 : CtrPartyGrid_Col(n, i) ? 226 : 132));
+            if (!nx || r[i].x != xs[nx - 1]) {
+                assert(nx < 2 && (nx == 0 || r[i].x > xs[0]));
+                xs[nx++] = r[i].x;
+            }
+            for (int j = 0; j < i; ++j)
+                assert(!Overlap(r[i], r[j]));
+        }
+        assert(nx == (n > 4 ? 2 : 1));
+        for (int i = 0; i < n; ++i) {
+            int top = 1 << 30, bottom = -1, otherBottom = -1, sameRow = -1;
+
+            if (i > 0 && r[i].x == r[i - 1].x)
+                assert(r[i].y == r[i - 1].y + 28);                       /* a column fills from the top, 28 px a row */
+            if (i > 0 && r[i].x != r[i - 1].x)
+                assert(r[i].y == r[0].y);                                /* the right column starts level with the left */
+            for (int j = 0; j < n; ++j) {
+                if (r[j].x == r[i].x) {
+                    if (r[j].y < top) top = r[j].y;
+                    if (r[j].y > bottom) bottom = r[j].y;
+                } else {
+                    if (r[j].y > otherBottom) otherBottom = r[j].y;
+                    if (r[j].y == r[i].y) sameRow = j;
+                }
+            }
+            for (int d = CTR_PGRID_UP; d <= CTR_PGRID_RIGHT; ++d) {
+                int to = CtrPartyGrid_Move(n, i, d);
+
+                if (n <= 4) {
+                    assert(to == -1);                                    /* one column: the game's own list input */
+                    continue;
+                }
+                assert(to >= 0 && to < n);
+                if (d == CTR_PGRID_UP) {
+                    assert(r[to].x == r[i].x && r[to].y == (r[i].y > top ? r[i].y - 28 : bottom));
+                } else if (d == CTR_PGRID_DOWN) {
+                    assert(r[to].x == r[i].x && r[to].y == (r[i].y < bottom ? r[i].y + 28 : top));
+                } else {
+                    assert(r[to].x != r[i].x && r[to].y == (sameRow >= 0 ? r[i].y : otherBottom));
+                    assert(sameRow < 0 || to == sameRow);
+                }
+            }
+        }
+    }
+}
+
+/* The Party (boards B · POKeMON and its menu): the brief's numbers; the bays two to a row; with a menu the slim bays
+ * left of its keys, none of them reaching the menu's screen; each screen above nothing it would cover. */
+static int PartyFaults(void)
+{
+    int faults = 0;
+
+    assert(Same(kDevPtyNote, (CtrPokeTouchRect){8, 180, 222, 52}) && Same(kDevPtyCancel, (CtrPokeTouchRect){238, 180, 74, 50}));
+    assert(Same(kDevPtyConfirm, (CtrPokeTouchRect){238, 180, 74, 22}) && Same(kDevPtyCancelLow, (CtrPokeTouchRect){238, 206, 74, 24}));
+    assert(Same(kDevPtyMenuNote, (CtrPokeTouchRect){8, 182, 304, 50}) && Same(kDevPtyLevelScreen, (CtrPokeTouchRect){8, 8, 304, 166}));
+    for (int i = 0; i < 6; ++i) {
+        assert(Same(DevPtyBay(i), (CtrPokeTouchRect){(int16_t)(i & 1 ? 164 : 8), (int16_t)(8 + 56 * (i >> 1)), 148, 50}));
+        if (DevPtyBay(i).y + DevPtyBay(i).h + DEV_DROP > kDevPtyNote.y || DevPtyBay(i).y + DevPtyBay(i).h + DEV_DROP > kDevPtyCancel.y) {
+            fprintf(stderr, "Party: bay %d reaches the screen or CANCEL\n", i);
+            ++faults;
+        }
+    }
+    for (int n = 0; n <= 8; ++n)
+        for (int i = 0; i < 6; ++i) {
+            CtrPokeTouchRect s = DevPtySlim(n, i);
+
+            assert(Same(s, (CtrPokeTouchRect){8, (int16_t)(8 + 28 * i), (int16_t)(n <= 4 ? 188 : 116), 24}));
+            if (!Inside(s) || s.y + s.h + DEV_DROP > kDevPtyMenuNote.y) {
+                fprintf(stderr, "Party: slim bay %d (menu of %d) reaches the menu's screen\n", i, n);
+                ++faults;
+            }
+            for (int k = 0; k < n; ++k)
+                if (Overlap(s, DevPtyMenuKey(n, k)) || DevPtyMenuKey(n, k).y + DevPtyMenuKey(n, k).h + DEV_DROP > kDevPtyMenuNote.y) {
+                    fprintf(stderr, "Party: menu key %d of %d meets slim bay %d or the menu's screen\n", k, n, i);
+                    ++faults;
+                }
+        }
+    if (kDevPtyLevelScreen.y + kDevPtyLevelScreen.h + 1 > kDevPtyNote.y) {
+        fprintf(stderr, "Party: the level-up screen (with its light row) reaches the note\n");
+        ++faults;
+    }
+    return faults;
+}
+
+/* The Summary (boards B · Resumo): the brief's numbers; the tabs and the arrows (with their drops) above the screen, the
+ * note and BACK under it, side by side; on the screen's paper the left column with the picture's box (the 80x80 picture
+ * centred on it fits the column too), and right of the column the switch (inside the larger rectangle that takes it) and
+ * the five rows, one under the other. */
+static int SummaryFaults(void)
+{
+    const CtrPokeTouchRect paper = {14, 46, 292, 128}, big = {26, 74, 80, 80};
+    int faults = 0;
+
+    for (int i = 0; i < 4; ++i)
+        assert(Same(kDevSumTab[i], (CtrPokeTouchRect){(int16_t)(8 + 60 * i), 8, 56, 24}));
+    assert(Same(kDevSumPrev, (CtrPokeTouchRect){252, 8, 28, 24}) && Same(kDevSumNext, (CtrPokeTouchRect){284, 8, 28, 24}));
+    assert(Same(kDevSumScreen, (CtrPokeTouchRect){8, 40, 304, 140}) && Same(kDevSumColumn, (CtrPokeTouchRect){14, 46, 104, 128}));
+    assert(Same(kDevSumPic, (CtrPokeTouchRect){34, 82, 64, 64}) && Same(kDevSumNote, (CtrPokeTouchRect){8, 188, 228, 44}));
+    assert(Same(kDevSumBack, (CtrPokeTouchRect){244, 188, 68, 42}) && Same(kDevSumIvSwitch, (CtrPokeTouchRect){228, 49, 70, 13}));
+    assert(Same(kDevSumIvSwitchHit, (CtrPokeTouchRect){224, 46, 78, 20}));
+    for (int i = 0; i < 5; ++i) {
+        CtrPokeTouchRect r = DevSumRow(i);
+
+        assert(Same(r, (CtrPokeTouchRect){124, (int16_t)(52 + 24 * i), 176, 22}));
+        if (!Within(r, paper, 0) || r.x < kDevSumColumn.x + kDevSumColumn.w
+            || (i > 0 && r.y < DevSumRow(i - 1).y + DevSumRow(i - 1).h)) {
+            fprintf(stderr, "Summary: row %d leaves the paper right of the column, or meets the row above\n", i);
+            ++faults;
+        }
+    }
+    if (!Within(kDevSumIvSwitch, kDevSumIvSwitchHit, 0) || !Within(kDevSumIvSwitch, paper, 0)
+        || kDevSumIvSwitch.x < kDevSumColumn.x + kDevSumColumn.w) {
+        fprintf(stderr, "Summary: the switch leaves its touch area or the paper right of the column\n");
+        ++faults;
+    }
+    if (!Within(kDevSumColumn, paper, 0) || !Within(kDevSumPic, kDevSumColumn, 0) || !Within(big, kDevSumColumn, 0)) {
+        fprintf(stderr, "Summary: the column leaves the paper, or a picture the column\n");
+        ++faults;
+    }
+    for (int i = 0; i < 4; ++i)
+        if (kDevSumTab[i].y + kDevSumTab[i].h + DEV_DROP > kDevSumScreen.y) {
+            fprintf(stderr, "Summary: tab %d reaches the screen\n", i);
+            ++faults;
+        }
+    if (kDevSumPrev.y + kDevSumPrev.h + DEV_DROP > kDevSumScreen.y || kDevSumScreen.y + kDevSumScreen.h + 1 > kDevSumNote.y
+        || kDevSumScreen.y + kDevSumScreen.h + 1 > kDevSumBack.y || kDevSumNote.x + kDevSumNote.w > kDevSumBack.x) {
+        fprintf(stderr, "Summary: an arrow reaches the screen, the screen the note or BACK, or the note BACK\n");
+        ++faults;
+    }
+    return faults;
+}
+
+/* The Bag (boards B · BAG and its item menu): the brief's numbers; the keys above the list's screen, the eight rows on
+ * its paper one under the other (the narrow ones on the narrow paper), ▲▼ beside it, the description and CLOSE under it
+ * side by side; the menu's, YES / NO's and how many's keys right of the narrow screens, above the screen's foot. */
+static int BagFaults(void)
+{
+    const CtrPokeTouchRect paper = {14, 46, 248, 132}, narrowPaper = {14, 46, 172, 132};
+    int faults = 0;
+
+    for (int i = 0; i < 3; ++i)
+        assert(Same(kDevBagPocket[i], (CtrPokeTouchRect){(int16_t)(8 + 104 * i), 8, 96, 24}));
+    assert(Same(kDevBagCaseKey, (CtrPokeTouchRect){8, 8, 304, 24}) && Same(kDevBagTitle, (CtrPokeTouchRect){8, 6, 304, 28}));
+    assert(Same(kDevBagList, (CtrPokeTouchRect){8, 40, 260, 144}) && Same(kDevBagListNarrow, (CtrPokeTouchRect){8, 40, 184, 144}));
+    assert(Same(kDevBagUp, (CtrPokeTouchRect){276, 40, 36, 66}) && Same(kDevBagDown, (CtrPokeTouchRect){276, 114, 36, 66}));
+    assert(Same(kDevBagDesc, (CtrPokeTouchRect){8, 190, 228, 42}) && Same(kDevBagDescNarrow, (CtrPokeTouchRect){8, 190, 184, 42}));
+    assert(Same(kDevBagDescIcon, (CtrPokeTouchRect){18, 199, 24, 24}) && Same(kDevBagDescText, (CtrPokeTouchRect){46, 197, 180, 27}));
+    assert(Same(kDevBagClose, (CtrPokeTouchRect){244, 190, 68, 40}));
+    assert(Same(kDevBagQtyUp, (CtrPokeTouchRect){200, 40, 112, 30}) && Same(kDevBagQtyScreen, (CtrPokeTouchRect){200, 76, 112, 40}));
+    assert(Same(kDevBagQtyDown, (CtrPokeTouchRect){200, 122, 112, 30}) && Same(kDevBagQtyOk, (CtrPokeTouchRect){200, 158, 112, 30}));
+    assert(Same(kDevBagQtyCancel, (CtrPokeTouchRect){200, 194, 112, 36}));
+    for (int i = 0; i < 8; ++i) {
+        CtrPokeTouchRect r = DevBagRow(i, 0), n = DevBagRow(i, 1);
+
+        assert(Same(r, (CtrPokeTouchRect){16, (int16_t)(48 + 16 * i), 244, 16}) && Same(n, (CtrPokeTouchRect){16, r.y, 168, 16}));
+        if (!Within(r, paper, 0) || !Within(n, narrowPaper, 0) || (i > 0 && r.y < DevBagRow(i - 1, 0).y + 16)) {
+            fprintf(stderr, "Bag: row %d leaves its paper, or meets the row above\n", i);
+            ++faults;
+        }
+    }
+    for (int n = 1; n <= 6; ++n)
+        for (int i = 0; i < n; ++i) {
+            CtrPokeTouchRect k = DevBagMenuKey(n, i);
+            int p = n <= 5 ? 38 : 32, h = n <= 5 ? (i == n - 1 ? 38 : 30) : 26;
+
+            assert(Same(k, (CtrPokeTouchRect){200, (int16_t)(40 + p * i), 112, (int16_t)h}));
+            if (k.x < kDevBagListNarrow.x + kDevBagListNarrow.w || k.x < kDevBagDescNarrow.x + kDevBagDescNarrow.w) {
+                fprintf(stderr, "Bag: menu key %d of %d reaches the narrow screens\n", i, n);
+                ++faults;
+            }
+        }
+    for (int i = 0; i < 3; ++i)
+        if (kDevBagPocket[i].y + kDevBagPocket[i].h + DEV_DROP > kDevBagList.y) {
+            fprintf(stderr, "Bag: pocket key %d reaches the list's screen\n", i);
+            ++faults;
+        }
+    if (kDevBagCaseKey.y + kDevBagCaseKey.h + DEV_DROP > kDevBagList.y || kDevBagTitle.y + kDevBagTitle.h + 1 > kDevBagList.y
+        || kDevBagList.y + kDevBagList.h + 1 > kDevBagDesc.y || kDevBagList.x + kDevBagList.w > kDevBagUp.x
+        || kDevBagDown.y + kDevBagDown.h + DEV_DROP > kDevBagClose.y || kDevBagDesc.x + kDevBagDesc.w > kDevBagClose.x
+        || !Within(kDevBagDescIcon, (CtrPokeTouchRect){14, 196, 216, 30}, 0) || !Within(kDevBagDescText, (CtrPokeTouchRect){14, 196, 216, 30}, 0)
+        || kDevBagQtyUp.y + kDevBagQtyUp.h + DEV_DROP > kDevBagQtyScreen.y || kDevBagQtyScreen.y + kDevBagQtyScreen.h + 1 > kDevBagQtyDown.y) {
+        fprintf(stderr, "Bag: the keys, the screens, ▲▼, CLOSE or how many's column meet\n");
+        ++faults;
+    }
+    return faults;
+}
+
 int main(void)
 {
     /* Every rectangle the header holds, by name, and the keys of each view state. */
@@ -185,6 +386,23 @@ int main(void)
     const CtrPokeTouchRect batTrainer[] = {kDevBatFight, kDevBatRow3[0], kDevBatRow3[1], kDevBatRow3[2]};
     const CtrPokeTouchRect batWild[] = {kDevBatFight, kDevBatRow4[0], kDevBatRow4[1], kDevBatRow4[2], kDevBatRow4[3]};
     const CtrPokeTouchRect batMoves[] = {kDevBatMove[0], kDevBatMove[1], kDevBatMove[2], kDevBatMove[3], kDevBatCancel};
+    const CtrPokeTouchRect ptyBays[] = {DevPtyBay(0), DevPtyBay(1), DevPtyBay(2), DevPtyBay(3), DevPtyBay(4), DevPtyBay(5),
+                                        kDevPtyCancel};
+    const CtrPokeTouchRect ptyMulti[] = {DevPtyBay(0), DevPtyBay(1), DevPtyBay(2), DevPtyBay(3), DevPtyBay(4), DevPtyBay(5),
+                                         kDevPtyConfirm, kDevPtyCancelLow};
+    const CtrPokeTouchRect ptyOk[] = {kDevPtyCancel};
+    const CtrPokeTouchRect sumKeys[] = {kDevSumTab[0], kDevSumTab[1], kDevSumTab[2], kDevSumTab[3], kDevSumPrev, kDevSumNext,
+                                        kDevSumBack};
+    const CtrPokeTouchRect bagList[] = {kDevBagPocket[0], kDevBagPocket[1], kDevBagPocket[2], kDevBagUp, kDevBagDown, kDevBagClose};
+    const CtrPokeTouchRect bagCase[] = {kDevBagCaseKey, kDevBagUp, kDevBagDown, kDevBagClose};
+    const CtrPokeTouchRect bagQty[] = {kDevBagQtyUp, kDevBagQtyDown, kDevBagQtyOk, kDevBagQtyCancel};
+    const CtrPokeTouchRect bagYesNo[] = {DevBagMenuKey(2, 0), DevBagMenuKey(2, 1)};
+    CtrPokeTouchRect ptyMenu[8][8], bagMenu[6][6];
+    DevGroup ptyMenus[8], bagMenus[6];
+    static const char *const kBagMenuName[6] = {"Bag menu of 1", "Bag menu of 2", "Bag menu of 3", "Bag menu of 4",
+                                                "Bag menu of 5", "Bag menu of 6"};
+    static const char *const kMenuName[8] = {"Party menu of 1", "Party menu of 2", "Party menu of 3", "Party menu of 4",
+                                             "Party menu of 5", "Party menu of 6", "Party menu of 7", "Party menu of 8"};
     const DevNamedRect rects[] = {
         {"HOME screen", kDevHomeScreen}, {"HOME POKeDEX", kDevHomeKey[0]}, {"HOME POKeMON", kDevHomeKey[1]},
         {"HOME BAG", kDevHomeKey[2]}, {"HOME card", kDevHomeKey[3]}, {"HOME SAVE", kDevHomeKey[4]},
@@ -197,12 +415,43 @@ int main(void)
         {"battle BAG (4)", kDevBatRow4[0]}, {"battle BALL", kDevBatRow4[1]}, {"battle POKeMON (4)", kDevBatRow4[2]},
         {"battle RUN (4)", kDevBatRow4[3]}, {"battle move 0", kDevBatMove[0]}, {"battle move 1", kDevBatMove[1]},
         {"battle move 2", kDevBatMove[2]}, {"battle move 3", kDevBatMove[3]}, {"battle CANCEL", kDevBatCancel},
+        {"Party note", kDevPtyNote}, {"Party CANCEL", kDevPtyCancel}, {"Party CONFIRM", kDevPtyConfirm},
+        {"Party CANCEL (several)", kDevPtyCancelLow}, {"Party menu's screen", kDevPtyMenuNote},
+        {"Party level-up screen", kDevPtyLevelScreen}, {"Party bay 0", DevPtyBay(0)}, {"Party bay 5", DevPtyBay(5)},
+        {"Summary INFO", kDevSumTab[0]}, {"Summary STATS", kDevSumTab[1]}, {"Summary MOVES", kDevSumTab[2]},
+        {"Summary MEMO", kDevSumTab[3]}, {"Summary previous", kDevSumPrev}, {"Summary next", kDevSumNext},
+        {"Summary screen", kDevSumScreen}, {"Summary column", kDevSumColumn}, {"Summary picture", kDevSumPic},
+        {"Summary note", kDevSumNote}, {"Summary BACK", kDevSumBack}, {"Summary switch", kDevSumIvSwitch},
+        {"Summary switch's touch", kDevSumIvSwitchHit}, {"Summary row 0", DevSumRow(0)}, {"Summary CANCEL row", DevSumRow(4)},
+        {"Bag ITEMS", kDevBagPocket[0]}, {"Bag KEY ITEMS", kDevBagPocket[1]}, {"Bag POKe BALLS", kDevBagPocket[2]},
+        {"Bag case key", kDevBagCaseKey}, {"Bag title", kDevBagTitle}, {"Bag list", kDevBagList},
+        {"Bag narrow list", kDevBagListNarrow}, {"Bag up", kDevBagUp}, {"Bag down", kDevBagDown}, {"Bag description", kDevBagDesc},
+        {"Bag narrow description", kDevBagDescNarrow}, {"Bag CLOSE", kDevBagClose}, {"Bag how many: up", kDevBagQtyUp},
+        {"Bag how many: count", kDevBagQtyScreen}, {"Bag how many: down", kDevBagQtyDown}, {"Bag how many: OK", kDevBagQtyOk},
+        {"Bag how many: CANCEL", kDevBagQtyCancel}, {"Bag row 0", DevBagRow(0, 0)}, {"Bag row 7", DevBagRow(7, 0)},
     };
     const DevGroup groups[] = {DEV_GROUP("HOME", homeKeys), DEV_GROUP("battle, a trainer", batTrainer),
-                               DEV_GROUP("battle, wild", batWild), DEV_GROUP("battle moves", batMoves)};
+                               DEV_GROUP("battle, wild", batWild), DEV_GROUP("battle moves", batMoves),
+                               DEV_GROUP("Party", ptyBays), DEV_GROUP("Party, several", ptyMulti),
+                               DEV_GROUP("Party level up", ptyOk), DEV_GROUP("Summary", sumKeys),
+                               DEV_GROUP("Bag list", bagList), DEV_GROUP("a case's list", bagCase),
+                               DEV_GROUP("Bag how many", bagQty), DEV_GROUP("Bag YES / NO", bagYesNo)};
     int faults = 0;
 
     RulesCatchFaults();
+    PartyMenuGrid();
+    for (int n = 1; n <= 8; ++n) {          /* the menu's keys of each size: a group each */
+        for (int i = 0; i < n; ++i)
+            ptyMenu[n - 1][i] = DevPtyMenuKey(n, i);
+        ptyMenus[n - 1] = (DevGroup){kMenuName[n - 1], ptyMenu[n - 1], n};
+        faults += GroupFaults(&ptyMenus[n - 1]);
+    }
+    for (int n = 1; n <= 6; ++n) {          /* the Bag's item menu of each size */
+        for (int i = 0; i < n; ++i)
+            bagMenu[n - 1][i] = DevBagMenuKey(n, i);
+        bagMenus[n - 1] = (DevGroup){kBagMenuName[n - 1], bagMenu[n - 1], n};
+        faults += GroupFaults(&bagMenus[n - 1]);
+    }
     for (unsigned i = 0; i < sizeof(rects) / sizeof(rects[0]); ++i)
         if (!Inside(rects[i].r)) {
             const CtrPokeTouchRect *r = &rects[i].r;
@@ -214,6 +463,9 @@ int main(void)
         faults += GroupFaults(&groups[i]);
     faults += HomeFaults();
     faults += BattleFaults();
+    faults += PartyFaults();
+    faults += SummaryFaults();
+    faults += BagFaults();
     assert(faults == 0);
     puts("PASS device layout");
     return 0;

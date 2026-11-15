@@ -97,11 +97,12 @@ enum { PT_SAVE_NONE, PT_SAVE_FIRST, PT_SAVE_SECOND };  /* the button: YES or OK,
 #define PT_BAR_LINES 3
 #define PT_BAR_LEN 40
 
-/* The field Bag drawn by the port in the viewport (3ds_field_bag_impl.h), a remote for FireRed's own Bag: its pockets
- * as tabs, the rows of the list it shows (items, then CLOSE BAG), the item's description in the note, and over the
- * list the menu, the quantity box, the question or the message it has open. Everything is the Bag's own state.
- * The TM Case and the Berry Pouch it opens are drawn the same way, with their title in place of the pockets. */
-#define PT_BAG_ROWS 5
+/* The field Bag drawn by the port as the red device (3ds_device_bag_impl.h), a remote for FireRed's own Bag: its
+ * pockets as keys, the rows of the list it shows (its items; FireRed's CLOSE BAG row is the CLOSE key), the item's
+ * description, and the menu, the quantity box, the question or the message it has open. Everything is the Bag's own
+ * state. The TM Case and the Berry Pouch it opens, a mart's BUY, the item PC's WITHDRAW ITEM and the mailbox are drawn
+ * the same way, with their name or title in place of the pockets. */
+#define PT_BAG_ROWS 8
 #define PT_BAG_MENU_MAX 6
 enum { PT_BAG_KIND_BAG = 0, PT_BAG_KIND_TMCASE, PT_BAG_KIND_POUCH, PT_BAG_KIND_SHOP,   /* SHOP: a mart's BUY list */
        PT_BAG_KIND_ITEMPC };                                                          /* ITEMPC: the PC's WITHDRAW ITEM */
@@ -110,7 +111,8 @@ enum { PT_BAG_STATE_BUSY = 0, PT_BAG_STATE_LIST, PT_BAG_STATE_ACTIONS, PT_BAG_ST
        PT_BAG_STATE_MESSAGE };
 /* Hit codes (CtrPokeTouch_BagHit). */
 enum { PT_BAG_HIT_TAB = 100, PT_BAG_HIT_ROW = 200, PT_BAG_HIT_MENU = 300, PT_BAG_HIT_MESSAGE = 500, PT_BAG_HIT_UP = 600,
-       PT_BAG_HIT_DOWN, PT_BAG_HIT_QTY_UP = 610, PT_BAG_HIT_QTY_DOWN, PT_BAG_HIT_QTY_OK, PT_BAG_HIT_QTY_CANCEL, PT_BAG_HIT_RAIL = 620 };
+       PT_BAG_HIT_DOWN, PT_BAG_HIT_QTY_UP = 610, PT_BAG_HIT_QTY_DOWN, PT_BAG_HIT_QTY_OK, PT_BAG_HIT_QTY_CANCEL,
+       PT_BAG_HIT_CLOSE = 630 };
 typedef struct {
     uint8_t on;                     /* the viewport shows this Bag (no GBA picture) */
     uint8_t kind;                   /* PT_BAG_KIND_*: the Bag, or a case it opens */
@@ -121,7 +123,7 @@ typedef struct {
     uint8_t asked;                  /* the pocket a touch on a tab asked for, 0xFF none (the Bag is being walked to it) */
     uint8_t pocket;                 /* FireRed's pocket: 0 Items, 1 Key Items, 2 Poke Balls */
     uint8_t state;                  /* PT_BAG_STATE_*: the Bag's own input state */
-    int16_t count;                  /* items in the pocket; row `count` is CLOSE BAG */
+    int16_t count;                  /* items in the pocket; FireRed's row `count` is CLOSE BAG (the CLOSE key) */
     int16_t cursor;                 /* the Bag's selection (count: CLOSE BAG) */
     int16_t first;                  /* the list index of the first row shown */
     struct {
@@ -130,6 +132,7 @@ typedef struct {
         uint16_t price;             /* a mart's row: what one costs */
         char name[20];
     } row[PT_BAG_ROWS];
+    uint8_t typed;                  /* the rows' and the selection's names are ones the player typed (the mailbox's writers) */
     uint16_t selItem;               /* the selected item, its name and description */
     char selName[20];
     char selDesc[112];
@@ -499,7 +502,6 @@ bool CtrPokeTouch_HomeCellPoint(const CtrPokeTouchView *view, int cx, int cy, in
 bool CtrPokeTouch_HomeMapCell(const CtrPokeTouchView *view, int x, int y, int *cx, int *cy);
 /* What the field Bag (view->bag.on) shows under lower-screen point (x, y): a PT_BAG_HIT_* code, or -1. */
 int CtrPokeTouch_BagHit(const CtrPokeTouchView *view, int x, int y);
-int CtrPokeTouch_BagRailTarget(const CtrPokeTouchBag *bag, int y);   /* the cursor index the rail's thumb at y stands for (-1: no rail) */
 /* What the Pokedex (view->dex.on) shows under lower-screen point (x, y): a PT_DEX_HIT_* code, or -1. */
 int CtrPokeTouch_DexHit(const CtrPokeTouchView *view, int x, int y);
 /* The top menu row a tab (0-2) leads to, and the first row of the habitat/search page before (-1) or after (1) the
@@ -570,12 +572,14 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo);
  * Everything shown is what the controller reports: the screen has no state of its own. In a wild battle a fourth button
  * between BAG and POKeMON throws a ball at once (the quick ball: the ball's own icon and count, arrows or a swipe
  * across it for the others, CTR_ACTION_BALL as the controller's cursor). In the battle Bag (BUI_BAG, the Bag FireRed
- * opens from BAG) it is a remote for that Bag: its items (the Items pocket: the balls have their button, the key items
- * stay out but for the Berry Pouch, which BERRIES opens) with icon and quantity, the selected item's detail, and
- * CANCEL; what it shows is the Bag's own state and save data. In the battle Party (BUI_PARTY:
- * a switch, the replacement for a Pokemon that fainted, or the target of an item) it is a remote for FireRed's Party: the
- * six Pokemon as panels in two columns (sprite, name, level, HP bar and numbers, status), its menu or message when it has one
- * open, and CANCEL unless the Party cannot be cancelled.
+ * opens from BAG; 3ds_device_bag_impl.h, the field Bag's page) it is a remote for that Bag: its items (the Items pocket:
+ * the balls have their button, the key items stay out but for the Berry Pouch, which BERRIES opens) with icon and
+ * quantity, the selected item's description, its menu or message, and CLOSE; what it shows is the Bag's own state and
+ * save data. In the Party (BUI_PARTY, the field's and the battle's: a
+ * switch, the replacement for a Pokemon that fainted, the target of an item; 3ds_device_party_impl.h) it is a remote for
+ * FireRed's Party, drawn as the red device: the six Pokemon as bays in two columns (icon, name, HP bar and numbers, level
+ * or condition), the screen with what the Party says, its menu or message when it has one open, and CANCEL unless the
+ * Party cannot be cancelled.
  */
 enum { BUI_IDLE = 0, BUI_ACTION, BUI_MOVE, BUI_BAG, BUI_PARTY, BUI_TARGET, BUI_SAFARI };
 /* Buttons (CtrBattleUi_Hit): the controller's action numbers while choosing an action, the move slots 0-3 and
@@ -600,14 +604,14 @@ typedef struct {
     char desc[BUI_DESC_LEN];        /* FireRed's description, wrapped when drawn */
 } CtrBattleMove;
 enum { BUI_BAG_TAB = 100, BUI_BAG_ROW = 200, BUI_BAG_MENU = 300, BUI_BAG_CANCEL = 400, BUI_BAG_MESSAGE = 500,
-       BUI_BAG_UP = 600, BUI_BAG_DOWN = 601, BUI_BAG_BERRIES = 602, BUI_BAG_RAIL = 603 };
-#define BUI_BAG_ROWS 5
+       BUI_BAG_UP = 600, BUI_BAG_DOWN = 601, BUI_BAG_BERRIES = 602 };
+#define BUI_BAG_ROWS 8
 #define BUI_ITEM_LEN 20
 typedef struct {
     uint8_t pocket;                 /* FireRed's pocket: 0 Items, 1 Key Items, 2 Poke Balls */
     uint8_t bagState;               /* the Bag's own input state (CTR_BAG_*: list, menu, message, busy ...) */
     int16_t count;                  /* items in the pocket */
-    int16_t cursor;                 /* the selected item (count is the list's own CANCEL row) */
+    int16_t cursor;                 /* the selected item (count is the list's own CANCEL row: the CLOSE key) */
     int16_t first;                  /* the item of the first row shown */
     struct {
         uint16_t item;              /* 0: no item in the row */
@@ -639,19 +643,22 @@ typedef struct {
     uint8_t level[6];
     uint16_t hp[6], maxHp[6];
     uint16_t icon[6];               /* FireRed's icon species of the slot (the icon is read through the bridge) */
-    uint8_t iconFrame[6];           /* bit 0: which of the icon's two frames it shows (0 when fainted); bit 1: the hop's phase */
+    uint8_t iconFrame[6];           /* bit 0: which of the icon's two frames it shows (0 when fainted); bit 1: the hop's phase
+                                     * (not drawn: the bays show frame 0) */
     char name[6][11];
+    uint8_t nameIsSpecies[6];       /* the name is its species' own (shown in capitals), not one the player gave */
     int8_t cursor;                  /* the Party's own selection: a slot 0-5 */
-    uint8_t mode;                   /* BUI_PTY_SWITCH, BUI_PTY_TARGET (an item's target), BUI_PTY_FORCED (no CANCEL) */
+    uint8_t mode;                   /* BUI_PTY_SWITCH, BUI_PTY_TARGET (an item's target), BUI_PTY_FORCED (CANCEL grey) */
     uint8_t panel;                  /* BUI_PTY_*: what the Party has open over the slots */
     uint8_t menuCount;              /* its menu's rows (SHIFT, SUMMARY, CANCEL; YES, NO; the field's up to 8) */
     int8_t menuCursor;
     char menuName[8][14];
+    uint8_t menuBlue, menuDark;     /* bit i for menu row i: a field move (its name in blue), CANCEL (a dark key); 0 for YES / NO */
     char message[96];
     char caption[64];               /* what the Party says under the slots ("" for the mode's own words) */
-    uint8_t lead;                   /* the slots in the left column, as FireRed lays them out (1, or 2 in a double) */
+    uint8_t lead;                   /* the slots in the left column, as FireRed lays them out (1, or 2 in a double; not drawn) */
     uint8_t entry[6];               /* BUI_PTY_MULTI: BUI_PTY_NOT_ABLE, BUI_PTY_ABLE, or BUI_PTY_FIRST + its place in the order */
-    int8_t button;                  /* BUI_PTY_MULTI: the Party's cursor on CONFIRM (0) or CANCEL (1), else -1 */
+    int8_t button;                  /* the Party's cursor on CONFIRM (0, BUI_PTY_MULTI only) or CANCEL (1), else -1 */
     uint8_t tag[6];                 /* BUI_PTY_TAG_*: ABLE / NOT ABLE / LEARNED (a TM, HM or tutor move), NO USE (a stone) */
     uint8_t lvSlot, lvLevel;        /* BUI_PTY_LEVELUP: the Pokemon's slot and its new level */
     uint16_t lvStat[6];             /* its new stats, in the Summary's order (HP, ATTACK, DEFENSE, SP. ATK, SP. DEF, SPEED) */
@@ -675,7 +682,7 @@ typedef struct {
     uint8_t state;                  /* BUI_* */
     int16_t pressed;                /* the button held under a touch, or -1 */
     int8_t cursor;                  /* the controller's own cursor: the chosen key, unless a touch holds another */
-    uint8_t showCursor;             /* the last input was a button (the ember Party and Bag draw the cursor only then) */
+    uint8_t showCursor;             /* the last input was a button (not drawn: the red device always shows the cursor) */
     uint8_t party[6];               /* 0 no Pokemon, 1 able, 2 fainted, 3 status condition */
     uint8_t partyHp[6];             /* HP left as a percentage (an egg: 100) */
     uint8_t partyStatus[6];         /* 0 none, else 1..6 PSN PAR SLP FRZ BRN PKRS */
@@ -707,29 +714,28 @@ void CtrBattleUi_Draw(uint16_t *canvas, const CtrBattleView *view);
 void CtrBattleUi_Update(uint16_t *canvas, const CtrBattleView *old, const CtrBattleView *view, CtrDirtyList *dirty);
 /* The button under a canvas point of the screen `view` shows, or -1. */
 int CtrBattleUi_Hit(const CtrBattleView *view, int x, int y);
-int CtrBattleUi_BagRailTarget(const CtrBattleBag *bag, int y);       /* the same for the battle Bag */
 
 
 /*
- * The Pokemon Summary (3ds_summary_ui.inc, CtrSummaryUi_*): the whole lower screen while FireRed's Summary of the party
- * runs hidden behind it, from the field's Party or the battle's (the same screen for both). It shows what the Summary
- * reports (CtrSummaryView) in the premium design: a header with the Pokemon (icon, nickname, gender, number, species,
- * level) and the buttons for the previous and next one, the tabs INFO / STATS / MOVES / TRAINER, the page and a footer
- * with BACK. INFO, STATS and MOVES are FireRed's three pages (its move details are MOVES with a move selected);
- * TRAINER is the trainer memo of its first page, shown on its own.
+ * The Pokemon Summary (3ds_device_summary_impl.h, CtrSummaryUi_*): the whole lower screen while FireRed's Summary of the
+ * party runs hidden behind it, from the field's Party, the battle's or a PC box (the same screen for all). It shows what
+ * the Summary reports (CtrSummaryView) as the red device: the tabs INFO / STATS / MOVES / MEMO and the keys for the
+ * previous and next Pokemon, the screen with the Pokemon and the page, the note and BACK. INFO, STATS and MOVES are
+ * FireRed's three pages (its move details are MOVES with a move selected); MEMO (SUI_TAB_TRAINER) is the trainer memo
+ * of its first page, shown on its own.
  */
 enum { SUI_TAB_INFO = 0, SUI_TAB_STATS, SUI_TAB_MOVES, SUI_TAB_TRAINER, SUI_TABS };
 /* Hit codes (CtrSummaryUi_Hit): the tabs, the previous / next Pokemon, BACK, a move card or row, the details' CANCEL. */
 enum { SUI_HIT_TAB = 0, SUI_HIT_PREV = 10, SUI_HIT_NEXT = 11, SUI_HIT_BACK = 12, SUI_HIT_MOVE = 20, SUI_HIT_CANCEL = 24,
-       SUI_HIT_IVTOGGLE = 30 /* the STATS page's EXP / IV-EV switch */ };
+       SUI_HIT_IVTOGGLE = 30 /* the STATS page's STATS | IV/EV switch */ };
 /* FireRed's Summary pages (pokemon_summary_screen.h PSS_PAGE_*). */
 enum { SUI_PAGE_INFO = 0, SUI_PAGE_SKILLS, SUI_PAGE_MOVES, SUI_PAGE_MOVES_INFO };
 typedef struct {
     CtrSummaryView data;            /* what the Summary reports (the last complete report while it loads a Pokemon) */
     uint16_t icon;                  /* FireRed's icon species of the Pokemon shown (the icon cache's key) */
     int16_t pressed;                /* the hit code under a held touch, or -1 */
-    uint8_t trainer;                /* TRAINER is shown (FireRed is on its first page) */
-    uint8_t ivView;                 /* STATS shows the IVs, EVs and Hidden Power instead of the experience */
+    uint8_t trainer;                /* MEMO (SUI_TAB_TRAINER) is shown (FireRed is on its first page) */
+    uint8_t ivView;                 /* STATS shows the IVs, EVs and Hidden Power instead of the stats and the experience */
     uint8_t loading;                /* nothing reported yet: the frame only */
     uint8_t shell;          /* the lower screen's shell colour: 0 red, 1 blue, 2 green, 3 grey (CtrOptions_Shell) */
 } CtrSummaryUiView;

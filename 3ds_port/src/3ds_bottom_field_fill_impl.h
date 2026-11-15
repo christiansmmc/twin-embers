@@ -20,7 +20,7 @@ static void BagBar(CtrPokeTouchView *v)
         snprintf(v->bar[2], PT_BAR_LEN, CTR_TR("Money  %u", "Dinero  %u", "Geld  %u"), CtrBottomBag_Money());
 }
 
-/* The field Bag drawn by the lower screen (3ds_field_bag_impl.h) rather than sampled from the GBA picture: the field's
+/* The field Bag drawn by the lower screen (3ds_device_bag_impl.h) rather than sampled from the GBA picture: the field's
  * own Bag, Party's GIVE Bag, a shop's (selling) and the item PC's (depositing), outside the Pokemon PC. The battle's
  * and the Old Man's demonstration are drawn by the battle screen (BattleBagFill). */
 static int FieldBagNative(void)
@@ -113,14 +113,14 @@ static void FieldListName(const FieldList *f, unsigned item, char *out, int size
     }
 }
 
-/* The field Bag (or a case) as it is now: its pocket, the rows around the cursor (CLOSE the row after the last item),
- * the selected item's detail, and what it has open. While it is busy (a pocket sliding in, a message printing) the
- * picture last shown stays. */
+/* The field Bag (or a case) as it is now: its pocket, the rows from three above the cursor (FireRed's CLOSE row after
+ * the last item is the page's CLOSE key, not a row), the selected item's detail, and what it has open. While it is busy
+ * (a pocket sliding in, a message printing) the picture last shown stays. */
 static void FieldBagFill(CtrPokeTouchView *v, int pressed, const FieldList *f)
 {
     CtrPokeTouchBag *b = &v->bag;
     const ListScreen *list = f->list;
-    int count, total, state = list->state();
+    int count, state = list->state();
 
     if (sHaveShown && sShown.mode == f->mode && sShown.touch.bag.on
         && (f->kind == PT_BAG_KIND_BAG ? FieldBagHold(&sShown.touch.bag) : state == BAG_BUSY)) {
@@ -170,11 +170,11 @@ static void FieldBagFill(CtrPokeTouchView *v, int pressed, const FieldList *f)
     }
     b->count = (int16_t)(count = list->count());
     b->cursor = (int16_t)list->cursor();
-    total = count + 1;
-    b->first = (int16_t)(b->cursor - 2 < 0 ? 0 : b->cursor - 2);
-    if (b->first > total - PT_BAG_ROWS)
-        b->first = (int16_t)(total - PT_BAG_ROWS < 0 ? 0 : total - PT_BAG_ROWS);
-    for (int i = 0; i < PT_BAG_ROWS; ++i) {
+    b->typed = (uint8_t)(f->name != NULL);
+    b->first = (int16_t)(b->cursor - 3 < 0 ? 0 : b->cursor - 3);
+    if (b->first > count - PT_BAG_ROWS)
+        b->first = (int16_t)(count - PT_BAG_ROWS < 0 ? 0 : count - PT_BAG_ROWS);
+    for (int i = 0; i < PT_BAG_ROWS && b->first + i < count; ++i) {
         unsigned item = f->item(b->first + i);
 
         b->row[i].item = (uint16_t)item;
@@ -390,7 +390,8 @@ static void BoxSnapshot(Snapshot *s)
     s->touch.viewport = 0;
 }
 
-/* A mart's BUY list or the item PC's WITHDRAW ITEM: drawn here, modal; BACK is its B (CANCEL, or back from how many). */
+/* A mart's BUY list, the item PC's WITHDRAW ITEM or the mailbox: drawn here (the red device's Bag page), modal; its CLOSE
+ * key is the list's B. */
 static void ShopSnapshot(Snapshot *s, int mode)
 {
     FieldBagFill(&s->touch, sFieldBag.down && sFieldBag.inside ? sFieldBag.code : -1, FieldListFor(mode));

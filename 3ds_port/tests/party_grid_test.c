@@ -1,6 +1,6 @@
 /* The Party's action menu grid (3ds_party_grid.h): the layout of up to eight actions in one column or two, and the D-pad rule the game's input
  * (recipe 0257) walks it by. Every count, every cell, every direction. The drawing's own rectangles are checked against the same rule in
- * battle_ui_render_test.c (BPMenuRow), so the layout and the D-pad cannot drift apart.
+ * device_layout_test.c (DevPtyMenuKey), so the layout and the D-pad cannot drift apart.
  *
  * usage: party_grid_test */
 #include <assert.h>
@@ -55,7 +55,8 @@ int main(void)
     }
 
     /* The short right column (an odd count): the last row of the left column goes right to the right column's last row. */
-    assert(CtrPartyGrid_Move(5, 2, CTR_PGRID_RIGHT) == 4);       /* 0 1 2 | 3 4: SUMMARY SWITCH ITEM | HEAL CANCEL */
+    assert(CtrPartyGrid_Move(5, 2, CTR_PGRID_RIGHT) == 4);       /* 0 1 2 | 3 4: SUMMARY SWITCH ITEM | HEAL CANCEL
+                                                                  * (HEAL only with CTR_PARTY_EXTRAS 1, recipe 0264) */
     assert(CtrPartyGrid_Move(5, 4, CTR_PGRID_LEFT) == 1);        /* CANCEL (row 1) back to row 1 */
     assert(CtrPartyGrid_Move(5, 3, CTR_PGRID_DOWN) == 4 && CtrPartyGrid_Move(5, 4, CTR_PGRID_DOWN) == 3);
     assert(CtrPartyGrid_Move(7, 3, CTR_PGRID_RIGHT) == 6);       /* 0 1 2 3 | 4 5 6 */

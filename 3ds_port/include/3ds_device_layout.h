@@ -2,6 +2,7 @@
 #define CTR_DEVICE_LAYOUT_H
 
 #include "3ds_poketouch.h"
+#include "3ds_party_grid.h"     /* the Party's menu: its grid */
 
 /*
  * The red device (style B): the rectangles of the lower screen's B views, in screen pixels, taken from the owner's
@@ -77,6 +78,118 @@ static inline CtrPokeTouchRect DevBatBallArrow(const CtrPokeTouchRect *r, int ne
     CtrPokeTouchRect a = {(int16_t)(next ? r->x + r->w - 22 : r->x + 2), (int16_t)(r->y + 38), 20, 20};
 
     return a;
+}
+
+/* ---- The Party (boards B · POKeMON and B · POKeMON: menu de ações, 3ds_device_party_impl.h) ------------------------------
+ * The field's and the battle's alike. The six bays two to a row in the game's order, the screen under them with what the
+ * Party says, CANCEL beside it (picking several: CONFIRM over a shorter CANCEL). With the action menu or YES / NO open
+ * (n rows) the bays become a column of slim ones and the rows keys beside them: one column of up to four as on the
+ * board, two columns beyond with the slim bays narrowed, as the game's D-pad walks them (3ds_party_grid.h, recipe 0257);
+ * the menu's screen takes the whole width under them. A Rare Candy's level up: a tall screen, OK in CANCEL's place. */
+static const CtrPokeTouchRect kDevPtyNote __attribute__((unused)) = {8, 180, 222, 52};
+static const CtrPokeTouchRect kDevPtyCancel __attribute__((unused)) = {238, 180, 74, 50};
+static const CtrPokeTouchRect kDevPtyConfirm __attribute__((unused)) = {238, 180, 74, 22};
+static const CtrPokeTouchRect kDevPtyCancelLow __attribute__((unused)) = {238, 206, 74, 24};
+static const CtrPokeTouchRect kDevPtyMenuNote __attribute__((unused)) = {8, 182, 304, 50};
+static const CtrPokeTouchRect kDevPtyLevelScreen __attribute__((unused)) = {8, 8, 304, 166};
+
+/* Slot i's bay (0-5): left to right, then down. */
+static inline CtrPokeTouchRect DevPtyBay(int i)
+{
+    CtrPokeTouchRect r = {(int16_t)(i & 1 ? 164 : 8), (int16_t)(8 + 56 * (i >> 1)), 148, 50};
+
+    return r;
+}
+
+/* Slot i's slim bay while a menu of n rows is open: the board's 188 wide beside one column, 116 beside two. */
+static inline CtrPokeTouchRect DevPtySlim(int n, int i)
+{
+    CtrPokeTouchRect r = {8, (int16_t)(8 + 28 * i), (int16_t)(n <= 4 ? 188 : 116), 24};
+
+    return r;
+}
+
+/* Row i's key of a menu of n rows: its column and row are the game's grid's (CtrPartyGrid_Col / _Row). */
+static inline CtrPokeTouchRect DevPtyMenuKey(int n, int i)
+{
+    int col = CtrPartyGrid_Col(n, i), row = CtrPartyGrid_Row(n, i);
+    CtrPokeTouchRect r = {(int16_t)(CtrPartyGrid_Cols(n) == 2 ? 132 + 94 * col : 206), (int16_t)(8 + 28 * row),
+                          (int16_t)(CtrPartyGrid_Cols(n) == 2 ? 86 : 106), 24};
+
+    return r;
+}
+
+/* ---- The Summary (boards B · Resumo: INFO, STATS, MOVES; 3ds_device_summary_impl.h) -----------------------------------
+ * The four tabs (INFO, STATS, MOVES, MEMO: SUI_TAB_* order) and the previous / next Pokemon (dark keys) across the top;
+ * the screen, its paper's left column (DEV_PAPER2) with the Pokemon (its picture in kDevSumPic, the 80x80 one centred on
+ * it) and the page's rows on the right; under it the note and BACK. MOVES and the move details list the moves in
+ * DevSumRow(0..3), the details' CANCEL in DevSumRow(4) (rows: no drop). STATS' switch (STATS | IV/EV) is drawn in
+ * kDevSumIvSwitch and taken in the larger kDevSumIvSwitchHit. */
+static const CtrPokeTouchRect kDevSumTab[4] __attribute__((unused)) = {
+    {8, 8, 56, 24}, {68, 8, 56, 24}, {128, 8, 56, 24}, {188, 8, 56, 24},
+};
+static const CtrPokeTouchRect kDevSumPrev __attribute__((unused)) = {252, 8, 28, 24};
+static const CtrPokeTouchRect kDevSumNext __attribute__((unused)) = {284, 8, 28, 24};
+static const CtrPokeTouchRect kDevSumScreen __attribute__((unused)) = {8, 40, 304, 140};
+static const CtrPokeTouchRect kDevSumColumn __attribute__((unused)) = {14, 46, 104, 128};
+static const CtrPokeTouchRect kDevSumPic __attribute__((unused)) = {34, 82, 64, 64};
+static const CtrPokeTouchRect kDevSumNote __attribute__((unused)) = {8, 188, 228, 44};
+static const CtrPokeTouchRect kDevSumBack __attribute__((unused)) = {244, 188, 68, 42};
+static const CtrPokeTouchRect kDevSumIvSwitch __attribute__((unused)) = {228, 49, 70, 13};
+static const CtrPokeTouchRect kDevSumIvSwitchHit __attribute__((unused)) = {224, 46, 78, 20};
+
+/* Row i (0-3 a move, 4 the details' CANCEL) of MOVES and the move details. */
+static inline CtrPokeTouchRect DevSumRow(int i)
+{
+    CtrPokeTouchRect r = {124, (int16_t)(52 + 24 * i), 176, 22};
+
+    return r;
+}
+
+/* ---- The Bag (boards B · BAG and B · BAG: menu do item; 3ds_device_bag_impl.h) -----------------------------------------
+ * One page for the field's Bag, its TM Case and Berry Pouch, a mart's BUY, the item PC's WITHDRAW ITEM, the mailbox and
+ * the battle's Bag. Across the top the keys: the Bag's three pockets (the battle's: ITEMS and BERRIES), a case's one key
+ * (kDevBagCaseKey), or a title on a screen (kDevBagTitle: a mart, the item PC, the mailbox). Under them the list's screen
+ * with its rows (DevBagRow: no drop) and the tall ▲▼ beside it; under that the description's screen (the item's icon
+ * in kDevBagDescIcon, the text from kDevBagDescText) and CLOSE, a dark key. With the item's menu, YES / NO or how many
+ * open, the list's screen and the description's narrow (kDevBagListNarrow, kDevBagDescNarrow) and the keys stand in a
+ * column on the right: the menu's (DevBagMenuKey), YES / NO (DevBagMenuKey(2, i)), or how many (kDevBagQty*). */
+#define DEV_BAG_ROW_H 16
+static const CtrPokeTouchRect kDevBagPocket[3] __attribute__((unused)) = {{8, 8, 96, 24}, {112, 8, 96, 24}, {216, 8, 96, 24}};
+static const CtrPokeTouchRect kDevBagCaseKey __attribute__((unused)) = {8, 8, 304, 24};
+static const CtrPokeTouchRect kDevBagTitle __attribute__((unused)) = {8, 6, 304, 28};
+static const CtrPokeTouchRect kDevBagList __attribute__((unused)) = {8, 40, 260, 144};
+static const CtrPokeTouchRect kDevBagListNarrow __attribute__((unused)) = {8, 40, 184, 144};
+static const CtrPokeTouchRect kDevBagUp __attribute__((unused)) = {276, 40, 36, 66};
+static const CtrPokeTouchRect kDevBagDown __attribute__((unused)) = {276, 114, 36, 66};
+static const CtrPokeTouchRect kDevBagDesc __attribute__((unused)) = {8, 190, 228, 42};
+static const CtrPokeTouchRect kDevBagDescNarrow __attribute__((unused)) = {8, 190, 184, 42};
+static const CtrPokeTouchRect kDevBagDescIcon __attribute__((unused)) = {18, 199, 24, 24};
+static const CtrPokeTouchRect kDevBagDescText __attribute__((unused)) = {46, 197, 180, 27};
+static const CtrPokeTouchRect kDevBagClose __attribute__((unused)) = {244, 190, 68, 40};
+/* How many: the count's screen between ▲ and ▼, OK and CANCEL under them. */
+static const CtrPokeTouchRect kDevBagQtyUp __attribute__((unused)) = {200, 40, 112, 30};
+static const CtrPokeTouchRect kDevBagQtyScreen __attribute__((unused)) = {200, 76, 112, 40};
+static const CtrPokeTouchRect kDevBagQtyDown __attribute__((unused)) = {200, 122, 112, 30};
+static const CtrPokeTouchRect kDevBagQtyOk __attribute__((unused)) = {200, 158, 112, 30};
+static const CtrPokeTouchRect kDevBagQtyCancel __attribute__((unused)) = {200, 194, 112, 36};
+
+/* Row i (0-7) of the list, on the wide screen or (`narrow`) the narrow one. */
+static inline CtrPokeTouchRect DevBagRow(int i, int narrow)
+{
+    CtrPokeTouchRect r = {16, (int16_t)(48 + DEV_BAG_ROW_H * i), (int16_t)(narrow ? 168 : 244), DEV_BAG_ROW_H};
+
+    return r;
+}
+
+/* Key i of a menu of n (1-6): one column, 38 apart up to five keys (the last, a dark one, 38 tall, the others 30), 32
+ * apart and 26 tall for six. */
+static inline CtrPokeTouchRect DevBagMenuKey(int n, int i)
+{
+    int p = n <= 5 ? 38 : 32, h = n <= 5 ? (i == n - 1 ? 38 : 30) : 26;
+    CtrPokeTouchRect r = {200, (int16_t)(40 + p * i), 112, (int16_t)h};
+
+    return r;
 }
 
 #endif

@@ -387,18 +387,18 @@ extern unsigned CtrBottomDex_Height(unsigned species);
 extern unsigned CtrBottomDex_Weight(unsigned species);
 extern void CtrBottomDex_Description(unsigned species, char *out, int size);
 extern int CtrBottomDex_Types(unsigned species, int *types, char *first, char *second, int size);
-/* Game names in proper case (3ds_text_case.h): the Bag's items and a case's moves as they are read (a mailbox shares the list), the Summary as it is reported. */
+/* Game names in proper case (3ds_text_case.h): the Bag's items and a case's moves as they are read (a mailbox shares the list). The
+ * Summary, a red device view, gets them as FireRed has them (it draws them upper case: decision 5). */
 #define CtrBottomBag_ItemName(i, o, n) (CtrBottomBag_ItemName((i), (o), (n)), CtrTextCase(o))
 #define CtrBottomTMCase_MoveName(i, o, n) (CtrBottomTMCase_MoveName((i), (o), (n)), CtrTextCase(o))
 /* The Summary's view is read at most once a frame (the session-ready check and the snapshot both ask, with nothing of the game
- * running between them): the first read is cased and kept, CtrBottom_Frame forgets it at its start. */
+ * running between them): the first read is kept, CtrBottom_Frame forgets it at its start. */
 static int sSumViewValid;
 static CtrSummaryView sSumViewMemo;
 static void SummaryViewNow(CtrSummaryView *o)
 {
     if (!sSumViewValid) {
         CtrBottomSummary_GetView(&sSumViewMemo);
-        CtrTextCase_Summary(&sSumViewMemo);
         sSumViewValid = 1;
     }
     *o = sSumViewMemo;
@@ -515,7 +515,7 @@ typedef struct {
     unsigned char canAdvance;
     unsigned serial;
     CtrSummaryView summary;         /* a field Summary: FireRed's own, in the viewport */
-    CtrSummaryUiView sum;           /* a battle Summary: its own screen (3ds_summary_ui.inc) */
+    CtrSummaryUiView sum;           /* a battle Summary: its own screen (3ds_device_summary_impl.h) */
     unsigned char summaryUi;        /* it is what the lower screen shows */
     CtrPokeTouchView touch;
     CtrBattleView battle;
@@ -750,10 +750,12 @@ static void PartyEchoMode(int mode)
 }
 
 /* Dragging a list: a finger on a row that moves this far up or down scrolls instead of tapping, one row per
- * LIST_DRAG_ROW pixels (the lower screen's row pitch), the content following the finger. */
+ * LIST_DRAG_ROW pixels (the Pokedex's row pitch; the red device's Bag's rows are BAG_DRAG_ROW apart), the content
+ * following the finger. */
 #define LIST_DRAG_SLOP 8
 #define BALL_SWIPE_STEP 18      /* pixels across the quick ball for one ball */
 #define LIST_DRAG_ROW 26
+#define BAG_DRAG_ROW 16
 
 /* The field's choice's touch (ProcessChoiceTouch), as the Bag's. */
 static struct {
@@ -1119,7 +1121,8 @@ static void HomeNextMap(unsigned open)
     sHome.valid = 0;
 }
 
-/* HOME's bar for the selection: its name, and what Fly says about it. */
+/* HOME's bar for the selection: its name, and under it why Fly cannot go there, or, when Fly has nothing to say about
+ * it, the dungeon over it (v0.6.0's line: ROUTE 4, MT. MOON); else nothing (the panel shows the region). */
 static void HomeSelectionBar(CtrPokeTouchView *v)
 {
     static const CtrUiString sWhy[PT_FLY_OK] = {
@@ -1133,6 +1136,8 @@ static void HomeSelectionBar(CtrPokeTouchView *v)
     v->flyOk = status == PT_FLY_OK;
     if (status > PT_FLY_NONE && status < PT_FLY_OK)
         snprintf(v->bar[2], PT_BAR_LEN, "%s", CtrUiText(sWhy[status]));      /* why not: the line under the place */
+    else if (status == PT_FLY_NONE && sHome.mapsec != MAPSEC_NONE_VALUE && sHome.dungeon != MAPSEC_NONE_VALUE)
+        CtrPokeTouch_MapSectionName((unsigned)sHome.dungeon, v->bar[2], PT_BAR_LEN);
 }
 
 /* The party as the lower screen shows it (CtrBattleView's fields, HOME's): per slot 0 no Pokemon, 1 able, 2 fainted, 3 a
@@ -2023,7 +2028,7 @@ static void RunSumPlan(void)
     }
 }
 
-/* The Summary's own screen (3ds_summary_ui.inc): what FireRed's Summary reports, and the touch held on it. While FireRed
+/* The Summary's own screen (3ds_device_summary_impl.h): what FireRed's Summary reports, and the touch held on it. While FireRed
  * loads a Pokemon (its setup, a switch to another one) it reports no data: the last complete report of the same Summary
  * stays on the screen meanwhile, so nothing blinks. TRAINER is FireRed's first page shown as its trainer memo: chosen by
  * its tab, and left as soon as FireRed is on another page with no plan of ours walking it there. */
@@ -2944,9 +2949,19 @@ static void UpdateSave(void)
 /* Touch-down presses an enabled element, moving off releases the highlight,
  * release over it acts once. Holding never repeats. HOME's own keys and places
  * are its (CtrPokeTouch_HomeHit); OPTIONS and SAVE keep the START column. */
+
+/* HOME is the picture the lower screen shows: only then do its keys, party, FLY, region key and map take a touch (on the
+ * field's first frames the screen that closed may still be the picture shown). */
+static int HomeShownNow(void)
+{
+    return sHaveShown && sShown.mode == MODE_FIELD && sShown.touch.home && !sShown.touch.viewport;
+}
+
 static int PokeTouchHit(int x, int y)
 {
-    return NativeActive() ? CtrPokeTouch_HitTest(x, y) : CtrPokeTouch_HomeHit(&sShown.touch, x, y);
+    if (NativeActive())
+        return CtrPokeTouch_HitTest(x, y);
+    return HomeShownNow() ? CtrPokeTouch_HomeHit(&sShown.touch, x, y) : PT_NONE;
 }
 
 static void ProcessPokeTouch(const CtrInput *in)
@@ -2957,8 +2972,9 @@ static void ProcessPokeTouch(const CtrInput *in)
         ProcessSaveInput(in);
     if (in->touchDown) {
         int x = (int)in->touchX, y = (int)in->touchY, id = PokeTouchHit(x, y), vx, vy;
+        int home = !NativeActive() && HomeShownNow();
         /* HOME's FLY: the selected place, asked of the game now (the same as tapping the place again). */
-        if (!NativeActive() && sHome.valid && sHome.mapsec != MAPSEC_NONE_VALUE && CtrPokeTouch_FlyHit(x, y)) {
+        if (home && sHome.valid && sHome.mapsec != MAPSEC_NONE_VALUE && CtrPokeTouch_FlyHit(x, y)) {
             if (CtrPokeTouch_FlyStatus((unsigned)sHome.mapsec) == PT_FLY_OK) {
                 CtrPokeTouch_RequestFly((unsigned)sHome.mapsec);
                 sHome.valid = 0;
@@ -2968,7 +2984,7 @@ static void ProcessPokeTouch(const CtrInput *in)
             return;
         }
         /* HOME's region key (the next map) acts at once; the town under it is not picked. */
-        if (!NativeActive() && id == PT_NONE && CtrPokeTouch_HomeRibbonHit(x, y)) {
+        if (home && id == PT_NONE && CtrPokeTouch_HomeRibbonHit(x, y)) {
             HomeNextMap(sHomeOpen);
             sPoke.id = PT_NONE;
             sHome.down = 0;
@@ -2977,7 +2993,7 @@ static void ProcessPokeTouch(const CtrInput *in)
         sPoke.id = (uint8_t)(id != PT_NONE && FieldEnabled(id) ? id : PT_NONE);
         sPoke.inside = sPoke.id != PT_NONE;
         /* A touch on the map's window: a tap when released near where it began. */
-        sHome.down = !NativeActive() && id == PT_NONE && CtrPokeTouch_HomeWindowPoint(x, y, &vx, &vy);
+        sHome.down = home && id == PT_NONE && CtrPokeTouch_HomeWindowPoint(x, y, &vx, &vy);
         if (sHome.down) {
             sHome.downX = sHome.lastX = x;
             sHome.downY = sHome.lastY = y;
@@ -3183,14 +3199,16 @@ static void ProcessBattleTouch(const CtrInput *in)
 /* The battle Bag's touch: the same press, track, release, and the same Bag plans as every Bag (walk the Bag's own
  * list cursor to an item, send A / B, walk its menu), so FireRed's Bag decides everything: a tap on another item
  * selects it, a tap on the selected one sends A and then A again on the first row of the menu that opens (USE, or
- * CANCEL for an item with no use here); a tab presses LEFT / RIGHT until the Bag is in that pocket; CANCEL is B.
+ * CANCEL for an item with no use here), a drag on the rows scrolls them (the field Bag's drag); a tab presses LEFT /
+ * RIGHT until the Bag is in that pocket; CANCEL is B.
  * An invalid use stays in the Bag with the Bag's own message (shown, A to continue). A held physical button
  * cancels it all, except the horizontal D-pad that shares the pocket router. */
 static struct {
     int pocketTarget, pocketWait;   /* the pocket the Bag is being walked to (-1 none), frames left to get there */
     int autoWait;                   /* frames left to confirm USE once the item's menu opens */
     int berryWait;                  /* BERRIES: frames left to find the Berry Pouch once the Key Items pocket shows */
-} sBatBag = {-1, 0, 0, 0};
+    int y0, cursor0, scrolling;     /* a touch-down's y and the cursor then, and whether the touch became a drag */
+} sBatBag = {-1, 0, 0, 0, 0, 0, 0};
 
 uint16_t CtrBottom_FilterGameKeys(uint16_t held)
 {
@@ -3324,22 +3342,30 @@ static void ProcessBattleBagTouch(const CtrInput *in)
         sBat.down = sBat.inside = btn >= 0;
         sBat.btn = btn;
         sBat.state = state;
-        if (btn != BUI_BAG_RAIL)
-            return;
+        sBatBag.y0 = (int)in->touchY;
+        sBatBag.cursor0 = list->cursor();
+        sBatBag.scrolling = 0;
+        return;
     }
     if (!sBat.down)
         return;
-    if (sBat.btn == BUI_BAG_RAIL && (in->touchActive || in->touchDown)) {
-        /* The rail is a slider: a press jumps there, a drag follows the finger, release does nothing. */
-        int target = CtrBattleUi_BagRailTarget(&sShown.battle.bag, (int)in->touchY);
-
-        sBat.inside = 0;
-        if (target >= 0 && target != list->cursor() && sBagPlan.kind == BAGPLAN_NONE)
-            BagPlanStart(list, BAGPLAN_LIST, target, 0, 0);
-        return;
-    }
     if (in->touchActive) {
-        sBat.inside = btn == sBat.btn;
+        int dy = (int)in->touchY - sBatBag.y0;
+
+        /* A drag on the rows, as the field Bag's: the cursor follows the finger from where it was at the touch-down,
+         * within the items (the battle's list has no CLOSE row), one plan at a time; released, it selects nothing. */
+        if (state == BAG_LIST && sBat.btn >= BUI_BAG_ROW && sBat.btn < BUI_BAG_ROW + BUI_BAG_ROWS
+            && (sBatBag.scrolling || dy >= LIST_DRAG_SLOP || -dy >= LIST_DRAG_SLOP)) {
+            int target = sBatBag.cursor0 - (dy + (dy < 0 ? -BAG_DRAG_ROW / 2 : BAG_DRAG_ROW / 2)) / BAG_DRAG_ROW;
+            int last = sShown.battle.bag.count - 1;
+
+            sBatBag.scrolling = 1;
+            target = target > last ? last : target;
+            target = target < 0 ? 0 : target;
+            if (target != list->cursor() && sBagPlan.kind == BAGPLAN_NONE)
+                BagPlanStart(list, BAGPLAN_LIST, target, 0, 0);
+        }
+        sBat.inside = !sBatBag.scrolling && btn == sBat.btn;
         return;
     }
     if (sBat.inside) {
@@ -3372,9 +3398,9 @@ static void ProcessBattleBagTouch(const CtrInput *in)
 }
 
 /* The field Bag's touch: press, track, release, one action, on what the lower screen showed (CtrPokeTouch_BagHit).
- * A row selects its item, a tap on the selected one (or on CLOSE BAG) sends A; a tab presses LEFT / RIGHT until the
- * Bag is in that pocket; the arrows move the cursor a page; the menu's rows and YES / NO are walked to and taken; the
- * quantity box counts with UP / DOWN and takes A or B; a tap off the menu is B; a message takes A. All through the
+ * A row selects its item, a tap on the selected one sends A, a drag on the rows scrolls them; a pocket key presses
+ * LEFT / RIGHT until the Bag is in that pocket; ▲▼ move the cursor a page; CLOSE is B; the menu's keys and YES / NO
+ * are walked to and taken; the quantity box counts with UP / DOWN and takes A or B; a message takes A. All through the
  * Bag's own keys, so FireRed decides what each does. A held physical button cancels it. */
 static void ProcessFieldBagTouch(const FieldList *f, const CtrInput *in)
 {
@@ -3404,27 +3430,16 @@ static void ProcessFieldBagTouch(const FieldList *f, const CtrInput *in)
         sFieldBag.y0 = (int)in->touchY;
         sFieldBag.cursor0 = list->cursor();
         sFieldBag.scrolling = 0;
-        if (hit != PT_BAG_HIT_RAIL)
-            return;
+        return;
     }
     if (!sFieldBag.down)
         return;
-    if (sFieldBag.code == PT_BAG_HIT_RAIL && (in->touchActive || in->touchDown)) {
-        /* The rail is a slider: a press jumps there, a drag follows the finger, release does nothing. */
-        int target = CtrPokeTouch_BagRailTarget(&sShown.touch.bag, (int)in->touchY);
-
-        sFieldBag.inside = 0;
-        sFieldBag.scrolling = 1;
-        if (target >= 0 && target != list->cursor() && sBagPlan.kind == BAGPLAN_NONE)
-            BagPlanStart(list, BAGPLAN_LIST, target, 0, 0);
-        return;
-    }
     if (in->touchActive) {
         int dy = (int)in->touchY - sFieldBag.y0;
 
         if (state == BAG_LIST && sFieldBag.code >= PT_BAG_HIT_ROW && sFieldBag.code < PT_BAG_HIT_ROW + PT_BAG_ROWS
             && (sFieldBag.scrolling || dy >= LIST_DRAG_SLOP || -dy >= LIST_DRAG_SLOP)) {
-            int target = sFieldBag.cursor0 - (dy + (dy < 0 ? -LIST_DRAG_ROW / 2 : LIST_DRAG_ROW / 2)) / LIST_DRAG_ROW;
+            int target = sFieldBag.cursor0 - (dy + (dy < 0 ? -BAG_DRAG_ROW / 2 : BAG_DRAG_ROW / 2)) / BAG_DRAG_ROW;
 
             sFieldBag.scrolling = 1;
             sFieldBag.pocketTarget = -1;
@@ -3442,7 +3457,7 @@ static void ProcessFieldBagTouch(const FieldList *f, const CtrInput *in)
         if (code >= PT_BAG_HIT_ROW && code < PT_BAG_HIT_ROW + PT_BAG_ROWS) {
             int index = b->first + code - PT_BAG_HIT_ROW;
 
-            BagPlanStart(list, BAGPLAN_LIST, index, index == b->cursor || index == b->count, 0);
+            BagPlanStart(list, BAGPLAN_LIST, index, index == b->cursor, 0);
         } else if (code >= PT_BAG_HIT_TAB && code < PT_BAG_HIT_TAB + 3) {
             sFieldBag.pocketTarget = code - PT_BAG_HIT_TAB;
             sFieldBag.pocketWait = 90;
@@ -3452,6 +3467,8 @@ static void ProcessFieldBagTouch(const FieldList *f, const CtrInput *in)
             BagPlanStart(list, BAGPLAN_LIST, b->cursor - page < 0 ? 0 : b->cursor - page, 0, 0);
         else if (code == PT_BAG_HIT_DOWN)
             BagPlanStart(list, BAGPLAN_LIST, b->cursor + page > b->count ? b->count : b->cursor + page, 0, 0);
+        else if (code == PT_BAG_HIT_CLOSE)
+            BagPlanStart(list, BAGPLAN_PRESS, 0, 0, K_B);
         else if (code == PT_BAG_HIT_QTY_UP || code == PT_BAG_HIT_QTY_DOWN || code == PT_BAG_HIT_QTY_OK
                  || code == PT_BAG_HIT_QTY_CANCEL || code == PT_BAG_HIT_MESSAGE)
             BagPlanStart(list, BAGPLAN_PRESS, 0, 0, code == PT_BAG_HIT_QTY_UP ? K_UP : code == PT_BAG_HIT_QTY_DOWN ? K_DOWN
@@ -4327,15 +4344,6 @@ static int ProcessTouch(int mode)
         sBack.down = sBack.inside = 0;
         return ProcessSummaryTouch(in);
     }
-    if (mode == MODE_SHOP || mode == MODE_ITEMPC || mode == MODE_MAILBOX) {
-        /* A mart's BUY list, the item PC's WITHDRAW ITEM, the mailbox: modal, nothing on the sidebar routes away. */
-        sPoke.id = PT_NONE;
-        sPoke.inside = 0;
-        sTouch.active = 0;
-        ProcessBack(mode, in);
-        ProcessFieldBagTouch(FieldListFor(mode), in);
-        return HIT_NONE;
-    }
     if (mode == MODE_NAMING) {
         /* The naming screen: modal, nothing on the sidebar routes away from it. */
         sPoke.id = PT_NONE;
@@ -4396,6 +4404,17 @@ static int ProcessTouch(int mode)
             return ProcessSummaryGbaTouch(in);
         return HIT_NONE;
     }
+    if (FieldListFor(mode) != NULL) {
+        /* The field's Bag and its cases, a mart's BUY list, the item PC's WITHDRAW ITEM, the mailbox: the red device's
+         * page takes the whole screen, modal (no column, no BACK: its CLOSE is B, and the column's rectangles lie over
+         * its ▲▼ and CLOSE). */
+        sPoke.id = PT_NONE;
+        sPoke.inside = 0;
+        sTouch.active = 0;
+        sBack.down = sBack.inside = 0;
+        ProcessFieldBagTouch(FieldListFor(mode), in);
+        return HIT_NONE;
+    }
     ProcessRouteTouch(mode, in);
     ProcessBack(mode, in);
     if (mode == MODE_CARD) {
@@ -4409,10 +4428,6 @@ static int ProcessTouch(int mode)
             ProcessDexPageTouch(in);
         else
             ProcessDexTouch(in);
-        return HIT_NONE;
-    }
-    if (FieldListFor(mode) != NULL) {
-        ProcessFieldBagTouch(FieldListFor(mode), in);
         return HIT_NONE;
     }
     if (in->held & 0x3ffu || (sHaveShown && mode != sShown.mode))
@@ -4927,11 +4942,8 @@ void CtrBottom_Frame(void)
      * (nav: state is sShown) was cased when it was first built. */
     if (!nav) {
         state.touch.shell = state.battle.shell = state.sum.shell = (uint8_t)CtrOptions_Shell();
-        if (state.battleUi) {
-            if (state.battle.state == BUI_PARTY || state.battle.state == BUI_BAG)
-                CtrTextCase_Battle(&state.battle);  /* the other states are the red device's: FireRed's capitals */
-        } else if (!state.touch.home || state.touch.viewport)
-            CtrTextCase_Touch(&state.touch);    /* HOME is the red device's: FireRed's capitals (DevUpper) */
+        if (!state.battleUi && (!state.touch.home || state.touch.viewport))
+            CtrTextCase_Touch(&state.touch);    /* HOME, the Bag and the battle's states are the red device's: FireRed's capitals (DevUpper) */
     }
     /* The logo only once nothing has been shown for a while: a screen's few frames of change show the backdrop. */
     sIdleFrames = state.mode == MODE_OFF && !sSession.active ? (sIdleFrames < IDLE_LOGO_FRAMES ? sIdleFrames + 1

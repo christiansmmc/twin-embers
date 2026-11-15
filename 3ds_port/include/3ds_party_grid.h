@@ -1,10 +1,11 @@
 #ifndef CTR_PARTY_GRID_H
 #define CTR_PARTY_GRID_H
 
-/* The layout of the Party's action menu (SUMMARY, SWITCH, ITEM, HEAL, REMEMBER, field moves, CANCEL) and the D-pad rule that
- * walks it, in ONE place: the lower screen draws it from CtrPartyGrid_Col / _Row (3ds_battle_ui_impl.h BPMenuRow) and the
- * game's own input (recipe 0257, Task_HandleSelectionMenuInput in party_menu.c) moves its cursor with CtrPartyGrid_Move, so
- * the two cannot disagree (3ds_port/tests/party_grid_test.c and battle_ui_render_test.c fail if they do).
+/* The layout of the Party's action menu (SUMMARY, SWITCH, ITEM, field moves, CANCEL; HEAL and REMEMBER with recipe 0264's
+ * CTR_PARTY_EXTRAS) and the D-pad rule that walks it, in ONE place: the lower screen draws it from CtrPartyGrid_Col / _Row
+ * (3ds_device_layout.h DevPtyMenuKey) and the game's own input (recipe 0257, Task_HandleSelectionMenuInput in party_menu.c)
+ * moves its cursor with CtrPartyGrid_Move, so the two cannot disagree (3ds_port/tests/party_grid_test.c and
+ * device_layout_test.c fail if they do).
  *
  * Up to four actions are one column (FireRed's own list: UP / DOWN, the game's input untouched). Beyond four there are two
  * columns filled column by column: rows = (count + 1) / 2, action i is in column i / rows, row i % rows (so the right column
