@@ -6928,7 +6928,7 @@
   },
   {
    "path": "tools/test_field_presentation.py",
-   "sha256": "46b33ab51e3240be09241b35fa8fe4b1e133715465b76acbcc94bd0255cc725b",
+   "sha256": "cf7aaf0b60055bd52b40afefe27d3ad46e2aeeb89e40c33114b4071db357ddc7",
    "review_status": "reviewed",
    "credit": "alex61194; Twin Embers Port contributors; inherited/adapted upstream portions as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; external game/dependency rights excluded",

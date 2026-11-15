@@ -310,6 +310,13 @@ int main(void) {
     acted = -1; sIn.touchActive = sIn.touchDown = 1; Frame();
     hitCode = -1; sIn.touchDown = 0; Frame(); sIn.touchActive = 0; Frame();
     assert(acted == -1);
+    /* a touch press on a tab or NEXT while a physical key is held does nothing: no act, no plan */
+    sIn.held = K_UP; sIn.down = 0; sIn.touchActive = sIn.touchDown = 1;
+    hitCode = SUI_HIT_TAB + 1; acted = -1; Frame();
+    assert(acted == -1 && sSumPlan.kind == SUMPLAN_NONE);
+    hitCode = SUI_HIT_NEXT; Frame();
+    assert(acted == -1 && sSumPlan.kind == SUMPLAN_NONE);
+    sIn.touchDown = sIn.touchActive = 0; sIn.held = 0;
     return 0;
 }
 ''')
