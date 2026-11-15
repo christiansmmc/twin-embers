@@ -2132,10 +2132,10 @@
   {
    "path": "3ds_port/tests/poketouch_render_test.c",
    "review_status": "reviewed",
-   "credit": "alex61194 with disclosed AI assistance",
+   "credit": "alex61194 with disclosed AI assistance; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT for original port/test contributions; external game rights unchanged",
    "basis": "Original chrome rendering and synthetic fixtures; runtime pack assets remain external; geometry and viewport preserved",
-   "sha256": "07e1fcd6b1664ac1bde092212a94ed32e50e3d89cff24fff84fb5db72f52de55"
+   "sha256": "ca49d0e8038166ceb7d864ba7aa6ad875b04004fa46774cc75ebb3e9de1a21f2"
   },
   {
    "path": "3ds_port/tests/rex_test.c",

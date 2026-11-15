@@ -1,4 +1,6 @@
 /* Real renderer with synthetic pack/game bridges; no ROM-derived fixtures. */
+/* clock_gettime and CLOCK_MONOTONIC (PT_TIMING, PT_BENCH) are POSIX: glibc hides them under -std=c11 without this. */
+#define _POSIX_C_SOURCE 199309L
 #include <time.h>
 #include <assert.h>
 #ifndef PT_SOURCE
