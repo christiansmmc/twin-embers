@@ -2135,7 +2135,7 @@
    "credit": "alex61194 with disclosed AI assistance; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT for original port/test contributions; external game rights unchanged",
    "basis": "Original chrome rendering and synthetic fixtures; runtime pack assets remain external; geometry and viewport preserved",
-   "sha256": "ca49d0e8038166ceb7d864ba7aa6ad875b04004fa46774cc75ebb3e9de1a21f2"
+   "sha256": "887028b10443076ef415a487d4de2c16133733726fd4a31e721c9cc6cc51e4d1"
   },
   {
    "path": "3ds_port/tests/rex_test.c",

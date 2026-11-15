@@ -694,7 +694,7 @@ int main(int argc, char **argv)
                 e->pressed=PT_EC_HIT_YES; update(&old,&s); e->pressed=-1; e->askCursor^=1; update(&old,&s);
             }
             assert(CtrPokeTouch_EasyHit(&s,60,130)==PT_EC_HIT_YES && CtrPokeTouch_EasyHit(&s,180,130)==PT_EC_HIT_NO && CtrPokeTouch_EasyHit(&s,5,5)==-1 && CtrPokeTouch_EasyHit(&s,20,60)==-1);
-            strcpy(e->ask1,"Stop giving the Pokemon Mail to this one and that one?"); e->ask2[0]=0; SHOT("ec_ask_long");
+            strcpy(e->ask1,"Stop giving the Mail to this one and that one?"); e->ask2[0]=0; SHOT("ec_ask_long");
             e->ask=0; update(&old,&s);
             e->on=0; update(&old,&s);          /* the screen closes: what was under it is drawn whole again */
         }
