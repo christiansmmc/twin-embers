@@ -11,7 +11,7 @@
  *   DEVICE_WIDTHS=file        the normal font's 256 glyph widths; DEVICE_SMALL_WIDTHS=file the small font's
  *   DEVICE_FONT_W=n           the stub glyph width
  *
- * usage: device_render_test <suite>   (kit, or all; prints PASS device <suite>) */
+ * usage: device_render_test <suite>   (kit, home, or all; prints PASS device <suite>) */
 #include <assert.h>
 #ifndef PT_SOURCE
 #define PT_SOURCE "3ds_poketouch.c"
@@ -686,10 +686,211 @@ static void SuiteKit(void)
     assert(sDevKeyCut == 0);
 }
 
+/* ---- home: HOME as the red device (board B · Início) --------------------------------------------------------------- */
+
+static int HomeHitV(const void *view, int x, int y)
+{
+    return CtrPokeTouch_HomeHit((const CtrPokeTouchView *)view, x, y);
+}
+
+/* The board's HOME: VERMILION CITY in KANTO, the player's name on the card, five Pokemon and a hole (HP 100, 66, 34,
+ * 0 and 8 %), the speed at 2x, the map's art there, another map open; no player on the map, no destination. */
+static CtrPokeTouchView HomeBoard(void)
+{
+    static const uint8_t kHp[6] = {100, 66, 34, 0, 8, 0};
+    CtrPokeTouchView v;
+
+    memset(&v, 0, sizeof(v));
+    v.selected = v.pressed = PT_NONE;
+    v.optPressed = -1;
+    v.home = 1;
+    for (int i = 0; i < PT_COUNT; ++i)
+        v.enabled[i] = 1;
+    v.mapGroup = PT_MAP_KANTO;
+    v.mapReady = 1;
+    v.mapOpen = 3;
+    v.playerX = v.playerY = v.cursorX = v.cursorY = -1;
+    strcpy(v.bar[0], "VERMILION CITY");
+    strcpy(v.bar[1], "KANTO");
+    strcpy(v.playerName, "RED");
+    for (int i = 0; i < 6; ++i) {
+        v.party[i] = (uint8_t)(i == 5 ? 0 : kHp[i] ? 1 : 2);
+        v.partyHp[i] = kHp[i];
+        v.partyIcon[i] = (uint16_t)(i == 5 ? 0 : 25 + i);
+    }
+    v.speed = 2;
+    v.speedEnabled = 1;
+    return v;
+}
+
+/* The suite as the plan gives it (HOME's keys hit where they are drawn, the map at 1:1, every cell of every map in the
+ * window, the name window inside it, a blink or a step presents only the window), then the states for the eye. */
+static void SuiteHome(void)
+{
+    static const int ids[6] = {PT_POKEDEX, PT_POKEMON, PT_BAG, PT_CARD, PT_SAVE, PT_OPTIONS};
+    static const int corner[5][2] = {{0, 0}, {21, 0}, {0, 14}, {21, 14}, {10, 7}};
+    static uint16_t tm[30 * 20], btm[30 * 20], gba[MAP_COLORS];
+    static uint8_t tl[MAP_TILES * 32], btl[MAP_TILES * 32];
+    CtrPokeTouchView v, old;
+    CtrPokeTouchRect r;
+    CtrDirtyList d;
+    int i, x, y, gx, gy, cx, cy, vx, vy, dx, dy, g;
+    const int flyX = kDevHomeFly.x + kDevHomeFly.w / 2, flyY = kDevHomeFly.y + kDevHomeFly.h / 2;
+
+    richArt = 1;
+    iconArt = 1;
+    sPlayer.key = -1;
+    assert(CtrPokeTouch_MapPrepare(PT_MAP_KANTO, 0));
+    v = HomeBoard();
+    CtrTextCase_Touch(&v);
+    CtrPokeTouch_Draw(canvas, &v);
+    old = v;
+    shot("plain");
+    for (i = 0; i < 6; ++i) {
+        AssertHits(HomeHitV, &v, kDevHomeKey[i], ids[i]);
+        AssertKey(kDevHomeKey[i], DEV_LOOK_KEY, 0);
+    }
+    assert(CtrPokeTouch_HomeHit(&v, 108, 174) == PT_NONE && at(108, 174) == DEV_SHELL_RED);      /* the gap */
+    assert(CtrPokeTouch_HomeHit(&v, 232, 131) == PT_RUN && CtrPokeTouch_HomeHit(&v, 280, 131) == PT_HOME_SPEED);
+    assert(CtrPokeTouch_HomeHit(&v, 225, 75) == PT_HOME_PARTY && CtrPokeTouch_HomeHit(&v, 256, 103) == PT_HOME_PARTY + 4
+           && CtrPokeTouch_HomeHit(&v, 287, 103) == PT_NONE && CtrPokeTouch_HomeHit(&v, 100, 80) == PT_NONE);
+    assert(CtrPokeTouch_HomeWindowPoint(14, 14, &vx, &vy) && vx == 0 && vy == 0 && CtrPokeTouch_HomeWindowPoint(205, 141, &vx, &vy)
+           && vx == 191 && vy == 127 && !CtrPokeTouch_HomeWindowPoint(206, 80, &vx, &vy) && !CtrPokeTouch_HomeWindowPoint(13, 80, &vx, &vy));
+    /* the map at 1:1: window pixel (dx, dy) is the Region Map screen's (24 + dx, 28 + dy) (below the region key's rows) */
+    CtrPokeTouch_MapArt(0, tm, tl, gba, btm, btl);
+    for (dy = 20; dy < 128; dy += 9)
+        for (dx = 0; dx < 192; dx += 7)
+            assert(at(14 + dx, 14 + dy) == Gba(gba[MapColor(tm, tl, btm, btl, 24 + dx, 28 + dy)]));
+    /* every cell of every region inside the window with room for its 16x16 icon; a tap on it gives it back */
+    for (g = 0; g < PT_MAP_COUNT; ++g) {
+        v.mapGroup = (uint8_t)g;
+        DevCheckTouch(&old, &v);
+        for (cy = 0; cy < 15; ++cy)
+            for (cx = 0; cx < 22; ++cx) {
+                assert(CtrPokeTouch_HomeCellPoint(&v, cx, cy, &x, &y) && x - 8 >= 14 && y - 8 >= 14 && x + 8 <= 206 && y + 8 <= 142);
+                assert(CtrPokeTouch_HomeMapCell(&v, x, y, &gx, &gy) && gx == cx && gy == cy);
+            }
+    }
+    assert(CtrPokeTouch_HomeCellPoint(&v, 0, 0, &x, &y) && x == 26 && y == 22 && !CtrPokeTouch_HomeCellPoint(&v, 22, 0, &x, &y));
+    v.mapGroup = 0;
+    /* the destination's name window stays inside the window, at the corners and the middle */
+    strcpy(v.bar[0], "VERMILION CITY");
+    for (i = 0; i < 5; ++i) {
+        v.cursorX = (int8_t)corner[i][0];
+        v.cursorY = (int8_t)corner[i][1];
+        DevCheckTouch(&old, &v);
+        assert(DevHomeLabelRect(&v, &r) && r.x >= 14 && r.y >= 14 && r.x + r.w <= 206 && r.y + r.h <= 142);
+    }
+    /* a blink or a step: the window alone */
+    v.cursorFrame ^= 1;
+    d = DevCheckTouch(&old, &v);
+    assert(d.count == 1 && d.rects[0].x0 == 14 && d.rects[0].y0 == 14 && d.rects[0].x1 == 206 && d.rects[0].y1 == 142);
+    v.playerX = 21;
+    v.playerY = 14;
+    d = DevCheckTouch(&old, &v);
+    assert(d.count == 1 && d.rects[0].x1 == 206 && d.rects[0].y1 == 142);
+    v.pressed = PT_POKEMON;
+    assert(DevWhole(DevCheckTouch(&old, &v)));
+    AssertKey(kDevHomeKey[1], DEV_LOOK_KEY, 1);
+    assert(at(198, 164) == DEV_LED);
+    v.pressed = PT_NONE;
+    v.enabled[PT_SAVE] = 0;
+    DevCheckTouch(&old, &v);
+    assert(at(115, 215) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
+    v.flyOk = 1;
+    DevCheckTouch(&old, &v);
+    assert(CtrPokeTouch_FlyHit(flyX, flyY));
+    v.flyOk = 0;
+    DevCheckTouch(&old, &v);
+    assert(!CtrPokeTouch_FlyHit(flyX, flyY));
+    assert(CtrPokeTouch_HomeRibbonHit(20, 20));
+    v.mapOpen = 1;
+    DevCheckTouch(&old, &v);
+    assert(!CtrPokeTouch_HomeRibbonHit(20, 20));
+    v.shell = 2;
+    assert(DevWhole(DevCheckTouch(&old, &v)) && at(160, 152) == DEV_SHELL_GREEN);
+    /* nothing HOME draws changed: nothing presented */
+    v.optPressed = 3;
+    v.registeredItem = 7;
+    d = DevCheckTouch(&old, &v);
+    assert(d.count == 0);
+
+    /* The states for the eye, each through Update first. pressed: POKeMON held (the board's). */
+    v = HomeBoard();
+    v.playerX = 13;
+    v.playerY = 9;
+    CtrTextCase_Touch(&v);
+    DevCheckTouch(&old, &v);
+    v.pressed = PT_POKEMON;
+    DevCheckTouch(&old, &v);
+    shot("pressed");
+    /* selection: a town picked that can be flown to (its cursor and name; FLY), RUN on, SPD held */
+    v.pressed = PT_HOME_SPEED;
+    v.running = 1;
+    v.cursorX = 14;
+    v.cursorY = 6;
+    v.flyOk = 1;
+    strcpy(v.bar[0], "Vermilion City");
+    strcpy(v.bar[1], "Fly available");
+    strcpy(v.bar[2], "Tap Fly, or the place again");
+    DevCheckTouch(&old, &v);
+    shot("selection");
+    /* flypick: FLY chosen in the Party, the map waits for a town; a Pokemon held */
+    v.pressed = PT_HOME_PARTY + 2;
+    v.running = 0;
+    v.cursorX = v.cursorY = -1;
+    v.flyOk = 0;
+    strcpy(v.bar[0], "Fly");
+    strcpy(v.bar[1], "Tap a town to go there.");
+    strcpy(v.bar[2], "Any button: cancel");
+    DevCheckTouch(&old, &v);
+    assert(Count(212, 33, 90, 7, DEV_INK2) > 0 && Count(212, 46, 90, 7, DEV_INK2) > 0);   /* the hint takes two lines */
+    shot("flypick");
+    /* sevii: another map; a place that cannot be flown to says why */
+    assert(CtrPokeTouch_MapPrepare(PT_MAP_SEVII123, 0));
+    v.pressed = PT_NONE;
+    v.mapGroup = PT_MAP_SEVII123;
+    v.mapOpen = 3;
+    v.playerX = v.playerY = -1;
+    v.cursorX = 9;
+    v.cursorY = 9;
+    strcpy(v.bar[0], "Two Island");
+    strcpy(v.bar[1], "Fly unavailable");
+    strcpy(v.bar[2], "Not visited yet");
+    DevCheckTouch(&old, &v);
+    shot("sevii");
+    /* fainted: three down, one hole, an egg; SPD and RUN not usable now, SAVE neither; the green shell */
+    assert(CtrPokeTouch_MapPrepare(PT_MAP_KANTO, 0));
+    v = HomeBoard();
+    v.playerX = 13;
+    v.playerY = 9;
+    v.party[0] = 2;
+    v.partyHp[0] = 0;
+    v.party[2] = 2;
+    v.partyHp[2] = 0;
+    v.party[4] = 3;
+    v.party[5] = 1;
+    v.partyHp[5] = 100;
+    v.partyIcon[5] = 412;
+    v.speed = 1;
+    v.speedEnabled = 0;
+    v.enabled[PT_RUN] = 0;
+    v.enabled[PT_SAVE] = 0;
+    v.shell = 2;
+    CtrTextCase_Touch(&v);
+    DevCheckTouch(&old, &v);
+    shot("fainted");
+    richArt = 0;
+    iconArt = 0;
+    sPlayer.key = -1;
+    assert(sDevKeyCut == 0);
+}
+
 /* ---- main --------------------------------------------------------------------------------------------------------- */
 
 static const struct { const char *name; void (*run)(void); } kSuites[] = {
     {"kit", SuiteKit},
+    {"home", SuiteHome},
 };
 
 int main(int argc, char **argv)
@@ -698,7 +899,7 @@ int main(int argc, char **argv)
     int all = argc > 1 && !strcmp(argv[1], "all"), ran = 0;
 
     if (argc != 2) {
-        fprintf(stderr, "usage: device_render_test <suite> (kit, all)\n");
+        fprintf(stderr, "usage: device_render_test <suite> (kit, home, all)\n");
         return 2;
     }
     gOut = getenv("DEVICE_OUT");

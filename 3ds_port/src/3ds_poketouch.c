@@ -5,11 +5,12 @@
  * contextual bar under it, the side column POKeDEX / POKeMON / BAG / the
  * player's name (Trainer Card) / SAVE / OPTIONS and under it the X and Y
  * shortcuts and the Running Shoes (the running mode), icons only. With no
- * menu open the viewport is HOME: FireRed's Region Map art, drawn passively
- * with the player on it (no Map button: the map is always there).
+ * menu open the lower screen is HOME, the red device's (3ds_device_home_impl.h):
+ * FireRed's Region Map at 1:1 with the player on it, the party, RUN, the
+ * game's speed and the six START entries as keys.
  *
- * Look: the Llama mockup's (3ds_ember2_impl.h): FireRed's text window for the note, the map's frame, the OPTIONS card and the SAVE card;
- * cream pieces that wear flame (with a ring) when chosen; slate for BACK; the region's red ribbon on the map.
+ * Look (the views not yet the red device's): the Llama mockup's (3ds_ember2_impl.h): FireRed's text window for the note, the picture's
+ * frame, the OPTIONS card and the SAVE card; cream pieces that wear flame (with a ring) when chosen; slate for BACK.
  *
  * Art: FireRed's own item icons for the shortcuts (read from the game, so
  * they show whatever is configured), FireRed's latin_normal font for the
@@ -189,10 +190,8 @@ const CtrPokeTouchRect gCtrPokeTouchOptPage = {172, 172, 72, 26};
 #define NOTE_W_FULL 240
 #define NOTE_W_SIDE 164
 
-/* The palette and components are the lower screen's design system (3ds_ui_theme.h / .inc). The only colour of
- * its own is the empty viewport's. */
-#define C_VIEW_EMPTY UI_PANEL_LO
-
+/* The palette and components are the lower screen's design system (3ds_ui_theme.h / .inc); the red device's B views
+ * have their own kit (3ds_device_kit_impl.h). */
 static uint16_t *sCanvas;
 
 static void Px(int x, int y, uint16_t c)
@@ -399,8 +398,8 @@ static void LhValue(int x, int y, int w, int h, const char *value, int zone)
         UiText(value, x + (w - tw) / 2, y + 3, LH_VAL, LH_VALSH, 1, x + w - 16);
 }
 
-/* The frame round the picture, the HOME map and the GBA picture alike (x, y, w, h the picture): FireRed's window in the 3 px there is
- * outside it: the slate outline, the sky blue and the light blue next to the picture. Nothing inside the picture's rectangle. */
+/* The frame round the GBA picture (x, y, w, h the picture): FireRed's window in the 3 px there is outside it: the slate
+ * outline, the sky blue and the light blue next to the picture. Nothing inside the picture's rectangle. */
 static void HomeFrame(int x, int y, int w, int h)
 {
     UiRoundFill(x - 3, y - 3, w + 6, h + 6, 5, LL_SLATE);
@@ -470,9 +469,10 @@ static void ItemArt(int slot, unsigned item, int x, int y, int on)
         Art(sIcons[slot].pixels, sIcons[slot].pal, 24, sIcons[slot].x0, sIcons[slot].y0, 20, 20, x, y, on);
 }
 
-/* The HOME map: the 240x160 screen of FireRed's Region Map (its tilemap, tiles and palette, decoded by the game bridge) is read once per map
- * and redrawn at 4x (3ds_home_map_impl.h builds the image over a few frames; the bridge is read no more once it has been). The viewport then
- * shows that image at one of its zooms round a centre; nothing is read from the game while the player walks. */
+/* The HOME map: the 240x160 screen of FireRed's Region Map (its tilemap, tiles and palette, decoded by the game bridge)
+ * is read once per map and version, and the 192x128 of it HOME's window shows (PT_HOME_SRC_X, PT_HOME_SRC_Y on) is kept
+ * at 1:1, laid out as the canvas is, so HOME copies it a column at a time (3ds_device_home_impl.h). Nothing is read from
+ * the game while the player walks. */
 extern int CtrPokeTouch_MapArt(int group, uint16_t *tilemap, uint8_t *tiles, uint16_t *palette, uint16_t *bgTilemap,
                                uint8_t *bgTiles);
 
@@ -510,208 +510,47 @@ static unsigned MapColor(const uint16_t *tilemap, const uint8_t *tiles, const ui
     return 0;
 }
 
-#include "3ds_home_map_impl.h"
-
 static struct {
-    int group;                          /* the map being built or built, -1 none */
+    int group;                          /* the map composed, -1 none */
     int version;                        /* and the version of its art */
-    int ok;                             /* it was usable */
+    int ok;                             /* the game had its art */
 } sMap = {-1, 0, 0};
 
-static uint16_t sMapTilemap[MAP_TILEMAP_W * MAP_TILEMAP_H];
-static uint8_t sMapTiles[MAP_TILES * 32];
-static uint16_t sMapBgTilemap[MAP_TILEMAP_W * MAP_TILEMAP_H];
-static uint8_t sMapBgTiles[MAP_TILES * 32];
-static uint16_t sMapGba[MAP_COLORS];
+/* HOME's window of the map: each column from its bottom pixel up, as the canvas holds it. */
+static uint16_t sHomeMapCols[PT_HOME_W][PT_HOME_H];
 
-/* The picture's 192x144 part, pixel by pixel, to the image's builder (from the copies of the game's art above). */
-static void MapFeedPixels(void)
-{
-    for (int y = 0; y < HM_SH; ++y)
-        for (int x = 0; x < HM_SW; ++x) {
-            unsigned c = sMapGba[MapColor(sMapTilemap, sMapTiles, sMapBgTilemap, sMapBgTiles, HM_X0 + x, HM_Y0 + y)], r = c & 31, g = c >> 5 & 31, b = c >> 10 & 31;
-
-            HmFeed(x, y, (int)(r << 3 | r >> 2), (int)(g << 3 | g >> 2), (int)(b << 3 | b >> 2));
-        }
-}
-
-/* On the console the whole build (the feed, then every step) runs on a worker of the lowest priority: the game's thread has idle time in every
- * frame (it waits for the screen), and a step of the build is far more than one frame's budget on an Old 3DS, so doing the steps in the game's
- * frames slowed the whole game for as long as a map took (a second or two) each time the region changed. The host tests build in the frames,
- * one step each, as before. */
-#if defined(__3DS__)
-#include <3ds/thread.h>
-static Thread sMapThread;
-static volatile int sMapAbort;
-
-static void MapJoin(void)
-{
-    if (sMapThread) {
-        sMapAbort = 1;                      /* the worker stops after the step it is in */
-        threadJoin(sMapThread, U64_MAX);
-        threadFree(sMapThread);
-        sMapThread = NULL;
-    }
-    sMapAbort = 0;
-}
-
-static void MapWorker(void *arg)
-{
-    (void)arg;
-    MapFeedPixels();
-    while (!sMapAbort && !HmDone() && __atomic_load_n(&sHm.stage, __ATOMIC_ACQUIRE) != HMS_FAILED)
-        HmStep();
-}
-#else
-#define MapJoin() ((void)0)
-#endif
-
-static int MapFeed(int group)
-{
-    if (group < 0 || group >= PT_MAP_COUNT || !CtrPokeTouch_MapArt(group, sMapTilemap, sMapTiles, sMapGba, sMapBgTilemap, sMapBgTiles))
-        return 0;
-    MapJoin();
-    HmBegin();
-#if defined(__3DS__)
-    sMapThread = threadCreate(MapWorker, NULL, 64 * 1024, 0x3F, -2, false);
-    if (sMapThread)
-        return 1;                           /* no worker (out of memory): the frames do it, as on the host */
-#endif
-    MapFeedPixels();
-    return 1;
-}
-
-/* One frame's work on the map's image; true once it is there (HOME calls it for the map it shows, every frame). */
+/* The window's picture of a map, composed once per (map, version) when it is asked for (HOME asks every frame, for the
+ * map it shows); false when the game has no art for it. */
 bool CtrPokeTouch_MapPrepare(int group, int version)
 {
-    if (sMap.group != group || sMap.version != version) {
-        sMap.group = group;
-        sMap.version = version;
-        sMap.ok = MapFeed(group);
-    }
-    if (!sMap.ok)
-        return false;
-    if (__atomic_load_n(&sHm.stage, __ATOMIC_ACQUIRE) == HMS_FAILED) {
-        sMap.ok = 0;
-        return false;
-    }
-#if defined(__3DS__)
-    if (!sMapThread)
-#endif
-        HmStep();                           /* with a worker, the worker steps; this only asks whether it is done */
-    return HmDone() != 0;
+    static uint16_t tilemap[MAP_TILEMAP_W * MAP_TILEMAP_H], bgTilemap[MAP_TILEMAP_W * MAP_TILEMAP_H], gba[MAP_COLORS];
+    static uint8_t tiles[MAP_TILES * 32], bgTiles[MAP_TILES * 32];
+
+    if (sMap.group == group && sMap.version == version)
+        return sMap.ok != 0;
+    sMap.group = group;
+    sMap.version = version;
+    sMap.ok = group >= 0 && group < PT_MAP_COUNT && CtrPokeTouch_MapArt(group, tilemap, tiles, gba, bgTilemap, bgTiles);
+    for (int dx = 0; sMap.ok && dx < PT_HOME_W; ++dx)
+        for (int dy = 0; dy < PT_HOME_H; ++dy)
+            sHomeMapCols[dx][PT_HOME_H - 1 - dy] =
+                Gba(gba[MapColor(tilemap, tiles, bgTilemap, bgTiles, PT_HOME_SRC_X + dx, PT_HOME_SRC_Y + dy)]);
+    return sMap.ok != 0;
 }
 
+/* The view's map is the one composed, and the view knows its art was there. */
 static int MapReady(const CtrPokeTouchView *v)
 {
-    return v->mapReady && sMap.ok && sMap.group == v->mapGroup && sMap.version == v->mapVersion && HmDone();
+    return v->mapReady && sMap.ok && sMap.group == v->mapGroup && sMap.version == v->mapVersion;
 }
 
-/* The view being drawn (HOME's zoom and centre), so that a rectangle can be put back from the image. */
-static int sViewZoom, sViewCX, sViewCY, sViewReady;
-
-static void HomeSetView(const CtrPokeTouchView *v)
-{
-    sViewZoom = v->mapZoom;
-    sViewCX = v->mapCX;
-    sViewCY = v->mapCY;
-    sViewReady = MapReady(v);
-}
-
-#define C_MAP_WAIT UI_RGB(156, 213, 255)
-
-/* The map's own pixels over a rectangle of the viewport (its own coordinates): the image, or the sea's blue while it is built. */
-static void MapRestore(int x, int y, int w, int h)
-{
-    int x1 = x + w > PT_VIEW_W ? PT_VIEW_W : x + w, y1 = y + h > PT_VIEW_H ? PT_VIEW_H : y + h;
-
-    x = x < 0 ? 0 : x;
-    y = y < 0 ? 0 : y;
-    if (x1 <= x || y1 <= y)
-        return;
-    if (sViewReady)
-        HmDrawRect(sViewZoom, sViewCX, sViewCY, x, y, x1 - x, y1 - y);
-    else
-        Fill(PT_VIEW_X + x, PT_VIEW_Y + y, x1 - x, y1 - y, C_MAP_WAIT);
-}
-
-/* The centre of a cell in the viewport (its own pixels); false when the cell is off the map or the image is not built. */
-static int CellView(const CtrPokeTouchView *v, int cx, int cy, int *x, int *y)
-{
-    int wx, wy;
-
-    if (cx < 0 || cy < 0 || cx >= 22 || cy >= 15 || !MapReady(v))
-        return 0;
-    HmCellWorld(cx, cy, &wx, &wy);
-    HmWorldToView(v->mapZoom, v->mapCX, v->mapCY, wx, wy, x, y);
-    return 1;
-}
-
-/* A cell's centre in the image (its town's orb where there is one); false when the cell is off the map or the image is not built. */
-bool CtrPokeTouch_HomeCellWorld(int cx, int cy, int *wx, int *wy)
-{
-    if (cx < 0 || cy < 0 || cx >= 22 || cy >= 15 || !HmDone())
-        return false;
-    HmCellWorld(cx, cy, wx, wy);
-    return true;
-}
-
-void CtrPokeTouch_HomeClamp(int zoom, int *cx, int *cy)
-{
-    HmClamp(zoom, cx, cy);
-}
-
-/* The zoom's scale in 1/256 (screen pixels per image pixel). */
-int CtrPokeTouch_HomeScale(int zoom)
-{
-    return HmScale(zoom);
-}
-
-/* A selected cell that is out of the window (16 pixels in from its edges, for the ring and the name) is brought to the centre; else nothing moves. */
-void CtrPokeTouch_HomeReveal(int zoom, int *cx, int *cy, int gx, int gy)
-{
-    int wx, wy, vx, vy;
-
-    if (!CtrPokeTouch_HomeCellWorld(gx, gy, &wx, &wy))
-        return;
-    HmWorldToView(zoom, *cx, *cy, wx, wy, &vx, &vy);
-    if (vx < 16 || vy < 16 || vx >= PT_VIEW_W - 16 || vy >= PT_VIEW_H - 16) {
-        *cx = wx;
-        *cy = wy;
-        HmClamp(zoom, cx, cy);
-    }
-}
-
-/* The cell under a viewport pixel (its own coordinates): the town whose orb is within 14 pixels, else the cell the pixel is in. */
-bool CtrPokeTouch_HomePick(int zoom, int cx, int cy, int vx, int vy, int *gx, int *gy)
-{
-    int wx, wy, s = HmScale(zoom), best = -1;
-    long bestD = 14L * 14L;
-
-    if (!HmDone())
-        return false;
-    HmViewToWorld(zoom, cx, cy, vx, vy, &wx, &wy);
-    for (int i = 0; i < sHmOrbN; ++i) {
-        long dx = (long)(sHmOrb[i][0] - wx) * s / 256, dy = (long)(sHmOrb[i][1] - wy) * s / 256;
-
-        if (dx * dx + dy * dy <= bestD) {
-            bestD = dx * dx + dy * dy;
-            best = i;
-        }
-    }
-    if (best >= 0) {
-        wx = sHmOrb[best][0];
-        wy = sHmOrb[best][1];
-    }
-    return HmWorldCell(wx, wy, gx, gy) != 0;
-}
+#define C_MAP_WAIT UI_RGB(156, 213, 255)        /* the window without the map's art: the sea's blue */
 
 /* The map's two icons, FireRed's own 16x16 sprites (four 4bpp tiles in sprite
  * order, 0 clear): the player (Red or Leaf) and the selection cursor (two
  * frames, which blink). An icon is centred on its cell: 8x8 pixels at (32, 32)
  * + 8 per cell on the Region Map's screen, so its 16x16 is at (8 x + 28, 8 y + 28)
- * there. HOME enlarges both by the map's 5/4 (nearest neighbour): 20x20 icons
- * on 10x10 cells. The cursor is above the player. */
+ * there. HOME draws both at 1:1; the cursor is above the player. */
 extern int CtrPokeTouch_MapPlayerIcon(uint8_t *tiles, uint16_t *palette);
 extern int CtrPokeTouch_MapCursorIcon(uint8_t *tiles, uint16_t *palette);
 
@@ -748,7 +587,7 @@ static void IconBuild(struct Icon *icon, int key, int (*art)(uint8_t *, uint16_t
             }
 }
 
-/* An icon (16x16) centred at (cx, cy) of the viewport, clipped to it. */
+/* An icon (16x16) centred at (cx, cy) of the lower screen, clipped to HOME's map window. */
 static void IconDraw(const struct Icon *icon, int frame, int cx, int cy)
 {
     if (!icon->ok)
@@ -758,189 +597,29 @@ static void IconDraw(const struct Icon *icon, int frame, int cx, int cy)
             int x = cx - MARKER / 2 + px, y = cy - MARKER / 2 + py;
             uint8_t index = icon->pixels[frame % icon->frames][py * MARKER + px];
 
-            if (index && x >= 0 && y >= 0 && x < PT_VIEW_W && y < PT_VIEW_H)
-                Px(PT_VIEW_X + x, PT_VIEW_Y + y, icon->pal[index]);
+            if (index && x >= PT_HOME_X && y >= PT_HOME_Y && x < PT_HOME_X + PT_HOME_W && y < PT_HOME_Y + PT_HOME_H)
+                Px(x, y, icon->pal[index]);
         }
 }
-
-/* The pieces over the HOME map, in the order they are drawn: the region's red ribbon at the map's corner (it carries a small arrow when there is
- * another map to go to, and a touch on it goes there), the two zoom buttons at its right edge, the player's icon and, for the destination chosen,
- * its ring (an orange ring with a dark red edge round the orb) and its name on a small window above (below, if there is no room). Every piece
- * paints inside the viewport only. */
-#define LABEL_H 21
-#define ZOOM_D 20
 
 static const char *RegionName(int group)
 {
     return group == PT_MAP_KANTO ? "Kanto" : group == PT_MAP_SEVII123 ? "Sevii 1-3" : group == PT_MAP_SEVII45 ? "Sevii 4-5" : "Sevii 6-7";
 }
 
-static CtrPokeTouchRect sHomeRibbon;            /* as last drawn (w 0: no other map, so nothing to touch) */
-
-static int sHomeShown;                          /* HOME's overlay was the last thing drawn on the viewport */
+/* HOME's region key (only when it leads to another map) and FLY where a touch takes them, as last drawn (w 0: not
+ * there), while HOME is the last thing drawn (3ds_device_home_impl.h). */
+static CtrPokeTouchRect sHomeRibbon, sFlyButton;
+static int sHomeShown;
 
 bool CtrPokeTouch_HomeRibbonHit(int x, int y)
 {
-    const CtrPokeTouchRect *r = &sHomeRibbon;
-
-    return r->w && x >= r->x - 3 && y >= r->y - 3 && x < r->x + r->w + 3 && y < r->y + r->h + 3;
+    return sHomeShown && sHomeRibbon.w && UiIn(&sHomeRibbon, x, y);
 }
 
-static CtrPokeTouchRect ZoomRect(int plus)
+bool CtrPokeTouch_FlyHit(int x, int y)
 {
-    CtrPokeTouchRect r = {PT_VIEW_X + PT_VIEW_W - ZOOM_D - 6, (int16_t)(PT_VIEW_Y + PT_VIEW_H / 2 - ZOOM_D - 2 + (plus ? 0 : ZOOM_D + 4)), ZOOM_D, ZOOM_D};
-
-    return r;
-}
-
-/* +1 on the "+" button, -1 on "-", else 0. */
-int CtrPokeTouch_HomeZoomHit(int x, int y)
-{
-    if (!sHomeShown)
-        return 0;
-    for (int plus = 0; plus < 2; ++plus) {
-        CtrPokeTouchRect r = ZoomRect(plus);
-
-        if (x >= r.x - 3 && y >= r.y - 3 && x < r.x + r.w + 3 && y < r.y + r.h + 3)
-            return plus ? 1 : -1;
-    }
-    return 0;
-}
-
-/* A zoom button: a cream disc with a slate rim and a sign (greyed at its limit). */
-static void ZoomButton(int plus, int enabled)
-{
-    CtrPokeTouchRect r = ZoomRect(plus);
-    uint16_t rim = enabled ? LL_SLATE : UI_RGB(150, 158, 180), face = enabled ? UI_RGB(255, 255, 250) : UI_RGB(226, 230, 240);
-    uint16_t sign = enabled ? LL_SLATE : UI_RGB(170, 176, 196);
-
-    for (int row = 0; row < ZOOM_D; ++row)
-        for (int col = 0; col < ZOOM_D; ++col) {
-            int dx = 2 * col + 1 - ZOOM_D, dy = 2 * row + 1 - ZOOM_D, d2 = dx * dx + dy * dy;
-
-            if (d2 > ZOOM_D * ZOOM_D)
-                continue;
-            Px(r.x + col, r.y + row, d2 > (ZOOM_D - 2) * (ZOOM_D - 2) ? rim : d2 > (ZOOM_D - 4) * (ZOOM_D - 4) ? UI_RGB(122, 180, 216) : face);
-        }
-    Fill(r.x + 6, r.y + ZOOM_D / 2 - 1, 8, 2, sign);
-    if (plus)
-        Fill(r.x + ZOOM_D / 2 - 1, r.y + 6, 2, 8, sign);
-}
-
-/* The player's icon: its 16x16 rectangle in the viewport; false when the player is off the map. */
-static int PlayerRect(const CtrPokeTouchView *v, CtrPokeTouchRect *r)
-{
-    int x, y;
-
-    if (!CellView(v, v->playerX, v->playerY, &x, &y))
-        return 0;
-    r->x = (int16_t)(PT_VIEW_X + x - MARKER / 2);
-    r->y = (int16_t)(PT_VIEW_Y + y - MARKER / 2);
-    r->w = r->h = MARKER;
-    return 1;
-}
-
-/* The destination's ring: its diameter (the orb's, grown a little with the zoom). */
-static int RingD(const CtrPokeTouchView *v)
-{
-    int s = HmScale(v->mapZoom);
-
-    return (24 * (s < 205 ? 205 : s) / 256 + 6) & ~1;
-}
-
-/* The destination's ring: the square it is drawn in; false when nothing is chosen or its cell is off the map. */
-static int RingRect(const CtrPokeTouchView *v, CtrPokeTouchRect *r)
-{
-    int x, y, d = RingD(v);
-
-    if (v->cursorX < 0 || !CellView(v, v->cursorX, v->cursorY, &x, &y) || x < 0 || y < 0 || x >= PT_VIEW_W || y >= PT_VIEW_H)
-        return 0;                           /* off the window: no ring, no name */
-    r->x = (int16_t)(PT_VIEW_X + x - d / 2);
-    r->y = (int16_t)(PT_VIEW_Y + y - d / 2);
-    r->w = r->h = (int16_t)d;
-    return 1;
-}
-
-/* The destination's name, on a window centred over its ring 3 px above it (below if that is off the map), kept inside the map. */
-static int LabelRect(const CtrPokeTouchView *v, CtrPokeTouchRect *r)
-{
-    CtrPokeTouchRect ring;
-    int w, x, y, left = PT_VIEW_X + 3, right = PT_VIEW_X + PT_VIEW_W - 3, top = PT_VIEW_Y + 3, bottom = PT_VIEW_Y + PT_VIEW_H - 3;
-
-    if (!v->bar[0][0] || !RingRect(v, &ring))
-        return 0;
-    w = UiTextWidth(v->bar[0], 1) + 18;
-    if (w > 150)
-        w = 150;
-    x = ring.x + ring.w / 2 - w / 2;
-    y = ring.y - 3 - LABEL_H;
-    if (y < top)
-        y = ring.y + ring.h + 3;
-    if (y + LABEL_H > bottom)
-        y = bottom - LABEL_H;
-    if (x + w > right)
-        x = right - w;
-    if (x < left)
-        x = left;
-    r->x = (int16_t)x;
-    r->y = (int16_t)y;
-    r->w = (int16_t)w;
-    r->h = LABEL_H;
-    return 1;
-}
-
-static void RingDraw(const CtrPokeTouchRect *r, int blink)
-{
-    int D = r->w;
-
-    for (int row = 0; row < D; ++row)
-        for (int col = 0; col < D; ++col) {
-            int dx = 2 * col + 1 - D, dy = 2 * row + 1 - D, d2 = dx * dx + dy * dy, x = r->x + col, y = r->y + row;
-
-            if (x < PT_VIEW_X || y < PT_VIEW_Y || x >= PT_VIEW_X + PT_VIEW_W || y >= PT_VIEW_Y + PT_VIEW_H || d2 > D * D)
-                continue;
-            if (d2 > (D - 2) * (D - 2))
-                Px(x, y, UI_RGB(138, 22, 16));
-            else if (d2 > (D - 6) * (D - 6))
-                Px(x, y, blink ? UI_RGB(255, 200, 96) : UI_RGB(255, 154, 56));
-        }
-}
-
-static void HomeOverlay(const CtrPokeTouchView *v)
-{
-    CtrPokeTouchRect ring, label, player;
-    const char *name = RegionName(v->mapGroup);
-    int multi = (v->mapOpen & (v->mapOpen - 1)) != 0, textW = UiTextWidth(name, 1), w = textW + 18 + (multi ? 9 : 0);
-
-    LlRibbonBox(PT_VIEW_X, PT_VIEW_Y, w, 13, 7, 0, LL_RIB_TOP, LL_RIB_BOT, name);
-    if (multi)
-        LlArrow(PT_VIEW_X + 6 + textW + 4, PT_VIEW_Y + 3, 4, 7, 3, EM_WHITE);
-    sHomeShown = 1;
-    sHomeRibbon = multi ? (CtrPokeTouchRect){PT_VIEW_X, PT_VIEW_Y, (int16_t)w, 13} : (CtrPokeTouchRect){0, 0, 0, 0};
-    ZoomButton(1, v->mapZoom < HM_ZOOMS - 1);
-    ZoomButton(0, v->mapZoom > 0);
-    if (sPlayer.key != v->playerFemale)
-        IconBuild(&sPlayer, v->playerFemale, CtrPokeTouch_MapPlayerIcon);
-    if (PlayerRect(v, &player))
-        IconDraw(&sPlayer, 0, player.x - PT_VIEW_X + MARKER / 2, player.y - PT_VIEW_Y + MARKER / 2);
-    if (!RingRect(v, &ring))
-        return;
-    RingDraw(&ring, v->cursorFrame);
-    if (LabelRect(v, &label)) {
-        LlWindowPlain(label.x, label.y, label.w, label.h);
-        Em2Text(v->bar[0], label.x + 10, label.y + 6, EM_DARK, EM_DARK_SH, label.x + label.w - 6);
-    }
-}
-
-/* HOME's picture: the map (or the sea's blue while it is built), the player and the selection on it. */
-static int HomeShow(const CtrPokeTouchView *v)
-{
-    if (!sMap.ok || sMap.group != v->mapGroup || sMap.version != v->mapVersion)
-        return 0;
-    HomeSetView(v);
-    MapRestore(0, 0, PT_VIEW_W, PT_VIEW_H);
-    HomeOverlay(v);
-    return 1;
+    return sHomeShown && sFlyButton.w && UiIn(&sFlyButton, x, y);
 }
 
 /* The OPTIONS rows (the Llama mockup's cream cards): 236x22 with their lip, 22 apart from (7, 7), so they touch. The value sits in a well at the
@@ -1295,10 +974,10 @@ static void Frame(void)
     TsBackdrop();
 }
 
-/* Where the frame goes round the GBA picture (and the HOME map). */
+/* Where the frame goes round the GBA picture. */
 static int FrameShown(const CtrPokeTouchView *v)
 {
-    return v->viewport || (v->home && !v->options && !v->save);
+    return v->viewport;
 }
 
 /* The field Bag the port draws (3ds_field_bag_impl.h, included at the end). */
@@ -1332,15 +1011,12 @@ static void FNameNote(const CtrPokeTouchView *v, int w);
 static void FBoxFrame(const CtrPokeTouchView *v);
 static void FBoxNote(const CtrPokeTouchView *v, int w);
 
-/* The frame's area: the window frame round the GBA picture or the map, OPTIONS' rows, the save card, or the Bag, on the embers. */
+/* The frame's area: the window frame round the GBA picture, OPTIONS' rows, the save card, or the Bag, on the embers
+ * (HOME is the red device's, 3ds_device_home_impl.h). */
 static void MenuFrame(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchRect *r = &sMenuFrame;
 
-    if (!(v->home && !v->viewport && !v->options && !v->save)) {
-        sHomeShown = 0;                             /* HOME's ribbon and zoom buttons are not on the screen */
-        sHomeRibbon.w = 0;
-    }
     TsBgRect(r->x, r->y, r->w, r->h);
     if (v->dex.on && !v->viewport) {
         FDexFrame(v);
@@ -1394,9 +1070,7 @@ static void MenuFrame(const CtrPokeTouchView *v)
     if (!FrameShown(v))
         return;
     HomeFrame(PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H);
-    /* Covered by the GPU's picture when there is one; else the HOME map. */
-    if (v->viewport || !(v->home && HomeShow(v)))
-        Fill(PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H, v->viewport ? 0 : C_VIEW_EMPTY);
+    Fill(PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H, 0);   /* covered by the GPU's picture */
 }
 
 /* BACK: the slate button of going back ("<" and its word at the left, as the mockup draws it); pressed it sinks, disabled it is grey. */
@@ -1510,16 +1184,6 @@ static int FrameSample(int type, int x, int y)
     return 1;
 }
 
-/* HOME's FLY button as last drawn (w 0: not there), so a touch on it can be told. */
-static CtrPokeTouchRect sFlyButton;
-
-bool CtrPokeTouch_FlyHit(int x, int y)
-{
-    const CtrPokeTouchRect *r = &sFlyButton;
-
-    return r->w && x >= r->x - 4 && y >= r->y - 4 && x < r->x + r->w + 4 && y < r->y + r->h + 4;
-}
-
 static void Bar(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchRect *r = &sBar;
@@ -1528,7 +1192,6 @@ static void Bar(const CtrPokeTouchView *v)
     int side = v->backVisible || hasPage || v->save;
     int w = side ? NOTE_W_SIDE : NOTE_W_FULL;
 
-    sFlyButton.w = 0;
     TsBgRect(r->x, r->y, r->w, r->h);
     for (int i = 0; i < PT_BAR_LINES; ++i)
         if (v->bar[i][0])
@@ -1557,40 +1220,20 @@ static void Bar(const CtrPokeTouchView *v)
         FBagNote(v, w);
     else {
         /* The note is FireRed's window (the Llama mockup's): the subject at its top left, a rule under it, then the lines that say more, 14 apart,
-         * dimmer; HOME's FLY is a flame button at the right of the subject. */
+         * dimmer. */
         int right = NOTE_X + w - 12;
 
         LlWindow(NOTE_X, NOTE_Y, w, NOTE_H);
         if (v->options && v->optFrameShow && FrameSample(v->optFrameType, NOTE_X + w - FRAME_W - 8,
                                                          NOTE_Y + (NOTE_H - FRAME_H) / 2 - 1))
             right -= FRAME_W + 4;
-        /* HOME with a destination that can be Flown to: a FLY button beside the name says so, and the line that said the same goes. */
-        const char *fly = v->home && !v->viewport && !v->options && v->flyOk ? CTR_TR("Fly", "Volar", "Fliegen") : NULL;
-        const char *shown[PT_BAR_LINES] = {NULL};
-        int count = 0, titleRight = right;
-
-        for (int i = 0; i < lines; ++i)
-            if (!(fly && i == 1))
-                shown[count++] = v->bar[i];
-        if (fly) {
-            int pw = UiTextWidth(fly, 1) + 16, px = right - pw, fy;
-
-            if (pw < 36) {
-                pw = 36;
-                px = right - pw;
-            }
-            fy = EmButton(px, NOTE_Y + 7, pw, 17, &kEmFlame, 1, 0);
-            sFlyButton = (CtrPokeTouchRect){(int16_t)px, NOTE_Y + 7, (int16_t)pw, 17};
-            EmLabel(fly, px, pw, fy, 16, &kEmFlame);
-            titleRight = px - 4;
-        }
-        if (count == 1) {
-            Em2Text(shown[0], NOTE_X + 13, NOTE_Y + (NOTE_H - UI_TEXT_H) / 2, EM_DARK, EM_DARK_SH, titleRight);
-        } else if (count > 1) {
-            Em2Text(shown[0], NOTE_X + 13, NOTE_Y + 11, EM_DARK, EM_DARK_SH, titleRight);
+        if (lines == 1) {
+            Em2Text(v->bar[0], NOTE_X + 13, NOTE_Y + (NOTE_H - UI_TEXT_H) / 2, EM_DARK, EM_DARK_SH, right);
+        } else if (lines > 1) {
+            Em2Text(v->bar[0], NOTE_X + 13, NOTE_Y + 11, EM_DARK, EM_DARK_SH, right);
             LlRule(NOTE_X + 13, NOTE_Y + 26, right - NOTE_X - 13);
-            for (int i = 1; i < count; ++i)
-                Em2Text(shown[i], NOTE_X + 13, NOTE_Y + 32 + (i - 1) * 14, EM_DIM, EM_DARK_SH, right);
+            for (int i = 1; i < lines; ++i)
+                Em2Text(v->bar[i], NOTE_X + 13, NOTE_Y + 32 + (i - 1) * 14, EM_DIM, EM_DARK_SH, right);
         }
     }
     if (hasPage)
@@ -1611,6 +1254,23 @@ static CtrPokeTouchRect Area(int id)
 static int ColumnIcon(int id)
 {
     return id;          /* kEmberIcon is in the order PT_POKEDEX .. PT_OPTIONS */
+}
+
+/* A START entry's word (PT_POKEDEX..PT_OPTIONS): the entry's, or for the Trainer Card the player's name as typed (into
+ * `name`). The column's buttons and HOME's keys say the same. */
+static const char *ColumnLabel(int id, const CtrPokeTouchView *v, char name[16])
+{
+    const char *label = id == PT_POKEDEX ? CTR_TR("Pok\xC3\xA9" "dex", "Pok\xC3\xA9" "dex", "Pok\xc3\xa9" "dex")
+                      : id == PT_POKEMON ? CTR_TR("Pok\xC3\xA9mon", "Pok\xC3\xA9mon", "Pok\xc3\xa9" "mon")
+                      : id == PT_BAG ? CTR_TR("Bag", "Mochila", "Beutel")
+                      : id == PT_SAVE ? CTR_TR("Save", "Guardar", "Sichern") : id == PT_OPTIONS ? CTR_TR("Option", "Ajustes", "Option") : name;
+    int n = 0;
+
+    if (id == PT_CARD)
+        for (; n < 15 && v->playerName[n]; ++n)
+            name[n] = v->playerName[n];
+    name[n] = 0;
+    return label;
 }
 
 /* A button: cream, flame and ringed when selected (the screen shown, or the running mode on), sunk when pressed, grey when it cannot be used.
@@ -1652,21 +1312,9 @@ static void Button(int id, const CtrPokeTouchView *v)
         LhSwitch(r->x + 34, fy + (fh - 15) / 2, selected);
         break;
     default: {
-        char name[16] = {0};
-        const char *label = id == PT_POKEDEX ? CTR_TR("Pok\xC3\xA9" "dex", "Pok\xC3\xA9" "dex", "Pok\xc3\xa9" "dex")
-                          : id == PT_POKEMON ? CTR_TR("Pok\xC3\xA9mon", "Pok\xC3\xA9mon", "Pok\xc3\xa9" "mon")
-                          : id == PT_BAG ? CTR_TR("Bag", "Mochila", "Beutel")
-                          : id == PT_SAVE ? CTR_TR("Save", "Guardar", "Sichern") : id == PT_OPTIONS ? CTR_TR("Option", "Ajustes", "Option") : name;
+        char name[16];
+        const char *label = ColumnLabel(id, v, name);
 
-        if (id == PT_CARD) {
-            /* The player's name, as typed. */
-            int n = 0;
-
-            for (; n < (int)sizeof(name) - 1 && v->playerName[n]; ++n) {
-                name[n] = v->playerName[n];
-            }
-            name[n] = 0;
-        }
         EmIcon(ColumnIcon(id), r->x + 4, fy + (fh - EMBER_ICON) / 2, on);
         UiText(label, r->x + 23, fy + (fh - UI_TEXT_H) / 2, pal->ink, pal->inkSh, 1, r->x + r->w - 2);
         break;
@@ -1710,9 +1358,19 @@ bool CtrPokeTouch_ViewportToGba(int x, int y, int *gx, int *gy)
     return true;
 }
 
+/* HOME, the red device's (3ds_device_home_impl.h, included at the end). */
+static int DevHomeShown(const CtrPokeTouchView *v);
+static void DevHomeDraw(const CtrPokeTouchView *v);
+static void DevHomeUpdate(const CtrPokeTouchView *old, const CtrPokeTouchView *v, CtrDirtyList *dirty);
+
 void CtrPokeTouch_Draw(uint16_t *canvas, const CtrPokeTouchView *v)
 {
     sCanvas = canvas;
+    if (DevHomeShown(v)) {
+        DevHomeDraw(v);
+        return;
+    }
+    sHomeShown = 0;                     /* HOME's region key and FLY are not on the screen */
     if (v->ec.on) {
         FEasyDraw(v);
         return;
@@ -1741,26 +1399,21 @@ static void Mark(CtrDirtyList *dirty, const CtrPokeTouchRect *r)
     CtrDirty_Add(dirty, r->x, r->y, r->x + r->w, r->y + r->h);
 }
 
-/* A rectangle of the HOME map put back (the part of it inside the viewport) and marked. */
-static void MapRestoreRect(const CtrPokeTouchRect *r, CtrDirtyList *dirty)
-{
-    int x0 = r->x < PT_VIEW_X ? PT_VIEW_X : r->x, y0 = r->y < PT_VIEW_Y ? PT_VIEW_Y : r->y;
-    int x1 = r->x + r->w > PT_VIEW_X + PT_VIEW_W ? PT_VIEW_X + PT_VIEW_W : r->x + r->w;
-    int y1 = r->y + r->h > PT_VIEW_Y + PT_VIEW_H ? PT_VIEW_Y + PT_VIEW_H : r->y + r->h;
-    CtrPokeTouchRect c = {(int16_t)x0, (int16_t)y0, (int16_t)(x1 - x0), (int16_t)(y1 - y0)};
-
-    if (c.w <= 0 || c.h <= 0)
-        return;
-    MapRestore(x0 - PT_VIEW_X, y0 - PT_VIEW_Y, c.w, c.h);
-    Mark(dirty, &c);
-}
-
 void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const CtrPokeTouchView *v, CtrDirtyList *dirty)
 {
     int oldHasPage = old->options && !old->viewport && old->optPageCount > 1;
     int newHasPage = v->options && !v->viewport && v->optPageCount > 1;
 
     sCanvas = canvas;
+    if (DevHomeShown(old) && DevHomeShown(v)) {
+        DevHomeUpdate(old, v, dirty);
+        return;
+    }
+    if (DevHomeShown(old) || DevHomeShown(v)) {
+        CtrPokeTouch_Draw(canvas, v);
+        CtrDirty_Add(dirty, 0, 0, W, H);
+        return;
+    }
     if (v->ec.on || old->ec.on) {
         FEasyUpdate(canvas, old, v, dirty);
         return;
@@ -1776,34 +1429,9 @@ void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const Ct
         Bar(v);
         Mark(dirty, &sBar);
     } else if (old->viewport != v->viewport || old->home != v->home || old->options != v->options || old->save != v->save
-        || (v->options && !v->viewport && (old->optCount != v->optCount || old->optLook.on != v->optLook.on))
-        || (v->home && (old->mapGroup != v->mapGroup || old->mapVersion != v->mapVersion || old->mapZoom != v->mapZoom
-                        || old->mapCX != v->mapCX || old->mapCY != v->mapCY || old->mapReady != v->mapReady || old->mapOpen != v->mapOpen))) {
+        || (v->options && !v->viewport && (old->optCount != v->optCount || old->optLook.on != v->optLook.on))) {
         MenuFrame(v);
         Mark(dirty, &sMenuFrame);
-    } else if (v->home && !v->viewport && (old->playerX != v->playerX || old->playerY != v->playerY
-                                           || old->playerFemale != v->playerFemale || old->cursorX != v->cursorX
-                                           || old->cursorY != v->cursorY || old->cursorFrame != v->cursorFrame
-                                           || ((old->cursorX >= 0 || v->cursorX >= 0) && strcmp(old->bar[0], v->bar[0])))) {
-        /* An icon moved, appeared or blinked, or the destination changed: the rectangles the changed pieces had and have (the player's icon,
-         * the destination's ring and its name's window) go back to the map, and every piece is drawn over them again, in order (one may
-         * have overlapped another). */
-        int player = old->playerX != v->playerX || old->playerY != v->playerY || old->playerFemale != v->playerFemale;
-        int cursor = old->cursorX != v->cursorX || old->cursorY != v->cursorY || old->cursorFrame != v->cursorFrame;
-        int label = old->cursorX != v->cursorX || old->cursorY != v->cursorY || strcmp(old->bar[0], v->bar[0]);
-        const CtrPokeTouchView *views[2] = {old, v};
-        CtrPokeTouchRect r;
-
-        HomeSetView(v);
-        for (int i = 0; i < 2; ++i) {
-            if (player && PlayerRect(views[i], &r))
-                MapRestoreRect(&r, dirty);
-            if (cursor && RingRect(views[i], &r))
-                MapRestoreRect(&r, dirty);
-            if (label && LabelRect(views[i], &r))
-                MapRestoreRect(&r, dirty);
-        }
-        HomeOverlay(v);
     } else if (v->save && !v->viewport) {
         /* A value that changed (the play clock, say): its own rectangle. */
         for (int f = 0; f < SF_COUNT; ++f)
@@ -1860,7 +1488,7 @@ void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const Ct
             Mark(dirty, &r);
         }
     }
-    if (memcmp(old->bar, v->bar, sizeof(v->bar)) || old->flyOk != v->flyOk || old->optFrameShow != v->optFrameShow
+    if (memcmp(old->bar, v->bar, sizeof(v->bar)) || old->optFrameShow != v->optFrameShow
         || old->optFrameType != v->optFrameType || old->backVisible != v->backVisible || old->save != v->save
         || oldHasPage != newHasPage) {
         Bar(v);
@@ -1904,6 +1532,7 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
     int x0 = (W - IDLE_LOGO_W) / 2, y0 = (H - IDLE_LOGO_H_PX) / 2 - 6;
 
     sCanvas = canvas;
+    sHomeShown = 0;
     TsBackdrop();
     for (int y = 0; logo && y < IDLE_LOGO_H_PX; ++y)
         for (int x = 0; x < IDLE_LOGO_W; ++x) {
@@ -1924,6 +1553,7 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
 
 #include "3ds_battle_ui_impl.h"
 #include "3ds_device_kit_impl.h"   /* the red device (style B): its kit, for the B views below */
+#include "3ds_device_home_impl.h"  /* HOME */
 #include "3ds_summary_ui_impl.h"
 #include "3ds_field_bag_impl.h"
 #include "3ds_field_dex_impl.h"

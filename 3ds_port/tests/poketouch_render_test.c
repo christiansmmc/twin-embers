@@ -340,21 +340,7 @@ int main(int argc, char **argv)
     v.registeredItem=1; v.bikeItem=2;
     strcpy(v.playerName,"Trades"); strcpy(v.bar[0],"TEST MAP");
     for(int i=0;i<PT_COUNT;++i) v.enabled[i]=1;
-    CtrPokeTouch_Draw(canvas,&v);                       /* HOME with no map built yet: the viewport is empty, nothing else */
-    {   /* HOME: the map (a flat synthetic art: its colour is no class, so the image is sea and its stripes) fills the viewport, but for the region's red ribbon at its corner (the Llama mockup's KANTO) and the two zoom buttons */
-        int rib=UiTextWidth("Kanto",1)+18;
-        int steps=0;
-        while(!CtrPokeTouch_MapPrepare(0,0)) assert(++steps<200);
-        v.mapReady=1; v.mapZoom=HM_ZOOMS-1; v.mapCX=384; v.mapCY=288; v.mapOpen=1;
-        CtrPokeTouch_Draw(canvas,&v);
-        for(int x=4;x<244;++x) for(int y=4;y<164;++y) {
-            int onRibbon=x<4+rib&&y<4+13;
-            if(onRibbon || UiIn(&(CtrPokeTouchRect){PT_VIEW_X+PT_VIEW_W-26,PT_VIEW_Y+PT_VIEW_H/2-22,20,44},x,y)) continue;
-            assert(at(x,y)==UI_RGB(164,180,255) || at(x,y)==UI_RGB(156,213,255));
-        }
-        assert(at(4,4)==LL_RIB_TOP && at(4,4+13)!=LL_RIB_TOP);      /* the ribbon: red from its top, 13 rows */
-        v.mapReady=0; v.mapZoom=0; sMap.group=-1; CtrPokeTouch_Draw(canvas,&v);
-    }
+    CtrPokeTouch_Draw(canvas,&v);                       /* HOME (the red device's: device_render_test.c checks it) */
     if(argc>1) { /* Synthetic render for visual QA, never a ROM screenshot. */
         FILE *f=fopen(argv[1],"wb"); assert(f);
         fprintf(f,"P6\n320 240\n255\n");
@@ -452,6 +438,7 @@ int main(int argc, char **argv)
         /* The PC box and the naming keyboard (Llama, mockup panels 8 and 10): each state through the incremental path. */
         {
             CtrPokeTouchView b2=s; memset(&old,0,sizeof(old)); old.selected=old.pressed=PT_NONE;
+            CtrPokeTouch_Draw(canvas,&old);             /* the canvas showed HOME, a screen of its own: it now shows `old` */
             b2.home=0; b2.box.on=1; b2.box.state=PT_BOX_STATE_BOX; b2.box.area=ST_AREA_BOX; b2.box.pos=7; b2.box.pressed=-1; b2.box.message[0]=0xff;
             for(int i=0;i<PT_BOX_SLOTS;i+=3) b2.box.slot[i].species=1+i;
             memset(b2.box.boxName,0xff,sizeof(b2.box.boxName)); memcpy(b2.box.boxName,"»¼½",3);
@@ -485,11 +472,7 @@ int main(int argc, char **argv)
             b2.name.curCol=8; b2.name.curRow=0; update(&old,&b2); b2.name.curRow=2; update(&old,&b2); b2.name.pressed=PT_NAME_HIT_KEY; update(&old,&b2);
             b2.name.on=0; update(&old,&b2);
         }
-        /* HOME with a destination chosen on the map: the name, the region and the hint. */
         memset(&old,0,sizeof(old)); old.selected=old.pressed=PT_NONE;
-        s.home=1; s.mapGroup=0; s.cursorX=10; s.cursorY=8; s.flyOk=1; strcpy(s.bar[0],"VERMILION CITY"); strcpy(s.bar[1],"Fly available"); strcpy(s.bar[2],"Tap again to Fly");
-        SHOT("home");
-        s.selected=PT_OPTIONS; s.pressed=PT_BAG; SHOT("home_pressed"); s.pressed=PT_NONE; s.selected=PT_NONE; s.running=1; SHOT("home_running"); s.running=0;
         /* OPTIONS, page 2: switches, values, levels; then each press and selection moves. */
         s.home=0; s.options=1; s.optCount=7; s.optPage=1; s.optPageCount=4; strcpy(s.optPageName,"Extras");
         static const char *const labels[7]={"Type matchup","Move details","Day/Night","Hour","Shell colour","Repel again","Companion"};
@@ -781,81 +764,6 @@ int main(int argc, char **argv)
     }
     v.save=0; v.home=1; v.backVisible=1; update(&old,&v);
     v.backEnabled=1; update(&old,&v); v.backPressed=1; update(&old,&v);
-#ifndef PT_BASELINE
-    {
-        /* HOME's pieces over the map (the Llama mockup's): the region ribbon, the player's icon, the chosen destination's ring and its name on a window.
-         * Every move, blink and rename goes through the incremental path, which update() compares with a full redraw. */
-        CtrPokeTouchView h={0}; CtrPokeTouchRect ring, label;
-        int cells[][2]={{10,8},{11,8},{11,5},{0,0},{21,14},{21,0},{0,14},{5,7}};
-        richArt=1; iconArt=1; sPlayer.key=-1; sMap.group=-1;
-        h.selected=h.pressed=PT_NONE; h.optPressed=-1; h.home=1; h.playerX=h.playerY=h.cursorX=h.cursorY=-1;
-        for(int i=0;i<PT_COUNT;++i) h.enabled[i]=1;
-        strcpy(h.playerName,"Rick"); strcpy(h.bar[0],"TEST MAP");
-        memset(&old,0,sizeof(old)); old.selected=old.pressed=PT_NONE; old.optPressed=-1;
-        h.mapOpen=3; h.mapZoom=0; h.mapCX=384; h.mapCY=288;
-        update(&old,&h);                                                                 /* the map is not built: the sea's blue and the ribbon */
-        { int steps=0;  while(!CtrPokeTouch_MapPrepare(0,0)) assert(++steps<200); assert(steps>5 && HmDone() && sHmOrbN==5 && sHmPalN>20 && sHmPalN<=255); }
-        h.mapReady=1; update(&old,&h);                                                   /* built: the picture appears */
-        assert(at(PT_VIEW_X+100,PT_VIEW_Y+80)!=C_MAP_WAIT);
-        h.playerX=5; h.playerY=5; update(&old,&h);                                      /* the player appears */
-        h.cursorX=10; h.cursorY=8; strcpy(h.bar[0],"VERMILION CITY"); update(&old,&h);    /* a destination: ring, name */
-        assert(RingRect(&h,&ring) && ring.w==ring.h && ring.w>=24 && (ring.w&1)==0 && LabelRect(&h,&label) && label.h==21 && label.w==UiTextWidth("VERMILION CITY",1)+18);
-        assert(label.y+label.h+3==ring.y || label.y==ring.y+ring.h+3 || label.y>=PT_VIEW_Y+3);
-        assert(at(ring.x+ring.w/2,ring.y)==UI_RGB(138,22,16) || at(ring.x+ring.w/2-1,ring.y)==UI_RGB(138,22,16));   /* the ring's dark edge at its top */
-        if(getenv("PT_PREVIEW_DIR")) ppm(getenv("PT_PREVIEW_DIR"),"home_cursor");
-        h.cursorFrame=1; update(&old,&h); h.cursorFrame=0; update(&old,&h);              /* the ring blinks */
-        for(int zoom=0; zoom<HM_ZOOMS; ++zoom) {                                          /* every zoom, at a few centres: pieces move with the map */
-            int centres[][2]={{384,288},{100,100},{700,500},{240,380}};
-            for(unsigned c=0;c<sizeof(centres)/sizeof(centres[0]);++c) {
-                int cx=centres[c][0], cy=centres[c][1];
-                CtrPokeTouch_HomeClamp(zoom,&cx,&cy);
-                h.mapZoom=(uint8_t)zoom; h.mapCX=(int16_t)cx; h.mapCY=(int16_t)cy; update(&old,&h);
-                if(getenv("PT_PREVIEW_DIR") && c==0) { char nm[32]; snprintf(nm,sizeof(nm),"home_zoom%d",zoom); ppm(getenv("PT_PREVIEW_DIR"),nm); }
-                for(unsigned i=0;i<sizeof(cells)/sizeof(cells[0]);++i) {
-                    h.cursorX=(int8_t)cells[i][0]; h.cursorY=(int8_t)cells[i][1]; update(&old,&h);
-                    h.playerX=(int8_t)cells[(i+2)%(sizeof(cells)/sizeof(cells[0]))][0]; h.playerY=(int8_t)cells[(i+2)%(sizeof(cells)/sizeof(cells[0]))][1]; update(&old,&h);
-                    if(LabelRect(&h,&label)) { /* the name's window stays inside the map */
-                        assert(label.x>=PT_VIEW_X && label.y>=PT_VIEW_Y && label.x+label.w<=PT_VIEW_X+PT_VIEW_W && label.y+label.h<=PT_VIEW_Y+PT_VIEW_H);
-                    }
-                }
-            }
-        }
-        h.mapZoom=1; h.mapCX=384; h.mapCY=288; h.cursorX=3; h.cursorY=3; update(&old,&h);
-        h.playerX=3; h.playerY=2; update(&old,&h);                                       /* the player under the name's window and the ring */
-        strcpy(h.bar[0],"CELADON CITY, A NAME TOO LONG TO FIT ON THE MAP'S WINDOW"); update(&old,&h);
-        strcpy(h.bar[0],"SAFFRON CITY"); update(&old,&h);                                 /* renamed: the old window goes, the new one comes */
-        h.playerFemale=1; update(&old,&h);
-        h.cursorX=h.cursorY=-1; update(&old,&h);                                         /* the destination goes: ring and window with it */
-        /* The zoom buttons and the ribbon: where a touch means them, and that each paints inside its rectangle (2 px more at most). */
-        {
-            CtrPokeTouchRect plus=ZoomRect(1), minus=ZoomRect(0);
-            assert(CtrPokeTouch_HomeZoomHit(plus.x+10,plus.y+10)==1 && CtrPokeTouch_HomeZoomHit(minus.x+10,minus.y+10)==-1);
-            assert(CtrPokeTouch_HomeZoomHit(PT_VIEW_X+10,PT_VIEW_Y+PT_VIEW_H/2)==0 && !(plus.y+plus.h>minus.y));
-            assert(plus.x+plus.w<=PT_VIEW_X+PT_VIEW_W && minus.y+minus.h<=PT_VIEW_Y+PT_VIEW_H);
-            assert(CtrPokeTouch_HomeRibbonHit(PT_VIEW_X+10,PT_VIEW_Y+6) && !CtrPokeTouch_HomeRibbonHit(PT_VIEW_X+100,PT_VIEW_Y+60));
-            for(int on=0; on<2; ++on) for(int p=0;p<2;++p) {
-                CtrPokeTouchRect r=ZoomRect(p);
-                sCanvas=canvas; for(int i=0;i<W*H;++i) canvas[i]=0x1357;
-                ZoomButton(p,on);
-                { unsigned n=0; for(int x=0;x<W;++x) for(int y=0;y<H;++y) if(at(x,y)!=0x1357) { ++n; assert(x>=r.x-2&&y>=r.y-2&&x<r.x+r.w+2&&y<r.y+r.h+2); } assert(n>100); }
-            }
-        }
-        CtrPokeTouch_Draw(canvas,&old);                                                  /* the canvas was a marker sheet above */
-        h.mapZoom=HM_ZOOMS-1; update(&old,&h); h.mapZoom=0; update(&old,&h);              /* "+" greyed at the nearest zoom, "-" at the overview */
-        { int steps=0; while(!CtrPokeTouch_MapPrepare(1,0)) assert(++steps<200); }
-        h.mapGroup=PT_MAP_SEVII123; h.mapReady=1; h.cursorX=4; h.cursorY=4; update(&old,&h);   /* another map: SEVII on the ribbon */
-        h.mapOpen=1; update(&old,&h);                                                    /* no other map: no arrow on the ribbon */
-        assert(!CtrPokeTouch_HomeRibbonHit(PT_VIEW_X+10,PT_VIEW_Y+6));
-        /* A pick: the town whose orb is near the touch, else the cell it is in. */
-        {
-            int gx, gy, wx = 0, wy = 0, vx, vy;
-            assert(CtrPokeTouch_HomeCellWorld(10,8,&wx,&wy));
-            HmWorldToView(1,384,288,wx,wy,&vx,&vy);
-            assert(CtrPokeTouch_HomePick(1,384,288,vx,vy,&gx,&gy) && gx==10 && gy==8);
-        }
-        richArt=0; iconArt=0; sPlayer.key=-1; sMap.group=-1;
-    }
-#endif
 #ifndef PT_BASELINE
     {
         /* Llama (the owner's mockup, llama2_mockup.html): the shared pieces of 3ds_ember2_impl.h. Each is drawn on a canvas of a marker colour
