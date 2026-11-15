@@ -492,7 +492,7 @@ int main(int argc, char **argv)
         s.selected=PT_OPTIONS; s.pressed=PT_BAG; SHOT("home_pressed"); s.pressed=PT_NONE; s.selected=PT_NONE; s.running=1; SHOT("home_running"); s.running=0;
         /* OPTIONS, page 2: switches, values, levels; then each press and selection moves. */
         s.home=0; s.options=1; s.optCount=7; s.optPage=1; s.optPageCount=4; strcpy(s.optPageName,"Extras");
-        static const char *const labels[7]={"Type matchup","Move details","Day/Night","Hour","Embers","Repel again","Companion"};
+        static const char *const labels[7]={"Type matchup","Move details","Day/Night","Hour","Shell colour","Repel again","Companion"};
         for(int i=0;i<7;++i) strcpy(s.optLabel[i],labels[i]);
         s.optSwitch[0]=2; s.optSwitch[1]=2; strcpy(s.optValue[2],"Clock"); strcpy(s.optValue[3],"12:00");
         s.optSegCount[4]=3; s.optSegValue[4]=2; strcpy(s.optSegName[4][0],"Off"); strcpy(s.optSegName[4][1],"Low"); strcpy(s.optSegName[4][2],"High");

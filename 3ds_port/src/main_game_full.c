@@ -182,8 +182,6 @@ int main(void)
     consoleInit(GFX_BOTTOM, NULL);
     mkdir("sdmc:/3ds", 0777);
     mkdir(CTR_APP_DIR, 0777);
-    CtrOptions_EmbersInit(CtrPlatform_IsNew3DS());     /* the saved choice, else HIGH on a New 3DS and LOW on an Old one */
-    CtrLog_Write(CTR_LOG_BOOT, "embers: %s", !CtrOptions_Embers() ? "OFF" : CtrOptions_EmbersLow() ? "LOW" : "HIGH");
     if (!CtrFlash_InitMigrating(CTR_APP_FILE(CTR_APP_NAME ".sav"),
                                   CTR_UPSTREAM_SAVE_PATH,
                                   "sdmc:/3ds/pokefirered/twinembers.sav"))

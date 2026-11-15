@@ -77,7 +77,7 @@ int main(void)
               i, row && row->label ? row->label : "?", row && row->label ? (int)strlen(row->label) : 0, PT_OPT_LABEL_LEN - 1);
     }
 
-    remove(CTR_SETTINGS_PATH);      /* no EMBERS choice kept from an earlier run */
+    remove(CTR_SETTINGS_PATH);      /* no SHELL COLOUR choice kept from an earlier run */
 
     CHECK(CtrOptions_RowCount() == 28, "the OPTIONS screen has %d rows", CtrOptions_RowCount());
     CHECK(CtrOptions_RowCount() <= PT_OPT_MAX * CtrOptions_PageCount(), "more rows than the pages hold");
@@ -86,9 +86,9 @@ int main(void)
     CHECK(strcmp(CtrOptions_Row(18)->label, "Move details") == 0, "MOVE DETAILS is row 8");
     CHECK(strcmp(CtrOptions_Row(7)->label, "Day/Night") == 0, "DAY/NIGHT is row 9");
     CHECK(strcmp(CtrOptions_Row(8)->label, "Hour") == 0, "HOUR is row 10");
-    CHECK(strcmp(CtrOptions_Row(9)->label, "Embers") == 0, "EMBERS is row 11");
     CHECK(strcmp(CtrOptions_Row(19)->label, "Repel again") == 0, "REPEL AGAIN is row 12");
-    CHECK(strcmp(CtrOptions_Row(10)->label, "Companion") == 0, "COMPANION is row 13");
+    CHECK(strcmp(CtrOptions_Row(9)->label, "Companion") == 0 && strcmp(CtrOptions_Row(10)->label, "Shell colour") == 0,
+          "COMPANION is row 9 and SHELL COLOUR is row 10, above the looks");
 
     /* Valid values: the names FireRed uses, FRAME as Type1..Type10. */
     for (int row = 0; row < 7; ++row) {
@@ -106,7 +106,7 @@ int main(void)
     /* Page 2 port options. */
     CHECK(CtrOptions_TypeMatchup() == 1 && CtrOptions_MoveDetails() == 1
           && CtrOptions_DayNight() == 1
-          && CtrOptions_Embers() == 1, "default port options");
+          && CtrOptions_Shell() == 0, "default port options");
     CtrOptions_Step(17, 1);
     Text(17, "Off");
     CHECK(CtrOptions_TypeMatchup() == 0, "TYPE MATCHUP stepped to OFF");
@@ -147,38 +147,36 @@ int main(void)
     Text(7, "Off");
     CtrOptions_Step(7, 1);
     Text(7, "Clock");
-    /* EMBERS: OFF / LOW / HIGH, HIGH until a console default or a choice says otherwise; a row of levels. */
-    Text(9, "High");
-    CHECK(CtrOptions_Embers() == 1 && CtrOptions_EmbersLow() == 0, "EMBERS starts on HIGH");
-    CtrOptions_Step(9, 1);
-    Text(9, "Off");
-    CHECK(CtrOptions_Embers() == 0 && CtrOptions_EmbersLow() == 0, "EMBERS stepped to OFF");
-    CtrOptions_Step(9, 1);
-    Text(9, "Low");
-    CHECK(CtrOptions_Embers() == 1 && CtrOptions_EmbersLow() == 1, "EMBERS stepped to LOW");
-    CtrOptions_Step(9, -1);
-    Text(9, "Off");
-    CtrOptions_Set(9, CTR_EMBERS_HIGH);
-    Text(9, "High");
-    CtrOptions_Set(9, 3);
-    Text(9, "High");
+    /* SHELL COLOUR: red until chosen, then blue, green, grey; four values on a "<" value ">" row, kept in the settings. */
+    Text(10, "Red");
+    CtrOptions_Step(10, 1);
+    Text(10, "Blue");
+    CHECK(CtrOptions_Shell() == 1 && CtrSettings_Shell() == 1, "SHELL COLOUR stepped to BLUE");
+    CtrOptions_Step(10, -1);
+    CtrOptions_Step(10, -1);
+    Text(10, "Grey");
+    CHECK(CtrOptions_Shell() == 3 && !CtrOptions_IsLevels(10), "SHELL COLOUR wraps to GREY and is not a row of levels");
+    CtrOptions_Set(10, 4);
+    CHECK(CtrOptions_Shell() == 3, "a value that is not a colour is refused");
     memset(&view, 0, sizeof(view));
-    CtrOptions_Fill(&view, 9);
-    CHECK(view.optSegCount[4] == 3 && view.optSegValue[4] == CTR_EMBERS_HIGH && strcmp(view.optSegName[4][0], "Off") == 0
-          && strcmp(view.optSegName[4][2], "High") == 0 && view.optSegCount[3] == 0, "EMBERS shown as levels");
+    CtrOptions_Fill(&view, 10);
+    CHECK(view.optCount == 4 && strcmp(view.optLabel[0], "Shell colour") == 0 && view.optSegCount[0] == 0 && !view.optLook.on, "SHELL COLOUR shown as a value row");
+    CtrOptions_Fill(&view, 11);
+    CHECK(view.optLook.on, "the Red look row shows its preview");
+    CtrOptions_Set(10, 0);
     /* COMPANION: none until chosen, then TRAIL, then BE IT; a row of levels, kept in the settings. */
-    Text(10, "Off");
+    Text(9, "Off");
     CHECK(CtrOptions_Companion() == 0 && CtrSettings_Companion() == 0, "COMPANION starts off");
-    CtrOptions_Step(10, 1);
-    Text(10, "Follow");
+    CtrOptions_Step(9, 1);
+    Text(9, "Follow");
     CHECK(CtrOptions_Companion() == 1 && CtrSettings_Companion() == 1, "COMPANION stepped to TRAIL");
-    CtrOptions_Step(10, 1);
-    Text(10, "Be it");
+    CtrOptions_Step(9, 1);
+    Text(9, "Be it");
     CHECK(CtrOptions_Companion() == 2 && CtrSettings_Companion() == 2, "COMPANION stepped to BE IT");
-    CtrOptions_Step(10, 1);
-    Text(10, "Off");
-    CtrOptions_Set(10, 2);
-    CtrOptions_Set(10, 3);
+    CtrOptions_Step(9, 1);
+    Text(9, "Off");
+    CtrOptions_Set(9, 2);
+    CtrOptions_Set(9, 3);
     CHECK(CtrOptions_Companion() == 2, "a value that is not a level is refused");
     /* EXP SHARE, alone on page 3: the game's own until chosen, then HALF, then FULL; levels, kept in the settings. */
     Text(20, "Off");
@@ -197,10 +195,10 @@ int main(void)
     CtrOptions_Fill(&view, 20);
     CHECK(view.optPage == 4 && view.optPageCount == 6 && view.optCount == 6 && view.optSection == 2 && view.optSectionCount == 4,
           "the QoL page holds six rows and is the third section of four");
-    /* The pages: Settings (5 rows), Graphics (6: the screen; 3: the looks; 3: the wild Pokemon), QoL (6) and Nuzlocke (5), in four sections. */
+    /* The pages: Settings (5 rows), Graphics (5: the screen; 4: the looks; 3: the wild Pokemon), QoL (6) and Nuzlocke (5), in four sections. */
     CHECK(CtrOptions_PageCount() == 6 && CtrOptions_SectionCount() == 4
-          && CtrOptions_PageBase(0) == 0 && CtrOptions_PageRows(0) == 5 && CtrOptions_PageBase(1) == 5 && CtrOptions_PageRows(1) == 6
-          && CtrOptions_PageBase(2) == 11 && CtrOptions_PageRows(2) == 3 && CtrOptions_PageBase(3) == 14 && CtrOptions_PageRows(3) == 3
+          && CtrOptions_PageBase(0) == 0 && CtrOptions_PageRows(0) == 5 && CtrOptions_PageBase(1) == 5 && CtrOptions_PageRows(1) == 5
+          && CtrOptions_PageBase(2) == 10 && CtrOptions_PageRows(2) == 4 && CtrOptions_PageBase(3) == 14 && CtrOptions_PageRows(3) == 3
           && CtrOptions_PageBase(4) == 17 && CtrOptions_PageRows(4) == 6 && CtrOptions_PageBase(5) == 23 && CtrOptions_PageRows(5) == 5,
           "six pages in four sections");
     CHECK(strcmp(CtrOptions_PageName(0), "Settings") == 0 && strcmp(CtrOptions_PageName(1), "Graphics") == 0
@@ -237,8 +235,8 @@ int main(void)
     CtrOptions_Fill(&view, CtrOptions_RowCount() - 3);
     CHECK(view.optPage == 5 && view.optCount == 5 && view.optSelected == 2 && view.optLabel[5][0] == 0,
           "the last page: its five rows, the third selected, no sixth");
-    CHECK(CtrOptions_PageOf(0) == 0 && CtrOptions_PageOf(4) == 0 && CtrOptions_PageOf(5) == 1 && CtrOptions_PageOf(10) == 1
-          && CtrOptions_PageOf(11) == 2 && CtrOptions_PageOf(13) == 2 && CtrOptions_PageOf(14) == 3 && CtrOptions_PageOf(16) == 3
+    CHECK(CtrOptions_PageOf(0) == 0 && CtrOptions_PageOf(4) == 0 && CtrOptions_PageOf(5) == 1 && CtrOptions_PageOf(9) == 1
+          && CtrOptions_PageOf(10) == 2 && CtrOptions_PageOf(13) == 2 && CtrOptions_PageOf(14) == 3 && CtrOptions_PageOf(16) == 3
           && CtrOptions_PageOf(17) == 4 && CtrOptions_PageOf(22) == 4 && CtrOptions_PageOf(23) == 5 && CtrOptions_PageOf(27) == 5
           && CtrOptions_PageOf(99) == 5, "a row's page");
     /* FREE HMS: off by default, a switch that is kept in the settings. */
@@ -405,18 +403,14 @@ int main(void)
     CtrOptions_Fill(&view, 3);
     CHECK(!view.optLook.on, "no preview on the first page");
     memset(&view, 0, sizeof(view));
-    CtrOptions_Fill(&view, 10);
-    CHECK(view.optSegCount[5] == 3 && view.optSegValue[5] == 2 && strcmp(view.optSegName[5][1], "Follow") == 0
-          && strcmp(view.optSegName[5][2], "Be it") == 0, "COMPANION shown as levels");
+    CtrOptions_Fill(&view, 9);
+    CHECK(view.optSegCount[4] == 3 && view.optSegValue[4] == 2 && strcmp(view.optSegName[4][1], "Follow") == 0
+          && strcmp(view.optSegName[4][2], "Be it") == 0, "COMPANION shown as levels");
+    CtrOptions_Set(9, 0);
+    /* The choice outlives the session (settings.cfg). */
+    CtrOptions_Set(10, 2);
+    CHECK(CtrSettings_Shell() == 2 && CtrOptions_Shell() == 2, "SHELL COLOUR kept in the settings");
     CtrOptions_Set(10, 0);
-    /* The choice outlives the session (settings.cfg); without one the console decides. */
-    CHECK(CtrSettings_Embers() == CTR_EMBERS_HIGH, "EMBERS kept in the settings");
-    CtrOptions_EmbersInit(0);
-    CHECK(CtrOptions_Embers() == 1 && CtrOptions_EmbersLow() == 0, "a kept HIGH wins over the Old 3DS default");
-    CtrOptions_Set(9, CTR_EMBERS_LOW);
-    CtrOptions_EmbersInit(1);
-    CHECK(CtrOptions_EmbersLow() == 1, "a kept LOW wins over the New 3DS default");
-    CtrOptions_Set(9, CTR_EMBERS_HIGH);
     memset(&view, 0, sizeof(view));
     CtrOptions_Fill(&view, 5);
     CHECK(view.optFrameShow == 1 && view.optFrameType == 0, "FRAME selected shows its sample (TYPE1)");

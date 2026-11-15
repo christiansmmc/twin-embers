@@ -115,6 +115,30 @@ static int Case(int n, int cut)
     case 14:
         Expect(1, 0, 0);
         break;
+    case 15:    /* the old file (embers=2 among the rest): the shell is red, nothing else is lost; a change drops the embers line */
+        PutS(kFull, 1);
+        assert(CtrSettings_Shell() == 0 && CtrSettings_Companion() == 2 && CtrSettings_ExpShare() == 2
+               && CtrSettings_Turbo() == 3 && CtrSettings_Nuzlocke() == 1);
+        CtrSettings_SetShell(2);
+        {
+            char block[BLOCK + 1];
+            FILE *f = fopen(CTR_SETTINGS_PATH, "rb");
+            size_t got;
+
+            assert(f != NULL);
+            got = fread(block, 1, BLOCK, f);
+            fclose(f);
+            block[got] = 0;
+            assert(strstr(block, "shell=2\n") != NULL && strstr(block, "embers=") == NULL);
+        }
+        break;
+    case 16:    /* the shell written by the new code reads back */
+        assert(CtrSettings_Shell() == 2);
+        break;
+    case 17:    /* a shell out of range is red */
+        PutS("shell=9\n", 1);
+        assert(CtrSettings_Shell() == 0);
+        break;
     case 20:    /* the file cut after `cut` bytes (no padding): never a wrong density, never a changed other value */
         Put(kFull, (size_t)cut, 0);
         {
@@ -151,7 +175,7 @@ int main(int argc, char **argv)
 
     if (argc >= 2)
         return Case(atoi(argv[1]), argc >= 3 ? atoi(argv[2]) : 0);
-    for (int n = 0; n <= 14; ++n)
+    for (int n = 0; n <= 17; ++n)
     {
         snprintf(cmd, sizeof(cmd), "\"%s\" %d", argv[0], n);
         if (system(cmd) != 0)

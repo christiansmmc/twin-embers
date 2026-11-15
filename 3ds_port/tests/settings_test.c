@@ -217,7 +217,7 @@ int main(void)
      * silently at the block's end, which would drop the last keys. The block is 512 bytes; keep the text under 320. */
     CtrSettings_SetTurbo(4);
     CtrSettings_SetAutoRun(1);
-    CtrSettings_SetEmbers(2);
+    CtrSettings_SetShell(3);
     CtrSettings_SetRepelAgain(1);
     CtrSettings_SetCompanion(2);
     CtrSettings_SetExpShare(2);

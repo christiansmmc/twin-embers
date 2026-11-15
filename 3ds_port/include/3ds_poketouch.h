@@ -454,6 +454,7 @@ typedef struct {
     CtrPokeTouchName name;      /* the naming screen, when name.on */
     CtrPokeTouchBox box;        /* a PC box, when box.on */
     CtrPokeTouchChoice choice;  /* a choice of the field, when choice.on */
+    uint8_t shell;          /* the lower screen's shell colour: 0 red, 1 blue, 2 green, 3 grey (CtrOptions_Shell) */
 } CtrPokeTouchView;
 
 extern const CtrPokeTouchRect gCtrPokeTouchRects[PT_COUNT];
@@ -537,10 +538,6 @@ void CtrPokeTouch_Draw(uint16_t *canvas, const CtrPokeTouchView *view);
  * is added to `dirty` to be presented; nothing is added when nothing changed. */
 void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const CtrPokeTouchView *view,
                          CtrDirtyList *dirty);
-/* One step of the embers rising over the backdrop of whatever screen the canvas holds (PokeTouch, the battle, the
- * Summary): drawn only where the backdrop shows and, with `pictureShown`, off the GBA picture; with `on` false they
- * are only taken away. What changed is added to `dirty`. */
-void CtrPokeTouch_Embers(uint16_t *canvas, int on, int low, int pictureShown, CtrDirtyList *dirty);
 /* The lower screen with nothing to show for FireRed's screen above (its title, naming, a shop, an evolution, a trade):
  * the ember backdrop, and the project's logo when `logo`. */
 void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo);
@@ -678,6 +675,7 @@ typedef struct {
     CtrBattleBag bag;
     CtrBattleParty pty;
     CtrBattleTarget target[4];
+    uint8_t shell;          /* the lower screen's shell colour: 0 red, 1 blue, 2 green, 3 grey (CtrOptions_Shell) */
 } CtrBattleView;
 
 void CtrBattleUi_Draw(uint16_t *canvas, const CtrBattleView *view);
@@ -709,6 +707,7 @@ typedef struct {
     uint8_t trainer;                /* TRAINER is shown (FireRed is on its first page) */
     uint8_t ivView;                 /* STATS shows the IVs, EVs and Hidden Power instead of the experience */
     uint8_t loading;                /* nothing reported yet: the frame only */
+    uint8_t shell;          /* the lower screen's shell colour: 0 red, 1 blue, 2 green, 3 grey (CtrOptions_Shell) */
 } CtrSummaryUiView;
 
 void CtrSummaryUi_Draw(uint16_t *canvas, const CtrSummaryUiView *view);
