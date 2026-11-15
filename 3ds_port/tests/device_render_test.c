@@ -551,6 +551,13 @@ static void KitChips(void)
             }
     assert(left >= 10 + (40 - tw) / 2 && left < 10 + (40 - tw) / 2 + 3 && right < 10 + (40 - tw) / 2 + tw);
     Untouched(10, 30, 40, 12);
+    /* A fixed-width chip too narrow for its word clips it and counts it as a cut label; one wide enough does not. */
+    sDevKeyCut = 0;
+    DevChip(10, 30, 40, 12, "FIRE", bg, sh);
+    assert(sDevKeyCut == 0);
+    DevChip(10, 30, tw - 1, 12, "FIRE", bg, sh);
+    assert(sDevKeyCut == 1);
+    sDevKeyCut = 0;
     /* No shadow (PSN, FNT): only the chip's colour and white. */
     clear(SENTINEL);
     DevChip(10, 50, 0, 10, "PSN", DEV_PSN, DEV_WHITE);
@@ -1029,6 +1036,7 @@ static CtrBattleView BatBoard(void)
     memcpy(v.partyHp, kHp, sizeof(kHp));
     v.partyStatus[2] = 2;
     strcpy(v.activeName, "CHARMELEON");
+    v.activeNameIsSpecies = 1;
     v.activeLevel = 36;
     v.activeGender = 0;
     v.activeSlot = 0;
@@ -1068,6 +1076,7 @@ static CtrBattleView BatBoard(void)
         t->hp = (uint16_t)kTarget[i].hp;
         t->maxHp = (uint16_t)kTarget[i].max;
         strcpy(t->name, kTarget[i].name);
+        t->nameIsSpecies = 1;
     }
     return v;
 }
@@ -1104,6 +1113,62 @@ static void BatUpperCase(CtrBattleView v)
     memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
 }
 
+/* A Pokemon's name: its species' own in capitals whatever case it arrives in (recipe 0251 title-cases the species
+ * names: "Charmeleon" shows as CHARMELEON), one its player gave as typed ("Sparky"), on the action screen (the lead and
+ * the question) and on the target keys. Small letters are made wider than capitals, so the case shows in the pixels. */
+static void BatNames(CtrBattleView v)
+{
+    static uint16_t first[W * H];
+    static uint8_t keepWidths[256], keepSmall[256];
+    CtrBattleView other;
+
+    memcpy(keepWidths, fontWidths, sizeof(keepWidths));
+    memcpy(keepSmall, smallWidths, sizeof(keepSmall));
+    for (unsigned c = 0xd5; c <= 0xee; ++c)        /* a..z */
+        fontWidths[c] = smallWidths[c] = 7;
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    v.state = BUI_ACTION;
+    other = v;
+    strcpy(v.activeName, "CHARMELEON");
+    strcpy(other.activeName, "Charmeleon");
+    v.activeNameIsSpecies = other.activeNameIsSpecies = 1;
+    CtrBattleUi_Draw(canvas, &v);
+    memcpy(first, canvas, sizeof(first));
+    CtrBattleUi_Draw(canvas, &other);
+    assert(!memcmp(first, canvas, sizeof(first)));                 /* the species' own: CHARMELEON */
+    strcpy(v.activeName, "SPARKY");
+    strcpy(other.activeName, "Sparky");
+    v.activeNameIsSpecies = other.activeNameIsSpecies = 0;
+    CtrBattleUi_Draw(canvas, &v);
+    memcpy(first, canvas, sizeof(first));
+    CtrBattleUi_Draw(canvas, &other);
+    assert(memcmp(first, canvas, sizeof(first)));                  /* a nickname: Sparky, as typed */
+    assert(Count(76, 17, 140, 12, DEV_INK) > 0 && Count(20, 71, 280, 15, DEV_INK) > 0);
+    v.state = other.state = BUI_TARGET;
+    v.cursor = other.cursor = -1;
+    strcpy(v.target[0].name, "PIDGEOTTO");
+    strcpy(other.target[0].name, "Pidgeotto");
+    strcpy(v.target[2].name, "PIKACHU");
+    strcpy(other.target[2].name, "Pikachu");
+    v.target[0].nameIsSpecies = other.target[0].nameIsSpecies = v.target[2].nameIsSpecies = other.target[2].nameIsSpecies = 1;
+    CtrBattleUi_Draw(canvas, &v);
+    memcpy(first, canvas, sizeof(first));
+    CtrBattleUi_Draw(canvas, &other);
+    assert(!memcmp(first, canvas, sizeof(first)));
+    strcpy(v.target[2].name, "SPARKY");
+    strcpy(other.target[2].name, "Sparky");
+    v.target[2].nameIsSpecies = other.target[2].nameIsSpecies = 0;
+    CtrBattleUi_Draw(canvas, &v);
+    memcpy(first, canvas, sizeof(first));
+    CtrBattleUi_Draw(canvas, &other);
+    assert(memcmp(first, canvas, sizeof(first)));
+    memcpy(fontWidths, keepWidths, sizeof(keepWidths));
+    memcpy(smallWidths, keepSmall, sizeof(keepSmall));
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+}
+
 /* The plan's suite (each key hit where it is drawn, the touch or else the cursor sinks one key, the quick ball's arrows
  * and its grey states, RUN when there is no running, holes for missing moves, nothing hit while idle), the boards'
  * pieces where the boards put them, then the states for the eye. */
@@ -1111,7 +1176,7 @@ static void SuiteBattle(void)
 {
     CtrBattleView v = BatBoard(), old;
     CtrPokeTouchRect prev, next;
-    int i, x, y, hpW;
+    int i, x, y, hpW, fightX;
 
     old = v;
     CtrBattleUi_Draw(canvas, &old);
@@ -1132,6 +1197,13 @@ static void SuiteBattle(void)
            && at(76 + hpW + 3 + 149, 58) == DEV_HP_FRAME && at(76 + hpW + 3 + 150, 55) == DEV_PAPER);
     assert(Count(20, 71, 280, 15, DEV_INK) > 0 && Count(76, 17, 140, 12, DEV_INK) > 0);   /* the prompt; the name */
     assert(Count(76, 33, 8, 10, DEV_MALE) > 0);                                           /* the gender mark */
+    /* FIGHT's crossed swords: 24x24, 10 px left of the word, the pair centred on the key (sunk: face at 106); blended
+     * at their edges, nothing between them and the word */
+    fightX = 8 + (304 - (24 + 10 + UiTextWidth(CTR_TR("FIGHT", "LUCHAR", "KAMPF"), 2))) / 2;
+    assert(Count(fightX, 122, 24, 24, UI_RGB(0xA0, 0x2A, 0x20)) > 20 && Count(fightX + 24, 106, 10, 56, UI_RGB(0xA0, 0x2A, 0x20)) == 0);
+    assert(Count(fightX, 122, 24, 24, DEV_SUNK) + Count(fightX, 122, 24, 24, UI_RGB(0xA0, 0x2A, 0x20)) < 24 * 24);
+    assert(Count(fightX + 34, 125, 40, 18, UI_RGB(0xA0, 0x2A, 0x20)) > 0 && Count(8, 106, fightX - 8, 56, UI_RGB(0xA0, 0x2A, 0x20)) == 0);
+    assert(at(fightX + 5, 127) == UI_RGB(0xA0, 0x2A, 0x20) && at(fightX + 18, 127) == UI_RGB(0xA0, 0x2A, 0x20));   /* the blades */
     shot("action");
     v.runBlocked = 1; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 264, 200) == -1 && at(219, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
     shot("action_runblocked");
@@ -1162,6 +1234,13 @@ static void SuiteBattle(void)
     AssertKey(kDevBatRow4[1], DEV_LOOK_KEY, 1); AssertKey(kDevBatFight, DEV_LOOK_KEY, 0);                 /* the cursor on the ball */
     v.cursor = 0;
     v.pressed = -1; DevCheckBattle(&old, &v); v.activeFrame ^= 1; v.showCursor ^= 1; assert(DevCheckBattle(&old, &v).count == 0);   /* not drawn: no redraw */
+    /* nor anything else the commands do not draw: the party's HP and conditions, the lead's types, the ball's name and
+     * place, the moves and the targets, the Party and the Bag */
+    v.partyHp[1] = 40; v.partyStatus[0] = 5; v.activeType[1] = 2; strcpy(v.activeTypeName[1], "FLYING");
+    strcpy(v.ballName, "ULTRA BALL"); v.ballPlace = 2; v.move[0].priority = 1; v.move[1].pp = 3; v.target[0].battler = 3;
+    v.target[1].hp = 7; v.bag.count = 7; v.pty.cursor = 2; v.safari = 1;
+    assert(DevCheckBattle(&old, &v).count == 0);
+    v.safari = 0; v.move[1].pp = 15; v.target[1].hp = 80; assert(DevCheckBattle(&old, &v).count == 0);
     v.shell = 1; assert(DevWhole(DevCheckBattle(&old, &v)) && at(160, 100) == DEV_SHELL_BLUE);
     v.shell = 0; DevCheckBattle(&old, &v);
     /* to the ember Bag and back: the whole screen each way */
@@ -1169,6 +1248,8 @@ static void SuiteBattle(void)
     v.state = BUI_ACTION; assert(DevWhole(DevCheckBattle(&old, &v)));
 
     v.state = BUI_MOVE; v.cursor = 1; assert(DevWhole(DevCheckBattle(&old, &v)));
+    v.activeHp = 50; v.party[5] = 1; v.ballQty = 3; v.runBlocked = 1; assert(DevCheckBattle(&old, &v).count == 0);   /* the lead: not drawn here */
+    v.activeHp = 112; v.party[5] = 0; v.ballQty = 21; v.runBlocked = 0; DevCheckBattle(&old, &v);
     for (i = 0; i < 4; ++i) AssertHits(BatHitV, &v, kDevBatMove[i], i);
     AssertHits(BatHitV, &v, kDevBatCancel, BUI_CANCEL); AssertKey(kDevBatMove[1], DEV_LOOK_KEY, 1);
     AssertKey(kDevBatMove[0], DEV_LOOK_KEY, 0); AssertKey(kDevBatCancel, DEV_LOOK_DARK, 0);
@@ -1192,6 +1273,7 @@ static void SuiteBattle(void)
     v.move[0] = BatBoard().move[0];
     v.cursor = 1; DevCheckBattle(&old, &v);
     BatUpperCase(v);
+    BatNames(v);
     CtrBattleUi_Draw(canvas, &old);
     v.move[2].present = v.move[3].present = 0; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 82, 173) == -1);   /* two moves: holes */
     assert(CtrBattleUi_Hit(&v, 238, 173) == -1 && at(82, 173) == DevBlend(DEV_SHELL_RED, 0, DEV_A_HOLE));
@@ -1211,10 +1293,21 @@ static void SuiteBattle(void)
     assert(CtrBattleUi_Hit(&v, 200, 222) == -1 && Count(14, 14, 292, 44, DEV_INK) > 0);       /* no CANCEL; the prompt */
     shot("safari");
 
-    v.state = BUI_IDLE; DevCheckBattle(&old, &v); for (y = 0; y < 240; y += 3) for (x = 0; x < 320; x += 3) assert(CtrBattleUi_Hit(&v, x, y) == -1);
+    v.state = BUI_IDLE; v.ball = CTR_QUICK_BALL_READY; v.ballCount = 4; v.ballItem = 4; v.ballQty = 21;   /* a wild battle */
+    DevCheckBattle(&old, &v); for (y = 0; y < 240; y += 3) for (x = 0; x < 320; x += 3) assert(CtrBattleUi_Hit(&v, x, y) == -1);
     assert(at(11, 132) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128) && at(11, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
+    assert(at(108, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));                         /* the quick ball's key, grey */
     assert(Count(20, 71, 280, 15, DEV_INK) == 0 && Count(76, 17, 140, 12, DEV_INK) > 0);   /* no prompt; the lead still */
     shot("idle");
+    v.cursor = 3; v.pressed = 2; assert(DevCheckBattle(&old, &v).count == 0);             /* idle: no key chosen */
+    v.ball = CTR_QUICK_BALL_NONE; v.ballCount = 0; DevCheckBattle(&old, &v);                /* a trainer: three keys */
+    assert(at(108, 200) == DEV_SHELL_RED && at(219, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
+    v.safari = 1; assert(DevWhole(DevCheckBattle(&old, &v)));                              /* the Safari Zone: its own keys */
+    for (y = 0; y < 240; y += 3) for (x = 0; x < 320; x += 3) assert(CtrBattleUi_Hit(&v, x, y) == -1);
+    for (i = 0; i < 4; ++i)
+        assert(at(kDevBatMove[i].x + 3, kDevBatMove[i].y + 31) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
+    assert(Count(14, 14, 292, 44, DEV_INK) == 0 && at(11, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
+    shot("idle_safari");
     assert(sDevKeyCut == 0);
 }
 

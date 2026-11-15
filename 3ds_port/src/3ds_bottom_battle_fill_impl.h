@@ -34,6 +34,58 @@ static int BattleActiveSlot(void)
     return best;
 }
 
+/* A byte of a name in capitals: an ASCII letter, or the second byte of a UTF-8 Latin-1 small letter (after 0xC3:
+ * a-grave..thorn, not the division sign). */
+static unsigned BatUpperByte(unsigned c, unsigned prev)
+{
+    if (prev == 0xC3)
+        return c >= 0xA0 && c <= 0xBE && c != 0xB7 ? c - 0x20 : c;
+    return c >= 'a' && c <= 'z' ? c - ('a' - 'A') : c;
+}
+
+/* Two names the same but for case: FireRed's capitals, or recipe 0251's title case of the species names. */
+static int BatSameName(const char *a, const char *b)
+{
+    unsigned pa = 0, pb = 0;
+
+    for (;;) {
+        unsigned ca = (unsigned char)*a++, cb = (unsigned char)*b++;
+
+        if (BatUpperByte(ca, pa) != BatUpperByte(cb, pb))
+            return 0;
+        if (!ca)
+            return 1;
+        pa = ca;
+        pb = cb;
+    }
+}
+
+/* Whether a Pokemon called `name` is called by its species' own name (shown in capitals then, as FireRed writes it),
+ * not by one its player gave (shown as typed). `species` 0: the battler's species is not reported (a target), so any
+ * species' name counts (a wild or a trainer's Pokemon has its species' name; a link opponent's may have one its player
+ * gave); the names are read once. */
+#define BAT_SPECIES 440
+static int BatNameIsSpecies(const char *name, unsigned species)
+{
+    static char names[BAT_SPECIES][24];
+    static int ready;
+    char own[24];
+
+    if (species) {
+        CtrBottomDex_Name(species, own, (int)sizeof(own));
+        return own[0] && BatSameName(name, own);
+    }
+    if (!ready) {
+        for (unsigned s = 1; s < BAT_SPECIES; ++s)
+            CtrBottomDex_Name(s, names[s], (int)sizeof(names[s]));
+        ready = 1;
+    }
+    for (unsigned s = 1; s < BAT_SPECIES; ++s)
+        if (names[s][0] && BatSameName(name, names[s]))
+            return 1;
+    return 0;
+}
+
 /* The six ball slots and the touch held under a finger: what every battle screen shares. */
 static void BattleCommon(CtrBattleView *v)
 {
@@ -49,6 +101,7 @@ static void BattleCommon(CtrBattleView *v)
 
             CtrBottomParty_Nickname(slot, v->activeName);
             v->activeName[sizeof(v->activeName) - 1] = 0;
+            v->activeNameIsSpecies = (uint8_t)BatNameIsSpecies(v->activeName, CtrBottomParty_Species(slot));
             v->activeLevel = (uint8_t)(level > 255 ? 255 : level);
             v->activeGender = (uint8_t)CtrBottomParty_Gender(slot);
             v->activeSlot = (uint8_t)slot;
@@ -263,14 +316,57 @@ static void BattlePartyFill(Snapshot *s)
     s->touch.viewport = 0;
 }
 
+/* The quick ball as the commands show it: what it would throw, how many, its place among the Bag's balls. */
+static void BattleBallFill(CtrBattleView *v)
+{
+    unsigned item, qty;
+    int place, count;
+
+    v->ball = (uint8_t)CtrBattle_QuickBall(&item, &qty, &place, &count);
+    if (v->ball != CTR_QUICK_BALL_NONE) {
+        v->ballItem = (uint16_t)item;
+        v->ballQty = (uint16_t)(qty > 999 ? 999 : qty);
+        v->ballPlace = (uint8_t)place;
+        v->ballCount = (uint8_t)count;
+        if (item)
+            CtrBottomBag_ItemName(item, v->ballName, sizeof(v->ballName));
+    }
+}
+
+/* The Safari Zone's own chooser has been seen in this battle (FireRed reports no battle type): its IDLE then shows its
+ * own keys. Any other chooser clears it, and so does the end of the battle (CtrBottom_Frame). */
+static uint8_t sBatSafari;
+
+static void BattleNoteChooser(int state)
+{
+    if (state == BATTLE_SAFARI)
+        sBatSafari = 1;
+    else if (state != BATTLE_BUSY)
+        sBatSafari = 0;
+}
+
+/* IDLE: the commands as the action screen has them, the quick ball too (CtrBattle_QuickBall asks only the battle's
+ * callback and type), all grey; in the Safari Zone its own keys. */
+static void BattleIdleFill(CtrBattleView *v)
+{
+    v->safari = sBatSafari;
+    if (!v->safari)
+        BattleBallFill(v);
+}
+
 /* The battle screen as the controller is now: nothing but what FireRed reports. */
 static void BattleFill(CtrBattleView *v)
 {
     int state = CtrBattle_State();
 
     BattleCommon(v);
+    BattleNoteChooser(state);
     v->state = state == BATTLE_ACTION ? BUI_ACTION : state == BATTLE_MOVE ? BUI_MOVE
              : state == BATTLE_TARGET ? BUI_TARGET : state == BATTLE_SAFARI ? BUI_SAFARI : BUI_IDLE;
+    if (v->state == BUI_IDLE) {
+        BattleIdleFill(v);
+        return;
+    }
     if (v->state == BUI_TARGET) {
         /* The cards: opposing battlers on top (left, right), the player's below. Only the ones the controller's own
          * rule (the one its D-pad walks by) lets the move be aimed at are shown. */
@@ -290,6 +386,7 @@ static void BattleFill(CtrBattleView *v)
             t = &v->target[i];
             if (!CtrBattle_TargetInfo(b, t->name, (int)sizeof(t->name), &level, &hp, &maxHp))
                 continue;
+            t->nameIsSpecies = (uint8_t)BatNameIsSpecies(t->name, 0);
             t->present = 1;
             t->battler = (int8_t)b;
             t->side = (uint8_t)((position & 1) == 0);
@@ -309,21 +406,10 @@ static void BattleFill(CtrBattleView *v)
         return;
     }
     if (v->state == BUI_ACTION) {
-        unsigned item, qty;
-        int place, count;
-
         v->cursor = (int8_t)CtrBattle_ActionCursor();
         v->showCursor = !sBatTouchLast;
-        v->ball = (uint8_t)CtrBattle_QuickBall(&item, &qty, &place, &count);
+        BattleBallFill(v);
         v->runBlocked = (uint8_t)!CtrBattle_CanRun();
-        if (v->ball != CTR_QUICK_BALL_NONE) {
-            v->ballItem = (uint16_t)item;
-            v->ballQty = (uint16_t)(qty > 999 ? 999 : qty);
-            v->ballPlace = (uint8_t)place;
-            v->ballCount = (uint8_t)count;
-            if (item)
-                CtrBottomBag_ItemName(item, v->ballName, sizeof(v->ballName));
-        }
     }
     if (v->state != BUI_MOVE)
         return;

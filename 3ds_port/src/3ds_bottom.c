@@ -4829,8 +4829,10 @@ void CtrBottom_Frame(void)
     else
         BatPlanClear();
     RunStoragePlan(mode);
-    if (mode != MODE_BATTLE && !(mode == MODE_BAG && CtrBottomBag_InBattle()) && mode != MODE_PARTY)
+    if (mode != MODE_BATTLE && !(mode == MODE_BAG && CtrBottomBag_InBattle()) && mode != MODE_PARTY) {
         sBat.down = sBat.inside = 0;
+        sBatSafari = 0;                 /* the battle is over: the next one is no Safari until its chooser says so */
+    }
     /* The battle keeps the upper screen from the pick of BAG or POKeMON (or a replacement), before the Bag or Party exists (its fade and setup are never shown). */
     if (mode == MODE_BATTLE)
         sBatHold = CtrBattle_BagPending() || CtrBattle_PartyPending() ? 1 : 0;

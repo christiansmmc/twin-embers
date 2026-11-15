@@ -802,6 +802,70 @@ int main(void) {
         self.assertIn('bool turboTap = CtrBottom_TakeTurboTap();', bridge)
         self.assertIn('(CtrInput_Get()->physicalDown & CTR_KEY_START) != 0 || turboTap,', bridge)
 
+    def test_battle_names_and_idle(self):
+        """The battle fill: a Pokemon's name is its species' own (shown in capitals) when it matches the species name the
+        game reports whatever the case (recipe 0251 title-cases them), not a nickname; a target's species is not
+        reported, so any species' name counts. IDLE fills the quick ball as ACTION does, and in the Safari Zone (its
+        chooser seen in this battle) shows Safari's keys instead; the end of the battle forgets it."""
+        fill = (ROOT / '3ds_port/src/3ds_bottom_battle_fill_impl.h').read_text(encoding='utf-8')
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        species = re.search(r'#define BAT_SPECIES \d+', fill).group(0)
+        code = '\n'.join(function(fill, n) for n in ('BatUpperByte', 'BatSameName', 'BatNameIsSpecies', 'BattleBallFill',
+                                                     'BattleNoteChooser', 'BattleIdleFill'))
+        self.assertIn('sBatSafari = 0;', function(bottom, 'CtrBottom_Frame'))
+        self.run_c('''
+#include <assert.h>
+#include <string.h>
+#include "3ds_poketouch.h"
+#include "3ds_battle_nav.h"
+enum { BATTLE_BUSY = 0, BATTLE_ACTION, BATTLE_MOVE, BATTLE_TARGET, BATTLE_SAFARI };
+static uint8_t sBatSafari;
+static int ballCalls;
+static void CtrBottomDex_Name(unsigned species, char *out, int size)
+{
+    const char *name = species == 5 ? "Charmeleon" : species == 25 ? "Pikachu" : species == 29 ? "Nidoran\\xE2\\x99\\x80"
+                     : species == 12 ? "Flab\\xC3\\xA9" "b\\xC3\\xA9" : "";
+    (void)size;
+    strcpy(out, name);
+}
+static int CtrBattle_QuickBall(unsigned *item, unsigned *quantity, int *place, int *count)
+{
+    ++ballCalls;
+    *item = 4; *quantity = 1200; *place = 1; *count = 3;
+    return CTR_QUICK_BALL_READY;
+}
+static void CtrBottomBag_ItemName(unsigned item, char *out, int size) { (void)item; (void)size; strcpy(out, "GREAT BALL"); }
+''' + species + '\n' + code + '''
+int main(void)
+{
+    CtrBattleView v;
+
+    /* the species' own name, in any case; a nickname; another species' name is not this one's */
+    assert(BatNameIsSpecies("Charmeleon", 5) && BatNameIsSpecies("CHARMELEON", 5) && BatNameIsSpecies("charmeleon", 5));
+    assert(!BatNameIsSpecies("Sparky", 5) && !BatNameIsSpecies("Charmeleo", 5) && !BatNameIsSpecies("Charmeleonx", 5));
+    assert(!BatNameIsSpecies("Pikachu", 5) && !BatNameIsSpecies("", 5) && !BatNameIsSpecies("Charmeleon", 300));
+    assert(BatNameIsSpecies("FLAB\\xC3\\x89" "B\\xC3\\x89", 12) && BatNameIsSpecies("NIDORAN\\xE2\\x99\\x80", 29));
+    /* a target: any species' name */
+    assert(BatNameIsSpecies("PIKACHU", 0) && BatNameIsSpecies("Charmeleon", 0) && !BatNameIsSpecies("Sparky", 0));
+    /* IDLE: the quick ball as ACTION fills it; in the Safari Zone its own keys, no ball */
+    memset(&v, 0, sizeof(v));
+    BattleNoteChooser(BATTLE_ACTION);
+    BattleIdleFill(&v);
+    assert(!v.safari && v.ball == CTR_QUICK_BALL_READY && v.ballItem == 4 && v.ballQty == 999 && v.ballCount == 3
+           && v.ballPlace == 1 && !strcmp(v.ballName, "GREAT BALL"));
+    memset(&v, 0, sizeof(v));
+    ballCalls = 0;
+    BattleNoteChooser(BATTLE_SAFARI);
+    BattleNoteChooser(BATTLE_BUSY);
+    BattleIdleFill(&v);
+    assert(v.safari && v.ball == CTR_QUICK_BALL_NONE && ballCalls == 0);
+    BattleNoteChooser(BATTLE_MOVE);
+    BattleIdleFill(&v);
+    assert(!v.safari && v.ball == CTR_QUICK_BALL_READY);
+    return 0;
+}
+''')
+
 
 if __name__ == '__main__':
     unittest.main()

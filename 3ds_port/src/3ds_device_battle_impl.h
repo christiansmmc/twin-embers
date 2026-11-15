@@ -7,17 +7,19 @@
  * level, the party's six balls, its HP) and FireRed's question; FIGHT across; under it BAG, POKeMON and RUN, and in a
  * wild battle the quick ball between BAG and POKeMON (the ball's icon, how many, the arrows to the other balls; grey,
  * saying why, when it cannot throw, and still taken: the game says why too). RUN is grey and takes no touch when there
- * is no running. IDLE: the same screen without the question, the keys grey, nothing taken. MOVE: the top screws; the
+ * is no running. IDLE: the same screen without the question, the keys grey, nothing taken (in the Safari Zone its own
+ * screen and keys, grey). MOVE: the top screws; the
  * screen with the chosen move (name, type, category, power and accuracy, FireRed's description), the four move keys
  * (name, type, the matchup, the PP) or a hole for each slot without a move, the hint and CANCEL. TARGET: the keys are
  * the battlers the move can be aimed at (name, level, HP, foe or ally, the matchup). SAFARI: BALL, BAIT, ROCK, RUN.
  *
  * The chosen key is the one under a held touch, else the game's cursor: the cursor always counts (showCursor is not
- * drawn). Words: upper case, as the boards and FireRed write them; the game's names through DevUpper, a name the player
- * gave and FireRed's descriptions as they are. The keys' words are the port's, written in capitals.
+ * drawn). Words: upper case, as the boards and FireRed write them; the game's names through DevUpper, and a Pokemon's
+ * name in capitals when it is its species' own (the fill compares it with the species name), as typed when the player
+ * gave it; FireRed's descriptions as they are. The keys' words are the port's, written in capitals.
  *
- * Redraw (decision 7): a change of anything drawn redraws the screen whole; the icon's bounce (activeFrame) and
- * showCursor are not drawn. */
+ * Redraw (decision 7): a change of anything drawn redraws the screen whole; what a state does not draw (the icon's
+ * bounce, showCursor, the party's HP, ...: DevBatUndrawn) is copied over before the comparison. */
 
 #include "3ds_type_chart.h"     /* CTR_FX_*: a move's matchup */
 #include "3ds_battle_nav.h"     /* CTR_ACTION_BALL, CTR_QUICK_BALL_*: the quick ball */
@@ -34,6 +36,8 @@
 #define DEV_BAT_LEAD_X      20                          /* the lead's icon: {20, 18, 48, 48}, at 2x from its frame's (4, 8) */
 #define DEV_BAT_LEAD_Y      18
 #define DEV_BAT_SHADOW_A    115                         /* the hint's shadow on the shell (the board's 0.45 black) */
+#define DEV_BAT_SWORDS      24                          /* FIGHT's crossed swords, and the gap to its word */
+#define DEV_BAT_SWORDS_GAP  10
 
 /* ---- The keys' art: v0.6.0's battle icons (its BDiscIcon's, without the disc) ------------------------------------------
  * BAG is FireRed's own bag from the user's pack (the port's art without it), the Poke Ball and the shoe the flat icons of
@@ -287,6 +291,16 @@ static uint16_t DevBatInkShadow(int sunk)
     return sunk ? DEV_SUNK_INK_SH : DEV_WHITE;
 }
 
+/* A Pokemon's name as FireRed shows it: its species' own name in capitals (`species`: the fill found it is that, recipe
+ * 0251 having title-cased the species names), a name the player gave as typed. */
+static const char *DevBatMonName(const char *name, int species, char *out, size_t size)
+{
+    if (!species)
+        return name;
+    DevUpper(out, name, size);
+    return out;
+}
+
 /* ---- The commands (board B · Comandos) and IDLE ---------------------------------------------------------------------- */
 
 /* The lead's icon at 2x: its frame 0's 24x24 from (4, 8), where FireRed's icons sit in their 32x32. */
@@ -307,7 +321,8 @@ static void DevBatLeadIcon(const CtrBattleView *v)
  * (able, a status, fainted, a ring for none) and, when `prompt`, FireRed's question. */
 static void DevBatLead(const CtrBattleView *v, int prompt)
 {
-    char text[64];
+    char text[64], name[BUI_NAME_LEN + 8];
+    const char *shown = DevBatMonName(v->activeName, v->activeNameIsSpecies, name, sizeof(name));
     int x = 76, w;
 
     DevScreen(&kDevBatScreen);
@@ -315,14 +330,14 @@ static void DevBatLead(const CtrBattleView *v, int prompt)
         int bx = 228 + 12 * i;
 
         if (!v->party[i])
-            DevHomeRing(bx, 20, 9, DEV_BAT_BALL_NONE);
+            DevRing(bx, 20, 9, DEV_BAT_BALL_NONE);
         else
             DevDisc(bx, 20, 9, v->party[i] == 2 ? DEV_BAT_BALL_FAINT : v->party[i] == 3 ? DEV_BAT_BALL_STATUS : DEV_INK);
     }
     if (!v->activeName[0])
         return;
     DevBatLeadIcon(v);
-    DevText(v->activeName, 76, 20, 224);
+    DevText(shown, 76, 20, 224);
     if (v->activeGender < 2) {
         DevGender(v->activeGender, 76, 34);
         x = 87;
@@ -337,22 +352,36 @@ static void DevBatLead(const CtrBattleView *v, int prompt)
     }
     if (prompt) {
         snprintf(text, sizeof(text), CTR_TR("What will %s do?", "\xC2\xBF" "Qu\xC3\xA9 har\xC3\xA1 %s?", "Was soll %s tun?"),
-                 v->activeName);
+                 shown);
         DevText(text, 20, 74, 300);
     }
 }
 
-/* FIGHT: its word at twice the size, FireRed's red. */
+/* FIGHT's crossed swords, the board's svg (a 28-unit view box, its stroke 2.2 wide): each sword's blade, guard and grip. */
+static const int8_t kDevBatSwords[8][4] = {
+    {5, 5, 19, 19}, {19, 19, 23, 15}, {19, 19, 15, 23}, {21, 21, 24, 24},
+    {23, 5, 9, 19}, {9, 19, 5, 15}, {9, 19, 13, 23}, {7, 21, 4, 24},
+};
+static uint16_t sDevBatSwords[DEV_BAT_SWORDS * DEV_BAT_SWORDS];   /* their alpha, made once */
+static int sDevBatSwordsReady;
+
+/* FIGHT: the crossed swords, 10 px, the word at twice the size, both FireRed's red, the pair centred on the key. */
 static void DevBatFightKey(int sunk)
 {
     const CtrPokeTouchRect *r = &kDevBatFight;
     const char *word = CTR_TR("FIGHT", "LUCHAR", "KAMPF");
-    int faceY = DevKey(r, DEV_LOOK_KEY, sunk, 6), w = UiTextWidth(word, 2);
+    int faceY = DevKey(r, DEV_LOOK_KEY, sunk, 6), w = DEV_BAT_SWORDS + DEV_BAT_SWORDS_GAP + UiTextWidth(word, 2);
+    int x = r->x + (r->w - w) / 2;
 
+    if (!sDevBatSwordsReady) {
+        DevStrokeMask(kDevBatSwords, 8, 28, DEV_BAT_SWORDS, 22, sDevBatSwords);
+        sDevBatSwordsReady = 1;
+    }
     if (w > r->w - 8)
         ++sDevKeyCut;
-    UiText(word, r->x + (r->w - w) / 2, faceY + (r->h - 2 * UI_TEXT_H) / 2, DEV_BAT_FIGHT_INK, DevBatInkShadow(sunk), 2,
-           r->x + r->w - 4);
+    DevAlphaArt(sDevBatSwords, DEV_BAT_SWORDS, x, faceY + (r->h - DEV_BAT_SWORDS) / 2, DEV_BAT_FIGHT_INK);
+    UiText(word, x + DEV_BAT_SWORDS + DEV_BAT_SWORDS_GAP, faceY + (r->h - 2 * UI_TEXT_H) / 2, DEV_BAT_FIGHT_INK,
+           DevBatInkShadow(sunk), 2, r->x + r->w - 4);
 }
 
 /* BAG, POKeMON, RUN: the art over the word, the pair centred as the board stacks them. */
@@ -381,8 +410,8 @@ static void DevBatBallKey(const CtrBattleView *v, const CtrPokeTouchRect *r, int
                         : v->ball == CTR_QUICK_BALL_AREA ? CTR_TR("AREA USED", "ZONA USADA", "GEBIET BELEGT")
                         : CTR_TR("NO BALLS", "SIN BALLS", "KEIN BALL");
 
-        /* the normal font, or the small one where it does not fit (HOME's rule: a word that fits neither is counted cut) */
-        DevHomeWord(why, DevHomeFont(why, r->w - 8, r->w - 8), r->x + 4, r->w - 8, row, 20, 1, DevBatInk(sunk),
+        /* the normal font, or the small one where it does not fit (DevFitFont: a word that fits neither is counted cut) */
+        DevFitWord(why, DevFitFont(why, r->w - 8, r->w - 8), r->x + 4, r->w - 8, row, 20, 1, DevBatInk(sunk),
                     DevBatInkShadow(sunk));
         return;
     }
@@ -577,7 +606,7 @@ static void DevBatTargetKey(const CtrBattleView *v, int i)
     const CtrBattleTarget *t = &v->target[i];
     int sunk = DevChosen(i, v->cursor, v->pressed), faceY, lvW;
     uint16_t side = t->side ? DEV_BLUE_INK : DEV_STAT_UP;
-    char text[16];
+    char text[16], name[BUI_NAME_LEN + 8];
 
     if (!t->present) {
         DevHole(r, 6);
@@ -587,7 +616,8 @@ static void DevBatTargetKey(const CtrBattleView *v, int i)
     snprintf(text, sizeof(text), CTR_TR("Lv%u", "Nv%u", "Lv%u"), (unsigned)t->level);
     lvW = DevTextWidth(text);
     DevTextInk(text, r->x + r->w - 20 - lvW, faceY + 11, r->x + r->w - 20, DevBatInk(sunk), DevBatInkShadow(sunk));
-    DevTextInk(t->name, r->x + 10, faceY + 11, r->x + r->w - 24 - lvW, DevBatInk(sunk), DevBatInkShadow(sunk));
+    DevTextInk(DevBatMonName(t->name, t->nameIsSpecies, name, sizeof(name)), r->x + 10, faceY + 11, r->x + r->w - 24 - lvW,
+               DevBatInk(sunk), DevBatInkShadow(sunk));
     DevChip(r->x + 10, faceY + 25, 40, 12, t->side ? CTR_TR("ALLY", "ALIADO", "PARTNER") : CTR_TR("FOE", "RIVAL", "GEGNER"),
             side, DevChipShadow(side));
     DevBatMatchup(t->matchup, r->x + 54, faceY + 25);
@@ -626,8 +656,9 @@ static void DevBatMoves(const CtrBattleView *v)
     DevKeyLabel(&kDevBatCancel, faceY, DEV_LOOK_DARK, sunk, CTR_TR("CANCEL", "CANCELAR", "ZUR\xC3\x9C" "CK"));
 }
 
-/* SAFARI: FireRed's question and its four, BALL BAIT ROCK RUN, each v0.6.0's art beside the word. */
-static void DevBatSafari(const CtrBattleView *v)
+/* SAFARI: FireRed's question and its four, BALL BAIT ROCK RUN, each v0.6.0's art beside the word; `idle` (the Safari
+ * Zone's IDLE): no question, the keys grey and none chosen. */
+static void DevBatSafari(const CtrBattleView *v, int idle)
 {
     static const int kArt[4] = {BX_BALL, BX_BAIT, BX_ROCK, BX_SHOE};
     const char *const word[4] = {CTR_TR("BALL", "BALL", "BALL"), CTR_TR("BAIT", "CEBO", "K\xC3\x96" "DER"),
@@ -636,11 +667,12 @@ static void DevBatSafari(const CtrBattleView *v)
 
     DevShell(DEV_SCREWS_TOP | DEV_SCREWS_BOTTOM);
     paper = DevScreen(&kDevBatMoveScreen);
-    DevText(CTR_TR("What will you do?", "\xC2\xBF" "Qu\xC3\xA9 vas a hacer?", "Was tun?"), 20,
-            paper.y + (paper.h - UI_TEXT_H) / 2, 300);
+    if (!idle)
+        DevText(CTR_TR("What will you do?", "\xC2\xBF" "Qu\xC3\xA9 vas a hacer?", "Was tun?"), 20,
+                paper.y + (paper.h - UI_TEXT_H) / 2, 300);
     for (int i = 0; i < 4; ++i) {
         const CtrPokeTouchRect *r = &kDevBatMove[i];
-        int sunk = DevChosen(i, v->cursor, v->pressed), faceY = DevKey(r, DEV_LOOK_KEY, sunk, 6), aw, ah, ww, x0;
+        int sunk = !idle && DevChosen(i, v->cursor, v->pressed), faceY = DevKey(r, DEV_LOOK_KEY, sunk, 6), aw, ah, ww, x0;
 
         DevBatFullArt(kArt[i], 0, 0, &aw, &ah, 0);
         ww = DevTextWidth(word[i]);
@@ -649,6 +681,8 @@ static void DevBatSafari(const CtrBattleView *v)
         x0 = r->x + (r->w - (aw + 8 + ww)) / 2;
         DevBatFullArt(kArt[i], x0, faceY + (r->h - ah) / 2, &aw, &ah, 1);
         DevBatWord(sunk, x0 + aw + 8, ww, faceY + (r->h - UI_TEXT_H) / 2, word[i]);
+        if (idle)
+            DevDim(r);
     }
 }
 
@@ -663,14 +697,66 @@ void CtrBattleUi_Draw(uint16_t *canvas, const CtrBattleView *v)
     DevBegin(canvas, v->shell);
     if (v->state == BUI_MOVE || v->state == BUI_TARGET)
         DevBatMoves(v);
-    else if (v->state == BUI_SAFARI)
-        DevBatSafari(v);
+    else if (v->state == BUI_SAFARI || (v->state == BUI_IDLE && v->safari))
+        DevBatSafari(v, v->state != BUI_SAFARI);
     else
         DevBatCommands(v, v->state != BUI_ACTION);
 }
 
+/* What the red device does not draw in v's state, from v into `still` (a copy of the view drawn last), so that only a
+ * change of what it draws redraws (the plan's rule). Never drawn: the icon's bounce, showCursor, the party's HP and
+ * conditions (a ball tells able, a status or fainted), the lead's types, the quick ball's name and place, a move's
+ * priority, a target's battler, the Party and the Bag. The lead, the balls and the quick ball only in ACTION and IDLE
+ * (not the Safari Zone's), RUN's block only in ACTION, the moves only in MOVE, the targets only in TARGET, the cursor and
+ * the touch nowhere in IDLE, `safari` only in IDLE. The state itself is compared: another state draws whole. */
+static void DevBatUndrawn(CtrBattleView *still, const CtrBattleView *v)
+{
+    int lead = v->state == BUI_ACTION || (v->state == BUI_IDLE && !v->safari);
+
+    still->activeFrame = v->activeFrame;
+    still->showCursor = v->showCursor;
+    memcpy(still->partyHp, v->partyHp, sizeof(still->partyHp));
+    memcpy(still->partyStatus, v->partyStatus, sizeof(still->partyStatus));
+    memcpy(still->activeType, v->activeType, sizeof(still->activeType));
+    memcpy(still->activeTypeName, v->activeTypeName, sizeof(still->activeTypeName));
+    memcpy(still->ballName, v->ballName, sizeof(still->ballName));
+    still->ballPlace = v->ballPlace;
+    for (int i = 0; i < 4; ++i) {
+        still->move[i].priority = v->move[i].priority;
+        still->target[i].battler = v->target[i].battler;
+    }
+    still->bag = v->bag;
+    still->pty = v->pty;
+    if (!lead) {
+        memcpy(still->party, v->party, sizeof(still->party));
+        memcpy(still->activeName, v->activeName, sizeof(still->activeName));
+        still->activeNameIsSpecies = v->activeNameIsSpecies;
+        still->activeLevel = v->activeLevel;
+        still->activeGender = v->activeGender;
+        still->activeSlot = v->activeSlot;
+        still->activeIcon = v->activeIcon;
+        still->activeHp = v->activeHp;
+        still->activeMaxHp = v->activeMaxHp;
+        still->ball = v->ball;
+        still->ballCount = v->ballCount;
+        still->ballItem = v->ballItem;
+        still->ballQty = v->ballQty;
+    }
+    if (v->state != BUI_ACTION)
+        still->runBlocked = v->runBlocked;
+    if (v->state != BUI_MOVE)
+        memcpy(still->move, v->move, sizeof(still->move));
+    if (v->state != BUI_TARGET)
+        memcpy(still->target, v->target, sizeof(still->target));
+    if (v->state == BUI_IDLE) {
+        still->cursor = v->cursor;
+        still->pressed = v->pressed;
+    } else
+        still->safari = v->safari;
+}
+
 /* From one Party to the next or one Bag to the next, the ember look's own; anything else: what a red device state draws
- * (all but the icon's bounce and showCursor) changed, the screen whole. */
+ * changed, the screen whole. */
 void CtrBattleUi_Update(uint16_t *canvas, const CtrBattleView *old, const CtrBattleView *v, CtrDirtyList *dirty)
 {
     CtrBattleView still;
@@ -681,8 +767,7 @@ void CtrBattleUi_Update(uint16_t *canvas, const CtrBattleView *old, const CtrBat
     }
     CtrDirty_Clear(dirty);
     still = *old;
-    still.activeFrame = v->activeFrame;
-    still.showCursor = v->showCursor;
+    DevBatUndrawn(&still, v);
     if (memcmp(&still, v, sizeof(still))) {
         CtrBattleUi_Draw(canvas, v);
         CtrDirty_Add(dirty, 0, 0, W, H);

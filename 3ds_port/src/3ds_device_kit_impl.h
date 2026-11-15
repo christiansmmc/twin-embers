@@ -624,6 +624,30 @@ UI_FN void DevCutText(const char *s, int room, char *out, size_t size)
     memcpy(out + (p - s), "...", 4);
 }
 
+/* The font a port word fits `room` in (`smallRoom` for the small font, which may start further out): 0 the normal one,
+ * 1 the small one (the boards' label size). A word that fits neither is cut in the small one and counted in sDevKeyCut,
+ * as a cut key label is. (HOME's RUN and FLY, the battle's grey quick ball.) */
+UI_FN int DevFitFont(const char *s, int room, int smallRoom)
+{
+    if (DevTextWidth(s) <= room)
+        return 0;
+    if (DevSmallTextWidth(s) > smallRoom)
+        ++sDevKeyCut;
+    return 1;
+}
+
+/* A word in the font DevFitFont chose (`small`) from x to x + room (centred in it when `centre`), its capitals in the
+ * middle of rows top..top + h - 1. */
+UI_FN void DevFitWord(const char *s, int small, int x, int room, int top, int h, int centre, uint16_t ink, uint16_t shadow)
+{
+    int w = small ? DevSmallTextWidth(s) : DevTextWidth(s), at = centre && w < room ? x + (room - w) / 2 : x;
+
+    if (small)
+        DevSmallText(s, at, top + (h - 7) / 2, ink, x + room);
+    else
+        DevTextInk(s, at, top + (h - UI_TEXT_H) / 2, x + room, ink, shadow);
+}
+
 /* A key's label, centred on its face in the look's ink and shadow; cut with "..." when wider than the key less 8 px (and
  * then counted in sDevKeyCut). */
 UI_FN void DevKeyLabel(const CtrPokeTouchRect *r, int faceY, int look, int sunk, const char *s)
@@ -653,6 +677,63 @@ UI_FN void DevKeyLabel(const CtrPokeTouchRect *r, int faceY, int look, int sunk,
 }
 
 /* ---- Marks, bars, chips, icons ------------------------------------------------------------------------------------- */
+
+/* A ring s pixels across, its box's top-left at (x, y): the pixels whose centre is within the circle's last pixel. */
+UI_FN void DevRing(int x, int y, int s, uint16_t c)
+{
+    for (int j = 0; j < s; ++j)
+        for (int i = 0; i < s; ++i) {
+            int dx = 2 * i + 1 - s, dy = 2 * j + 1 - s, d = dx * dx + dy * dy;
+
+            if (d <= s * s && d > (s - 2) * (s - 2))
+                Px(x + i, y + j, c);
+        }
+}
+
+/* Line segments stroked as an SVG path draws them (with round ends here) into an alpha mask, size x size, of 256: the
+ * share of each pixel's 4x4 samples inside the stroke. `seg` holds n segments (x0, y0, x1, y1) in a view box `view`
+ * units square, the stroke `width10` tenths of a view unit wide. Integer only (positions in 1/(8 view) px); a caller
+ * keeps the mask and blends it with DevAlphaArt. */
+UI_FN void DevStrokeMask(const int8_t (*seg)[4], int n, int view, int size, int width10, uint16_t *alpha)
+{
+    int64_t reach = 2 * (int64_t)width10 * size;        /* 5 times the half width, in those units */
+
+    for (int py = 0; py < size; ++py)
+        for (int px = 0; px < size; ++px) {
+            int in = 0;
+
+            for (int s = 0; s < 16; ++s) {
+                int64_t sx = (int64_t)(8 * px + 2 * (s & 3) + 1) * view, sy = (int64_t)(8 * py + 2 * (s >> 2) + 1) * view;
+
+                for (int i = 0; i < n; ++i) {
+                    int64_t ax = (int64_t)seg[i][0] * size * 8, ay = (int64_t)seg[i][1] * size * 8;
+                    int64_t dx = (int64_t)seg[i][2] * size * 8 - ax, dy = (int64_t)seg[i][3] * size * 8 - ay;
+                    int64_t qx = sx - ax, qy = sy - ay, dot = qx * dx + qy * dy, len2 = dx * dx + dy * dy, d2;
+
+                    if (dot <= 0 || !len2)
+                        d2 = qx * qx + qy * qy;
+                    else if (dot >= len2)
+                        d2 = (qx - dx) * (qx - dx) + (qy - dy) * (qy - dy);
+                    else
+                        d2 = (qx * dy - qy * dx) * (qx * dy - qy * dx) / len2;
+                    if (25 * d2 <= reach * reach) {
+                        ++in;
+                        break;
+                    }
+                }
+            }
+            alpha[py * size + px] = (uint16_t)(in * 16);
+        }
+}
+
+/* An alpha mask (DevStrokeMask's) in `ink` over what is there, its top-left at (x, y). */
+UI_FN void DevAlphaArt(const uint16_t *alpha, int size, int x, int y, uint16_t ink)
+{
+    for (int j = 0; j < size; ++j)
+        for (int i = 0; i < size; ++i)
+            if (alpha[j * size + i])
+                Px(x + i, y + j, DevBlend(DevGet(x + i, y + j), ink, alpha[j * size + i]));
+}
 
 /* A triangle pointing `dir` (0 up, 1 down, 2 left, 3 right), 9 px across, centred on (cx, cy). (Rework 1's KitTriangle.) */
 UI_FN void DevTriangle(int cx, int cy, int dir, uint16_t c)
@@ -711,13 +792,16 @@ UI_FN uint16_t DevChipShadow(uint16_t bg)
 }
 
 /* A chip at (x, y), h tall: `text` in the small font, white, with `shadow` under it (DEV_WHITE: none). w 0: as wide as
- * the text and 4 px on each side; else w wide with the text centred (BMoves' type chips are 40). */
+ * the text and 4 px on each side; else w wide with the text centred (BMoves' type chips are 40), and a text wider than
+ * that is clipped and counted in sDevKeyCut, as a cut key label is. */
 UI_FN void DevChip(int x, int y, int w, int h, const char *text, uint16_t bg, uint16_t shadow)
 {
     int tw = DevSmallTextWidth(text), tx;
 
     if (w <= 0)
         w = tw + 8;
+    else if (tw > w)
+        ++sDevKeyCut;
     tx = x + (w - tw) / 2;
     Fill(x, y, w, h, bg);
     /* The capitals are 7 rows, 8 with their shadow: centred, any odd row below. */

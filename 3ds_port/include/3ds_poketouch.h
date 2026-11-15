@@ -669,29 +669,32 @@ typedef struct {
     uint8_t matchup;                /* CTR_FX_* effectiveness of the chosen move against this battler */
     uint16_t hp, maxHp;
     char name[BUI_NAME_LEN];
+    uint8_t nameIsSpecies;          /* the name is its species' own (shown in capitals), not one the player gave */
 } CtrBattleTarget;
 typedef struct {
     uint8_t state;                  /* BUI_* */
     int16_t pressed;                /* the button held under a touch, or -1 */
-    int8_t cursor;                  /* the controller's own cursor, drawn only while showCursor (the last input was a button) */
-    uint8_t showCursor;
+    int8_t cursor;                  /* the controller's own cursor: the chosen key, unless a touch holds another */
+    uint8_t showCursor;             /* the last input was a button (the ember Party and Bag draw the cursor only then) */
     uint8_t party[6];               /* 0 no Pokemon, 1 able, 2 fainted, 3 status condition */
     uint8_t partyHp[6];             /* HP left as a percentage (an egg: 100) */
     uint8_t partyStatus[6];         /* 0 none, else 1..6 PSN PAR SLP FRZ BRN PKRS */
-    char activeName[BUI_NAME_LEN];  /* the Pokemon in the lead (party slot 0): the action screen's footer */
+    char activeName[BUI_NAME_LEN];  /* the Pokemon in the field: the action screen's lead and question */
+    uint8_t activeNameIsSpecies;    /* its name is its species' own (shown in capitals), not one the player gave */
     uint8_t activeLevel;
     uint8_t activeGender;           /* 0 male, 1 female, 2 none (CtrBottomParty_Gender) */
     uint8_t activeSlot;             /* its slot in the party */
     uint16_t activeIcon;            /* its party icon (a species number, as CtrBottomParty_IconSpecies gives it) */
-    int8_t activeType[2];           /* its types (FireRed's numbers), -1 for none: the badges of the FIGHT banner */
+    int8_t activeType[2];           /* its types (FireRed's numbers), -1 for none (not drawn) */
     char activeTypeName[2][12];
-    uint8_t activeFrame;            /* 0 or 1, the icon's bounce: it flips about four times a second */
+    uint8_t activeFrame;            /* 0 or 1, flips about four times a second (not drawn: the icon is its frame 0) */
     uint16_t activeHp, activeMaxHp;
     uint8_t ball;                   /* the quick ball: CTR_QUICK_BALL_* (3ds_battle_nav.h), NONE for no button */
-    uint8_t ballPlace, ballCount;   /* the ball shown among the Bag's balls (the dots) */
+    uint8_t ballPlace, ballCount;   /* the ball shown among the Bag's balls (its place is not drawn; others: the arrows) */
     uint16_t ballItem, ballQty;
     uint8_t runBlocked;             /* BUI_ACTION: fleeing is impossible now (a trainer, a trapping ability or move): RUN is grey and takes no tap */
-    char ballName[BUI_ITEM_LEN];
+    char ballName[BUI_ITEM_LEN];    /* (not drawn) */
+    uint8_t safari;                 /* BUI_IDLE in the Safari Zone: its own keys, grey */
     CtrBattleMove move[4];
     CtrBattleBag bag;
     CtrBattleParty pty;

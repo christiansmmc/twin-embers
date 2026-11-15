@@ -117,31 +117,6 @@ static int DevHomeLabelRect(const CtrPokeTouchView *v, CtrPokeTouchRect *r)
     return 1;
 }
 
-/* ---- Words on small keys ---------------------------------------------------------------------------------------------- */
-
-/* The font a port word fits `room` in (`smallRoom` for the small font, which may start further out): 0 the normal one,
- * 1 the small one (the boards' label size). A word that fits neither is cut in the small one and counted in sDevKeyCut,
- * as a cut key label is. */
-static int DevHomeFont(const char *s, int room, int smallRoom)
-{
-    if (DevTextWidth(s) <= room)
-        return 0;
-    if (DevSmallTextWidth(s) > smallRoom)
-        ++sDevKeyCut;
-    return 1;
-}
-
-/* A word from x to x + room (centred in it when `centre`), its capitals in the middle of rows top..top + h - 1. */
-static void DevHomeWord(const char *s, int small, int x, int room, int top, int h, int centre, uint16_t ink, uint16_t shadow)
-{
-    int w = small ? DevSmallTextWidth(s) : DevTextWidth(s), at = centre && w < room ? x + (room - w) / 2 : x;
-
-    if (small)
-        DevSmallText(s, at, top + (h - 7) / 2, ink, x + room);
-    else
-        DevTextInk(s, at, top + (h - UI_TEXT_H) / 2, x + room, ink, shadow);
-}
-
 /* ---- The window -------------------------------------------------------------------------------------------------------- */
 
 /* The region key: the shown map's name, with ▶ when the game has opened another map (a touch on it goes there). */
@@ -176,7 +151,7 @@ static void DevHomeFly(const CtrPokeTouchView *v)
     if (!v->flyOk)
         return;
     faceY = DevKey(r, DEV_LOOK_KEY, 0, 4);
-    DevHomeWord(fly, DevHomeFont(fly, r->w - 8, r->w - 8), r->x + 4, r->w - 8, faceY, r->h, 1, DEV_KEY_INK, DEV_WHITE);
+    DevFitWord(fly, DevFitFont(fly, r->w - 8, r->w - 8), r->x + 4, r->w - 8, faceY, r->h, 1, DEV_KEY_INK, DEV_WHITE);
     sFlyButton = DevKeyArea(r);
 }
 
@@ -221,18 +196,6 @@ static void DevHomeWindow(const CtrPokeTouchView *v)
 
 /* ---- The panel --------------------------------------------------------------------------------------------------------- */
 
-/* A ring s pixels across, its box's top-left at (x, y): the pixels whose centre is within the circle's last pixel. */
-static void DevHomeRing(int x, int y, int s, uint16_t c)
-{
-    for (int j = 0; j < s; ++j)
-        for (int i = 0; i < s; ++i) {
-            int dx = 2 * i + 1 - s, dy = 2 * j + 1 - s, d = dx * dx + dy * dy;
-
-            if (d <= s * s && d > (s - 2) * (s - 2))
-                Px(x + i, y + j, c);
-        }
-}
-
 /* The party: each Pokemon's icon (half size; a fainted one faded) over its HP bar (an egg has none, as in FireRed), a
  * ring for a hole, a dark edge round the one under a held touch. */
 static void DevHomeParty(const CtrPokeTouchView *v)
@@ -242,7 +205,7 @@ static void DevHomeParty(const CtrPokeTouchView *v)
         int cx = c.x + c.w / 2;
 
         if (!v->party[i]) {
-            DevHomeRing(cx - 9, c.y + 2, 18, DEV_HOME_HOLE);
+            DevRing(cx - 9, c.y + 2, 18, DEV_HOME_HOLE);
             continue;
         }
         if (v->pressed == PT_HOME_PARTY + i) {
@@ -269,10 +232,10 @@ static void DevHomeRun(const CtrPokeTouchView *v)
 
     /* CORRER and RENNEN do not fit beside the board's lamp, even small: the shorter imperatives do */
     DevUpper(run, CTR_TR("Run", "Corre", "Lauf"), sizeof(run));
-    small = DevHomeFont(run, lampX - 2 - (r->x + 5), lampX - 2 - (r->x + 3));
+    small = DevFitFont(run, lampX - 2 - (r->x + 5), lampX - 2 - (r->x + 3));
     x = small ? r->x + 3 : r->x + 5;
     DevPaperButton(r, pressed);
-    DevHomeWord(run, small, x, lampX - 2 - x, r->y, r->h, 0, ink, pressed || !on ? ink : DEV_INK_SH);
+    DevFitWord(run, small, x, lampX - 2 - x, r->y, r->h, 0, ink, pressed || !on ? ink : DEV_INK_SH);
     Fill(lampX, lampY, DEV_HOME_LAMP, DEV_HOME_LAMP, lit ? DEV_HOME_LAMP_ON_EDGE : DEV_HOME_LAMP_OFF_EDGE);
     Fill(lampX + 1, lampY + 1, DEV_HOME_LAMP - 2, DEV_HOME_LAMP - 2, lit ? DEV_HOME_LAMP_ON : DEV_HOME_LAMP_OFF);
 }
@@ -291,7 +254,7 @@ static void DevHomeSpeed(const CtrPokeTouchView *v)
     snprintf(value, sizeof(value), "%ux", v->speed >= 2 && v->speed <= 4 ? (unsigned)v->speed : 1u);
     vw = DevTextWidth(value);
     DevPaperButton(r, pressed);
-    DevHomeWord(label, 1, r->x + 5, r->w - 10 - vw - 2, r->y, r->h, 0, ink2, ink2);
+    DevFitWord(label, 1, r->x + 5, r->w - 10 - vw - 2, r->y, r->h, 0, ink2, ink2);
     DevTextInk(value, r->x + r->w - 5 - vw, r->y + (r->h - UI_TEXT_H) / 2, r->x + r->w - 5, ink, pressed || !on ? ink : DEV_INK_SH);
 }
 
