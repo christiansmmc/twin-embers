@@ -1814,13 +1814,29 @@ static void SuiteSummary(void)
     AssertRowHits(SumHitV, &sv, DevSumRow(4), SUI_HIT_CANCEL); assert(at(130, 159) == DEV_BEZEL);        /* the cursor on CANCEL: its row inverted */
     assert(CtrSummaryUi_Hit(&sv, 266, 20) == -1 && CtrSummaryUi_Hit(&sv, 298, 20) == -1);                 /* ▲▼ off in the details */
     assert(Count(124, 148, 176, 22, DEV_PAPER) > 0 && at(126, 54) == DEV_PAPER);
+    assert(Count(14, 194, 216, 32, DEV_INK) == 0);                              /* CANCEL: nothing to describe */
     shot("details_cancel");
+    /* a touch held on what is not drawn (the review's race: FireRed starts a swap under a touch on the CANCEL it hides; a
+     * slot without a move) chooses nothing: FireRed's cursor row stays inverted, and the touch's end draws nothing */
+    sv.data.cursor = 1; DevCheckSummary(&so, &sv);
+    sv.data.swapping = 1; sv.data.swapCursor = 1; sv.pressed = SUI_HIT_CANCEL; DevCheckSummary(&so, &sv);
+    assert(at(126, 78) == DEV_BEZEL);
+    sv.pressed = -1; assert(DevCheckSummary(&so, &sv).count == 0);
+    sv.data.swapping = 0; sv.data.moves[3] = 0; DevCheckSummary(&so, &sv);
+    sv.pressed = SUI_HIT_MOVE + 3; DevCheckSummary(&so, &sv); assert(at(126, 78) == DEV_BEZEL);
+    sv.pressed = -1; assert(DevCheckSummary(&so, &sv).count == 0);
+    sv.data.moves[3] = 4; sv.data.cursor = 4; DevCheckSummary(&so, &sv);
     sv.data.swapping = 1; DevCheckSummary(&so, &sv); assert(CtrSummaryUi_Hit(&sv, 212, 159) == -1);
     /* a swap: no CANCEL; the move being moved framed, the cursor's row inverted; the hint on the note */
     sv.data.swapCursor = 1; sv.data.cursor = 2; DevCheckSummary(&so, &sv); assert(CtrSummaryUi_Hit(&sv, 212, 159) == -1);
     assert(at(130, 159) == DEV_PAPER && Count(124, 148, 176, 22, DEV_INK) == 0 && Count(124, 148, 176, 22, DEV_INK2) == 0);
     assert(at(124, 86) == DEV_BEZEL && at(126, 86) == DEV_PAPER && at(126, 110) == DEV_BEZEL && Count(14, 194, 216, 32, DEV_INK) > 0);
     shot("swap");
+    /* a battle's Summary: FireRed moves no move in a battle, so no swap hint on the note */
+    sv.data.origin = CTR_SUMMARY_BATTLE_PARTY; DevCheckSummary(&so, &sv); assert(Count(14, 194, 216, 32, DEV_INK) == 0);
+    sv.data.swapping = 0; DevCheckSummary(&so, &sv); assert(Count(14, 194, 216, 32, DEV_INK) == 0);         /* no description */
+    sv.data.origin = CTR_SUMMARY_FIELD_PARTY; DevCheckSummary(&so, &sv); assert(Count(14, 194, 216, 32, DEV_INK) > 0);
+    sv.data.swapping = 1; DevCheckSummary(&so, &sv);
     sv.data.swapCursor = 3; assert(DevCheckSummary(&so, &sv).count == 1);
     strcpy(sv.data.moveDesc, "Reduces the foe's ATTACK."); assert(DevCheckSummary(&so, &sv).count == 0);   /* the hint, not it */
     sv.data.swapping = 0; sv.data.swapCursor = 0; sv.data.cursor = 4; sv.data.moveDesc[0] = 0; DevCheckSummary(&so, &sv);
@@ -1864,6 +1880,8 @@ static void SuiteSummary(void)
     assert(at(kDevSumTab[1].x + 3, 20) == dimKey && at(kDevSumTab[2].x + 3, 20) == dimKey);
     AssertKey(kDevSumTab[0], DEV_LOOK_KEY, 0); AssertKey(kDevSumTab[3], DEV_LOOK_KEY, 1);
     assert(Count(20, 63, 98, 12, DEV_MALE) == 0 && Count(20, 154, 92, 12, fire) == 0);
+    sv.pressed = SUI_HIT_TAB + 1; DevCheckSummary(&so, &sv); AssertKey(kDevSumTab[3], DEV_LOOK_KEY, 1);    /* a grey tab: not chosen */
+    sv.pressed = -1; assert(DevCheckSummary(&so, &sv).count == 0);
     strcpy(sv.data.nickname, "EGG"); strcpy(sv.data.species, "EGG"); strcpy(sv.data.hatch, "It appears to move occasionally. It may be close to hatching.");
     DevCheckSummary(&so, &sv); assert(Count(126, 50, 172, 120, DEV_INK) > 0);
     shot("egg");

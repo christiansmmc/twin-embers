@@ -73,6 +73,26 @@ static int DevSumCancelOn(const CtrSummaryUiView *v)
     return !v->loading && v->data.page == SUI_PAGE_MOVES_INFO && !v->data.swapping;
 }
 
+/* The touch held as it is drawn: a key's or a row's code where that key or row is drawn and can be used, else -1 (the
+ * switch's: not drawn). Every key and row is chosen by it, not by the raw touch: a touch on what is not there (the CANCEL
+ * a swap hides, a slot without a move, a grey tab) takes nothing from FireRed's cursor. */
+static int DevSumPressDrawn(const CtrSummaryUiView *v)
+{
+    int p = v->pressed;
+
+    if (p == SUI_HIT_BACK)
+        return p;
+    if (p >= SUI_HIT_TAB && p < SUI_HIT_TAB + SUI_TABS)
+        return DevSumTabOn(v, p - SUI_HIT_TAB) ? p : -1;
+    if (p == SUI_HIT_PREV || p == SUI_HIT_NEXT)
+        return DevSumArrowsOn(v) ? p : -1;
+    if (p >= SUI_HIT_MOVE && p < SUI_HIT_MOVE + 4)
+        return DevSumMovePage(v) && v->data.moves[p - SUI_HIT_MOVE] ? p : -1;
+    if (p == SUI_HIT_CANCEL)
+        return DevSumCancelOn(v) ? p : -1;
+    return -1;
+}
+
 int CtrSummaryUi_Hit(const CtrSummaryUiView *v, int x, int y)
 {
     const CtrSummaryView *d = &v->data;
@@ -456,9 +476,9 @@ static void DevSumInfo(const CtrSummaryUiView *v)
         return;
     }
     DevUpper(word, d->species, sizeof(word));
-    snprintf(text, sizeof(text), "No.%s %s", d->dex, word);
+    snprintf(text, sizeof(text), CTR_TR("No.%s %s", "N\xC2\xBA%s %s", "Nr.%s %s"), d->dex, word);
     DevSumRowText(DEV_SUM_ROW_TOP, CTR_TR("SPECIES", "ESPECIE", "SPEZIES"), text);
-    DevSumRowText(DEV_SUM_ROW_TOP + DEV_SUM_ROW_DY, "OT", d->ot);
+    DevSumRowText(DEV_SUM_ROW_TOP + DEV_SUM_ROW_DY, CTR_TR("OT", "EO", "OT"), d->ot);
     DevUpper(text, d->item[0] ? d->item : CTR_TR("NONE", "NINGUNO", "KEINES"), sizeof(text));
     DevSumRowText(DEV_SUM_ROW_TOP + 2 * DEV_SUM_ROW_DY, CTR_TR("ITEM", "OBJETO", "ITEM"), text);
     DevUpper(text, d->nature, sizeof(text));
@@ -618,8 +638,8 @@ static void DevSumMoveRow(const CtrSummaryView *d, int i, int chosen, int framed
 static void DevSumMoves(const CtrSummaryUiView *v)
 {
     const CtrSummaryView *d = &v->data;
-    int details = d->page == SUI_PAGE_MOVES_INFO, cursor = -1;
-    int pressed = v->pressed >= SUI_HIT_MOVE && v->pressed <= SUI_HIT_CANCEL ? v->pressed : -1;
+    int details = d->page == SUI_PAGE_MOVES_INFO, cursor = -1, held = DevSumPressDrawn(v);
+    int pressed = held >= SUI_HIT_MOVE && held <= SUI_HIT_CANCEL ? held : -1;
 
     if (details)
         cursor = d->cursor >= 0 && d->cursor < 4 ? SUI_HIT_MOVE + d->cursor : SUI_HIT_CANCEL;
@@ -638,7 +658,7 @@ static void DevSumMemo(const CtrSummaryUiView *v)
     char text[24];
 
     if (!d->egg) {
-        DevSumRowText(top, "OT", d->ot);
+        DevSumRowText(top, CTR_TR("OT", "EO", "OT"), d->ot);
         DevSumRowText(top + DEV_SUM_ROW_DY, CTR_TR("ID No.", "N.\xC2\xBA ID", "ID-Nr."), d->id);
         DevUpper(text, d->nature, sizeof(text));
         DevSumRowText(top + 2 * DEV_SUM_ROW_DY, CTR_TR("NATURE", "NATURALEZA", "WESEN"), text);
@@ -680,8 +700,21 @@ static void DevSumScreen(const CtrSummaryUiView *v)
     }
 }
 
+/* A battle's Summary: FireRed moves no move in a battle, so the details give no hint about moving one. */
+static int DevSumBattle(const CtrSummaryUiView *v)
+{
+    return v->data.origin == CTR_SUMMARY_BATTLE_PARTY;
+}
+
+/* FireRed's cursor in the details is on a move (not on CANCEL). */
+static int DevSumOnMove(const CtrSummaryView *d)
+{
+    return d->cursor >= 0 && d->cursor < 4 && d->moves[d->cursor];
+}
+
 /* The note: on INFO and STATS the ability's name and what it does (its first line going on after the name and a dot);
- * the details' move description (none: the hint); else what the page lets one do. */
+ * in the details the chosen move's description (while a move is moved, or with none, the hint; nothing in a battle),
+ * nothing on CANCEL; else what the page lets one do. */
 static void DevSumNote(const CtrSummaryUiView *v)
 {
     const CtrSummaryView *d = &v->data;
@@ -704,8 +737,14 @@ static void DevSumNote(const CtrSummaryUiView *v)
         DevWrapAfter(d->abilityDesc, x, DEV_SUM_NOTE_X, DEV_SUM_NOTE_TOP, DEV_SUM_NOTE_W, 2, DEV_INK, DEV_INK_SH);
         return;
     }
-    DevWrap(d->page == SUI_PAGE_MOVES_INFO && !d->swapping && d->moveDesc[0] ? d->moveDesc : SHint(v), DEV_SUM_NOTE_X,
-            DEV_SUM_NOTE_TOP, DEV_SUM_NOTE_W, 2, DEV_INK, DEV_INK_SH);
+    if (d->page == SUI_PAGE_MOVES_INFO) {
+        const char *text = !DevSumOnMove(d) ? "" : d->swapping || !d->moveDesc[0] ? (DevSumBattle(v) ? "" : SHint(v))
+                         : d->moveDesc;
+
+        DevWrap(text, DEV_SUM_NOTE_X, DEV_SUM_NOTE_TOP, DEV_SUM_NOTE_W, 2, DEV_INK, DEV_INK_SH);
+        return;
+    }
+    DevWrap(SHint(v), DEV_SUM_NOTE_X, DEV_SUM_NOTE_TOP, DEV_SUM_NOTE_W, 2, DEV_INK, DEV_INK_SH);
 }
 
 /* The tabs (the shown one sunk, or the one under a held touch; grey when they cannot be used), the arrows (dark keys,
@@ -716,8 +755,9 @@ static void DevSumKeys(const CtrSummaryUiView *v)
         CTR_TR("INFO", "INFO", "INFO"), CTR_TR("STATS", "STATS", "STATUS"), CTR_TR("MOVES", "ATAQUES", "ATTACKEN"),
         CTR_TR("MEMO", "NOTAS", "MEMO"),
     };
-    int tabPressed = v->pressed >= SUI_HIT_TAB && v->pressed < SUI_HIT_TAB + SUI_TABS ? v->pressed : -1;
-    int arrowPressed = v->pressed == SUI_HIT_PREV || v->pressed == SUI_HIT_NEXT ? v->pressed : -1;
+    int held = DevSumPressDrawn(v);
+    int tabPressed = held >= SUI_HIT_TAB && held < SUI_HIT_TAB + SUI_TABS ? held : -1;
+    int arrowPressed = held == SUI_HIT_PREV || held == SUI_HIT_NEXT ? held : -1;
     int shown = v->loading ? -1 : SUI_HIT_TAB + CtrSummaryUi_Tab(v), sunk, faceY;
 
     for (int i = 0; i < SUI_TABS; ++i) {
@@ -740,7 +780,7 @@ static void DevSumKeys(const CtrSummaryUiView *v)
         if (!on)
             DevDim(r);
     }
-    sunk = v->pressed == SUI_HIT_BACK;
+    sunk = held == SUI_HIT_BACK;
     faceY = DevKey(&kDevSumBack, DEV_LOOK_DARK, sunk, 6);
     DevKeyWord(&kDevSumBack, faceY, DEV_LOOK_DARK, sunk, CTR_TR("BACK", "ATR\xC3\x81S", "ZUR\xC3\x9C" "CK"));
 }
@@ -754,35 +794,17 @@ void CtrSummaryUi_Draw(uint16_t *canvas, const CtrSummaryUiView *v)
     DevSumNote(v);
 }
 
-/* The touch held as it is drawn: a key's or a row's code where that key or row is drawn and can be used, else -1 (the
- * switch's: not drawn). */
-static int DevSumPressDrawn(const CtrSummaryUiView *v)
-{
-    int p = v->pressed;
-
-    if (p == SUI_HIT_BACK)
-        return p;
-    if (p >= SUI_HIT_TAB && p < SUI_HIT_TAB + SUI_TABS)
-        return DevSumTabOn(v, p - SUI_HIT_TAB) ? p : -1;
-    if (p == SUI_HIT_PREV || p == SUI_HIT_NEXT)
-        return DevSumArrowsOn(v) ? p : -1;
-    if (p >= SUI_HIT_MOVE && p < SUI_HIT_MOVE + 4)
-        return DevSumMovePage(v) && v->data.moves[p - SUI_HIT_MOVE] ? p : -1;
-    if (p == SUI_HIT_CANCEL)
-        return DevSumCancelOn(v) ? p : -1;
-    return -1;
-}
-
 /* What v does not draw, from v into `still` (a copy of the view drawn last), so that only a change of what it draws
- * redraws (the plan's rule): where the Summary was opened from and FireRed's readiness; a touch that draws nothing; the
- * move cursor, the swap and the description outside the details, the swap's row while not swapping and the description
- * while swapping; the IV / EV view outside STATS. */
+ * redraws (the plan's rule): where the Summary was opened from (but whether it is a battle's), FireRed's readiness; a
+ * touch that draws nothing; the move cursor, the swap and the description outside the details, the swap's row while not
+ * swapping and the description while swapping or on CANCEL; the IV / EV view outside STATS. */
 static void DevSumUndrawn(CtrSummaryUiView *still, const CtrSummaryUiView *v)
 {
     CtrSummaryView *s = &still->data;
     const CtrSummaryView *d = &v->data;
 
-    s->origin = d->origin;
+    if (DevSumBattle(still) == DevSumBattle(v))
+        s->origin = d->origin;
     s->ready = d->ready;
     if (DevSumPressDrawn(still) == DevSumPressDrawn(v))
         still->pressed = v->pressed;
@@ -791,10 +813,12 @@ static void DevSumUndrawn(CtrSummaryUiView *still, const CtrSummaryUiView *v)
         s->swapping = d->swapping;
         s->swapCursor = d->swapCursor;
         memcpy(s->moveDesc, d->moveDesc, sizeof(s->moveDesc));
-    } else if (!d->swapping)
-        s->swapCursor = d->swapCursor;
-    else
-        memcpy(s->moveDesc, d->moveDesc, sizeof(s->moveDesc));     /* a swap's note is the hint */
+    } else {
+        if (!d->swapping)
+            s->swapCursor = d->swapCursor;
+        if (d->swapping || !DevSumOnMove(d))                        /* the note is the hint, or nothing */
+            memcpy(s->moveDesc, d->moveDesc, sizeof(s->moveDesc));
+    }
     if (d->page != SUI_PAGE_SKILLS)
         still->ivView = v->ivView;
 }
