@@ -35,6 +35,14 @@ def glyph_widths(text, name):
     return bytes(values[:256])
 
 
+def out_dir(path):
+    """`path` resolved, when it lies under the repository's build/ (ignored by Git): a render is ROM-derived."""
+    out, build = Path(path).resolve(), (ROOT / 'build').resolve()
+    if out != build and build not in out.parents:
+        raise SystemExit(f'--out {path}: renders are ROM-derived and go only under {build} (ignored by Git)')
+    return out
+
+
 def ppm_to_png(ppm: Path, png: Path) -> None:
     """A binary PPM (P6, 8-bit) as an RGB8 PNG."""
     raw = Path(ppm).read_bytes()
@@ -58,14 +66,15 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--pak', type=Path, required=True, help="the owner's data pack")
     ap.add_argument('--text', type=Path, required=True, help="the game's src/text.c (build/dev/src/text.c)")
-    ap.add_argument('--out', type=Path, required=True, help='where the harness, the widths and the PNGs go')
+    ap.add_argument('--out', type=Path, required=True,
+                    help='where the harness, the widths and the PNGs go (under build/ only)')
     ap.add_argument('views', nargs='*', help=f'views to render (default: all of {", ".join(VIEWS)})')
     args = ap.parse_args()
     views = args.views or VIEWS
     unknown = [v for v in views if v not in VIEWS]
     if unknown:
         raise SystemExit(f'No such view: {", ".join(unknown)} (known: {", ".join(VIEWS)})')
-    out = args.out.resolve()
+    out = out_dir(args.out)
     out.mkdir(parents=True, exist_ok=True)
     text = args.text.read_text(encoding='utf-8', errors='replace')
     widths, small = out / 'widths.bin', out / 'small_widths.bin'

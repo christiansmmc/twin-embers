@@ -480,6 +480,84 @@ static void KitWrapLines(void)
     assert(Count(0, 0, W, H, sh) == 0 && Count(0, 0, W, H, ink) > 0);
 }
 
+/* The HP and PP colours of FireRed's own battle screens (the top screen shows the same). */
+static void KitBarLevels(void)
+{
+    /* HP: the share of the HUD's 48-pixel bar, rounded down, at least 1 while hp > 0: > 24 green, > 9 yellow, else red. */
+    assert(DevHpColour(112, 112) == DEV_HP_GREEN && DevHpColour(59, 112) == DEV_HP_GREEN);           /* 25 px */
+    assert(DevHpColour(57, 112) == DEV_HP_YELLOW && DevHpColour(58, 112) == DEV_HP_YELLOW);          /* 24 px: not over */
+    assert(DevHpColour(50, 112) == DEV_HP_YELLOW && DevHpColour(24, 112) == DEV_HP_YELLOW);          /* 21, 10 px */
+    assert(DevHpColour(23, 112) == DEV_HP_RED && DevHpColour(20, 112) == DEV_HP_RED);                /* 9, 8 px */
+    assert(DevHpColour(1, 600) == DEV_HP_RED && DevHpColour(0, 112) == DEV_HP_RED);                  /* 1 px at least; empty */
+    assert(DevHpColour(0, 0) == DEV_HP_GREEN);                                                       /* hp == max: full */
+    /* PP: full is the usual ink; above 7, none / a quarter or less / more than half / the rest (rounded down). */
+    assert(DevPpInk(15, 15, DEV_KEY_INK) == DEV_KEY_INK && DevPpInk(15, 35, 0) == DEV_PP_HALF && DevPpInk(3, 15, 0) == DEV_PP_QUARTER && DevPpInk(0, 15, 0) == DEV_LOW_INK);
+    assert(DevPpInk(17, 35, 0) == DEV_PP_HALF && DevPpInk(18, 35, 9) == 9 && DevPpInk(8, 35, 0) == DEV_PP_QUARTER && DevPpInk(9, 35, 0) == DEV_PP_HALF);
+    assert(DevPpInk(4, 8, 0) == DEV_PP_HALF && DevPpInk(5, 8, 9) == 9 && DevPpInk(2, 8, 0) == DEV_PP_QUARTER);
+    /* A maximum of 7 or less goes by what is left: more than 2 usual, 2 half, 1 quarter, 0 empty. */
+    assert(DevPpInk(6, 6, 9) == 9 && DevPpInk(3, 6, 9) == 9 && DevPpInk(2, 6, 9) == DEV_PP_HALF && DevPpInk(1, 6, 9) == DEV_PP_QUARTER && DevPpInk(0, 6, 9) == DEV_LOW_INK);
+    assert(DevPpInk(7, 7, 9) == 9 && DevPpInk(3, 7, 9) == 9 && DevPpInk(2, 7, 9) == DEV_PP_HALF && DevPpInk(1, 7, 9) == DEV_PP_QUARTER && DevPpInk(0, 7, 9) == DEV_LOW_INK);
+    /* A maximum of 2 or less: 1 left is the quarter colour, 0 empty. */
+    assert(DevPpInk(2, 2, 9) == 9 && DevPpInk(1, 2, 9) == DEV_PP_QUARTER && DevPpInk(0, 2, 9) == DEV_LOW_INK);
+    assert(DevPpInk(1, 1, 9) == 9 && DevPpInk(0, 1, 9) == DEV_LOW_INK);
+}
+
+/* Two RGB565 colours within one step of each other in every channel. */
+static int Near565(uint16_t a, uint16_t b)
+{
+    int dr = (a >> 11) - (b >> 11), dg = ((a >> 5) & 63) - ((b >> 5) & 63), db = (a & 31) - (b & 31);
+
+    return dr >= -1 && dr <= 1 && dg >= -1 && dg <= 1 && db >= -1 && db <= 1;
+}
+
+/* Chips: white small-font text with the chip's own dark shadow (none when it is DEV_WHITE); the width follows the text
+ * with 4 px each side, or is fixed with the text centred. DevChipShadow lands on the boards' pairs. */
+static void KitChips(void)
+{
+    static const struct { uint16_t bg, shadow; } kBoard[7] = {
+        {UI_RGB(0xE8, 0x6E, 0x28), UI_RGB(0x8A, 0x3A, 0x10)}, {UI_RGB(0x5A, 0x78, 0xC0), UI_RGB(0x2E, 0x40, 0x70)},
+        {UI_RGB(0x28, 0x96, 0x46), UI_RGB(0x14, 0x5A, 0x28)}, {UI_RGB(0x64, 0x6A, 0x84), UI_RGB(0x3A, 0x3E, 0x52)},
+        {UI_RGB(0x8C, 0x8C, 0x78), UI_RGB(0x4A, 0x4A, 0x3A)}, {UI_RGB(0xB8, 0x40, 0x2C), UI_RGB(0x6A, 0x20, 0x14)},
+        {UI_RGB(0xCC, 0x54, 0x18), UI_RGB(0x7A, 0x30, 0x08)},
+    };
+    const uint16_t bg = kBoard[0].bg, sh = DevChipShadow(bg);
+    int tw = DevSmallTextWidth("FIRE"), pw = DevSmallTextWidth("PSN") + 8, white = 0, shade = 0, left = W, right = -1;
+
+    for (int i = 0; i < 7; ++i)
+        assert(Near565(DevChipShadow(kBoard[i].bg), kBoard[i].shadow));
+    assert(Near565(DevChipShadow(DEV_FX_SUPER), DEV_FX_SUPER_SH) && Near565(DevChipShadow(DEV_FX_NOTVERY), DEV_FX_NOTVERY_SH)
+           && Near565(DevChipShadow(DEV_FX_EFFECTIVE), DEV_FX_EFFECTIVE_SH) && Near565(DevChipShadow(DEV_CAT_SPECIAL), DEV_CAT_SPECIAL_SH));
+    /* Auto width: the text and 4 px each side, h tall; only the chip's colour, white and the shadow; nothing else touched. */
+    clear(SENTINEL);
+    DevChip(10, 10, 0, 12, "FIRE", bg, sh);
+    assert(at(10, 10) == bg && at(10 + tw + 7, 21) == bg && at(10 + tw + 8, 10) == SENTINEL && at(10, 22) == SENTINEL);
+    for (int x = 10; x < 18 + tw; ++x)
+        for (int y = 10; y < 22; ++y) {
+            white += at(x, y) == DEV_WHITE;
+            shade += at(x, y) == sh;
+            assert(at(x, y) == bg || at(x, y) == DEV_WHITE || at(x, y) == sh);
+        }
+    assert(white > 0 && shade > 0);
+    Untouched(10, 10, tw + 8, 12);
+    /* Fixed width (BMoves' 40 px type chip): the white text inside the centred text box. */
+    clear(SENTINEL);
+    DevChip(10, 30, 40, 12, "FIRE", bg, sh);
+    assert(at(49, 30) == bg && at(50, 30) == SENTINEL);
+    for (int x = 10; x < 50; ++x)
+        for (int y = 30; y < 42; ++y)
+            if (at(x, y) == DEV_WHITE) {
+                left = x < left ? x : left;
+                right = x > right ? x : right;
+            }
+    assert(left >= 10 + (40 - tw) / 2 && left < 10 + (40 - tw) / 2 + 3 && right < 10 + (40 - tw) / 2 + tw);
+    Untouched(10, 30, 40, 12);
+    /* No shadow (PSN, FNT): only the chip's colour and white. */
+    clear(SENTINEL);
+    DevChip(10, 50, 0, 10, "PSN", DEV_PSN, DEV_WHITE);
+    assert(Count(10, 50, pw, 10, DEV_WHITE) > 0 && Count(10, 50, pw, 10, DEV_PSN) + Count(10, 50, pw, 10, DEV_WHITE) == pw * 10);
+    Untouched(10, 50, pw, 10);
+}
+
 static const uint16_t kShell[4] = {DEV_SHELL_RED, DEV_SHELL_BLUE, DEV_SHELL_GREEN, DEV_SHELL_GREY};
 
 /* The kit's contract (the plan's Task 3 assertions). */
@@ -513,11 +591,13 @@ static void KitPieces(void)
     DevShell(0);
     DevKey(&k, DEV_LOOK_KEY, 0, 6); DevDim(&k); assert(at(11, 174) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
     DevHole(&(CtrPokeTouchRect){164, 120, 148, 50}, 6); assert(at(238, 150) == DevBlend(DEV_SHELL_RED, 0, 72));
+    assert(at(238, 121) == DevBlend(DevBlend(DEV_SHELL_RED, 0, 72), 0, 90) && at(238, 123) == at(238, 150)
+           && at(238, 170) == DevBlend(DEV_SHELL_RED, 0xFFFF, 51) && at(238, 171) == DEV_SHELL_RED);   /* top rows; light row */
     DevRow(&(CtrPokeTouchRect){16, 48, 244, 16}, 1); assert(at(20, 56) == DEV_BEZEL && DevRowInk(1) == DEV_PAPER && DevRowInk(0) == DEV_INK);
     DevHpBar(76, 52, 150, 6, 112, 112); assert(at(76, 52) == DEV_HP_FRAME && at(100, 54) == DEV_HP_GREEN);
-    assert(DevHpColour(50, 112) == DEV_HP_YELLOW && DevHpColour(20, 112) == DEV_HP_RED && DevHpColour(57, 112) == DEV_HP_GREEN);
-    assert(DevPpInk(15, 15, DEV_KEY_INK) == DEV_KEY_INK && DevPpInk(15, 35, 0) == DEV_PP_HALF && DevPpInk(3, 15, 0) == DEV_PP_QUARTER && DevPpInk(0, 15, 0) == DEV_LOW_INK);
+    KitBarLevels();
     assert(DevChosen(2, 2, -1) && !DevChosen(1, 2, -1) && DevChosen(1, 2, 1) && !DevChosen(2, 2, 1));
+    KitChips();
     clear(0); DevRound(0, 0, 20, 20, 6, 0x1234); assert(at(0, 0) == 0 && at(1, 1) == 0 && at(2, 2) == 0x1234 && at(6, 0) == 0x1234 && at(0, 6) == 0x1234);
     KitWrapLines();
     sDevKeyCut = 0; DevKeyLabel(&(CtrPokeTouchRect){0, 0, 30, 24}, 0, DEV_LOOK_KEY, 0, "A VERY LONG LABEL"); assert(sDevKeyCut == 1); sDevKeyCut = 0;
@@ -571,11 +651,11 @@ static void KitSheet(void)
     DevTextInk("RUN", 248, p.y + 6, 286, DevRowInk(0), DEV_INK_SH);
     DevPaperButton(&(CtrPokeTouchRect){244, p.y + 20, 44, 16}, 1);
     DevTextInk("2x", 248, p.y + 24, 286, DevRowInk(1), DevRowInk(1));
-    DevChip(240, p.y + 40, 10, "FIRE", UiTypeColor(10));
-    DevChip(240, p.y + 52, 10, "SPECIAL", DEV_CAT_SPECIAL);
-    DevChip(240, p.y + 64, 10, "SUPER", DEV_FX_SUPER);
-    DevChip(276, p.y + 40, 10, "PSN", DEV_PSN);
-    DevChip(276, p.y + 64, 10, "FNT", DEV_FNT);
+    DevChip(240, p.y + 38, 40, 12, "FIRE", UiTypeColor(10), DevChipShadow(UiTypeColor(10)));
+    DevChip(240, p.y + 52, 0, 12, "SPECIAL", DEV_CAT_SPECIAL, DEV_CAT_SPECIAL_SH);
+    DevChip(240, p.y + 66, 0, 12, "SUPER", DEV_FX_SUPER, DEV_FX_SUPER_SH);
+    DevChip(282, p.y + 39, 0, 10, "PSN", DEV_PSN, DEV_WHITE);
+    DevChip(282, p.y + 67, 0, 10, "FNT", DEV_FNT, DEV_WHITE);
     /* The keys: KEY, DARK and FAINT up and sunk; a dimmed key, a hole; a short sunk key, a sunk tab, two dark arrows, a
      * key arrow, a dark pill. */
     for (int i = 0; i < 8; ++i) {

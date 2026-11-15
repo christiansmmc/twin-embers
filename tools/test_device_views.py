@@ -124,6 +124,20 @@ class RenderTool(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.tool.glyph_widths(text, 'sFontSmallLatinGlyphWidths')   # fewer than 256
 
+    def test_out_must_be_under_build(self):
+        """Renders are ROM-derived: they may only go under build/ (ignored by Git)."""
+        self.assertEqual(self.tool.out_dir(ROOT / 'build/renders'), (ROOT / 'build/renders').resolve())
+        for elsewhere in (ROOT / 'docs/renders', ROOT / 'build/../renders', Path(tempfile.gettempdir()) / 'renders'):
+            with self.assertRaises(SystemExit) as stop:
+                self.tool.out_dir(elsewhere)
+            self.assertIn('build', str(stop.exception))
+        with tempfile.TemporaryDirectory() as tmp:
+            done = subprocess.run([sys.executable, str(ROOT / 'tools/render_device_views.py'), '--pak', 'x.pak',
+                                   '--text', 'text.c', '--out', tmp], capture_output=True, text=True)
+            self.assertNotEqual(done.returncode, 0)
+            self.assertIn('build', done.stderr)
+            self.assertEqual(list(Path(tmp).iterdir()), [])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -9,12 +9,15 @@
  *
  * A piece draws over what is there and leaves alone what it does not cover (a sunk key's two top rows, a translucent
  * drop); a view draws itself whole, shell first, whenever a field it draws changes. Text: FireRed's normal font for the
- * boards' 10-12 px text and its small font (recipe 0120) for their 7-9 px labels; `top` is where the capitals start.
+ * boards' 10-12 px text and its small font (recipe 0120) for their 7-9 px labels; `top` is where the capitals start,
+ * and text is clipped only across (at its limit), never down.
  * Every function is UI_FN: a view uses the ones it needs.
  */
 #include "3ds_device_layout.h"
 
-/* Colours (RGB565 of the boards' values). The shell, by OPTIONS' Shell colour (shell & 3). */
+/* Colours (RGB565 of the boards' values). White: key top lines, light rows, chip text. */
+#define DEV_WHITE          0xFFFF
+/* The shell, by OPTIONS' Shell colour (shell & 3). */
 #define DEV_SHELL_RED      UI_RGB(0xC2, 0x3A, 0x2E)
 #define DEV_SHELL_BLUE     UI_RGB(0x3E, 0x4C, 0x6B)
 #define DEV_SHELL_GREEN    UI_RGB(0x2E, 0x7A, 0x4E)
@@ -65,6 +68,12 @@
 #define DEV_CAT_PHYSICAL   UI_RGB(0xC0, 0x38, 0x28)
 #define DEV_PSN            UI_RGB(0x90, 0x50, 0xA8)
 #define DEV_FNT            UI_RGB(0x7A, 0x7A, 0x7A)
+/* The dark shadow of the white text on the chips of a fixed colour (the boards'); a chip whose colour comes from data
+ * (a type) takes DevChipShadow. PSN and FNT have none (DEV_WHITE). */
+#define DEV_FX_SUPER_SH    UI_RGB(0x14, 0x5A, 0x28)
+#define DEV_FX_NOTVERY_SH  UI_RGB(0x7A, 0x30, 0x08)
+#define DEV_FX_EFFECTIVE_SH UI_RGB(0x3A, 0x3E, 0x52)
+#define DEV_CAT_SPECIAL_SH UI_RGB(0x2E, 0x40, 0x70)
 /* Inks: low HP, PP at a quarter and at half, the blue ink, a raised stat, the gender marks (female: v0.6.0's red). */
 #define DEV_LOW_INK        UI_RGB(0xB0, 0x30, 0x20)
 #define DEV_PP_QUARTER     UI_RGB(0xB0, 0x4A, 0x10)
@@ -74,15 +83,17 @@
 #define DEV_MALE           UI_RGB(0x48, 0x78, 0xC8)
 #define DEV_FEMALE         UI_RGB(255, 110, 120)
 
-/* Alphas, of 256: the shell's light top edge (and every light row under a shape), its dark bottom edge, a screw, a key's
- * drop, a hole, a dimmed group, a fainted Pokemon's icon. */
+/* Alphas, of 256: the shell's light top edge (and the light row under a screen), its dark bottom edge, a screw, a key's
+ * drop, a hole and the light row under it, a dimmed group, a fainted Pokemon's icon, a chip's shadow from its colour. */
 #define DEV_A_LIGHT        64
 #define DEV_A_DARK         77
 #define DEV_A_SCREW        90
 #define DEV_A_DROP         97
 #define DEV_A_HOLE         72
+#define DEV_A_HOLE_LIGHT   51
 #define DEV_A_DIM          128
 #define DEV_A_FAINT_ART    115
+#define DEV_A_CHIP_SH      114      /* within one RGB565 step of all seven board pairs (measured) */
 
 #define DEV_SCREWS_TOP     1
 #define DEV_SCREWS_BOTTOM  2
@@ -264,14 +275,14 @@ UI_FN void DevScrew(int x, int y)
     uint16_t c = DevBlend(sDevShell, 0x0000, DEV_A_SCREW);
 
     DevDisc(x, y, 5, c);
-    Px(x + 1, y + 1, DevBlend(c, 0xFFFF, DEV_A_SCREW));
+    Px(x + 1, y + 1, DevBlend(c, DEV_WHITE, DEV_A_SCREW));
 }
 
 /* The whole screen in the shell colour: a light top edge (rows 0-1), a dark bottom edge (rows 237-239) and the screws
  * DEV_SCREWS_TOP / DEV_SCREWS_BOTTOM ask for, 5x5 in the corners. */
 UI_FN void DevShell(int screws)
 {
-    Fill(0, 0, W, 2, DevBlend(sDevShell, 0xFFFF, DEV_A_LIGHT));
+    Fill(0, 0, W, 2, DevBlend(sDevShell, DEV_WHITE, DEV_A_LIGHT));
     Fill(0, 2, W, H - 5, sDevShell);
     Fill(0, H - 3, W, 3, DevBlend(sDevShell, 0x0000, DEV_A_DARK));
     if (screws & DEV_SCREWS_TOP) {
@@ -284,14 +295,14 @@ UI_FN void DevShell(int screws)
     }
 }
 
-/* An embedded screen in `outer`: the bezel (radius 6, its outer pixel ring DEV_BEZEL_LINE), a light row under it and the
- * square paper 6 px in. Returns the paper. */
+/* An embedded screen in `outer`: the bezel (radius 6, its outer pixel ring DEV_BEZEL_LINE), a light row under it (so it
+ * paints outer.h + 1 rows) and the square paper 6 px in. Returns the paper. */
 UI_FN CtrPokeTouchRect DevScreen(const CtrPokeTouchRect *outer)
 {
     int x = outer->x, y = outer->y, w = outer->w, h = outer->h, r = DevRadius(w, h, 6), ri = r > 0 ? r - 1 : 0;
     CtrPokeTouchRect paper = {(int16_t)(x + 6), (int16_t)(y + 6), (int16_t)(w - 12), (int16_t)(h - 12)};
 
-    DevOuter(x, y, w, h, r, 1, 0xFFFF, DEV_A_LIGHT);
+    DevOuter(x, y, w, h, r, 1, DEV_WHITE, DEV_A_LIGHT);
     DevRound(x, y, w, h, r, DEV_BEZEL);
     for (int j = 0; j < h; ++j) {                    /* inset 0 0 0 1px: the shape less the shape 1 px in */
         int a0 = 0, b0 = 0, a1 = 0, b1 = 0;
@@ -356,7 +367,7 @@ UI_FN int DevKey(const CtrPokeTouchRect *r, int look, int sunk, int radius)
         DevLed(x + w - 7 - s, y + (h >= 40 ? 6 : 4), s, face);
     } else {
         if (look == DEV_LOOK_KEY)
-            DevInset(x, y, w, h, rr, 1, 0xFFFF, 0);
+            DevInset(x, y, w, h, rr, 1, DEV_WHITE, 0);
         else if (look == DEV_LOOK_DARK)
             DevInset(x, y, w, h, rr, 1, DEV_BEZEL_LINE, 0);
         if (look != DEV_LOOK_DARK)
@@ -380,12 +391,12 @@ UI_FN void DevDim(const CtrPokeTouchRect *r)
 }
 
 /* A hole in the shell (an empty party bay): what is there darkened, its three top inner rows darker still, a light row
- * under it. */
+ * under it (so it paints r.h + 1 rows). */
 UI_FN void DevHole(const CtrPokeTouchRect *r, int radius)
 {
     int rr = DevRadius(r->w, r->h, radius);
 
-    DevOuter(r->x, r->y, r->w, r->h, rr, 1, 0xFFFF, DEV_A_LIGHT);
+    DevOuter(r->x, r->y, r->w, r->h, rr, 1, DEV_WHITE, DEV_A_HOLE_LIGHT);
     DevRoundBlend(r->x, r->y, r->w, r->h, rr, 0x0000, DEV_A_HOLE);
     DevInset(r->x, r->y, r->w, r->h, rr, 3, 0x0000, DEV_A_SCREW);
 }
@@ -410,7 +421,7 @@ UI_FN void DevPaperButton(const CtrPokeTouchRect *r, int pressed)
         return;
     }
     DevRound(r->x, r->y, r->w, r->h, 2, DEV_BUTTON_EDGE);
-    DevRound(r->x + 1, r->y + 1, r->w - 2, r->h - 2, 1, 0xFFFF);
+    DevRound(r->x + 1, r->y + 1, r->w - 2, r->h - 2, 1, DEV_WHITE);
 }
 
 /* ---- Text ---------------------------------------------------------------------------------------------------------- */
@@ -441,7 +452,8 @@ UI_FN const PtGlyph *DevSmallGlyph(const char **s)
 }
 
 /* The glyphs of `s` in the normal or the small font from x, glyph row 0 at y, each drawn while it ends by `limit`: ink,
- * and the font's shadow pixels in `shadow` (none when shadow is ink). Returns the x after the last glyph drawn. */
+ * and the font's shadow pixels in `shadow` (none when shadow is ink). Text is clipped only across (at `limit`), never
+ * down: a glyph's 16 rows are drawn wherever they fall. Returns the x after the last glyph drawn. */
 UI_FN int DevGlyphs(const char *s, int x, int y, int limit, uint16_t ink, uint16_t shadow, int small)
 {
     while (*s) {
@@ -596,7 +608,7 @@ UI_FN void DevKeyLabel(const CtrPokeTouchRect *r, int faceY, int look, int sunk,
         shadow = DEV_SUNK_INK_SH;
     } else {
         ink = DEV_KEY_INK;
-        shadow = 0xFFFF;
+        shadow = DEV_WHITE;
     }
     if (w > r->w - 8) {
         DevCutText(s, r->w - 8, cut, sizeof(cut));
@@ -626,10 +638,19 @@ UI_FN void DevTriangle(int cx, int cy, int dir, uint16_t c)
     }
 }
 
-/* FireRed's HP thresholds: green over half, yellow over a fifth, red below. */
+/* The HP colour of FireRed's own battle HUD, so the two screens agree: a full bar is green; otherwise the hp is measured
+ * on the HUD's 48-pixel bar (rounded down, but at least a pixel while any hp is left), and more than 24 pixels is green,
+ * more than 9 yellow, 9 or less red. */
 UI_FN uint16_t DevHpColour(unsigned hp, unsigned max)
 {
-    return hp * 2 > max ? DEV_HP_GREEN : hp * 5 > max ? DEV_HP_YELLOW : DEV_HP_RED;
+    unsigned pixels;
+
+    if (hp >= max)
+        return DEV_HP_GREEN;
+    pixels = hp * 48u / max;
+    if (!pixels && hp)
+        pixels = 1;
+    return pixels > 24 ? DEV_HP_GREEN : pixels > 9 ? DEV_HP_YELLOW : DEV_HP_RED;
 }
 
 /* An HP bar: a 1 px frame, the track and hp of max filled (at least a pixel while hp is not 0). */
@@ -649,15 +670,25 @@ UI_FN void DevHpBar(int x, int y, int w, int h, unsigned hp, unsigned max)
         Fill(x + 1, y + 1, fill, h - 2, DevHpColour(hp, max));
 }
 
-/* A chip h tall at (x, y): `text` in the small font, 3 px in on each side, in the ink that reads on bg. Returns its
- * width. */
-UI_FN int DevChip(int x, int y, int h, const char *text, uint16_t bg)
+/* The dark shadow for a chip's white text when the chip's colour comes from data (a type's): the colour darkened. Within
+ * one RGB565 step of every pair the boards give (FIRE, SPECIAL, SUPER, EFFECTIVE, NORMAL, FIGHT, NOT VERY). */
+UI_FN uint16_t DevChipShadow(uint16_t bg)
 {
-    int w = DevSmallTextWidth(text) + 6;
+    return DevBlend(bg, 0x0000, DEV_A_CHIP_SH);
+}
 
+/* A chip at (x, y), h tall: `text` in the small font, white, with `shadow` under it (DEV_WHITE: none). w 0: as wide as
+ * the text and 4 px on each side; else w wide with the text centred (BMoves' type chips are 40). */
+UI_FN void DevChip(int x, int y, int w, int h, const char *text, uint16_t bg, uint16_t shadow)
+{
+    int tw = DevSmallTextWidth(text), tx;
+
+    if (w <= 0)
+        w = tw + 8;
+    tx = x + (w - tw) / 2;
     Fill(x, y, w, h, bg);
-    DevSmallText(text, x + 3, y + (h - 6) / 2, UiInkOn(bg), x + w);
-    return w;
+    /* The capitals are 7 rows, 8 with their shadow: centred, any odd row below. */
+    DevGlyphs(text, tx < x ? x : tx, y + (h - (shadow == DEV_WHITE ? 7 : 8)) / 2 - 4, x + w, DEV_WHITE, shadow, 1);
 }
 
 /* A label chip ("HP", "EXP"): the small font with 1 px around it, 9 px tall. Returns its width. */
@@ -670,10 +701,24 @@ UI_FN int DevLabelChip(int x, int y, const char *text, uint16_t bg, uint16_t ink
     return w;
 }
 
-/* A move's PP ink: none left, a quarter or less, half or less, else `normal`. */
+/* A move's PP in the colours of FireRed's own move window, so the two screens agree: full PP, `normal`. With a maximum of 7
+ * or less it goes by what is left: more than 2 (more than 1 when the maximum is 2 or less) `normal`, 2 the half colour,
+ * 1 the quarter colour, none the empty one. Above 7: none left, empty; up to a quarter of the maximum (rounded down),
+ * quarter; more than half of it (rounded down), `normal`; in between, half. */
 UI_FN uint16_t DevPpInk(unsigned pp, unsigned max, uint16_t normal)
 {
-    return pp == 0 ? DEV_LOW_INK : pp * 4 <= max ? DEV_PP_QUARTER : pp * 2 <= max ? DEV_PP_HALF : normal;
+    if (pp == max)
+        return normal;
+    if (max <= 7) {
+        if (pp > (max <= 2 ? 1u : 2u))
+            return normal;
+        return pp == 0 ? DEV_LOW_INK : pp == 1 ? DEV_PP_QUARTER : DEV_PP_HALF;
+    }
+    if (pp == 0)
+        return DEV_LOW_INK;
+    if (pp <= max / 4)
+        return DEV_PP_QUARTER;
+    return pp > max / 2 ? normal : DEV_PP_HALF;
 }
 
 /* The key shown sunk: the one under a held touch, else the game's cursor. */
@@ -682,7 +727,8 @@ UI_FN int DevChosen(int id, int cursor, int pressed)
     return pressed >= 0 ? id == pressed : id == cursor;
 }
 
-/* A gender mark, 7x9 (v0.6.0's shapes) with the paper's text shadow: 0 male, 1 female, 2 none (CtrBottomParty_Gender). */
+/* A gender mark, 7x9 (v0.6.0's shapes) with the paper's text shadow 1 px right and down, so it paints 8x10: 0 male,
+ * 1 female, 2 none (CtrBottomParty_Gender). */
 UI_FN void DevGender(int gender, int x, int y)
 {
     static const uint8_t kMale[9] = {0x0F, 0x03, 0x05, 0x38, 0x44, 0x44, 0x44, 0x38, 0x00};
