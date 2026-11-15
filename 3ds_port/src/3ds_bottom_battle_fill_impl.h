@@ -40,7 +40,7 @@ static void BattleCommon(CtrBattleView *v)
     memset(v, 0, sizeof(*v));
     v->pressed = (int16_t)(sBat.down && sBat.inside ? sBat.btn : -1);
     v->cursor = -1;
-    PartyFill(v->party, v->partyHp, v->partyStatus, NULL);
+    PartyFill(v->party, v->partyHp, v->partyStatus, NULL, NULL);
     {                                   /* the Pokemon in the field: the action screen's footer and icon */
         int slot = BattleActiveSlot();
 

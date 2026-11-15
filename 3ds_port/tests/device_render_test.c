@@ -603,6 +603,36 @@ static void KitPieces(void)
     sDevKeyCut = 0; DevKeyLabel(&(CtrPokeTouchRect){0, 0, 30, 24}, 0, DEV_LOOK_KEY, 0, "A VERY LONG LABEL"); assert(sDevKeyCut == 1); sDevKeyCut = 0;
 }
 
+/* DevUpper: the boards' and FireRed's capitals; POKé's é stays small; a letter the font has no capital for stays. */
+static void KitUpper(void)
+{
+    char out[40];
+
+    DevUpper(out, "Pok\xC3\xA9mon", sizeof(out));
+    assert(!strcmp(out, "POK\xC3\xA9MON"));
+    DevUpper(out, "Pok\xC3\xA9" "dex", sizeof(out));
+    assert(!strcmp(out, "POK\xC3\xA9" "DEX"));
+    DevUpper(out, "Pok\xC3\xA9 Ball", sizeof(out));
+    assert(!strcmp(out, "POK\xC3\xA9 BALL"));
+    DevUpper(out, "Zur\xC3\xBC" "ck", sizeof(out));                    /* German: u umlaut */
+    assert(!strcmp(out, "ZUR\xC3\x9C" "CK"));
+    DevUpper(out, "Regi\xC3\xB3n, Ning\xC3\xBAn, Espa\xC3\xB1" "a", sizeof(out));   /* Spanish: o, u acute, n tilde */
+    assert(!strcmp(out, "REGI\xC3\x93N, NING\xC3\x9AN, ESPA\xC3\x91" "A"));
+    DevUpper(out, "Caf\xC3\xA9 Stra\xC3\x9F" "e \xC5\x93uvre", sizeof(out));   /* an e acute away from POK; sharp s; oe */
+    assert(!strcmp(out, "CAF\xC3\x89 STRA\xC3\x9F" "E \xC5\x92UVRE"));
+    DevUpper(out, "POK\xC3\xA9MON 2x \x01\xd5", sizeof(out));            /* idempotent; a raw FireRed code kept */
+    assert(!strcmp(out, "POK\xC3\xA9MON 2X \x01\xd5"));
+    {
+        const char *e = "\xC3\x89", *u = "\xC3\x9C";                     /* the capitals made are the font's */
+
+        assert(GlyphCode(&e) == 0x06 && GlyphCode(&u) == 0xf3);
+    }
+    DevUpper(out, "AB\xC3\xA9", 4);                                       /* a letter that does not fit whole is left out */
+    assert(!strcmp(out, "AB"));
+    DevUpper(out, "Pok\xC3\xA9mon", 1);
+    assert(!out[0]);
+}
+
 /* Every piece on the red shell, for the eye (kit_sheet): the screen with its text, rows, icons, marks, bars, chips and
  * paper buttons; every key look up and sunk, a dimmed key, a hole, small keys (a tab, arrows, a pill). */
 static void KitSheet(void)
@@ -682,6 +712,7 @@ static void KitSheet(void)
 static void SuiteKit(void)
 {
     KitPieces();
+    KitUpper();
     KitSheet();
     assert(sDevKeyCut == 0);
 }
@@ -693,8 +724,9 @@ static int HomeHitV(const void *view, int x, int y)
     return CtrPokeTouch_HomeHit((const CtrPokeTouchView *)view, x, y);
 }
 
-/* The board's HOME: VERMILION CITY in KANTO, the player's name on the card, five Pokemon and a hole (HP 100, 66, 34,
- * 0 and 8 %), the speed at 2x, the map's art there, another map open; no player on the map, no destination. */
+/* The board's HOME: VERMILION CITY in KANTO (the map's region, under the name), the player's name on the card, five
+ * Pokemon and a hole (HP 100, 66, 34, 0 and 8 %), the speed at 2x, the map's art there, another map open; no player on
+ * the map, no destination. Strings as FireRed has them: no casing (the B views are upper case). */
 static CtrPokeTouchView HomeBoard(void)
 {
     static const uint8_t kHp[6] = {100, 66, 34, 0, 8, 0};
@@ -711,7 +743,6 @@ static CtrPokeTouchView HomeBoard(void)
     v.mapOpen = 3;
     v.playerX = v.playerY = v.cursorX = v.cursorY = -1;
     strcpy(v.bar[0], "VERMILION CITY");
-    strcpy(v.bar[1], "KANTO");
     strcpy(v.playerName, "RED");
     for (int i = 0; i < 6; ++i) {
         v.party[i] = (uint8_t)(i == 5 ? 0 : kHp[i] ? 1 : 2);
@@ -723,8 +754,51 @@ static CtrPokeTouchView HomeBoard(void)
     return v;
 }
 
+/* Two rectangles share a pixel. */
+static int Meets(CtrPokeTouchRect a, CtrPokeTouchRect b)
+{
+    return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+
+/* Words arrive in any case and HOME draws them as FireRed writes them. With small letters made wider than capitals:
+ * HOME with its game strings and reasons in proper case draws what it draws with them in capitals; the region key is
+ * as wide as its name in capitals; each key's word is the entry's in capitals, the card's the player's name as typed. */
+static void HomeUpperCase(CtrPokeTouchView v)
+{
+    static uint16_t capitals[W * H];
+    static uint8_t keepWidths[256], keepSmall[256];
+    CtrPokeTouchView proper;
+    char word[24];
+
+    memcpy(keepWidths, fontWidths, sizeof(keepWidths));
+    memcpy(keepSmall, smallWidths, sizeof(keepSmall));
+    for (unsigned c = 0xd5; c <= 0xee; ++c)        /* a..z */
+        fontWidths[c] = smallWidths[c] = 7;
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    v.cursorX = 9;
+    v.cursorY = 9;
+    strcpy(v.playerName, "Rick");
+    proper = v;
+    strcpy(v.bar[0], "VERMILION CITY");
+    strcpy(v.bar[2], "NOT VISITED YET");
+    strcpy(proper.bar[0], "Vermilion City");
+    strcpy(proper.bar[2], "Not visited yet");
+    CtrPokeTouch_Draw(canvas, &v);
+    memcpy(capitals, canvas, sizeof(capitals));
+    CtrPokeTouch_Draw(canvas, &proper);
+    assert(!memcmp(capitals, canvas, sizeof(capitals)));
+    assert(sHomeRibbon.w == DevTextWidth("KANTO") + 23 && DevTextWidth("KANTO") != DevTextWidth("Kanto"));
+    assert(!strcmp(DevHomeKeyWord(PT_POKEMON, &v, word), "POK\xC3\xA9MON") && !strcmp(DevHomeKeyWord(PT_CARD, &v, word), "Rick"));
+    memcpy(fontWidths, keepWidths, sizeof(keepWidths));
+    memcpy(smallWidths, keepSmall, sizeof(keepSmall));
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+}
+
 /* The suite as the plan gives it (HOME's keys hit where they are drawn, the map at 1:1, every cell of every map in the
- * window, the name window inside it, a blink or a step presents only the window), then the states for the eye. */
+ * window, the name window inside it, a blink or a step presents only the window), the review's checks (upper case, the
+ * name window clear of the region key and FLY, the Fly reasons under a long name, an egg), then the states for the eye. */
 static void SuiteHome(void)
 {
     static const int ids[6] = {PT_POKEDEX, PT_POKEMON, PT_BAG, PT_CARD, PT_SAVE, PT_OPTIONS};
@@ -732,7 +806,7 @@ static void SuiteHome(void)
     static uint16_t tm[30 * 20], btm[30 * 20], gba[MAP_COLORS];
     static uint8_t tl[MAP_TILES * 32], btl[MAP_TILES * 32];
     CtrPokeTouchView v, old;
-    CtrPokeTouchRect r;
+    CtrPokeTouchRect r, keyArea = DevKeyArea(&kDevHomeMapKey), flyArea = DevKeyArea(&kDevHomeFly);
     CtrDirtyList d;
     int i, x, y, gx, gy, cx, cy, vx, vy, dx, dy, g;
     const int flyX = kDevHomeFly.x + kDevHomeFly.w / 2, flyY = kDevHomeFly.y + kDevHomeFly.h / 2;
@@ -742,7 +816,6 @@ static void SuiteHome(void)
     sPlayer.key = -1;
     assert(CtrPokeTouch_MapPrepare(PT_MAP_KANTO, 0));
     v = HomeBoard();
-    CtrTextCase_Touch(&v);
     CtrPokeTouch_Draw(canvas, &v);
     old = v;
     shot("plain");
@@ -756,25 +829,35 @@ static void SuiteHome(void)
            && CtrPokeTouch_HomeHit(&v, 287, 103) == PT_NONE && CtrPokeTouch_HomeHit(&v, 100, 80) == PT_NONE);
     assert(CtrPokeTouch_HomeWindowPoint(14, 14, &vx, &vy) && vx == 0 && vy == 0 && CtrPokeTouch_HomeWindowPoint(205, 141, &vx, &vy)
            && vx == 191 && vy == 127 && !CtrPokeTouch_HomeWindowPoint(206, 80, &vx, &vy) && !CtrPokeTouch_HomeWindowPoint(13, 80, &vx, &vy));
+    /* RUN's lamp as the board draws it: an 8x8 at 4 px in, its 6x6 face */
+    assert(at(241, 127) == DEV_HOME_LAMP_OFF_EDGE && at(248, 134) == DEV_HOME_LAMP_OFF_EDGE && at(242, 128) == DEV_HOME_LAMP_OFF
+           && at(247, 133) == DEV_HOME_LAMP_OFF && at(249, 130) == DEV_WHITE && at(240, 130) == DEV_WHITE);
     /* the map at 1:1: window pixel (dx, dy) is the Region Map screen's (24 + dx, 28 + dy) (below the region key's rows) */
     CtrPokeTouch_MapArt(0, tm, tl, gba, btm, btl);
     for (dy = 20; dy < 128; dy += 9)
         for (dx = 0; dx < 192; dx += 7)
             assert(at(14 + dx, 14 + dy) == Gba(gba[MapColor(tm, tl, btm, btl, 24 + dx, 28 + dy)]));
-    /* every cell of every region inside the window with room for its 16x16 icon; a tap on it gives it back */
+    /* every cell of every region inside the window with room for its 16x16 icon; a tap on it gives it back; the name
+     * window of a destination there stays in the window and clear of the region key and FLY (their widest, with drops) */
+    strcpy(v.bar[0], "VERMILION CITY");
     for (g = 0; g < PT_MAP_COUNT; ++g) {
         v.mapGroup = (uint8_t)g;
         DevCheckTouch(&old, &v);
         for (cy = 0; cy < 15; ++cy)
             for (cx = 0; cx < 22; ++cx) {
+                CtrPokeTouchView pick = v;
+
                 assert(CtrPokeTouch_HomeCellPoint(&v, cx, cy, &x, &y) && x - 8 >= 14 && y - 8 >= 14 && x + 8 <= 206 && y + 8 <= 142);
                 assert(CtrPokeTouch_HomeMapCell(&v, x, y, &gx, &gy) && gx == cx && gy == cy);
+                pick.cursorX = (int8_t)cx;
+                pick.cursorY = (int8_t)cy;
+                assert(DevHomeLabelRect(&pick, &r) && r.x >= 14 && r.y >= 14 && r.x + r.w <= 206 && r.y + r.h <= 142);
+                assert(!Meets(r, keyArea) && !Meets(r, flyArea));
             }
     }
     assert(CtrPokeTouch_HomeCellPoint(&v, 0, 0, &x, &y) && x == 26 && y == 22 && !CtrPokeTouch_HomeCellPoint(&v, 22, 0, &x, &y));
     v.mapGroup = 0;
     /* the destination's name window stays inside the window, at the corners and the middle */
-    strcpy(v.bar[0], "VERMILION CITY");
     for (i = 0; i < 5; ++i) {
         v.cursorX = (int8_t)corner[i][0];
         v.cursorY = (int8_t)corner[i][1];
@@ -815,11 +898,40 @@ static void SuiteHome(void)
     d = DevCheckTouch(&old, &v);
     assert(d.count == 0);
 
+    /* Upper case, whatever case the words arrive in. */
+    HomeUpperCase(HomeBoard());
+    v = HomeBoard();
+    CtrPokeTouch_Draw(canvas, &v);
+    old = v;
+    /* Why a place cannot be flown to, under a name of two lines: one line, every reason whole; a reason too long for it
+     * counts as cut. */
+    strcpy(v.bar[0], "WATER LABYRINTH PATH");
+    v.cursorX = 9;
+    v.cursorY = 9;
+    for (i = UIS_FLY_UNVISITED; i <= UIS_FLY_BUSY; ++i) {
+        snprintf(v.bar[2], PT_BAR_LEN, "%s", CtrUiText((CtrUiString)i));
+        DevCheckTouch(&old, &v);
+        assert(Count(212, 33, 90, 8, DEV_INK) > 0 && Count(212, 46, 90, 7, DEV_INK2) > 0);   /* the name's 2nd line; the reason */
+    }
+    assert(sDevKeyCut == 0);
+    strcpy(v.bar[2], "A REASON FAR TOO LONG FOR ONE LINE");
+    DevCheckTouch(&old, &v);
+    assert(sDevKeyCut > 0);
+    sDevKeyCut = 0;
+    /* An egg: its icon, no HP bar (FireRed shows none). */
+    v = HomeBoard();
+    v.party[5] = 1;
+    v.partyHp[5] = 100;
+    v.partyIcon[5] = 412;
+    v.partyEgg = 1u << 5;
+    DevCheckTouch(&old, &v);
+    assert(at(245, 112) == DEV_HP_FRAME && at(276, 112) == DEV_PAPER && at(287, 112) == DEV_PAPER);
+    assert(CtrPokeTouch_HomeHit(&v, 287, 103) == PT_HOME_PARTY + 5);
+
     /* The states for the eye, each through Update first. pressed: POKeMON held (the board's). */
     v = HomeBoard();
     v.playerX = 13;
     v.playerY = 9;
-    CtrTextCase_Touch(&v);
     DevCheckTouch(&old, &v);
     v.pressed = PT_POKEMON;
     DevCheckTouch(&old, &v);
@@ -830,19 +942,15 @@ static void SuiteHome(void)
     v.cursorX = 14;
     v.cursorY = 6;
     v.flyOk = 1;
-    strcpy(v.bar[0], "Vermilion City");
-    strcpy(v.bar[1], "Fly available");
-    strcpy(v.bar[2], "Tap Fly, or the place again");
     DevCheckTouch(&old, &v);
     shot("selection");
-    /* flypick: FLY chosen in the Party, the map waits for a town; a Pokemon held */
+    /* flypick: FLY chosen in the Party, the map waits for a town (the hint in two lines); a Pokemon held */
     v.pressed = PT_HOME_PARTY + 2;
     v.running = 0;
     v.cursorX = v.cursorY = -1;
     v.flyOk = 0;
-    strcpy(v.bar[0], "Fly");
-    strcpy(v.bar[1], "Tap a town to go there.");
-    strcpy(v.bar[2], "Any button: cancel");
+    strcpy(v.bar[0], "FLY");
+    snprintf(v.bar[2], PT_BAR_LEN, "%s", CtrUiText(UIS_FLY_PICK));
     DevCheckTouch(&old, &v);
     assert(Count(212, 33, 90, 7, DEV_INK2) > 0 && Count(212, 46, 90, 7, DEV_INK2) > 0);   /* the hint takes two lines */
     shot("flypick");
@@ -854,12 +962,11 @@ static void SuiteHome(void)
     v.playerX = v.playerY = -1;
     v.cursorX = 9;
     v.cursorY = 9;
-    strcpy(v.bar[0], "Two Island");
-    strcpy(v.bar[1], "Fly unavailable");
-    strcpy(v.bar[2], "Not visited yet");
+    strcpy(v.bar[0], "TWO ISLAND");
+    snprintf(v.bar[2], PT_BAR_LEN, "%s", CtrUiText(UIS_FLY_UNVISITED));
     DevCheckTouch(&old, &v);
     shot("sevii");
-    /* fainted: three down, one hole, an egg; SPD and RUN not usable now, SAVE neither; the green shell */
+    /* fainted: two down, one with a status, an egg (no bar); SPD and RUN not usable now, SAVE neither; the green shell */
     assert(CtrPokeTouch_MapPrepare(PT_MAP_KANTO, 0));
     v = HomeBoard();
     v.playerX = 13;
@@ -872,12 +979,12 @@ static void SuiteHome(void)
     v.party[5] = 1;
     v.partyHp[5] = 100;
     v.partyIcon[5] = 412;
+    v.partyEgg = 1u << 5;
     v.speed = 1;
     v.speedEnabled = 0;
     v.enabled[PT_RUN] = 0;
     v.enabled[PT_SAVE] = 0;
     v.shell = 2;
-    CtrTextCase_Touch(&v);
     DevCheckTouch(&old, &v);
     shot("fainted");
     richArt = 0;

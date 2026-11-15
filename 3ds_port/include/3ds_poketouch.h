@@ -415,7 +415,8 @@ typedef struct {
     uint8_t party[6];           /* HOME's party: 0 no Pokemon, 1 able, 2 fainted, 3 a status (as CtrBattleView) */
     uint8_t partyHp[6];         /* HP left as a percentage (an egg: 100) */
     uint16_t partyIcon[6];      /* each slot's party icon (a species number, as CtrBottomParty_IconSpecies) */
-    uint8_t speed;              /* the turbo chosen (3ds_fast_forward.h): 1 off, 2..4 the multiplier */
+    uint8_t partyEgg;           /* the slots that hold an egg, a bit each: no HP bar (FireRed shows none) */
+    uint8_t speed;             /* the turbo chosen (3ds_fast_forward.h): 1 off, 2..4 the multiplier */
     uint8_t speedEnabled;       /* a tap on SPD can change it now (where START could) */
     uint8_t options;            /* the OPTIONS screen fills the viewport (no GBA picture, no map) */
     uint8_t optPage;            /* 0-based page index in OPTIONS */

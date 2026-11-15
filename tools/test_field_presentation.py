@@ -747,6 +747,55 @@ int main(void) {
 }
 ''')
 
+    def test_home_pick_snaps_to_a_town(self):
+        """HOME's map at 1:1: a town is one 8x8 cell, so a tap whose own cell is no place Fly goes to takes the nearest
+        one that is, when its cell's centre is within 8 px of the tap (v0.6.0's orb snap); a tap on a route far from
+        towns still takes the route. The cells are the home impl's own (CtrPokeTouch_HomeCellPoint/HomeMapCell)."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        home = (ROOT / '3ds_port/src/3ds_device_home_impl.h').read_text(encoding='utf-8')
+        cells = '\n'.join(function(home, n) for n in ('CtrPokeTouch_HomeWindowPoint', 'CtrPokeTouch_HomeCellPoint',
+                                                       'CtrPokeTouch_HomeMapCell'))
+        pick = function(bottom, 'HomeFlyCell') + '\n' + function(bottom, 'HomePick')
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include "3ds_poketouch.h"
+#define MAP_CELLS_X 22
+#define MAP_CELLS_Y 15
+#define MAPSEC_NONE_VALUE 0
+/* A map of one town (5,5) and two routes beside it (6,5), (5,6), and one far away (12,10); 3 is the town's section. */
+static int CtrPokeTouch_MapSection(int group, int x, int y, int *mapsec, int *dungeon)
+{
+    (void)group;
+    *dungeon = 0;
+    *mapsec = x == 5 && y == 5 ? 3 : (x == 6 && y == 5) || (x == 5 && y == 6) || (x == 12 && y == 10) ? 40 : 0;
+    return *mapsec != 0;
+}
+static int CtrPokeTouch_FlyStatus(unsigned mapsec) { return mapsec == 3 ? PT_FLY_UNVISITED : PT_FLY_NONE; }
+''' + cells + '\n' + pick + '''
+int main(void) {
+    CtrPokeTouchView v = {0};
+    int cx, cy, x, y;
+
+    /* the town's centre is (66, 62): its own cell takes it */
+    assert(CtrPokeTouch_HomeCellPoint(&v, 5, 5, &x, &y) && x == 66 && y == 62);
+    assert(HomePick(&v, 0, 66, 62, &cx, &cy) && cx == 5 && cy == 5);
+    /* a near miss on the route beside it (5 px off the town's centre): the town */
+    assert(HomePick(&v, 0, 71, 62, &cx, &cy) && cx == 5 && cy == 5);
+    assert(HomePick(&v, 0, 66, 67, &cx, &cy) && cx == 5 && cy == 5);
+    assert(HomePick(&v, 0, 71, 67, &cx, &cy) && cx == 5 && cy == 5);              /* 7 px, diagonally */
+    /* further than 8 px: the route itself */
+    assert(HomePick(&v, 0, 77, 62, &cx, &cy) && cx == 6 && cy == 5);
+    assert(HomePick(&v, 0, 66, 71, &cx, &cy) && cx == 5 && cy == 6);
+    /* a route far from towns, and the sea: the cell under the tap */
+    assert(CtrPokeTouch_HomeCellPoint(&v, 12, 10, &x, &y) && HomePick(&v, 0, x + 3, y, &cx, &cy) && cx == 12 && cy == 10);
+    assert(HomePick(&v, 0, 150, 120, &cx, &cy) && CtrPokeTouch_HomeMapCell(&v, 150, 120, &x, &y) && cx == x && cy == y);
+    /* off the cells (the window's edge) or the window: nothing */
+    assert(!HomePick(&v, 0, 15, 15, &cx, &cy) && !HomePick(&v, 0, 250, 60, &cx, &cy));
+    return 0;
+}
+''')
+
     def test_turbo_takes_the_speed_tap(self):
         """A tap on HOME's SPD is one START press for the turbo: the game bridge takes it every frame."""
         bridge = (ROOT / '3ds_port/src/3ds_game_bridge.c').read_text(encoding='utf-8')

@@ -1027,6 +1027,46 @@ static int HomeFind(int group, int cx, int cy, int *fx, int *fy, int *mapsec, in
     return 1;
 }
 
+/* Whether the cell (cx, cy) of `group` is a place Fly goes to. */
+static int HomeFlyCell(int group, int cx, int cy)
+{
+    int mapsec, dungeon;
+
+    return CtrPokeTouch_MapSection(group, cx, cy, &mapsec, &dungeon) && mapsec != MAPSEC_NONE_VALUE
+        && CtrPokeTouch_FlyStatus((unsigned)mapsec) != PT_FLY_NONE;
+}
+
+/* The cell a tap at lower-screen (x, y) of `v`'s map window picks: the cell under it; but when that cell is no place
+ * Fly goes to, the nearest one that is, whose cell's centre lies within 8 px of the tap (a town is one 8x8 cell at 1:1:
+ * a near miss still takes it, as v0.6.0's orb did). False off the map's cells. */
+static int HomePick(const CtrPokeTouchView *v, int group, int x, int y, int *cx, int *cy)
+{
+    int best = 8 * 8 + 1, bx = 0, by = 0;
+
+    if (!CtrPokeTouch_HomeMapCell(v, x, y, cx, cy))
+        return 0;
+    if (HomeFlyCell(group, *cx, *cy))
+        return 1;
+    for (int dy = -1; dy <= 1; ++dy)
+        for (int dx = -1; dx <= 1; ++dx) {
+            int px, py, d;
+
+            if ((!dx && !dy) || !CtrPokeTouch_HomeCellPoint(v, *cx + dx, *cy + dy, &px, &py))
+                continue;
+            d = (px - x) * (px - x) + (py - y) * (py - y);
+            if (d < best && HomeFlyCell(group, *cx + dx, *cy + dy)) {
+                best = d;
+                bx = *cx + dx;
+                by = *cy + dy;
+            }
+        }
+    if (best <= 8 * 8) {
+        *cx = bx;
+        *cy = by;
+    }
+    return 1;
+}
+
 /* A tap on cell (cx, cy) of the map shown (which may be another region than the player's: Fly goes there too). It only
  * selects. */
 static void HomeTap(int cx, int cy)
@@ -1082,32 +1122,26 @@ static void HomeNextMap(unsigned open)
 /* HOME's bar for the selection: its name, and what Fly says about it. */
 static void HomeSelectionBar(CtrPokeTouchView *v)
 {
-    static const char *const sWhy[] = {
-        [PT_FLY_UNVISITED] = CTR_TR("Not visited yet", "A\xc3\xban sin visitar", "Noch nicht besucht"), [PT_FLY_NO_MON] = CTR_TR("No Pok\xc3\xa9mon knows Fly", "Ning\xC3\xBAn Pok\xC3\xA9mon sabe vuelo", "Kein Pok\xC3\xA9mon kann Fliegen"),
-        [PT_FLY_NO_BADGE] = CTR_TR("A new Badge is needed", "Hace falta otra medalla", "Neuer Orden ben\xC3\xB6tigt"), [PT_FLY_NO_PLACE] = CTR_TR("Can't Fly here", "Aqu\xc3\xad no se puede volar", "Hier nicht m\xC3\xB6glich"),
-        [PT_FLY_BUSY] = CTR_TR("Not right now", "Ahora no", "Jetzt nicht"),
+    static const CtrUiString sWhy[PT_FLY_OK] = {
+        [PT_FLY_UNVISITED] = UIS_FLY_UNVISITED, [PT_FLY_NO_MON] = UIS_FLY_NO_MON, [PT_FLY_NO_BADGE] = UIS_FLY_NO_BADGE,
+        [PT_FLY_NO_PLACE] = UIS_FLY_NO_PLACE, [PT_FLY_BUSY] = UIS_FLY_BUSY,
     };
     int status = sHome.mapsec != MAPSEC_NONE_VALUE ? CtrPokeTouch_FlyStatus((unsigned)sHome.mapsec) : PT_FLY_NONE;
 
     CtrPokeTouch_MapSectionName((unsigned)(sHome.mapsec != MAPSEC_NONE_VALUE ? sHome.mapsec : sHome.dungeon),
                                 v->bar[0], PT_BAR_LEN);
     v->flyOk = status == PT_FLY_OK;
-    if (status == PT_FLY_OK) {
-        snprintf(v->bar[1], PT_BAR_LEN, CTR_TR("Fly available", "Puedes volar", "Fliegen m\xC3\xB6glich"));
-        snprintf(v->bar[2], PT_BAR_LEN, CTR_TR("Tap Fly, or the place again", "Toca Volar o el lugar otra vez", "Fliegen oder Ort erneut tippen"));
-    } else if (status != PT_FLY_NONE) {
-        snprintf(v->bar[1], PT_BAR_LEN, CTR_TR("Fly unavailable", "No puedes volar", "Fliegen nicht m\xC3\xB6glich"));
-        snprintf(v->bar[2], PT_BAR_LEN, "%s", sWhy[status]);
-    } else if (sHome.mapsec != MAPSEC_NONE_VALUE && sHome.dungeon != MAPSEC_NONE_VALUE) {
-        CtrPokeTouch_MapSectionName((unsigned)sHome.dungeon, v->bar[1], PT_BAR_LEN);
-    }
+    if (status > PT_FLY_NONE && status < PT_FLY_OK)
+        snprintf(v->bar[2], PT_BAR_LEN, "%s", CtrUiText(sWhy[status]));      /* why not: the line under the place */
 }
 
 /* The party as the lower screen shows it (CtrBattleView's fields, HOME's): per slot 0 no Pokemon, 1 able, 2 fainted, 3 a
  * status condition; the HP left as a percentage (an egg: 100; 1 while any is left); the status (1..6, 0 for an egg);
- * the party icon (`icon` may be NULL). */
-static void PartyFill(uint8_t kind[6], uint8_t hp[6], uint8_t status[6], uint16_t icon[6])
+ * the party icon (`icon` may be NULL); and the eggs, a bit per slot (`eggs` may be NULL). */
+static void PartyFill(uint8_t kind[6], uint8_t hp[6], uint8_t status[6], uint16_t icon[6], uint8_t *eggs)
 {
+    if (eggs)
+        *eggs = 0;
     for (int i = 0; i < 6; ++i) {
         kind[i] = hp[i] = status[i] = 0;
         if (icon)
@@ -1128,6 +1162,8 @@ static void PartyFill(uint8_t kind[6], uint8_t hp[6], uint8_t status[6], uint16_
             status[i] = (uint8_t)(st > 6 ? 0 : st);
             if (icon)
                 icon[i] = (uint16_t)CtrBottomParty_IconSpecies(i);
+            if (eggs && CtrBottomParty_IsEgg(i))
+                *eggs = (uint8_t)(*eggs | 1u << i);
         }
     }
 }
@@ -1138,7 +1174,6 @@ static unsigned sHomeOpen;                  /* the maps the region key leads to,
 
 static void HomeMapState(Snapshot *s)
 {
-    static const char *const sRegions[PT_MAP_COUNT] = {CTR_TR("Main region", "Regi\xc3\xb3n principal", "Kanto"), CTR_TR("Island region", "Islas Sete", "Sevii-Eilande"), CTR_TR("Island region", "Islas Sete", "Sevii-Eilande"), CTR_TR("Island region", "Islas Sete", "Sevii-Eilande")};
     int group = CtrPokeTouch_MapGroup(), px, py, mapsec, version = CtrPokeTouch_MapVersion();
     unsigned open = 0, turbo = CtrSettings_Turbo();
     uint8_t status[6];
@@ -1156,7 +1191,7 @@ static void HomeMapState(Snapshot *s)
     if (sHome.view == 0 || !(open >> (sHome.view - 1) & 1))
         sHome.view = group + 1;
     s->touch.home = 1;
-    PartyFill(s->touch.party, s->touch.partyHp, status, s->touch.partyIcon);
+    PartyFill(s->touch.party, s->touch.partyHp, status, s->touch.partyIcon, &s->touch.partyEgg);
     s->touch.speed = (uint8_t)(turbo >= 2 && turbo <= 4 ? turbo : 1);
     s->touch.speedEnabled = (uint8_t)(CtrBottom_TurboCanCycle() != 0);
     s->touch.mapGroup = (uint8_t)(sHome.view - 1);
@@ -1181,13 +1216,10 @@ static void HomeMapState(Snapshot *s)
     }
     if (sFlyPick) {
         snprintf(s->touch.bar[0], PT_BAR_LEN, CTR_TR("Fly", "Vuelo", "Fliegen"));
-        snprintf(s->touch.bar[1], PT_BAR_LEN, CTR_TR("Tap a town to go there.", "Toca un pueblo para ir.", "Ort antippen zum Hinfliegen."));
-        snprintf(s->touch.bar[2], PT_BAR_LEN, CTR_TR("Any button: cancel", "Cualquier bot\xc3\xb3n: cancelar", "Beliebige Taste: Zur\xC3\xBC" "ck"));
+        snprintf(s->touch.bar[2], PT_BAR_LEN, "%s", CtrUiText(UIS_FLY_PICK));
         return;
     }
-    CtrPokeTouch_Location(s->touch.bar[0], PT_BAR_LEN);
-    snprintf(s->touch.bar[1], PT_BAR_LEN, "%s", sRegions[s->touch.mapGroup]);
-    snprintf(s->touch.bar[2], PT_BAR_LEN, CTR_TR("Tap a destination", "Toca un destino", "Ziel antippen"));
+    CtrPokeTouch_Location(s->touch.bar[0], PT_BAR_LEN);   /* under it HOME shows the map's region */
 }
 
 /* The battle screen's touch: a button pressed under a finger (a BUI_ACT_* number); on the quick ball, where the
@@ -2970,7 +3002,7 @@ static void ProcessPokeTouch(const CtrInput *in)
         }
         sHome.down = 0;
         if (!sHome.dragging) {
-            if (CtrPokeTouch_HomeMapCell(&sShown.touch, sHome.downX, sHome.downY, &cx, &cy))
+            if (HomePick(&sShown.touch, sHome.view - 1, sHome.downX, sHome.downY, &cx, &cy))
                 HomeTap(cx, cy);
             else
                 sHome.valid = 0;            /* the window's edge, off the cells: nothing there */
@@ -4895,8 +4927,8 @@ void CtrBottom_Frame(void)
         state.touch.shell = state.battle.shell = state.sum.shell = (uint8_t)CtrOptions_Shell();
         if (state.battleUi)
             CtrTextCase_Battle(&state.battle);
-        else
-            CtrTextCase_Touch(&state.touch);
+        else if (!state.touch.home || state.touch.viewport)
+            CtrTextCase_Touch(&state.touch);    /* HOME is the red device's: FireRed's capitals (DevUpper) */
     }
     /* The logo only once nothing has been shown for a while: a screen's few frames of change show the backdrop. */
     sIdleFrames = state.mode == MODE_OFF && !sSession.active ? (sIdleFrames < IDLE_LOGO_FRAMES ? sIdleFrames + 1

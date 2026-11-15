@@ -522,6 +522,39 @@ UI_FN void DevSmallText(const char *s, int x, int top, uint16_t ink, int limit)
     DevGlyphs(s, x, top - 4, limit, ink, ink, 1);
 }
 
+/* `src` in upper case, as the boards and FireRed write their words, into dst (size bytes, always ended): a-z, and the
+ * accented small letters whose capital the game's font has (UTF-8 à..þ, œ: ä->Ä, ó->Ó, ñ->Ñ...), become capitals; the
+ * é of POKé (after "POK": POKéMON, POKéDEX, POKé BALL) stays small, as FireRed writes it; anything else (ß, digits,
+ * signs, a raw FireRed or Japanese code) is copied as it is. A character that does not fit whole is left out. The B
+ * views draw port words and game strings through it (a game string that arrives in proper case, v0.6.0's casing or
+ * recipe 0251's, is shown as FireRed has it); a name the player typed is drawn as typed. */
+UI_FN void DevUpper(char *dst, const char *src, size_t size)
+{
+    size_t n = 0;
+
+    if (!size)
+        return;
+    while (*src) {
+        unsigned char c = (unsigned char)src[0], next = (unsigned char)src[1];
+        size_t len = ((c == 0x01 || c == 0x02) && next) || ((c == 0xc2 || c == 0xc3 || c == 0xc5) && (next & 0xc0) == 0x80) ? 2 : 1;
+        char out[2] = {src[0], len > 1 ? src[1] : 0};
+
+        if (len == 1 && c >= 'a' && c <= 'z')
+            out[0] = (char)(c - 'a' + 'A');
+        else if (c == 0xc3 && len == 2 && next >= 0xa0 && next <= 0xbe && next != 0xb7
+                 && !(next == 0xa9 && n >= 3 && !memcmp(dst + n - 3, "POK", 3)) && LatinCode(0xc3, (unsigned char)(next - 0x20)))
+            out[1] = (char)(next - 0x20);
+        else if (c == 0xc5 && len == 2 && next == 0x93)
+            out[1] = (char)0x92;                    /* œ -> Œ */
+        if (n + len >= size)
+            break;
+        memcpy(dst + n, out, len);
+        n += len;
+        src += len;
+    }
+    dst[n] = 0;
+}
+
 /* The first n bytes of s as one line, a line break drawn as the space it stands for. */
 UI_FN void DevWrapCopy(char *line, const char *s, int n)
 {

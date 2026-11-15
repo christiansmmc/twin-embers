@@ -129,7 +129,7 @@ static int HomeFaults(void)
             fprintf(stderr, "HOME: key %d leaves the lower part {0,150,320,90}\n", i);
             ++faults;
         }
-    if (!Within(kDevHomeMapKey, window, 0) || !Within(kDevHomeFly, window, 0)) {
+    if (!Within(kDevHomeMapKey, window, 1) || !Within(kDevHomeFly, window, 1)) {   /* with their drops */
         fprintf(stderr, "HOME: the region key or FLY leaves the map's window\n");
         ++faults;
     }
