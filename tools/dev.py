@@ -22,6 +22,7 @@ import os
 import re
 import shlex
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -153,13 +154,21 @@ def build(args=None):
 
 # ---- host tests --------------------------------------------------------------------------------------------
 
+def remove_tree(path):
+    """shutil.rmtree that also deletes read-only files (Git's pack files), which Windows will not delete as they are."""
+    def writable(func, name, _error):
+        os.chmod(name, stat.S_IWRITE)
+        func(name)
+    shutil.rmtree(path, **{'onexc' if sys.version_info >= (3, 12) else 'onerror': writable})
+
+
 SUITES = ['test_poketouch_render', 'test_battle_ui', 'test_column_labels', 'test_option_labels', 'test_storage_touch',
           'test_storage_controller', 'test_easychat_plan', 'test_field_presentation', 'test_bag_pockets',
           'test_first_battle']
 
 
 def test(args=None):
-    """CI's host checks, one PASS/FAIL line per stage; exits non-zero if any stage fails."""
+    """A subset of CI's host checks, one PASS/FAIL line per stage; exits non-zero if any stage fails."""
     bash = DEVKITPRO / 'msys2/usr/bin/bash.exe'
     gcc = DEVKITPRO / 'msys2/usr/bin/gcc.exe'
     if not bash.exists():
@@ -173,7 +182,16 @@ def test(args=None):
         results.append((name, ok))
         print(f'{"PASS" if ok else "FAIL"}  {name}', flush=True)
 
-    if not (hosts / '3ds_port/Makefile').exists():
+    if hosts.exists():
+        # The tree copies 3ds_port/, tools/, builder/, the recipes and upstream.lock as they were when it was made.
+        try:
+            made_from = json.loads((hosts / '.twin-bootstrap.json').read_text(encoding='utf-8'))['inputs']
+        except (OSError, ValueError, KeyError):
+            made_from = None
+        if made_from != inputs() or not (hosts / '3ds_port/Makefile').exists():
+            print('build/host-tests is stale (its sources changed since it was made): making it again', flush=True)
+            remove_tree(hosts)
+    if not hosts.exists():
         stage('bootstrap build/host-tests',
               [sys.executable, str(ROOT / 'tools/bootstrap.py'), '--dir', str(hosts)])
     with tempfile.TemporaryDirectory() as shim:
@@ -292,7 +310,7 @@ def main():
     p.add_argument('builder_options', nargs=argparse.REMAINDER,
                    help='after --: Builder options such as --gen4-sprites (remembered)')
     p.set_defaults(func=pak)
-    sub.add_parser('test', help='host test suites (the CI checks)').set_defaults(func=test)
+    sub.add_parser('test', help='host test suites (a subset of the CI checks)').set_defaults(func=test)
     sub.add_parser('run', help='build and start in Azahar').set_defaults(func=run)
     p = sub.add_parser('send', help='build and run once on the 3DS (3dslink)')
     p.add_argument('--ip')

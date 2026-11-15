@@ -7426,7 +7426,7 @@
   },
   {
    "path": "tools/dev.py",
-   "sha256": "30e6a062567fa7de16eceb30fce1da09e4d17cbb746ace29cbdbb0f1a650717e",
+   "sha256": "6da15539cee2be390195a131afb4ee6e562c4ea0fd74744dc4deb8c30e1317f3",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
