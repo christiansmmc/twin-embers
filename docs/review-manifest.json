@@ -2085,7 +2085,7 @@
   },
   {
    "path": "3ds_port/tests/party_grid_test.c",
-   "sha256": "b429cc3bb05db07fdb601e793be34ad7abed23de7aee53293b2a5e17f21197b5",
+   "sha256": "e9b95bcde84fe8cc21bfde31c224fef169999e99dbafd02c393d89cdfb3faa0d",
    "review_status": "reviewed",
    "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -6609,7 +6609,7 @@
   },
   {
    "path": "tools/make_battle_icons.py",
-   "sha256": "8e65635cdaf93e6b0cdfb1e12ba18f8f5d33a9a37540addf1d719f14a877e8db",
+   "sha256": "05f64c7c46f092c1c642fbabe2b9e769ac56b313c530027ca1335c0c8224a501",
    "review_status": "reviewed",
    "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

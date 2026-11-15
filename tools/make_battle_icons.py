@@ -4,7 +4,8 @@
 POKeMON (a Poke Ball) and RUN (a running shoe), drawn here (no game pixels) flat and cel-shaded like FireRed's own
 sprites: flat colours, one shadow band on the lower right of each part, a few shines, and the slate outline of the
 game's bag sprite (the shoe also small, for the lower screen's running switch). BAG is the game's own bag, read from
-the user's pack at run time; FIGHT is a word (the red device's key has no icon).
+the user's pack at run time; FIGHT's crossed swords are not here: the red device draws them itself, as strokes
+(3ds_port/src/3ds_device_battle_impl.h).
 Each icon is RGB565 with 0 for a clear pixel.
 
 Needs Pillow; it is a development tool and its output is committed. Run it again after changing the art.

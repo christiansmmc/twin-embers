@@ -55,7 +55,8 @@ int main(void)
     }
 
     /* The short right column (an odd count): the last row of the left column goes right to the right column's last row. */
-    assert(CtrPartyGrid_Move(5, 2, CTR_PGRID_RIGHT) == 4);       /* 0 1 2 | 3 4: SUMMARY SWITCH ITEM | HEAL CANCEL */
+    assert(CtrPartyGrid_Move(5, 2, CTR_PGRID_RIGHT) == 4);       /* 0 1 2 | 3 4: SUMMARY SWITCH ITEM | HEAL CANCEL
+                                                                  * (HEAL only with CTR_PARTY_EXTRAS 1, recipe 0264) */
     assert(CtrPartyGrid_Move(5, 4, CTR_PGRID_LEFT) == 1);        /* CANCEL (row 1) back to row 1 */
     assert(CtrPartyGrid_Move(5, 3, CTR_PGRID_DOWN) == 4 && CtrPartyGrid_Move(5, 4, CTR_PGRID_DOWN) == 3);
     assert(CtrPartyGrid_Move(7, 3, CTR_PGRID_RIGHT) == 6);       /* 0 1 2 3 | 4 5 6 */
