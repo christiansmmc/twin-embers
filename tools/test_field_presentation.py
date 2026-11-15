@@ -321,6 +321,60 @@ int main(void) {
 }
 ''')
 
+    def test_summary_page_shown_when_taken(self):
+        """A page turned by a plan (an arrow, TRAINER) is shown as soon as FireRed has taken it (its page is the one
+        asked, while its own flip still runs), as a page turned by FireRed's own keys is; the way there (out of the move
+        details first) stays hidden. The owner found TRAINER, always a plan, much slower: the lower screen waited for the
+        whole flip. FireRed's input readiness flips at the end of every page turn and is not part of the picture, so the
+        page is not drawn again for it."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        nav = function(bottom, 'NavPending')
+        summary = function(bottom, 'SummaryFill')
+        self.run_c('''
+#include <assert.h>
+#include <string.h>
+#include "3ds_poketouch.h"
+#include "3ds_summary.h"
+enum { MODE_BAG = 3, MODE_SUMMARY = 5 };
+enum { BAG_BUSY = 0 };
+enum { SUMPLAN_NONE = 0, SUMPLAN_PAGE, SUMPLAN_MOVE, SUMPLAN_PRESS };
+static struct { int mode, battleUi, summaryUi; } sShown;
+static int sHaveShown = 1;
+static struct { int pocketTarget; } sBatBag;
+static struct { int kind, target; } sSumPlan;
+static struct { int down, inside, btn, trainer, ivView; unsigned serial; CtrSummaryView latch; } sSum;
+static int page, ready;
+int CtrBottomBag_InBattle(void) { return 0; }
+int CtrBottomBag_Pocket(void) { return 0; }
+int CtrBottomBag_State(void) { return 0; }
+int CtrBottomSummary_Ready(void) { return ready; }
+int CtrBottomSummary_Page(void) { return page; }
+unsigned CtrBottomSummary_Serial(void) { return 1; }
+void CtrBottomSummary_GetView(CtrSummaryView *v) { memset(v, 0, sizeof(*v)); v->serial = 1; v->ready = (uint8_t)ready; strcpy(v->species, "X"); }
+unsigned CtrBottomSummary_IconSpecies(void) { return 1; }
+''' + nav + '\n' + summary + '''
+int main(void) {
+    sShown.mode = MODE_SUMMARY; sShown.summaryUi = 1;
+    sSumPlan.kind = SUMPLAN_PAGE; sSumPlan.target = SUI_PAGE_INFO;
+    page = SUI_PAGE_MOVES; ready = 1;
+    assert(NavPending(MODE_SUMMARY));               /* not taken yet */
+    page = SUI_PAGE_INFO; ready = 0;
+    assert(!NavPending(MODE_SUMMARY));              /* taken: shown while FireRed's flip runs */
+    sSumPlan.target = SUI_PAGE_SKILLS; page = SUI_PAGE_MOVES; ready = 1;
+    assert(NavPending(MODE_SUMMARY));               /* out of the move details first: the way stays hidden */
+    sSumPlan.kind = SUMPLAN_NONE;
+    assert(!NavPending(MODE_SUMMARY));
+    {
+        CtrSummaryUiView s, t;
+
+        ready = 0; SummaryFill(&s);
+        ready = 1; SummaryFill(&t);
+        assert(!memcmp(&s, &t, sizeof(s)));         /* readiness is not a change that redraws the page */
+    }
+    return 0;
+}
+''')
+
 
 if __name__ == '__main__':
     unittest.main()
