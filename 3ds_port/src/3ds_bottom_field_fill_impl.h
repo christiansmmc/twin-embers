@@ -122,12 +122,15 @@ static void FieldBagFill(CtrPokeTouchView *v, int pressed, const FieldList *f)
     const ListScreen *list = f->list;
     int count, total, state = list->state();
 
-    if (state == BAG_BUSY && sHaveShown && sShown.mode == f->mode && sShown.touch.bag.on) {
+    if (sHaveShown && sShown.mode == f->mode && sShown.touch.bag.on
+        && (f->kind == PT_BAG_KIND_BAG ? FieldBagHold(&sShown.touch.bag) : state == BAG_BUSY)) {
         *b = sShown.touch.bag;
         b->pressed = -1;
+        b->asked = (uint8_t)(f->kind == PT_BAG_KIND_BAG && sFieldBag.pocketTarget >= 0 ? sFieldBag.pocketTarget : 0xFF);
         return;
     }
     memset(b, 0, sizeof(*b));
+    b->asked = 0xFF;
     b->on = 1;
     b->kind = (uint8_t)f->kind;
     b->moveType = -1;

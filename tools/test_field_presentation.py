@@ -422,6 +422,56 @@ int main(void) {
 }
 ''')
 
+    def test_touch_shows_where_it_goes(self):
+        """The owner saw the arrow go to a touched tab or Pokemon, back to where it was, then to it again. A Party slot
+        touched (the Party takes the touch on its next frame) is shown as the selection until the Party's cursor is
+        there, or for a short while at most; a Bag tab's pocket is held (the way there hidden) while the Bag walks to
+        it; and a pocket FireRed has just switched to is drawn at once, while it slides in (its list is already the
+        pocket's own), instead of after the slide."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        fill = (ROOT / '3ds_port/src/3ds_bottom_field_fill_impl.h').read_text(encoding='utf-8')
+        battle = (ROOT / '3ds_port/src/3ds_bottom_battle_fill_impl.h').read_text(encoding='utf-8')
+        echo = function(bottom, 'PartyEchoCursor')
+        hold = function(bottom, 'FieldBagHold')
+        self.assertIn('PartyEchoCursor(s->cursor)', function(battle, 'BattlePartyFill'))
+        self.assertIn('FieldBagHold(', function(fill, 'FieldBagFill'))
+        self.run_c('''
+#include <assert.h>
+#include <stdint.h>
+#include "3ds_poketouch.h"
+enum { BAG_BUSY = 0, BAG_LIST };
+static struct { int slot, wait; } sPartyEcho = {-1, 0};
+static struct { int pocketTarget; } sFieldBag = {-1};
+static int gState = BAG_LIST, gPocket = 0;
+static int CtrBottomBag_State(void) { return gState; }
+static int CtrBottomBag_Pocket(void) { return gPocket; }
+''' + echo + '\n' + hold + '''
+int main(void) {
+    CtrPokeTouchBag last = {0};
+    /* the Party: the slot touched until the cursor gets there */
+    assert(PartyEchoCursor(2) == 2);
+    sPartyEcho.slot = 4; sPartyEcho.wait = 30;
+    assert(PartyEchoCursor(2) == 4 && PartyEchoCursor(2) == 4);
+    assert(PartyEchoCursor(4) == 4 && sPartyEcho.slot == -1);
+    assert(PartyEchoCursor(1) == 1);
+    sPartyEcho.slot = 5; sPartyEcho.wait = 2;
+    assert(PartyEchoCursor(0) == 5 && PartyEchoCursor(0) == 0);     /* not forever */
+    /* the Bag: hold the picture on the way to a tab's pocket; draw a switched pocket while it slides */
+    last.kind = PT_BAG_KIND_BAG; last.pocket = 0;
+    gState = BAG_LIST; gPocket = 1; sFieldBag.pocketTarget = 2;
+    assert(FieldBagHold(&last) == 1);                               /* on the way */
+    gState = BAG_BUSY; gPocket = 2; last.pocket = 1;
+    assert(FieldBagHold(&last) == 0);                               /* arrived, sliding in: drawn */
+    sFieldBag.pocketTarget = -1; gPocket = 1; last.pocket = 0;
+    assert(FieldBagHold(&last) == 0);                               /* the D-pad switched it: drawn */
+    last.pocket = 1;
+    assert(FieldBagHold(&last) == 1);                               /* busy otherwise (a message printing): held */
+    gState = BAG_LIST;
+    assert(FieldBagHold(&last) == 0);
+    return 0;
+}
+''')
+
 
 if __name__ == '__main__':
     unittest.main()

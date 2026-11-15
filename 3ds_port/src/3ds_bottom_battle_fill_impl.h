@@ -199,17 +199,19 @@ static void BattlePartyFill(Snapshot *s)
     CtrBattleView *v = &s->battle;
     CtrBattleParty *p = &v->pty;
     int action = CtrBottomParty_Action();
+    int cursor;
 
     ++sIconTick;
 
     BattleCommon(v);
     v->state = BUI_PARTY;
-    p->cursor = (int8_t)(s->cursor >= 0 && s->cursor < PARTY_SIZE ? s->cursor : -1);
+    cursor = PartyEchoCursor(s->cursor);       /* a slot just touched, until the Party's cursor is there */
+    p->cursor = (int8_t)(cursor >= 0 && cursor < PARTY_SIZE ? cursor : -1);
     /* SEND_OUT cannot be cancelled. Out of battle the Party says what it is for itself (its own prompt). */
     p->mode = s->chooseMultiple ? BUI_PTY_MULTI : !CtrBottomParty_InBattle() ? BUI_PTY_SWITCH
             : action == 1 ? BUI_PTY_FORCED : action == 3 ? BUI_PTY_TARGET : BUI_PTY_SWITCH;
     /* Picking several: FireRed's cursor may be on CONFIRM (slot 6) or CANCEL (7). */
-    p->button = (int8_t)(p->mode == BUI_PTY_MULTI && s->cursor >= PARTY_SIZE ? s->cursor - PARTY_SIZE : -1);
+    p->button = (int8_t)(p->mode == BUI_PTY_MULTI && cursor >= PARTY_SIZE ? cursor - PARTY_SIZE : -1);
     p->lead = (uint8_t)(CtrBottomParty_Layout() == 0 ? 1 : 2);
     p->caption[0] = 0;
     if (!CtrBottomParty_InBattle() && s->panel != PANEL_MESSAGE)

@@ -112,6 +112,7 @@ typedef struct {
     uint16_t titleItem;             /* a case: its own item (the title's icon), its name and its CLOSE row */
     char title[20];
     char closeName[16];
+    uint8_t asked;                  /* the pocket a touch on a tab asked for, 0xFF none (the Bag is being walked to it) */
     uint8_t pocket;                 /* FireRed's pocket: 0 Items, 1 Key Items, 2 Poke Balls */
     uint8_t state;                  /* PT_BAG_STATE_*: the Bag's own input state */
     int16_t count;                  /* items in the pocket; row `count` is CLOSE BAG */
