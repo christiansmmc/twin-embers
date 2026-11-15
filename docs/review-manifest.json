@@ -6919,7 +6919,7 @@
   },
   {
    "path": "tools/test_field_presentation.py",
-   "sha256": "c263de74df9cbad2dbd4e233bf238068a0c54e65f7808f320cfe63e63e49be03",
+   "sha256": "66685f251b2476adaeab127fc679674704523ae61bfa55e9bc9cde6a40a31198",
    "review_status": "reviewed",
    "credit": "alex61194; Twin Embers Port contributors; inherited/adapted upstream portions as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; external game/dependency rights excluded",
@@ -7562,6 +7562,14 @@
   {
    "path": "3ds_port/src/3ds_device_battle_impl.h",
    "sha256": "a96ea07657b13364bf4cfb05437e866790d16a4ff6517af013346d22f67eca5b",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "patches/pokefirered/0264-party-extras-switch.json",
+   "sha256": "7c8e5f19d9c00db19db03f4a95c543e13326d838acac73f76c0863378b3e0a95",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

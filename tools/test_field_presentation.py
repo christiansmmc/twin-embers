@@ -556,6 +556,21 @@ int main(void) {
 }
 ''')
 
+    def test_party_extras_switch(self):
+        """The owner's call: HEAL and REMEMBER (recipes 0235, 0238) leave the Party's action menu behind one compile-time
+        switch, CTR_PARTY_EXTRAS 0; their code stays (CursorCB_Heal, CursorCB_Relearn, the texts, the dispatch by id), so
+        1 brings them back. The two adds move into a helper that, like its one call, is compiled only with the switch."""
+        text = additions('0264-party-extras-switch.json', 'src/party_menu.c')
+        self.assertIn('#define CTR_PARTY_EXTRAS 0', text)
+        helper = function(text, 'CtrAppendPartyExtras')
+        self.assertIn('CURSOR_OPTION_RELEARN);', helper)
+        self.assertIn('CURSOR_OPTION_HEAL);', helper)
+        blocks = re.findall(r'#if CTR_PARTY_EXTRAS\n(.*?)#endif', text, re.S)
+        self.assertTrue(any('static void CtrAppendPartyExtras(void)' in b for b in blocks))   # the helper: only with the switch
+        self.assertTrue(any('CtrAppendPartyExtras();' in b for b in blocks))                   # its one call, likewise
+        doc = json.loads((ROOT / 'patches/pokefirered/0264-party-extras-switch.json').read_text())
+        self.assertEqual([f['path'] for f in doc['files']], ['src/party_menu.c'])
+
     def test_touch_shows_where_it_goes(self):
         """The owner saw the arrow go to a touched tab or Pokemon, back to where it was, then to it again. A Party slot
         touched (the Party takes the touch on its next frame) is shown as the selection until the Party's cursor is
