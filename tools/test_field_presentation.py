@@ -715,14 +715,13 @@ int main(void) {
 }
 ''')
 
-    def test_battle_bag_holds_on_the_way_to_berries(self):
-        """BERRIES opens the Berry Pouch from the Key Items pocket, which is only the way there: the battle Bag's
-        picture holds while FireRed slides that pocket in. FireRed reports the pocket being revealed from the slide's
-        first frame (0262), so the walk ends only when the slide is over. The walk back to Items (from the Berry Pouch)
-        still ends as Items starts to slide in, so Items is drawn at once."""
+    def run_battle_bag(self, main):
+        """ProcessBattleBagTouch, the state it keeps and the drag's numbers, as 3ds_bottom.c has them, over a synthetic
+        battle Bag (the Bag's state, pocket and cursor, the hit under the finger, the plans it starts); `main` drives it."""
         bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
         start = bottom.index('static struct {\n    int pocketTarget, pocketWait;')
-        state = bottom[start:bottom.index('} sBatBag = {-1, 0, 0, 0};', start) + len('} sBatBag = {-1, 0, 0, 0};')]
+        state = bottom[start:bottom.index(';', bottom.index('} sBatBag = {', start)) + 1]
+        drag = '\n'.join(re.search(r'#define ' + n + r' \d+', bottom).group(0) for n in ('LIST_DRAG_SLOP', 'BAG_DRAG_ROW'))
         names = ('NavPending', 'BattleBagVisiblePocketStep', 'ProcessBattleBagTouch')
         code = '\n'.join(function(bottom, n) for n in names)
         self.run_c('''
@@ -740,7 +739,8 @@ enum { BAG_BUSY = 0, BAG_LIST, BAG_ACTIONS, BAG_YESNO, BAG_QUANTITY, BAG_MESSAGE
 enum { BAGPLAN_NONE = 0, BAGPLAN_LIST, BAGPLAN_MENU, BAGPLAN_PRESS };
 enum { SUMPLAN_NONE = 0, SUMPLAN_PAGE, SUMPLAN_MOVE, SUMPLAN_PRESS };
 typedef struct { int (*cursor)(void); } ListScreen;
-static int Cursor(void) { return 0; }
+static int gCursor;
+static int Cursor(void) { return gCursor; }
 static const ListScreen sBagScreen = {Cursor};
 static struct { int mode, battleUi, summaryUi; CtrBattleView battle; } sShown;
 static int sHaveShown = 1;
@@ -761,7 +761,77 @@ int CtrBattleUi_Hit(const CtrBattleView *v, int x, int y) { (void)v; (void)x; (v
 static void BagPlanClear(void) { memset(&sBagPlan, 0, sizeof(sBagPlan)); }
 static void BagPlanStart(const ListScreen *list, int kind, int target, int activate, uint16_t keys)
 { (void)list; sBagPlan.kind = kind; sBagPlan.target = target; sBagPlan.activate = activate; sBagPlan.keys = keys; }
-''' + state + '\n' + code + '''
+''' + drag + '\n' + state + '\n' + code + main)
+
+    def test_battle_bag_drags_its_rows(self):
+        """The battle Bag's rows drag as the field Bag's do (v0.6.0's battle Bag scrolled by touch, its rail): a finger
+        on a row that moves LIST_DRAG_SLOP pixels up or down scrolls instead of tapping, the cursor following it one item
+        per BAG_DRAG_ROW pixels from where it was at the touch-down, walked by one Bag plan at a time, kept within the
+        items (no CLOSE row in the battle's list); a drag never also selects on its release, and a tap still acts once."""
+        self.run_battle_bag('''
+int main(void) {
+    CtrInput in;
+    CtrBattleBag *b = &sShown.battle.bag;
+
+    memset(&in, 0, sizeof(in));
+    sShown.mode = MODE_BAG; sShown.battleUi = 1; sShown.battle.state = BUI_BAG;
+    b->bagState = BAG_LIST; b->count = 10; b->cursor = 0; b->first = 0;         /* a long Items pocket */
+    /* a finger on row 2; within the slop it is still a tap */
+    hitCode = BUI_BAG_ROW + 2; in.touchActive = in.touchDown = 1; in.touchY = 150; ProcessBattleBagTouch(&in);
+    in.touchDown = 0; in.touchY = 150 - (LIST_DRAG_SLOP - 1); ProcessBattleBagTouch(&in);
+    assert(sBagPlan.kind == BAGPLAN_NONE && sBat.down && sBat.inside);
+    /* past it: the rows follow the finger (up: further down the list), one item per BAG_DRAG_ROW pixels */
+    in.touchY = 150 - 2 * BAG_DRAG_ROW; hitCode = BUI_BAG_ROW; ProcessBattleBagTouch(&in);
+    assert(sBagPlan.kind == BAGPLAN_LIST && sBagPlan.target == 2 && !sBagPlan.activate && !sBat.inside);
+    /* one plan at a time: none over a plan still walking */
+    in.touchY = 150 - 4 * BAG_DRAG_ROW; ProcessBattleBagTouch(&in);
+    assert(sBagPlan.kind == BAGPLAN_LIST && sBagPlan.target == 2);
+    BagPlanClear(); gCursor = 2; ProcessBattleBagTouch(&in);
+    assert(sBagPlan.kind == BAGPLAN_LIST && sBagPlan.target == 4);
+    /* far past the end: the last item (count - 1), not past it */
+    BagPlanClear(); gCursor = 4; in.touchY = 0; ProcessBattleBagTouch(&in);
+    assert(sBagPlan.kind == BAGPLAN_LIST && sBagPlan.target == b->count - 1);
+    /* back near where it began: still a drag, to the touch-down's item; past the top, the first */
+    BagPlanClear(); gCursor = 9; in.touchY = 150 + 3; ProcessBattleBagTouch(&in);
+    assert(sBagPlan.kind == BAGPLAN_LIST && sBagPlan.target == 0 && !sBat.inside);
+    BagPlanClear(); gCursor = 0; in.touchY = 239; ProcessBattleBagTouch(&in);
+    assert(sBagPlan.kind == BAGPLAN_NONE);
+    /* released: a drag selects nothing */
+    hitCode = BUI_BAG_ROW + 2; in.touchActive = 0; ProcessBattleBagTouch(&in);
+    assert(sBagPlan.kind == BAGPLAN_NONE && !sBat.down && sBatBag.autoWait == 0);
+    /* a tap on another row: walked to once, not taken */
+    hitCode = BUI_BAG_ROW + 3; in.touchActive = in.touchDown = 1; in.touchY = 120; ProcessBattleBagTouch(&in);
+    in.touchDown = 0; in.touchY = 122; ProcessBattleBagTouch(&in);
+    in.touchActive = 0; ProcessBattleBagTouch(&in);
+    assert(sBagPlan.kind == BAGPLAN_LIST && sBagPlan.target == 3 && !sBagPlan.activate);
+    BagPlanClear(); ProcessBattleBagTouch(&in);
+    assert(sBagPlan.kind == BAGPLAN_NONE);
+    /* a tap on the cursor's row takes it (and USE once the menu opens) */
+    hitCode = BUI_BAG_ROW; in.touchActive = in.touchDown = 1; ProcessBattleBagTouch(&in);
+    in.touchDown = 0; in.touchActive = 0; ProcessBattleBagTouch(&in);
+    assert(sBagPlan.kind == BAGPLAN_LIST && sBagPlan.target == 0 && sBagPlan.activate && sBatBag.autoWait > 0);
+    BagPlanClear(); sBatBag.autoWait = 0;
+    /* a finger that moves on DOWN does not scroll: DOWN pages on release */
+    hitCode = BUI_BAG_DOWN; in.touchActive = in.touchDown = 1; in.touchY = 150; ProcessBattleBagTouch(&in);
+    in.touchDown = 0; in.touchY = 150 - 3 * BAG_DRAG_ROW; ProcessBattleBagTouch(&in);
+    assert(sBagPlan.kind == BAGPLAN_NONE && sBat.inside);
+    in.touchActive = 0; ProcessBattleBagTouch(&in);
+    assert(sBagPlan.kind == BAGPLAN_LIST && sBagPlan.target == BUI_BAG_ROWS - 1 && !sBagPlan.activate);
+    /* outside the list (the item's menu open) a row is not dragged */
+    BagPlanClear(); gState = b->bagState = BAG_ACTIONS;
+    hitCode = BUI_BAG_ROW + 1; in.touchActive = in.touchDown = 1; in.touchY = 150; ProcessBattleBagTouch(&in);
+    in.touchDown = 0; in.touchY = 150 - 3 * BAG_DRAG_ROW; ProcessBattleBagTouch(&in);
+    assert(sBagPlan.kind == BAGPLAN_NONE);
+    return 0;
+}
+''')
+
+    def test_battle_bag_holds_on_the_way_to_berries(self):
+        """BERRIES opens the Berry Pouch from the Key Items pocket, which is only the way there: the battle Bag's
+        picture holds while FireRed slides that pocket in. FireRed reports the pocket being revealed from the slide's
+        first frame (0262), so the walk ends only when the slide is over. The walk back to Items (from the Berry Pouch)
+        still ends as Items starts to slide in, so Items is drawn at once."""
+        self.run_battle_bag('''
 int main(void) {
     CtrInput in;
 
@@ -880,6 +950,155 @@ int main(void) {
     return 0;
 }
 ''')
+
+    def test_home_place_shows_its_dungeon(self):
+        """A place picked on HOME's map: its name, and under it why Fly cannot go there, or, when Fly has nothing to
+        say about it and a dungeon lies over it, the dungeon's name (v0.6.0's line: ROUTE 4 shows MT. MOON); else
+        nothing, and the panel shows the region."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        start = bottom.index('static struct {\n    int valid;')
+        state = bottom[start:bottom.index('} sHome;', start) + len('} sHome;')]
+        self.run_c('''
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#include "3ds_poketouch.h"
+#include "3ds_ui_strings.h"
+#define MAPSEC_NONE_VALUE 0
+enum { ROUTE_4 = 1, MT_MOON, CERULEAN, ROUTE_5, PEWTER };
+static int CtrPokeTouch_FlyStatus(unsigned mapsec)
+{
+    return mapsec == CERULEAN ? PT_FLY_UNVISITED : mapsec == PEWTER ? PT_FLY_OK : PT_FLY_NONE;
+}
+static void CtrPokeTouch_MapSectionName(unsigned mapsec, char *out, int size)
+{
+    static const char *const kName[] = {"", "ROUTE 4", "MT. MOON", "CERULEAN CITY", "ROUTE 5", "PEWTER CITY"};
+    snprintf(out, (size_t)size, "%s", mapsec <= PEWTER ? kName[mapsec] : "?");
+}
+''' + state + '\n' + function(bottom, 'HomeSelectionBar') + '''
+static void Pick(CtrPokeTouchView *v, int mapsec, int dungeon)
+{
+    memset(v, 0, sizeof(*v));
+    sHome.mapsec = mapsec;
+    sHome.dungeon = dungeon;
+    HomeSelectionBar(v);
+}
+int main(void) {
+    CtrPokeTouchView v;
+
+    Pick(&v, ROUTE_4, MT_MOON);                         /* the dungeon over the route, under its name */
+    assert(!strcmp(v.bar[0], "ROUTE 4") && !strcmp(v.bar[2], "MT. MOON") && !v.flyOk);
+    Pick(&v, ROUTE_5, MAPSEC_NONE_VALUE);               /* nothing over it: nothing (the region) */
+    assert(!strcmp(v.bar[0], "ROUTE 5") && !v.bar[2][0]);
+    Pick(&v, MAPSEC_NONE_VALUE, MT_MOON);               /* the dungeon alone: its name is the place's */
+    assert(!strcmp(v.bar[0], "MT. MOON") && !v.bar[2][0]);
+    Pick(&v, CERULEAN, MT_MOON);                        /* Fly says why not: that, not the dungeon */
+    assert(!strcmp(v.bar[0], "CERULEAN CITY") && !strcmp(v.bar[2], CtrUiText(UIS_FLY_UNVISITED)));
+    Pick(&v, PEWTER, MT_MOON);                          /* Fly can go: FLY, and the line stays the region's */
+    assert(!strcmp(v.bar[0], "PEWTER CITY") && !v.bar[2][0] && v.flyOk);
+    return 0;
+}
+''')
+
+    def test_home_touch_only_on_home_shown(self):
+        """On a field frame HOME's keys, its party, FLY, the region key and the map take a touch only while HOME is the
+        picture the lower screen shows: the frame after another screen closed still shows that screen's picture (the
+        Bag's, a viewport's), and a touch there must not open what HOME has at that place. OPTIONS and SAVE (native) keep
+        their own hits."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        start = bottom.index('static struct {\n    int valid;')
+        state = bottom[start:bottom.index('} sHome;', start) + len('} sHome;')]
+        begin = bottom.index('/* Touch-down presses an enabled element')
+        process = function(bottom, 'ProcessPokeTouch')
+        code = bottom[begin:bottom.index(process) + len(process)]
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+#include "3ds_input.h"
+#include "3ds_poketouch.h"
+enum { MODE_FIELD = 1, MODE_BAG = 4 };
+#define MAPSEC_NONE_VALUE 0
+#define MAP_TAP_SLOP 6
+static struct { int mode; CtrPokeTouchView touch; } sShown;
+static int sHaveShown;
+static struct { uint8_t id; uint8_t inside; } sPoke = {PT_NONE, 0};
+static int sFlyPick;
+static unsigned sHomeOpen;
+static int native, activated = -1, nextMap, flew, tapped;
+static int NativeActive(void) { return native; }
+static int OptionsActive(void) { return 0; }
+static int SaveActive(void) { return 0; }
+static void ProcessOptionsTouch(const CtrInput *in) { (void)in; }
+static void ProcessSaveInput(const CtrInput *in) { (void)in; }
+/* HOME: BAG's key at the bottom right, FLY and the region key in the window's top corners, the map below them */
+int CtrPokeTouch_HitTest(int x, int y) { return x < 60 && y < 60 ? PT_OPTIONS : PT_NONE; }
+int CtrPokeTouch_HomeHit(const CtrPokeTouchView *v, int x, int y) { (void)v; return x >= 200 && y >= 150 ? PT_BAG : PT_NONE; }
+bool CtrPokeTouch_FlyHit(int x, int y) { return x >= 160 && x < 200 && y < 30; }
+bool CtrPokeTouch_HomeRibbonHit(int x, int y) { return x < 30 && y < 30; }
+bool CtrPokeTouch_HomeWindowPoint(int x, int y, int *vx, int *vy) { *vx = x; *vy = y; return x < 200 && y < 150; }
+int CtrPokeTouch_FlyStatus(unsigned mapsec) { (void)mapsec; return PT_FLY_OK; }
+void CtrPokeTouch_RequestFly(unsigned mapsec) { (void)mapsec; ++flew; }
+''' + state + '''
+static void HomeNextMap(unsigned open) { (void)open; ++nextMap; }
+static int FieldEnabled(int id) { (void)id; return 1; }
+static int HomePick(const CtrPokeTouchView *v, int group, int x, int y, int *cx, int *cy)
+{ (void)v; (void)group; *cx = x / 8; *cy = y / 8; return 1; }
+static void HomeTap(int cx, int cy) { (void)cx; (void)cy; ++tapped; }
+static int HomeTouchActivate(int id) { (void)id; return 0; }
+static void PokeTouchActivate(int id) { activated = id; }
+''' + code + '''
+static void Tap(int x, int y)
+{
+    CtrInput in;
+
+    memset(&in, 0, sizeof(in));
+    in.touchActive = in.touchDown = 1; in.touchX = (uint16_t)x; in.touchY = (uint16_t)y;
+    ProcessPokeTouch(&in);
+    in.touchDown = 0; ProcessPokeTouch(&in);
+    in.touchActive = 0; ProcessPokeTouch(&in);
+}
+int main(void) {
+    /* HOME shown: BAG's key, the map, the region key, FLY */
+    sHaveShown = 1; sShown.mode = MODE_FIELD; sShown.touch.home = 1; sHome.view = 1;
+    Tap(250, 200); assert(activated == PT_BAG);
+    Tap(100, 80); assert(tapped == 1);
+    Tap(10, 10); assert(nextMap == 1);
+    sHome.valid = 1; sHome.mapsec = 5; Tap(180, 10); assert(flew == 1);
+    /* the Bag's picture still shown on the field's first frame: nothing of HOME's is touched */
+    activated = -1; tapped = nextMap = flew = 0; sHome.valid = 1;
+    sShown.mode = MODE_BAG; sShown.touch.home = 0; sShown.touch.bag.on = 1;
+    Tap(250, 200); Tap(100, 80); Tap(10, 10); Tap(180, 10);
+    assert(activated == -1 && !tapped && !nextMap && !flew && !sHome.down && sPoke.id == PT_NONE);
+    /* a field frame that is not HOME (a viewport's picture), or nothing shown yet: the same */
+    sShown.mode = MODE_FIELD; sShown.touch.bag.on = 0; sShown.touch.viewport = 1;
+    Tap(250, 200); Tap(100, 80); assert(activated == -1 && !tapped);
+    sShown.touch.viewport = 0; sShown.touch.home = 1; sHaveShown = 0;
+    Tap(250, 200); Tap(100, 80); assert(activated == -1 && !tapped);
+    /* OPTIONS and SAVE: their own hits, whatever was shown */
+    native = 1; sShown.touch.home = 0; Tap(20, 20); assert(activated == PT_OPTIONS);
+    return 0;
+}
+''')
+
+    def test_field_lists_route_once(self):
+        """The red device's Bag page takes its touch through one branch of ProcessTouch, FieldListFor's: the field's
+        Bag, its cases, a mart's BUY list, the item PC and the mailbox. FieldListFor gives the last three in any session
+        (before its PC-session check), and no branch of ProcessTouch before FieldListFor's names them, so they reach it
+        as they did through their own copy of it."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        fill = (ROOT / '3ds_port/src/3ds_bottom_field_fill_impl.h').read_text(encoding='utf-8')
+        touch = function(bottom, 'ProcessTouch')
+        lists = function(fill, 'FieldListFor')
+        self.assertEqual(touch.count('ProcessFieldBagTouch('), 1)
+        before = touch[:touch.index('if (FieldListFor(mode) != NULL) {')]
+        self.assertIn('ProcessFieldBagTouch(FieldListFor(mode), in);', touch[len(before):])
+        case = re.search(r'#define IS_CASE_MODE\(mode\) (.*)', bottom).group(1)
+        for mode in ('MODE_SHOP', 'MODE_ITEMPC', 'MODE_MAILBOX'):
+            self.assertNotIn(mode, before)
+            self.assertNotIn(mode, case)
+            self.assertLess(lists.index('if (mode == ' + mode + ')'), lists.index('if (sStorageSession)'))
 
     def test_turbo_takes_the_speed_tap(self):
         """A tap on HOME's SPD is one START press for the turbo: the game bridge takes it every frame."""
