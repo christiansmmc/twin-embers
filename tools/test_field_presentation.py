@@ -571,6 +571,17 @@ int main(void) {
         doc = json.loads((ROOT / 'patches/pokefirered/0264-party-extras-switch.json').read_text())
         self.assertEqual([f['path'] for f in doc['files']], ['src/party_menu.c'])
 
+    def test_summary_reports_the_nature(self):
+        """The owner's call (decision 2): the B Summary's STATS marks the stat the nature raises and the one it lowers, so
+        the bridge reports the nature's number beside its name, read from the Pokemon shown (recipe 0265, the summary
+        screen's file only); the lower screen's view holds it right after the name."""
+        name = '0265-summary-reports-nature.json'
+        self.assertIn('out->natureId = GetNature(&screen->currentMon);', additions(name, 'src/pokemon_summary_screen.c'))
+        doc = json.loads((ROOT / 'patches/pokefirered' / name).read_text())
+        self.assertEqual([f['path'] for f in doc['files']], ['src/pokemon_summary_screen.c'])
+        header = (ROOT / '3ds_port/include/3ds_summary.h').read_text(encoding='utf-8')
+        self.assertRegex(header, r'char nature\[12\];\s*unsigned char natureId;')
+
     def test_party_menu_marks(self):
         """The B Party's action menu: a field move's name in blue (FireRed's own colour for them, ids from
         CURSOR_OPTION_FIELD_MOVES on), CANCEL a dark key (CURSOR_OPTION_CANCEL1 or _CANCEL2); bit i for row i. The ids
