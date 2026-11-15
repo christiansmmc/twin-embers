@@ -53,6 +53,17 @@ class DevSync(unittest.TestCase):
         self.remove_tree.assert_not_called()
         self.assertTrue(all('bootstrap.py' not in ' '.join(map(str, c.args[0])) for c in self.run_mock.call_args_list))
 
+    def test_sync_removes_a_file_deleted_since_the_last_sync(self):
+        (self.dest / 'tools/gone.py').write_bytes(b'x')
+        (self.dest / '.dev-sync.json').write_text(json.dumps(
+            {'commit': LOCK['commit'], 'recipes': RECIPES, 'patched': [],
+             'repo': {'tools/a.py': 'new', 'tools/gone.py': 'g'}}))
+        (self.dest / 'tools/a.py').write_bytes(b'new')
+        with mock.patch.object(dev, 'pristine', return_value=None):
+            dev.sync(self.dest)
+        self.assertFalse((self.dest / 'tools/gone.py').exists())
+        self.assertNotIn('tools/gone.py', json.loads((self.dest / '.dev-sync.json').read_text())['repo'])
+
     def test_sync_rebuilds_another_commit_with_remove_tree(self):
         (self.dest / '.dev-sync.json').write_text(json.dumps(
             {'commit': 'd' * 40, 'recipes': RECIPES, 'patched': [], 'repo': {}}))

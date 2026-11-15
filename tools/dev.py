@@ -37,7 +37,6 @@ from bootstrap import inputs  # noqa: E402
 APP = re.search(r'#define CTR_APP_NAME "([^"]+)"',
                 (ROOT / '3ds_port/include/3ds_app_name.h').read_text(encoding='utf-8')).group(1)
 DEV = ROOT / 'build/dev'
-STATE = DEV / '.dev-sync.json'
 IMAGE = DEV / '3ds_port' / f'{APP}.3dsx'
 PAK = ROOT / 'build/pak' / f'{APP}.pak'
 CONFIG = ROOT / '.dev.local.json'
@@ -60,6 +59,8 @@ def save_config(config):
 def msys(path):
     """C:\\Users\\x -> /c/Users/x, for the devkitPro MSYS2 shell."""
     p = Path(path).resolve()
+    if not p.drive:  # POSIX: already an MSYS-style path
+        return p.as_posix()
     return '/' + p.drive[0].lower() + p.as_posix()[len(p.drive):]
 
 
@@ -210,7 +211,7 @@ def test(args=None):
     suites = list(getattr(args, 'suites', None) or [])
     if suites:
         # Named suites: just those, in the MSYS shell (they call a bare gcc), against the repository's own tools/.
-        command = f'cd {shlex.quote(msys(ROOT / "tools"))} && {shlex.quote(msys(sys.executable))} -m unittest {" ".join(suites)}'
+        command = f'cd {shlex.quote(msys(ROOT / "tools"))} && {shlex.quote(msys(sys.executable))} -m unittest {" ".join(shlex.quote(n) for n in suites)}'
         stage('python suites', [str(bash), '-lc', command], env={**os.environ, 'MSYSTEM': 'MSYS'})
         if not all(ok for _, ok in results):
             raise SystemExit(1)

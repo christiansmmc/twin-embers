@@ -7426,7 +7426,7 @@
   },
   {
    "path": "tools/dev.py",
-   "sha256": "fad1ab660fc2db078e1b8dab38a2772c737cb7e00da8f9a44946d2459e2d5f81",
+   "sha256": "fd5907fa083996fbdffac62d46fb3c0047d09db2421775a23b7bd0c243c35a62",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7506,7 +7506,7 @@
   },
   {
    "path": "tools/test_dev_tool.py",
-   "sha256": "4f0573e130a5d0055556928337e2054d15f80b9c2f42e75bc96d75862b9fce9a",
+   "sha256": "df2ee96211309bdf71f085cabb1554da751e803fef05d3f26bd0fe9774936ac8",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
