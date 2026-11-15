@@ -3192,9 +3192,9 @@
   },
   {
    "path": "docs/DISTRIBUTION.md",
-   "sha256": "8a90561f5d66f2aa27b24a3151bb757449fefc03e1f844f49a4c8d02aadf0489",
+   "sha256": "ccd27e41039fb7643c8a15574210c23274e9cd4c38ee7947d60af3199c30cd98",
    "review_status": "reviewed",
-   "credit": "alex61194 (original distribution work with disclosed AI assistance)",
+   "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
    "basis": "Reviewed text-only source/documentation; no ROM/game payloads or generated media; synthetic fixtures only",
    "storage_review": "Read-only PC controller integration, lifecycle and touch regression review; no storage/save layouts or asset ABI changes",
@@ -3291,9 +3291,9 @@
   },
   {
    "path": "docs/RNG-INITIALIZATION.md",
-   "sha256": "ada764b864a3ba1adff6a12bbdb707eb044d810309fd1eeebd3f5507018c7c62",
+   "sha256": "37e158dc5f5ce242be622b6017d2488f31dc63ea72a6712b68c6e2d3bcbb0d71",
    "review_status": "reviewed",
-   "credit": "alex61194 (original owned port work with disclosed AI assistance)",
+   "credit": "alex61194 (original owned port work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT for original owned contributions; external game/SDK rights unchanged",
    "basis": "Reviewed original entropy source and synthetic tests or documentation; recipe holds only local line references, port additions and source hashes; external FireRed functions supplied at test runtime by ignored pinned tree; no ROM, save, game payload, upstream context or binary; release gate unchanged.",
    "release_gate_review": "Release gate follows an owner decision record (owner-risk-acceptance, rights_verified false); no change to binary_release_approved, audits or recorded rights status"
@@ -3321,9 +3321,9 @@
   },
   {
    "path": "docs/TECHNICAL-NOTES.md",
-   "sha256": "ca5604756978319796d55c8f086f893899861d463504a932a7f2865da9231a4c",
+   "sha256": "bac794b27cade5c4355df2c7ac1a183ab795a0bb0c782da2e4fbb499c66d7176",
    "review_status": "reviewed",
-   "credit": "alex61194 (original distribution work with disclosed AI assistance)",
+   "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
    "basis": "Reviewed text-only source/documentation; no ROM/game payloads or generated media; synthetic fixtures only",
    "public_docs_review": "Public release documentation pass: beginner README (install, controls, supported ROM, troubleshooting, credits, disclaimer), technical details moved to docs/TECHNICAL-NOTES.md, DSP firmware requirement, no links to private repositories; documentation only",

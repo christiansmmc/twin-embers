@@ -38,6 +38,11 @@ its original review hash. Other whitespace/content differences fail. `--rom`
 compares nonuniform 64-byte aligned ROM windows with source blobs at every byte
 offset. Shorter, transformed or unaligned ROM fragments can be missed.
 
+This fork's CI runs the history audit as
+`--history-since 0afd7a2bdb75a7d1ec2d4d10fb9a84f6f23e08ab`: it audits every
+commit after v0.6.0, because upstream v0.6.0's own history does not pass
+`--history`.
+
 `tools/audit_clean_release.py --release` inspects ELF/map, embedded RomFS,
 required runtime symbols, engine ABI and size/CRC coverage of every expected
 pack path. A local supported ROM and finished 3DSX are mandatory for release
