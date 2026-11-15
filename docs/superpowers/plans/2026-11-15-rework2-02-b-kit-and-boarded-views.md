@@ -38,6 +38,7 @@
 2. The nature's ▲▼ marks on STATS: recipe 0265 approved (Task 7).
 3. HEAL and REMEMBER leave the Party's action menu behind one compile-time switch, `CTR_PARTY_EXTRAS 0`, their code kept (recipe 0264, Task 6). The switch's recipe is 0264 and the nature's 0265 because Task 6 runs before Task 7 and recipes apply in number order.
 4. Controller: the pack's small font for the boards' 7-9 px labels (`DevSmallText`, Task 3).
+5. Owner (2026-11-15): B views use UPPER CASE like the boards and FireRed (POKéDEX, POKéMON, BAG, SAVE, OPTION, CANCEL, FIGHT, CHARMELEON, POTION, VERMILION CITY). Port-authored key and label words are written upper case (in every CTR_TR language); game strings on B views are shown upper case as FireRed has them — B views do not apply v0.6.0's title-casing (`CtrTextCase_Touch/Battle/Summary`), and if a string arrives already title-cased (e.g. via recipe 0251) the B view upper-cases it for display. FireRed's own spelling exceptions stay: the `é` of POKé/POKéMON/POKéDEX/POKé BALL stays lower case; umlauts and accents upper-case (Ä Ö Ü É …) where the game's charset has them. The top screen and the views still in the ember look are unchanged.
 
 ---
 
