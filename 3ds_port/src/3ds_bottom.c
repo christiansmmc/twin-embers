@@ -3220,8 +3220,12 @@ static void ProcessBattleBagTouch(const CtrInput *in)
             }
         } else if (sBatBag.pocketTarget >= 0) {
             int pocket = CtrBottomBag_Pocket();
+            /* FireRed reports the pocket it slides in from the slide's first frame: Items (the way back) is drawn at
+             * once, but the Key Items pocket is only the way to the Berry Pouch (BERRIES), so the picture holds
+             * (NavPending) until that slide is over. */
+            int there = pocket == sBatBag.pocketTarget && (state != BAG_BUSY || sBatBag.berryWait <= 0);
 
-            if (pocket == sBatBag.pocketTarget || --sBatBag.pocketWait <= 0)
+            if (there || --sBatBag.pocketWait <= 0)
                 sBatBag.pocketTarget = -1;
             else if (state == BAG_LIST)
                 BagPlanStart(list, BAGPLAN_PRESS, 0, 0, pocket < sBatBag.pocketTarget ? K_RIGHT : K_LEFT);

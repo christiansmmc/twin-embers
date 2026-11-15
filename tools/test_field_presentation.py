@@ -618,6 +618,90 @@ int main(void) {
 }
 ''')
 
+    def test_battle_bag_holds_on_the_way_to_berries(self):
+        """BERRIES opens the Berry Pouch from the Key Items pocket, which is only the way there: the battle Bag's
+        picture holds while FireRed slides that pocket in. FireRed reports the pocket being revealed from the slide's
+        first frame (0262), so the walk ends only when the slide is over. The walk back to Items (from the Berry Pouch)
+        still ends as Items starts to slide in, so Items is drawn at once."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        start = bottom.index('static struct {\n    int pocketTarget, pocketWait;')
+        state = bottom[start:bottom.index('} sBatBag = {-1, 0, 0, 0};', start) + len('} sBatBag = {-1, 0, 0, 0};')]
+        names = ('NavPending', 'BattleBagVisiblePocketStep', 'ProcessBattleBagTouch')
+        code = '\n'.join(function(bottom, n) for n in names)
+        self.run_c('''
+#include <assert.h>
+#include <stdint.h>
+#include <string.h>
+#include "3ds_input.h"
+#include "3ds_poketouch.h"
+#define K_A (1u << 0)
+#define K_B (1u << 1)
+#define K_RIGHT (1u << 4)
+#define K_LEFT (1u << 5)
+enum { MODE_SUMMARY = 3, MODE_BAG = 4 };
+enum { BAG_BUSY = 0, BAG_LIST, BAG_ACTIONS, BAG_YESNO, BAG_QUANTITY, BAG_MESSAGE };
+enum { BAGPLAN_NONE = 0, BAGPLAN_LIST, BAGPLAN_MENU, BAGPLAN_PRESS };
+enum { SUMPLAN_NONE = 0, SUMPLAN_PAGE, SUMPLAN_MOVE, SUMPLAN_PRESS };
+typedef struct { int (*cursor)(void); } ListScreen;
+static int Cursor(void) { return 0; }
+static const ListScreen sBagScreen = {Cursor};
+static struct { int mode, battleUi, summaryUi; CtrBattleView battle; } sShown;
+static int sHaveShown = 1;
+static struct { int kind, target; } sSumPlan;
+static struct { int kind, target, activate; uint16_t keys; } sBagPlan;
+static struct { int down, inside, btn, state; } sBat;
+static int sBatTouchLast;
+static int gPocket, gState = BAG_LIST, hitCode = -1;
+int CtrBottomBag_InBattle(void) { return 1; }
+int CtrBottomBag_Pocket(void) { return gPocket; }
+int CtrBottomBag_State(void) { return gState; }
+int CtrBottomBag_Count(void) { return 2; }
+unsigned CtrBottomBag_Item(int index) { return index == 1 ? 99u : 7u; }
+unsigned CtrBattle_BerryPouch(void) { return 99u; }
+int CtrBottomSummary_Page(void) { return 0; }
+uint16_t CtrBottom_FilterGameKeys(uint16_t held) { return held; }
+int CtrBattleUi_Hit(const CtrBattleView *v, int x, int y) { (void)v; (void)x; (void)y; return hitCode; }
+int CtrBattleUi_BagRailTarget(const CtrBattleBag *b, int y) { (void)b; (void)y; return -1; }
+static void BagPlanClear(void) { memset(&sBagPlan, 0, sizeof(sBagPlan)); }
+static void BagPlanStart(const ListScreen *list, int kind, int target, int activate, uint16_t keys)
+{ (void)list; sBagPlan.kind = kind; sBagPlan.target = target; sBagPlan.activate = activate; sBagPlan.keys = keys; }
+''' + state + '\n' + code + '''
+int main(void) {
+    CtrInput in;
+
+    memset(&in, 0, sizeof(in));
+    sShown.mode = MODE_BAG; sShown.battleUi = 1; sShown.battle.state = BUI_BAG;
+    sShown.battle.bag.bagState = BAG_LIST; sShown.battle.bag.berries = 99;
+    /* BERRIES (press, release): the Key Items pocket is walked to */
+    hitCode = BUI_BAG_BERRIES; in.touchActive = in.touchDown = 1; ProcessBattleBagTouch(&in);
+    hitCode = -1; in.touchActive = in.touchDown = 0; ProcessBattleBagTouch(&in);
+    assert(sBatBag.pocketTarget == 1 && sBatBag.berryWait > 0);
+    ProcessBattleBagTouch(&in);
+    assert(sBagPlan.kind == BAGPLAN_PRESS && sBagPlan.keys == K_RIGHT && NavPending(MODE_BAG));
+    /* FireRed slides Key Items in (and reports it at once): the picture holds */
+    BagPlanClear(); gPocket = 1; gState = BAG_BUSY;
+    ProcessBattleBagTouch(&in);
+    assert(sBatBag.pocketTarget == 1 && NavPending(MODE_BAG));
+    ProcessBattleBagTouch(&in);
+    assert(sBatBag.pocketTarget == 1 && NavPending(MODE_BAG));
+    /* the slide is over: the walk ends and the Berry Pouch is chosen */
+    gState = BAG_LIST; ProcessBattleBagTouch(&in);
+    assert(sBatBag.pocketTarget == -1);
+    ProcessBattleBagTouch(&in);
+    assert(sBagPlan.kind == BAGPLAN_LIST && sBagPlan.target == 1 && sBagPlan.activate);
+    /* back from the Berry Pouch, in the Key Items pocket: walked to Items, which is drawn as it slides in */
+    BagPlanClear(); sBatBag.autoWait = sBatBag.berryWait = 0;
+    ProcessBattleBagTouch(&in);
+    assert(sBatBag.pocketTarget == 0);
+    ProcessBattleBagTouch(&in);
+    assert(sBagPlan.kind == BAGPLAN_PRESS && sBagPlan.keys == K_LEFT);
+    BagPlanClear(); gPocket = 0; gState = BAG_BUSY;
+    ProcessBattleBagTouch(&in);
+    assert(sBatBag.pocketTarget == -1 && !NavPending(MODE_BAG));
+    return 0;
+}
+''')
+
 
 if __name__ == '__main__':
     unittest.main()
