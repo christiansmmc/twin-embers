@@ -27,7 +27,7 @@ int CtrOptions_Count(int row);                  /* values of a row */
 int CtrOptions_Get(int row);
 /* One step, `dir` +1 or -1, wrapping; the game's own side effect (SOUND's mono or stereo) applies. */
 void CtrOptions_Step(int row, int dir);
-/* Whether a row's values are levels (EMBERS), shown side by side and picked with a touch. */
+/* Whether a row's values are levels (COMPANION, EXP SHARE), shown side by side and picked with a touch. */
 int CtrOptions_IsLevels(int row);
 /* A value picked outright (a touch on one of a row of levels); out of range does nothing. */
 void CtrOptions_Set(int row, int value);
@@ -42,13 +42,8 @@ int CtrOptions_MoveDetails(void);
 int CtrOptions_DayNight(void);
 /* ... the second of the day it shows: the one chosen (DAWN, DAY, DUSK, NIGHT), -1 for CLOCK (the 3DS clock's). */
 int CtrOptions_DayNightSecond(void);
-/* The embers rising behind the lower screen's menus: OFF, LOW or HIGH (CTR_EMBERS_*). LOW is a third of the
- * sparks, moved every third frame. The choice is kept in settings.cfg (3ds_settings.h); until the player makes
- * one, CtrOptions_EmbersInit gives the console's: HIGH on a New 3DS, LOW on an Old 3DS. */
-enum { CTR_EMBERS_OFF, CTR_EMBERS_LOW, CTR_EMBERS_HIGH, CTR_EMBERS_COUNT };
-void CtrOptions_EmbersInit(int isNew3ds);
-int CtrOptions_Embers(void);        /* on unless OFF */
-int CtrOptions_EmbersLow(void);
+/* The colour of the lower screen's shell: 0 red, 1 blue, 2 green, 3 grey (kept in settings.cfg). */
+int CtrOptions_Shell(void);
 int CtrOptions_RepelAgain(void);    /* a Repel that wears off offers another (REPEL AGAIN) */
 int CtrOptions_Companion(void);     /* 0 none, 1 the first Pokemon follows, 2 the player is that Pokemon (COMPANION) */
 int CtrOptions_FreeHm(void);         /* FREE HMS: an HM in the Bag works in the field (with its badge) with no Pokemon that knows the move */

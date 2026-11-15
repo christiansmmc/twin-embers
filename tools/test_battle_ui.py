@@ -1,13 +1,12 @@
-"""The battle screen wears the "Llama" look (the owner's mockup, llama2_mockup.html).
+"""The battle Bag and Party keep the "Llama" look (the owner's mockup, llama2_mockup.html) until they are redone as
+the red device; the rest of the battle's lower screen is the red device's (test_device_views.py's battle suite).
 
-Draws every state of the controller through the production renderer with synthetic bridges
-(3ds_port/tests/battle_ui_render_test.c): incremental updates equal full redraws, no colour of
-the shared navy theme remains, the touch areas of the new layout answer where the cards are drawn,
-and the fallback icons (no pack) move nothing. Up to the Ascuas restyle this test also compared the
-buttons' hit areas and every state's silhouette with the renderer before it (BASE); the Llama look
-moves the move cards, the targets, CANCEL and the Party's cards on purpose (the mockup draws them
-elsewhere and at other sizes), so that comparison is gone and the new rectangles are asserted in the
-C test instead.
+Draws the Bag and the Party (and the Summary) through the production renderer with synthetic bridges
+(3ds_port/tests/battle_ui_render_test.c): incremental updates equal full redraws, no colour of the shared navy theme
+remains, the touch areas answer where the cards are drawn, and the fallback icons (no pack) move nothing. Up to the
+Ascuas restyle this test also compared the buttons' hit areas and every state's silhouette with the renderer before it
+(BASE); the Llama look moved the cards on purpose, so that comparison is gone and the rectangles are asserted in the C
+test instead.
 """
 import os
 import shutil
@@ -44,16 +43,6 @@ class BattleUi(unittest.TestCase):
                                   env=dict(os.environ, BATTLE_UI_NO_PACK='1')).stdout
             self.assertIn('PASS battle ui', bare)
             self.assertEqual(now, bare, 'the fallback icons moved something')
-
-    def test_move_cards_draw_the_matchup_tags(self):
-        """x2 and x4 green, x1/2 orange, x0 red, a neutral hit nothing; incremental redraws equal full ones."""
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp = Path(tmp)
-            exe = tmp / ('battle-ui.exe' if os.name == 'nt' else 'battle-ui')
-            build(exe, [], [ROOT / '3ds_port/include', ROOT / '3ds_port/src'])
-            run = subprocess.run([str(exe)], capture_output=True, text=True, env=dict(os.environ, BATTLE_UI_MATCHUPS='1'))
-            self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
-            self.assertIn('PASS battle ui', run.stdout)
 
 
 if __name__ == '__main__':

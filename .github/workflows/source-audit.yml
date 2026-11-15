@@ -49,6 +49,7 @@ jobs:
           python3 -m unittest discover -s tools -p test_column_labels.py -v
           python3 -m unittest discover -s tools -p test_m4a_reverse_block.py -v
           python3 -m unittest discover -s tools -p test_bag_pockets.py -v
+          python3 -m unittest discover -s tools -p test_dev_tool.py -v
       - name: Field menus, Flash masks and cave transition geometry
         run: python3 -m unittest discover -s tools -p test_field_presentation.py -v
       - name: Fly actors, exact OAM publication and invocation strip
@@ -60,6 +61,8 @@ jobs:
           python3 tools/test_data_runtime.py --cc gcc
       - name: Synthetic PokeTouch icons, geometry and unchanged viewports
         run: python3 -m unittest discover -s tools -p test_poketouch_render.py -v
+      - name: "B device views: draw, hits, layout"
+        run: python3 -m unittest discover -s tools -p test_device_views.py -v
       - name: Oak presentation sampling and GPU geometry
         run: python3 -m unittest discover -s tools -p test_oak_presentation.py -v
       - name: Storage touch geometry and route tests (no emulator)

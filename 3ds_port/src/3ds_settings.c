@@ -19,7 +19,7 @@
 
 static unsigned sTurbo;
 static int sAutoRun;
-static int sEmbers = -1;
+static int sShell;
 static int sRepelAgain = 1;
 static int sCompanion;
 static char sLook[3][16];     /* look_red, look_leaf, look_blue */
@@ -94,8 +94,8 @@ static void Load(void)
             sTurbo = value == 0 || (value >= 2 && value <= 4) ? value : 0;
         else if (sscanf(line, "autorun=%u", &value) == 1)
             sAutoRun = value != 0;
-        else if (sscanf(line, "embers=%u", &value) == 1)
-            sEmbers = value <= 2 ? (int)value : -1;
+        else if (sscanf(line, "shell=%u", &value) == 1)
+            sShell = value <= 3 ? (int)value : 0;
         else if (sscanf(line, "repel=%u", &value) == 1)
             sRepelAgain = value != 0;
         else if (sscanf(line, "companion=%u", &value) == 1)
@@ -157,12 +157,10 @@ static void Format(char *text, size_t size)
 {
     int length = snprintf(text, size, "turbo=%u\nautorun=%d\nrepel=%d\n", sTurbo, sAutoRun, sRepelAgain);
 
-    if (sEmbers >= 0 && length > 0 && (size_t)length < size)
-    {
-        length += snprintf(text + length, size - (size_t)length, "embers=%d\n", sEmbers);
-    }
     if (sCompanion && length > 0 && (size_t)length < size)
         length += snprintf(text + length, size - (size_t)length, "companion=%d\n", sCompanion);
+    if (sShell && length > 0 && (size_t)length < size)
+        length += snprintf(text + length, size - (size_t)length, "shell=%d\n", sShell);
     if (sExpShare && length > 0 && (size_t)length < size)
         length += snprintf(text + length, size - (size_t)length, "expshare=%d\n", sExpShare);
     if (sTmReuse && length > 0 && (size_t)length < size)
@@ -320,10 +318,20 @@ void CtrSettings_SetAutoRun(int on)
     Save();
 }
 
-int CtrSettings_Embers(void)
+int CtrSettings_Shell(void)
 {
     Load();
-    return sEmbers;
+    return sShell;
+}
+
+void CtrSettings_SetShell(int shell)
+{
+    Load();
+    shell = shell >= 0 && shell <= 3 ? shell : 0;
+    if (shell == sShell)
+        return;
+    sShell = shell;
+    Save();
 }
 
 int CtrSettings_RepelAgain(void)
@@ -549,15 +557,6 @@ void CtrSettings_SetLook(int slot, const char *id)
     LookSet(slot, id ? id : "");
     if (memcmp(before, sLook[slot], sizeof(before)))
         Save();
-}
-
-void CtrSettings_SetEmbers(int level)
-{
-    Load();
-    if (level < 0 || level > 2 || level == sEmbers)
-        return;
-    sEmbers = level;
-    Save();
 }
 
 unsigned CtrSettings_LastBall(void)

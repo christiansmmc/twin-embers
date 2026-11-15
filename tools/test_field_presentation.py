@@ -713,6 +713,163 @@ int main(void) {
 }
 ''')
 
+    def test_home_speed_and_party_taps(self):
+        """HOME's SPEED line and its party (the owner's "F"): SPEED is usable where START would change the speed and a
+        tap is one START press for the turbo, taken once; a Pokemon is usable when POKeMON is and opens it."""
+        source = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        enabled = function(source, 'HomeTouchEnabled')
+        activate = function(source, 'HomeTouchActivate')
+        take = function(source, 'CtrBottom_TakeTurboTap')
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include "3ds_poketouch.h"
+static int canCycle, partyOpens, activated = -1;
+static bool CtrBottom_TurboCanCycle(void) { return canCycle; }
+static int FieldEnabled(int id) { return id == PT_POKEMON && partyOpens; }
+static void PokeTouchActivate(int id) { activated = id; }
+static int sTurboTap;
+''' + enabled + '\n' + activate + '\n' + take + '''
+int main(void) {
+    assert(!HomeTouchEnabled(PT_HOME_SPEED)); canCycle = 1; assert(HomeTouchEnabled(PT_HOME_SPEED) == 1);
+    assert(!CtrBottom_TakeTurboTap());
+    assert(HomeTouchActivate(PT_HOME_SPEED) && activated == -1);
+    assert(CtrBottom_TakeTurboTap() && !CtrBottom_TakeTurboTap());
+    for (int i = 0; i < 6; ++i) {
+        partyOpens = 0; assert(!HomeTouchEnabled(PT_HOME_PARTY + i));
+        partyOpens = 1; assert(HomeTouchEnabled(PT_HOME_PARTY + i) == 1);
+    }
+    assert(HomeTouchActivate(PT_HOME_PARTY + 5) && activated == PT_POKEMON);
+    activated = -1;
+    assert(HomeTouchEnabled(PT_BAG) == -1 && HomeTouchEnabled(PT_HOME_PARTY + 6) == -1);
+    assert(!HomeTouchActivate(PT_BAG) && !HomeTouchActivate(PT_RUN) && activated == -1 && !CtrBottom_TakeTurboTap());
+    return 0;
+}
+''')
+
+    def test_home_pick_snaps_to_a_town(self):
+        """HOME's map at 1:1: a town is one 8x8 cell, so a tap whose own cell is no place Fly goes to takes the nearest
+        one that is, when its cell's centre is within 8 px of the tap (v0.6.0's orb snap); a tap on a route far from
+        towns still takes the route. The cells are the home impl's own (CtrPokeTouch_HomeCellPoint/HomeMapCell)."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        home = (ROOT / '3ds_port/src/3ds_device_home_impl.h').read_text(encoding='utf-8')
+        cells = '\n'.join(function(home, n) for n in ('CtrPokeTouch_HomeWindowPoint', 'CtrPokeTouch_HomeCellPoint',
+                                                       'CtrPokeTouch_HomeMapCell'))
+        pick = function(bottom, 'HomeFlyCell') + '\n' + function(bottom, 'HomePick')
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include "3ds_poketouch.h"
+#define MAP_CELLS_X 22
+#define MAP_CELLS_Y 15
+#define MAPSEC_NONE_VALUE 0
+/* A map of one town (5,5) and two routes beside it (6,5), (5,6), and one far away (12,10); 3 is the town's section. */
+static int CtrPokeTouch_MapSection(int group, int x, int y, int *mapsec, int *dungeon)
+{
+    (void)group;
+    *dungeon = 0;
+    *mapsec = x == 5 && y == 5 ? 3 : (x == 6 && y == 5) || (x == 5 && y == 6) || (x == 12 && y == 10) ? 40 : 0;
+    return *mapsec != 0;
+}
+static int CtrPokeTouch_FlyStatus(unsigned mapsec) { return mapsec == 3 ? PT_FLY_UNVISITED : PT_FLY_NONE; }
+''' + cells + '\n' + pick + '''
+int main(void) {
+    CtrPokeTouchView v = {0};
+    int cx, cy, x, y;
+
+    /* the town's centre is (66, 62): its own cell takes it */
+    assert(CtrPokeTouch_HomeCellPoint(&v, 5, 5, &x, &y) && x == 66 && y == 62);
+    assert(HomePick(&v, 0, 66, 62, &cx, &cy) && cx == 5 && cy == 5);
+    /* a near miss on the route beside it (5 px off the town's centre): the town */
+    assert(HomePick(&v, 0, 71, 62, &cx, &cy) && cx == 5 && cy == 5);
+    assert(HomePick(&v, 0, 66, 67, &cx, &cy) && cx == 5 && cy == 5);
+    assert(HomePick(&v, 0, 71, 67, &cx, &cy) && cx == 5 && cy == 5);              /* 7 px, diagonally */
+    /* further than 8 px: the route itself */
+    assert(HomePick(&v, 0, 77, 62, &cx, &cy) && cx == 6 && cy == 5);
+    assert(HomePick(&v, 0, 66, 71, &cx, &cy) && cx == 5 && cy == 6);
+    /* a route far from towns, and the sea: the cell under the tap */
+    assert(CtrPokeTouch_HomeCellPoint(&v, 12, 10, &x, &y) && HomePick(&v, 0, x + 3, y, &cx, &cy) && cx == 12 && cy == 10);
+    assert(HomePick(&v, 0, 150, 120, &cx, &cy) && CtrPokeTouch_HomeMapCell(&v, 150, 120, &x, &y) && cx == x && cy == y);
+    /* off the cells (the window's edge) or the window: nothing */
+    assert(!HomePick(&v, 0, 15, 15, &cx, &cy) && !HomePick(&v, 0, 250, 60, &cx, &cy));
+    return 0;
+}
+''')
+
+    def test_turbo_takes_the_speed_tap(self):
+        """A tap on HOME's SPD is one START press for the turbo: the game bridge takes it every frame."""
+        bridge = (ROOT / '3ds_port/src/3ds_game_bridge.c').read_text(encoding='utf-8')
+        self.assertIn('bool turboTap = CtrBottom_TakeTurboTap();', bridge)
+        self.assertIn('(CtrInput_Get()->physicalDown & CTR_KEY_START) != 0 || turboTap,', bridge)
+
+    def test_battle_names_and_idle(self):
+        """The battle fill: a Pokemon's name is its species' own (shown in capitals) when it matches the species name the
+        game reports whatever the case (recipe 0251 title-cases them), not a nickname; a target's species is not
+        reported, so any species' name counts. IDLE fills the quick ball as ACTION does, and in the Safari Zone (its
+        chooser seen in this battle) shows Safari's keys instead; the end of the battle forgets it."""
+        fill = (ROOT / '3ds_port/src/3ds_bottom_battle_fill_impl.h').read_text(encoding='utf-8')
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        species = re.search(r'#define BAT_SPECIES \d+', fill).group(0)
+        code = '\n'.join(function(fill, n) for n in ('BatUpperByte', 'BatSameName', 'BatNameIsSpecies', 'BattleBallFill',
+                                                     'BattleNoteChooser', 'BattleIdleFill'))
+        self.assertIn('sBatSafari = 0;', function(bottom, 'CtrBottom_Frame'))
+        self.run_c('''
+#include <assert.h>
+#include <string.h>
+#include "3ds_poketouch.h"
+#include "3ds_battle_nav.h"
+enum { BATTLE_BUSY = 0, BATTLE_ACTION, BATTLE_MOVE, BATTLE_TARGET, BATTLE_SAFARI };
+static uint8_t sBatSafari;
+static int ballCalls;
+static void CtrBottomDex_Name(unsigned species, char *out, int size)
+{
+    const char *name = species == 5 ? "Charmeleon" : species == 25 ? "Pikachu" : species == 29 ? "Nidoran\\xE2\\x99\\x80"
+                     : species == 12 ? "Flab\\xC3\\xA9" "b\\xC3\\xA9" : species == 32 ? "Nidoran " : "";
+    (void)size;
+    strcpy(out, name);
+}
+static int CtrBattle_QuickBall(unsigned *item, unsigned *quantity, int *place, int *count)
+{
+    ++ballCalls;
+    *item = 4; *quantity = 1200; *place = 1; *count = 3;
+    return CTR_QUICK_BALL_READY;
+}
+static void CtrBottomBag_ItemName(unsigned item, char *out, int size) { (void)item; (void)size; strcpy(out, "GREAT BALL"); }
+''' + species + '\n' + code + '''
+int main(void)
+{
+    CtrBattleView v;
+
+    /* the species' own name, in any case; a nickname; another species' name is not this one's */
+    assert(BatNameIsSpecies("Charmeleon", 5) && BatNameIsSpecies("CHARMELEON", 5) && BatNameIsSpecies("charmeleon", 5));
+    assert(!BatNameIsSpecies("Sparky", 5) && !BatNameIsSpecies("Charmeleo", 5) && !BatNameIsSpecies("Charmeleonx", 5));
+    assert(!BatNameIsSpecies("Pikachu", 5) && !BatNameIsSpecies("", 5) && !BatNameIsSpecies("Charmeleon", 300));
+    assert(BatNameIsSpecies("FLAB\\xC3\\x89" "B\\xC3\\x89", 12) && BatNameIsSpecies("NIDORAN\\xE2\\x99\\x80", 29));
+    /* trailing spaces on either side do not count: the species name keeps one where its gender sign was (Nidoran),
+     * the nickname has none */
+    assert(BatNameIsSpecies("NIDORAN", 32) && BatNameIsSpecies("Nidoran  ", 32) && BatNameIsSpecies("NIDORAN", 0));
+    assert(!BatNameIsSpecies("NIDORANX", 32) && !BatNameIsSpecies("NIDORA", 32) && !BatNameIsSpecies(" NIDORAN", 32));
+    /* a target: any species' name */
+    assert(BatNameIsSpecies("PIKACHU", 0) && BatNameIsSpecies("Charmeleon", 0) && !BatNameIsSpecies("Sparky", 0));
+    /* IDLE: the quick ball as ACTION fills it; in the Safari Zone its own keys, no ball */
+    memset(&v, 0, sizeof(v));
+    BattleNoteChooser(BATTLE_ACTION);
+    BattleIdleFill(&v);
+    assert(!v.safari && v.ball == CTR_QUICK_BALL_READY && v.ballItem == 4 && v.ballQty == 999 && v.ballCount == 3
+           && v.ballPlace == 1 && !strcmp(v.ballName, "GREAT BALL"));
+    memset(&v, 0, sizeof(v));
+    ballCalls = 0;
+    BattleNoteChooser(BATTLE_SAFARI);
+    BattleNoteChooser(BATTLE_BUSY);
+    BattleIdleFill(&v);
+    assert(v.safari && v.ball == CTR_QUICK_BALL_NONE && ballCalls == 0);
+    BattleNoteChooser(BATTLE_MOVE);
+    BattleIdleFill(&v);
+    assert(!v.safari && v.ball == CTR_QUICK_BALL_READY);
+    return 0;
+}
+''')
+
 
 if __name__ == '__main__':
     unittest.main()

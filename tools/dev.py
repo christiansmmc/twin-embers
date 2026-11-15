@@ -3,7 +3,8 @@
     python tools/dev.py build                  incremental build into build/dev
     python tools/dev.py pak [--rom FILE] [-- BUILDER OPTIONS]
                                                the data pack, made by this fork's Builder from your own ROM
-    python tools/dev.py test                   host test suites: bootstrap build/host-tests, verify-host, python suites
+    python tools/dev.py test [SUITE ...]       host test suites: sync build/host-tests, verify-host, python suites (or just SUITE ...)
+    python tools/dev.py render [VIEW ...]      the B views as PNGs under build/renders, with your own pack (never commit them)
     python tools/dev.py run                    build, copy to Azahar's SD card and start Azahar
     python tools/dev.py send [--ip IP]         build and run it on the 3DS once (Homebrew Launcher: press Y)
     python tools/dev.py install [--ip IP] [--pak]
@@ -37,7 +38,6 @@ from bootstrap import inputs  # noqa: E402
 APP = re.search(r'#define CTR_APP_NAME "([^"]+)"',
                 (ROOT / '3ds_port/include/3ds_app_name.h').read_text(encoding='utf-8')).group(1)
 DEV = ROOT / 'build/dev'
-STATE = DEV / '.dev-sync.json'
 IMAGE = DEV / '3ds_port' / f'{APP}.3dsx'
 PAK = ROOT / 'build/pak' / f'{APP}.pak'
 CONFIG = ROOT / '.dev.local.json'
@@ -60,6 +60,8 @@ def save_config(config):
 def msys(path):
     """C:\\Users\\x -> /c/Users/x, for the devkitPro MSYS2 shell."""
     p = Path(path).resolve()
+    if not p.drive:  # POSIX: already an MSYS-style path
+        return p.as_posix()
     return '/' + p.drive[0].lower() + p.as_posix()[len(p.drive):]
 
 
@@ -73,17 +75,17 @@ def recipe_paths(recipes):
     return paths
 
 
-def pristine(name):
-    """The file as the pinned upstream commit has it, or None when upstream has no such file."""
-    probe = subprocess.run(['git', '-C', str(DEV), 'cat-file', '-e', f'HEAD:{name}'], capture_output=True)
+def pristine(dest, name):
+    """The file as the pinned upstream commit has it in dest, or None when upstream has no such file."""
+    probe = subprocess.run(['git', '-C', str(dest), 'cat-file', '-e', f'HEAD:{name}'], capture_output=True)
     if probe.returncode != 0:
         return None
-    return subprocess.check_output(['git', '-C', str(DEV), 'show', f'HEAD:{name}'])
+    return subprocess.check_output(['git', '-C', str(dest), 'show', f'HEAD:{name}'])
 
 
-def put(name, raw):
-    """Write build/dev/<name> only when its content changes, so make keeps every other timestamp."""
-    target = DEV / name
+def put(dest, name, raw):
+    """Write dest/<name> only when its content changes, so make keeps every other timestamp."""
+    target = dest / name
     if raw is None:
         if target.exists():
             target.unlink()
@@ -96,21 +98,46 @@ def put(name, raw):
     return 1
 
 
-def sync():
+def adopted_state(dest, lock, recipes, recipe_hashes):
+    """The sync state of a tree that bootstrap.py made (no .dev-sync.json yet), or None when it cannot be reused."""
+    try:
+        made_from = json.loads((dest / '.twin-bootstrap.json').read_text(encoding='utf-8'))['inputs']
+        head = subprocess.run(['git', '-C', str(dest), 'rev-parse', 'HEAD'], capture_output=True, text=True)
+    except (OSError, ValueError, KeyError):
+        return None
+    made_recipes = {k: v for k, v in made_from.items() if k.startswith('patches/')}
+    if head.returncode != 0 or head.stdout.strip() != lock['commit'] or made_recipes != recipe_hashes:
+        return None
+    return {'commit': lock['commit'], 'recipes': recipe_hashes, 'patched': sorted(recipe_paths(recipes)),
+            'repo': {k: v for k, v in made_from.items() if not k.startswith('patches/')}}
+
+
+def label(dest):
+    try:
+        return dest.relative_to(ROOT).as_posix()
+    except ValueError:
+        return str(dest)
+
+
+def sync(dest=DEV):
+    """Bring dest (build/dev or build/host-tests) up to date writing only the files whose content changed."""
+    state_file = dest / '.dev-sync.json'
     lock = tomllib.loads((ROOT / 'upstream.lock').read_text())['pokefirered']
     current = inputs()
     recipes = sorted((ROOT / 'patches/pokefirered').glob('*.json'))
     recipe_hashes = {k: v for k, v in current.items() if k.startswith('patches/')}
     repo = {k: v for k, v in current.items() if not k.startswith('patches/')}
-    state = json.loads(STATE.read_text()) if STATE.exists() else None
+    state = json.loads(state_file.read_text()) if state_file.exists() else None
+    if state is None and dest.exists():
+        state = adopted_state(dest, lock, recipes, recipe_hashes)
     if state is None or state.get('commit') != lock['commit']:
-        if DEV.exists():
-            shutil.rmtree(DEV)
-        print('Preparing build/dev (pinned upstream + recipes), about a minute...')
-        subprocess.run([sys.executable, str(ROOT / 'tools/bootstrap.py'), '--dir', str(DEV)], check=True)
+        if dest.exists():
+            remove_tree(dest)
+        print(f'Preparing {label(dest)} (pinned upstream + recipes), about a minute...')
+        subprocess.run([sys.executable, str(ROOT / 'tools/bootstrap.py'), '--dir', str(dest)], check=True)
         state = {'commit': lock['commit'], 'recipes': recipe_hashes,
                  'patched': sorted(recipe_paths(recipes)), 'repo': repo}
-        STATE.write_text(json.dumps(state, indent=1) + '\n')
+        state_file.write_text(json.dumps(state, indent=1) + '\n')
         return
     changed = 0
     if recipe_hashes != state['recipes']:
@@ -119,22 +146,22 @@ def sync():
         with tempfile.TemporaryDirectory(dir=ROOT / 'build') as tmp:
             stage = Path(tmp)
             for name in paths:
-                raw = pristine(name)
+                raw = pristine(dest, name)
                 if raw is not None:
                     (stage / name).parent.mkdir(parents=True, exist_ok=True)
                     (stage / name).write_bytes(raw)
             apply(stage, recipes)
             for name in paths:
-                changed += put(name, (stage / name).read_bytes() if (stage / name).exists() else None)
+                changed += put(dest, name, (stage / name).read_bytes() if (stage / name).exists() else None)
         state['recipes'], state['patched'] = recipe_hashes, sorted(patched)
     for name, digest in repo.items():
-        if state['repo'].get(name) != digest or not (DEV / name).exists():
-            changed += put(name, (ROOT / name).read_bytes())
+        if state['repo'].get(name) != digest or not (dest / name).exists():
+            changed += put(dest, name, (ROOT / name).read_bytes())
     for name in set(state['repo']) - set(repo):
-        changed += put(name, pristine(name))
+        changed += put(dest, name, pristine(dest, name))
     state['repo'] = repo
-    STATE.write_text(json.dumps(state, indent=1) + '\n')
-    print(f'build/dev: {changed} file(s) updated')
+    state_file.write_text(json.dumps(state, indent=1) + '\n')
+    print(f'{label(dest)}: {changed} file(s) updated')
 
 
 def make(target='verify-game-3dsx'):
@@ -164,7 +191,7 @@ def remove_tree(path):
 
 SUITES = ['test_poketouch_render', 'test_battle_ui', 'test_column_labels', 'test_option_labels', 'test_storage_touch',
           'test_storage_controller', 'test_easychat_plan', 'test_field_presentation', 'test_bag_pockets',
-          'test_first_battle']
+          'test_first_battle', 'test_device_views']
 
 
 def test(args=None):
@@ -182,18 +209,15 @@ def test(args=None):
         results.append((name, ok))
         print(f'{"PASS" if ok else "FAIL"}  {name}', flush=True)
 
-    if hosts.exists():
-        # The tree copies 3ds_port/, tools/, builder/, the recipes and upstream.lock as they were when it was made.
-        try:
-            made_from = json.loads((hosts / '.twin-bootstrap.json').read_text(encoding='utf-8'))['inputs']
-        except (OSError, ValueError, KeyError):
-            made_from = None
-        if made_from != inputs() or not (hosts / '3ds_port/Makefile').exists():
-            print('build/host-tests is stale (its sources changed since it was made): making it again', flush=True)
-            remove_tree(hosts)
-    if not hosts.exists():
-        stage('bootstrap build/host-tests',
-              [sys.executable, str(ROOT / 'tools/bootstrap.py'), '--dir', str(hosts)])
+    suites = list(getattr(args, 'suites', None) or [])
+    if suites:
+        # Named suites: just those, in the MSYS shell (they call a bare gcc), against the repository's own tools/.
+        command = f'cd {shlex.quote(msys(ROOT / "tools"))} && {shlex.quote(msys(sys.executable))} -m unittest {" ".join(shlex.quote(n) for n in suites)}'
+        stage('python suites', [str(bash), '-lc', command], env={**os.environ, 'MSYSTEM': 'MSYS'})
+        if not all(ok for _, ok in results):
+            raise SystemExit(1)
+        return
+    sync(hosts)
     with tempfile.TemporaryDirectory() as shim:
         # The MSYS shell has no python3 (nor the Windows `py` the Makefile defaults to); the Makefile's helper steps call it.
         script = f'#!/bin/sh\nexec {shlex.quote(msys(sys.executable))} "$@"\n'
@@ -201,12 +225,31 @@ def test(args=None):
         command = f'export PATH={shlex.quote(msys(shim))}:$PATH && make -C {shlex.quote(msys(hosts / "3ds_port"))} PYTHON=python3 verify-host'
         stage('verify-host', [str(bash), '-lc', command], env={**os.environ, 'MSYSTEM': 'MSYS'})
     # These suites call a bare gcc; the MSYS compiler only finds its headers inside the MSYS shell.
-    suites = f'cd {shlex.quote(msys(ROOT / "tools"))} && {shlex.quote(msys(sys.executable))} -m unittest {" ".join(SUITES)}'
-    stage('python suites', [str(bash), '-lc', suites], env={**os.environ, 'MSYSTEM': 'MSYS'})
+    command = f'cd {shlex.quote(msys(ROOT / "tools"))} && {shlex.quote(msys(sys.executable))} -m unittest {" ".join(SUITES)}'
+    stage('python suites', [str(bash), '-lc', command], env={**os.environ, 'MSYSTEM': 'MSYS'})
     stage('test_data_runtime', [sys.executable, 'test_data_runtime.py', '--cc', str(gcc)], cwd=ROOT / 'tools')
     print('\n'.join(f'{"PASS" if ok else "FAIL"}  {name}' for name, ok in results))
     if not all(ok for _, ok in results):
         raise SystemExit(1)
+
+
+# ---- renders -----------------------------------------------------------------------------------------------
+
+def render(args):
+    """The B views drawn by the host harness with the pack's fonts, as PNGs in build/renders (ROM-derived: never committed)."""
+    bash = DEVKITPRO / 'msys2/usr/bin/bash.exe'
+    if not bash.exists():
+        raise SystemExit(f'devkitPro not found at {DEVKITPRO} (set DEVKITPRO_WIN)')
+    need_pak()
+    text = DEV / 'src/text.c'
+    if not text.exists():
+        raise SystemExit('No build/dev yet (the glyph widths come from its src/text.c): python tools/dev.py build')
+    views = ' '.join(shlex.quote(v) for v in (getattr(args, 'views', None) or []))
+    # The harness is built by the MSYS gcc, which only finds its headers inside the MSYS shell.
+    command = (f'cd {shlex.quote(msys(ROOT))} && {shlex.quote(msys(sys.executable))} tools/render_device_views.py '
+               f'--pak {shlex.quote(msys(PAK))} --text {shlex.quote(msys(text))} '
+               f'--out {shlex.quote(msys(ROOT / "build/renders"))}' + (f' {views}' if views else ''))
+    subprocess.run([str(bash), '-lc', command], env={**os.environ, 'MSYSTEM': 'MSYS'}, check=True)
 
 
 # ---- data pack ---------------------------------------------------------------------------------------------
@@ -310,7 +353,12 @@ def main():
     p.add_argument('builder_options', nargs=argparse.REMAINDER,
                    help='after --: Builder options such as --gen4-sprites (remembered)')
     p.set_defaults(func=pak)
-    sub.add_parser('test', help='host test suites (a subset of the CI checks)').set_defaults(func=test)
+    p = sub.add_parser('test', help='host test suites (a subset of the CI checks)')
+    p.add_argument('suites', nargs='*', help='only these python suites (no sync, no verify-host)')
+    p.set_defaults(func=test)
+    p = sub.add_parser('render', help='the B views as PNGs with your own pack (build/renders, never committed)')
+    p.add_argument('views', nargs='*', help='only these views (default: all)')
+    p.set_defaults(func=render)
     sub.add_parser('run', help='build and start in Azahar').set_defaults(func=run)
     p = sub.add_parser('send', help='build and run once on the 3DS (3dslink)')
     p.add_argument('--ip')

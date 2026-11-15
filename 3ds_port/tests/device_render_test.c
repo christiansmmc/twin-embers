@@ -1,0 +1,1378 @@
+/* The red device (style B): its drawing kit (3ds_device_kit_impl.h) and the B views through the production renderer,
+ * with synthetic game bridges.
+ *
+ * Each suite draws its view's states and checks them: an Update equals a full Draw pixel for pixel, every key is hit
+ * exactly where it is drawn (3ds_device_layout.h is the one source of both), and no port-authored key label is cut
+ * (sDevKeyCut stays 0). No ROM-derived data: the fonts are synthetic stubs, every glyph DEVICE_FONT_W px wide (default
+ * 5; the small font's 5), unless FIRERED_TEST_PAK names the owner's own pack, whose glyphs are then read (a local
+ * viewing aid, tools/render_device_views.py; never committed). Environment:
+ *   DEVICE_OUT=dir            one PPM per drawn state, dir/<suite>_<state>.ppm
+ *   FIRERED_TEST_PAK=pak      the pack (ABI 0x8f71cf3a, its ROM's SHA-1), opened as poketouch_render_test.c does
+ *   DEVICE_WIDTHS=file        the normal font's 256 glyph widths; DEVICE_SMALL_WIDTHS=file the small font's
+ *   DEVICE_FONT_W=n           the stub glyph width
+ *
+ * usage: device_render_test <suite>   (kit, home, battle, or all; prints PASS device <suite>) */
+#include <assert.h>
+#ifndef PT_SOURCE
+#define PT_SOURCE "3ds_poketouch.c"
+#endif
+#include PT_SOURCE
+#include "3ds_text_case_views.h"   /* the game names in proper case, as 3ds_bottom.c gives them */
+#include "3ds_pak.h"
+
+/* ---- Fonts: the stubs, or the pack's glyphs ------------------------------------------------------------------------ */
+
+static uint8_t font[256 * 64], fontWidths[256];
+static uint8_t smallFont[256 * 32], smallWidths[256];
+static unsigned gStubW = 5;
+const uint8_t *CtrTwinFontData(void) { return font; }
+unsigned CtrTwinFontWidth(unsigned code) { return code < 256 && fontWidths[code] ? fontWidths[code] : gStubW; }
+const uint8_t *CtrTwinJapaneseGlyph(unsigned code, uint8_t out[64]) { (void)code; memset(out, 0, 64); return out; }
+unsigned CtrTwinJapaneseFontWidth(unsigned code) { (void)code; return 8; }
+const uint8_t *CtrTwinSmallFontData(void) { return smallFont; }
+unsigned CtrTwinSmallFontWidth(unsigned code) { return code < 256 && smallWidths[code] ? smallWidths[code] : 5; }
+
+/* One pixel of a glyph in the game's layout (TwinGlyphDecode / TwinSmallGlyphDecode read it back): value 1 ink, 2 shadow. */
+static void GlyphPixel(uint8_t *glyph, int small, int x, int y, unsigned value)
+{
+    uint8_t *src = glyph + ((small ? y / 8 : (y / 8) * 2 + x / 8) * 16) + (y % 8) * 2;
+    unsigned bits = (unsigned)src[1] << 8 | src[0];
+
+    bits |= value << ((7 - x % 8) * 2);
+    src[0] = (uint8_t)bits;
+    src[1] = (uint8_t)(bits >> 8);
+}
+
+/* Every glyph but the space (code 0) a block of ink over the capitals' rows (normal 3-10, small 4-10), a column short of
+ * its width, with a shadow row under it. */
+static void SyntheticFont(uint8_t *data, int small)
+{
+    int w = small ? 5 : (int)gStubW, top = small ? 4 : 3;
+
+    memset(data, 0, small ? sizeof(smallFont) : sizeof(font));
+    for (unsigned code = 1; code < 256; ++code) {
+        uint8_t *glyph = data + code * (small ? 32u : 64u);
+
+        for (int x = 0; x + 1 < w && x < (small ? 8 : 16); ++x) {
+            for (int y = top; y <= 10; ++y)
+                GlyphPixel(glyph, small, x, y, 1);
+            GlyphPixel(glyph, small, x + 1, 11, 2);
+        }
+    }
+}
+
+/* ---- The pack (FIRERED_TEST_PAK), as poketouch_render_test.c opens it --------------------------------------------- */
+
+static FILE *realPack;
+static CtrPakHeader realHeader;
+static CtrPakEntry *realIndex;
+
+/* An entry of the pack as it is stored, or NULL when it is missing or compressed (this harness does not inflate). */
+static uint8_t *PackRead(const char *path, uint32_t *len)
+{
+    const CtrPakEntry *entry = CtrPak_Find(realIndex, realHeader.entryCount, path);
+    uint8_t *out;
+
+    if (!entry || (entry->flags & CTR_PAK_FLAG_COMPRESSED) || entry->storedSize != entry->rawSize)
+        return NULL;
+    out = malloc(entry->rawSize ? entry->rawSize : 1);
+    assert(out);
+    assert(!fseek(realPack, (long)entry->offset, SEEK_SET));
+    assert(fread(out, 1, entry->rawSize, realPack) == entry->rawSize);
+    assert(CtrPak_Crc32(0, out, entry->rawSize) == entry->crc32);
+    *len = entry->rawSize;
+    return out;
+}
+
+static void PackOpen(const char *path)
+{
+    static const uint8_t romHash[20] = {0x41, 0xcb, 0x23, 0xd8, 0xdc, 0xcc, 0x8e, 0xbd, 0x7c, 0x64,
+                                        0x9c, 0xd8, 0xfb, 0xb5, 0x8e, 0xea, 0xce, 0x6e, 0x2f, 0xdc};
+    uint8_t header[64], *index;
+    size_t size;
+
+    realPack = fopen(path, "rb");
+    assert(realPack);
+    assert(fread(header, 1, 64, realPack) == 64);
+    assert(CtrPak_ParseHeader(header, 0x8f71cf3a, romHash, &realHeader) == CTR_PAK_OK);
+    size = (size_t)realHeader.entryCount * CTR_PAK_ENTRY_BYTES;
+    index = malloc(size);
+    realIndex = calloc(realHeader.entryCount, sizeof(*realIndex));
+    assert(index && realIndex && fread(index, 1, size, realPack) == size);
+    assert(CtrPak_ParseIndex(index, &realHeader, realIndex) == CTR_PAK_OK);
+    free(index);
+}
+
+/* The pack's glyphs (the first 256 of the file) into `data`; 0 when the pack does not hold them as they are. */
+static int PackFont(const char *path, uint8_t *data, size_t size)
+{
+    uint32_t len = 0;
+    uint8_t *raw = PackRead(path, &len);
+
+    if (!raw || len < size) {
+        free(raw);
+        return 0;
+    }
+    memcpy(data, raw, size);
+    free(raw);
+    return 1;
+}
+
+static void ReadWidths(const char *path, uint8_t widths[256])
+{
+    FILE *f = path ? fopen(path, "rb") : NULL;
+
+    if (!f)
+        return;
+    assert(fread(widths, 1, 256, f) == 256);
+    fclose(f);
+}
+
+/* ---- Game bridges: battle_ui_render_test.c's set and poketouch_render_test.c's map art --------------------------- */
+
+/* The pack's files with FIRERED_TEST_PAK; else the two item icons, synthesised: a literal-only GBA LZ stream of 24x24
+ * 4bpp tiles (3x3) and of a palette, so the full-size icon path runs without game data. */
+void *CtrData_Load(const char *path, uint32_t *len)
+{
+    uint8_t raw[288];
+    int palette = strstr(path, "icon_palettes/") != NULL;
+    unsigned size = palette ? 32u : 288u;
+    uint8_t *out;
+    unsigned pos = 4;
+
+    if (realPack)
+        return PackRead(path, len);
+    if (!strstr(path, "graphics/items/icon"))
+        return NULL;
+    memset(raw, 0, sizeof(raw));
+    if (palette) {
+        raw[2] = 0xff; raw[3] = 0x03;               /* index 1: green */
+    } else {
+        for (unsigned i = 0; i < 288; ++i)
+            raw[i] = (uint8_t)((i % 32) < 16 ? 0x11 : 0x00);   /* stripes, so tile order shows */
+        raw[0] = 0x21;                              /* the very first pixel: index 1, the second 2 */
+    }
+    *len = 4 + size + (size + 7) / 8;
+    out = malloc(*len);
+    assert(out);
+    out[0] = 0x10; out[1] = (uint8_t)size; out[2] = (uint8_t)(size >> 8); out[3] = 0;
+    for (unsigned i = 0; i < size; ++i) {
+        if (!(i % 8)) out[pos++] = 0;
+        out[pos++] = raw[i];
+    }
+    return out;
+}
+int CtrPokeTouch_DexMonPic(unsigned species, unsigned char *tiles, unsigned short *palette)
+{ (void)species; (void)tiles; (void)palette; return 0; }
+int CtrPokeTouch_DexMonPic80(unsigned species, unsigned char *pixels, unsigned short *palette)
+{ (void)species; (void)pixels; (void)palette; return 0; }
+int CtrPokeTouch_DexMenuIcon(int id, unsigned char *tiles, unsigned short *palette)
+{ (void)id; (void)tiles; (void)palette; return 0; }
+int CtrPokeTouch_DexFootprint(unsigned species, unsigned char *bits)
+{ (void)species; (void)bits; return 0; }
+int CtrPokeTouch_DexCaughtMarker(unsigned char *tiles, unsigned short *palette)
+{ (void)tiles; (void)palette; return 0; }
+int CtrPokeTouch_CardTrainerPic(unsigned char *tiles, unsigned short *palette)
+{ (void)tiles; (void)palette; return 0; }
+int CtrPokeTouch_CardBadges(unsigned char *tiles, unsigned short *palette)
+{ (void)tiles; (void)palette; return 0; }
+int CtrPokeTouch_MonIcon(unsigned species, unsigned personality, int egg, unsigned char *tiles, unsigned short *palette)
+{
+    (void)species; (void)personality; (void)egg; (void)tiles; (void)palette;
+    return 0;
+}
+int CtrPokeTouch_ItemIcon(unsigned item, unsigned char *tiles, unsigned short *palette)
+{
+    memset(tiles, 0x11, 288); memset(palette, 0, 32);
+    palette[1] = item == 1 ? 31 : item == 2 ? 31 << 5 : 31 << 10;
+    return item != 0;
+}
+/* The map's art: a flat colour, or (richArt) a small synthetic Kanto: sea, a land of greens in three heights with a road
+ * across it, a pale path and some towns (orbs), drawn in the colours the HOME map tells apart (each tile is one colour:
+ * tile n has palette entry n). */
+static int richArt __attribute__((unused));
+int CtrPokeTouch_MapArt(int group, uint16_t *map, uint8_t *tiles, uint16_t *pal, uint16_t *bgMap, uint8_t *bgTiles)
+{
+    (void)group;
+    memset(map, 0, 30 * 20 * 2); memset(bgMap, 0, 30 * 20 * 2);
+    memset(tiles, 0x11, MAP_TILES * 32); memset(bgTiles, 0, MAP_TILES * 32);
+    memset(pal, 0, MAP_COLORS * 2); pal[1] = 0x5ab3;
+    if (richArt) {
+        /* 1 green, 2 road, 3 orb, 4 sea, 5 pale path, 6 the lowest green, 7 a high green */
+        static const unsigned short col[] = {0, 1703, 7933, 2303, 27210, 0, 0, 0};
+        for (int n = 1; n < 8; ++n) { memset(tiles + n * 32, n * 0x11, 32); pal[n] = col[n]; }
+        pal[0] = 32468;
+        pal[5] = (unsigned short)(25 | 25 << 5 | 18 << 10);
+        pal[6] = (unsigned short)(3 | 16 << 5 | 1 << 10);
+        pal[7] = (unsigned short)(21 | 30 << 5 | 7 << 10);
+        for (int ty = 2; ty < 18; ++ty)
+            for (int tx = 3; tx < 26; ++tx) {
+                int t = 1;
+                if (tx < 8) t = 6; else if (tx > 19) t = 7;
+                if (ty == 8 && tx > 5 && tx < 22) t = 2;
+                if (tx == 14 && ty > 4 && ty < 15) t = 2;
+                if (ty == 12 && tx > 6 && tx < 14) t = 5;
+                if (t == 2 && (tx == 6 || tx == 14 || tx == 21) && ty == 8) t = 3;
+                if (tx == 14 && (ty == 5 || ty == 14)) t = 3;
+                map[ty * 30 + tx] = (uint16_t)t;
+            }
+    }
+    return 1;
+}
+/* The map's two icons: none, unless a suite asks for synthetic art (a red square for the player, a blue one for the
+ * cursor, whose second frame is half of it). */
+static int iconArt __attribute__((unused));
+int CtrPokeTouch_MapPlayerIcon(uint8_t *tiles, uint16_t *pal)
+{
+    if (!iconArt) return 0;
+    memset(tiles, 0x11, 4 * 32); memset(pal, 0, 32); pal[1] = 0x001f; return 1;
+}
+int CtrPokeTouch_MapCursorIcon(uint8_t *tiles, uint16_t *pal)
+{
+    if (!iconArt) return 0;
+    memset(tiles, 0x22, 4 * 32); memset(tiles + 4 * 32, 0x20, 4 * 32); memset(pal, 0, 32); pal[2] = 0x7c00; return 1;
+}
+int CtrPokeTouch_MarkShape(int mark, unsigned char *indexes) { (void)mark; (void)indexes; return 0; }
+int CtrBottomParty_Icon(int slot, unsigned char *tiles, unsigned short *pal)
+{
+    /* A flat 32x32 icon in the slot's own colour, a clear border and a hole in the middle, so the 2:1 sample shows. */
+    memset(tiles, 0, 1024); memset(pal, 0, 32);
+    for (int y = 2; y < 30; ++y)
+        for (int x = 2; x < 30; ++x)
+            if (!(x >= 12 && x < 20 && y >= 12 && y < 20)) {
+                unsigned char *b = &tiles[(y / 8 * 4 + x / 8) * 32 + y % 8 * 4 + x % 8 / 2];
+                *b = (unsigned char)(*b | (1 << (x & 1) * 4));
+            }
+    pal[1] = (unsigned short)((slot * 5 + 6) | (31 - slot * 4) << 5 | (slot * 3) << 10);
+    return 1;
+}
+
+unsigned CtrBottomSummary_IconSpecies(void) { return 0; }
+int CtrBottomSummary_Icon(unsigned char *tiles, unsigned short *pal)
+{ (void)tiles; (void)pal; return 0; }
+int CtrBottomSummary_Pic(unsigned char *tiles, unsigned short *pal, int *flip)
+{ (void)tiles; (void)pal; (void)flip; return 0; }
+int CtrBottomSummary_Pic80(unsigned char *pixels, unsigned short *pal, int *flip)
+{ (void)pixels; (void)pal; (void)flip; return 0; }
+int CtrPokeTouch_Wallpaper(unsigned id, unsigned short *rgb555)
+{ (void)id; (void)rgb555; return 0; }
+
+/* ---- Canvas, shots and the checks every suite shares ------------------------------------------------------------- */
+
+static uint16_t canvas[W * H], reference[W * H];
+static const char *gOut;
+static const char *gSuite = "";
+static uint16_t at(int x, int y) { return canvas[x * H + H - 1 - y]; }
+
+static void clear(uint16_t c)
+{
+    for (int i = 0; i < W * H; ++i)
+        canvas[i] = c;
+}
+
+/* The canvas as dir/<suite>_<state>.ppm, with DEVICE_OUT. */
+static void shot(const char *state)
+{
+    char path[512];
+    FILE *f;
+
+    if (!gOut)
+        return;
+    snprintf(path, sizeof(path), "%s/%s_%s.ppm", gOut, gSuite, state);
+    f = fopen(path, "wb");
+    assert(f);
+    fprintf(f, "P6\n%d %d\n255\n", W, H);
+    for (int y = 0; y < H; ++y)
+        for (int x = 0; x < W; ++x) {
+            unsigned c = at(x, y);
+            fputc((int)((c >> 11) << 3 | (c >> 13)), f);
+            fputc((int)(((c >> 5) & 63) << 2 | ((c >> 9) & 3)), f);
+            fputc((int)((c & 31) << 3 | ((c >> 2) & 7)), f);
+        }
+    fclose(f);
+}
+
+/* The canvas against `reference`: the first pixel that differs, reported, fails. */
+static void SameAsReference(const char *what)
+{
+    if (!memcmp(reference, canvas, sizeof(canvas)))
+        return;
+    for (int x = 0; x < W; ++x)
+        for (int y = 0; y < H; ++y)
+            if (reference[x * H + H - 1 - y] != canvas[x * H + H - 1 - y]) {
+                fprintf(stderr, "%s %s: update != draw at %d,%d (update %04x, draw %04x)\n", gSuite, what, x, y,
+                        reference[x * H + H - 1 - y], canvas[x * H + H - 1 - y]);
+                assert(0);
+            }
+}
+
+/* Update from `old` into the canvas, then a full Draw of `v`: equal pixel for pixel. `old` becomes `v`; the dirty list is
+ * returned. The views are given as 3ds_bottom.c gives them (a suite cases its names). */
+static __attribute__((unused)) CtrDirtyList DevCheckTouch(CtrPokeTouchView *old, const CtrPokeTouchView *v)
+{
+    CtrDirtyList dirty;
+
+    CtrDirty_Clear(&dirty);
+    CtrPokeTouch_Update(canvas, old, v, &dirty);
+    memcpy(reference, canvas, sizeof(canvas));
+    CtrPokeTouch_Draw(canvas, v);
+    SameAsReference("touch");
+    *old = *v;
+    return dirty;
+}
+
+static __attribute__((unused)) CtrDirtyList DevCheckBattle(CtrBattleView *old, const CtrBattleView *v)
+{
+    CtrDirtyList dirty;
+
+    CtrDirty_Clear(&dirty);
+    CtrBattleUi_Update(canvas, old, v, &dirty);
+    memcpy(reference, canvas, sizeof(canvas));
+    CtrBattleUi_Draw(canvas, v);
+    SameAsReference("battle");
+    *old = *v;
+    return dirty;
+}
+
+static __attribute__((unused)) CtrDirtyList DevCheckSummary(CtrSummaryUiView *old, const CtrSummaryUiView *v)
+{
+    CtrDirtyList dirty;
+
+    CtrDirty_Clear(&dirty);
+    CtrSummaryUi_Update(canvas, old, v, &dirty);
+    memcpy(reference, canvas, sizeof(canvas));
+    CtrSummaryUi_Draw(canvas, v);
+    SameAsReference("summary");
+    *old = *v;
+    return dirty;
+}
+
+/* The whole screen presented: one rectangle, 0,0 to 320,240. */
+static __attribute__((unused)) int DevWhole(CtrDirtyList d)
+{
+    return d.count == 1 && d.rects[0].x0 == 0 && d.rects[0].y0 == 0 && d.rects[0].x1 == W && d.rects[0].y1 == H;
+}
+
+/* A key drawn in its look: the face's colour at (x + 3, the face's middle row). A dimmed key is checked by that pixel
+ * directly. */
+static uint16_t KeyFace(int look, int sunk)
+{
+    if (look == DEV_LOOK_DARK)
+        return DEV_BEZEL;
+    if (look == DEV_LOOK_FAINT)
+        return DEV_FAINT;
+    return sunk ? DEV_SUNK : DEV_KEY;
+}
+
+static __attribute__((unused)) void AssertKey(CtrPokeTouchRect r, int look, int sunk)
+{
+    int faceY = r.y + (sunk ? DEV_SINK : 0);
+
+    if (at(r.x + 3, faceY + r.h / 2) != KeyFace(look, sunk)) {
+        fprintf(stderr, "%s: key {%d,%d,%d,%d} look %d sunk %d: face %04x at %d,%d, wanted %04x\n", gSuite, r.x, r.y, r.w,
+                r.h, look, sunk, at(r.x + 3, faceY + r.h / 2), r.x + 3, faceY + r.h / 2, KeyFace(look, sunk));
+        assert(0);
+    }
+}
+
+typedef int (*DevHitFn)(const void *view, int x, int y);
+
+static void HitAt(DevHitFn hit, const void *view, int x, int y, int code, int want)
+{
+    int got = hit(view, x, y);
+
+    if ((got == code) != want) {
+        fprintf(stderr, "%s: hit at %d,%d is %d, %s %d\n", gSuite, x, y, got, want ? "wanted" : "must not be", code);
+        assert(0);
+    }
+}
+
+/* A key with its drop answers `code` from its top-left pixel to the bottom-right one of its drop, and not one past. */
+static __attribute__((unused)) void AssertHits(DevHitFn hit, const void *view, CtrPokeTouchRect r, int code)
+{
+    HitAt(hit, view, r.x, r.y, code, 1);
+    HitAt(hit, view, r.x + r.w - 1, r.y + r.h + DEV_DROP - 1, code, 1);
+    HitAt(hit, view, r.x - 1, r.y, code, 0);
+    HitAt(hit, view, r.x, r.y - 1, code, 0);
+    HitAt(hit, view, r.x + r.w, r.y, code, 0);
+    HitAt(hit, view, r.x, r.y + r.h + DEV_DROP, code, 0);
+}
+
+/* A row (no drop): its own rectangle. */
+static __attribute__((unused)) void AssertRowHits(DevHitFn hit, const void *view, CtrPokeTouchRect r, int code)
+{
+    HitAt(hit, view, r.x, r.y, code, 1);
+    HitAt(hit, view, r.x + r.w - 1, r.y + r.h - 1, code, 1);
+    HitAt(hit, view, r.x - 1, r.y, code, 0);
+    HitAt(hit, view, r.x + r.w, r.y, code, 0);
+}
+
+/* ---- kit: the kit's pieces, then a sheet of all of them on the red shell ----------------------------------------- */
+
+/* Pixels of colour c in {x, y, w, h}. */
+static int Count(int x, int y, int w, int h, uint16_t c)
+{
+    int n = 0;
+
+    for (int i = x; i < x + w; ++i)
+        for (int j = y; j < y + h; ++j)
+            n += at(i, j) == c;
+    return n;
+}
+
+#define SENTINEL 0x1234
+
+/* Nothing but the sentinel outside {x, y, w, h}. */
+static void Untouched(int x, int y, int w, int h)
+{
+    for (int i = 0; i < W; ++i)
+        for (int j = 0; j < H; ++j)
+            if (!(i >= x && i < x + w && j >= y && j < y + h))
+                assert(at(i, j) == SENTINEL);
+}
+
+/* Rework 1's wrap assertions (archive lower_kit_test.c), with the widths of the font in use: the stub's, or the pack's
+ * with its widths. Words that do not fit go to the next line, DEV_LINE_H apart; no more than maxLines; nothing outside
+ * x..x+width. */
+static void KitWrapLines(void)
+{
+    const uint16_t ink = DEV_INK, sh = DEV_INK_SH;
+    int a = UiTextWidth("AAA", 1), ab = UiTextWidth("AAA BBB", 1), room = ab - 1, wide = 2 * ab;
+    static uint16_t spaced[W * H];
+
+    /* "AAA BBB" is one pixel wider than the room: each word takes its own line. */
+    clear(SENTINEL);
+    assert(DevWrap("AAA BBB CCC", 8, 8, room, 3, ink, sh) == 3);
+    assert(Count(8, 5, room, DEV_LINE_H, ink) > 0 && Count(8, 5 + DEV_LINE_H, room, DEV_LINE_H, ink) > 0
+           && Count(8, 5 + 2 * DEV_LINE_H, room, DEV_LINE_H, ink) > 0);
+    Untouched(8, 5, room, 3 * DEV_LINE_H);
+    clear(SENTINEL);
+    assert(DevWrap("AAA BBB CCC", 8, 8, room, 2, ink, sh) == 2);
+    assert(Count(8, 5 + 2 * DEV_LINE_H, room, DEV_LINE_H, ink) == 0);
+    clear(SENTINEL);
+    assert(DevWrap("AA BB", 8, 8, wide, 3, ink, sh) == 1);           /* fits on one line */
+    clear(SENTINEL);
+    assert(DevWrap("", 8, 8, wide, 3, ink, sh) == 0);
+    Untouched(0, 0, 0, 0);
+    /* A line break is a space, drawn as one, never glued into one long word (FireRed's move descriptions keep theirs). */
+    clear(SENTINEL);
+    assert(DevWrap("AAA\nBBB CCC", 8, 8, room, 3, ink, sh) == 3);
+    assert(Count(8, 5 + 2 * DEV_LINE_H, room, DEV_LINE_H, ink) > 0);
+    clear(SENTINEL);
+    assert(DevWrap("AA BB", 8, 8, wide, 1, ink, sh) == 1);
+    memcpy(spaced, canvas, sizeof(spaced));
+    clear(SENTINEL);
+    assert(DevWrap("AA\nBB", 8, 8, wide, 1, ink, sh) == 1);
+    assert(!memcmp(spaced, canvas, sizeof(spaced)));
+    clear(SENTINEL);
+    assert(DevWrap("\n\nAA", 8, 8, wide, 2, ink, sh) == 1);
+    Untouched(8, 5, wide, DEV_LINE_H);
+    /* The first line can be narrower than the rest: "AAA BBB" does not fit the first `room`, so BBB starts the second
+     * line, which takes "BBB CCC" in its `wide`. */
+    clear(SENTINEL);
+    assert(DevWrapFirst("AAA BBB CCC", 8, 8, room, wide, 3, ink, sh) == 2);
+    assert(Count(8, 5, a, DEV_LINE_H, ink) > 0 && Count(8 + a + 1, 5, wide - a - 1, DEV_LINE_H, ink) == 0);
+    assert(Count(8 + a + 1, 5 + DEV_LINE_H, ab - a - 1, DEV_LINE_H, ink) > 0);
+    Untouched(8, 5, wide, 2 * DEV_LINE_H);
+    /* No shadow when the shadow is the ink. */
+    clear(SENTINEL);
+    DevWrap("AA", 8, 8, wide, 1, ink, ink);
+    assert(Count(0, 0, W, H, sh) == 0 && Count(0, 0, W, H, ink) > 0);
+}
+
+/* The HP and PP colours of FireRed's own battle screens (the top screen shows the same). */
+static void KitBarLevels(void)
+{
+    /* HP: the share of the HUD's 48-pixel bar, rounded down, at least 1 while hp > 0: > 24 green, > 9 yellow, else red. */
+    assert(DevHpColour(112, 112) == DEV_HP_GREEN && DevHpColour(59, 112) == DEV_HP_GREEN);           /* 25 px */
+    assert(DevHpColour(57, 112) == DEV_HP_YELLOW && DevHpColour(58, 112) == DEV_HP_YELLOW);          /* 24 px: not over */
+    assert(DevHpColour(50, 112) == DEV_HP_YELLOW && DevHpColour(24, 112) == DEV_HP_YELLOW);          /* 21, 10 px */
+    assert(DevHpColour(23, 112) == DEV_HP_RED && DevHpColour(20, 112) == DEV_HP_RED);                /* 9, 8 px */
+    assert(DevHpColour(1, 600) == DEV_HP_RED && DevHpColour(0, 112) == DEV_HP_RED);                  /* 1 px at least; empty */
+    assert(DevHpColour(0, 0) == DEV_HP_GREEN);                                                       /* hp == max: full */
+    /* PP: full is the usual ink; above 7, none / a quarter or less / more than half / the rest (rounded down). */
+    assert(DevPpInk(15, 15, DEV_KEY_INK) == DEV_KEY_INK && DevPpInk(15, 35, 0) == DEV_PP_HALF && DevPpInk(3, 15, 0) == DEV_PP_QUARTER && DevPpInk(0, 15, 0) == DEV_LOW_INK);
+    assert(DevPpInk(17, 35, 0) == DEV_PP_HALF && DevPpInk(18, 35, 9) == 9 && DevPpInk(8, 35, 0) == DEV_PP_QUARTER && DevPpInk(9, 35, 0) == DEV_PP_HALF);
+    assert(DevPpInk(4, 8, 0) == DEV_PP_HALF && DevPpInk(5, 8, 9) == 9 && DevPpInk(2, 8, 0) == DEV_PP_QUARTER);
+    /* A maximum of 7 or less goes by what is left: more than 2 usual, 2 half, 1 quarter, 0 empty. */
+    assert(DevPpInk(6, 6, 9) == 9 && DevPpInk(3, 6, 9) == 9 && DevPpInk(2, 6, 9) == DEV_PP_HALF && DevPpInk(1, 6, 9) == DEV_PP_QUARTER && DevPpInk(0, 6, 9) == DEV_LOW_INK);
+    assert(DevPpInk(7, 7, 9) == 9 && DevPpInk(3, 7, 9) == 9 && DevPpInk(2, 7, 9) == DEV_PP_HALF && DevPpInk(1, 7, 9) == DEV_PP_QUARTER && DevPpInk(0, 7, 9) == DEV_LOW_INK);
+    /* A maximum of 2 or less: 1 left is the quarter colour, 0 empty. */
+    assert(DevPpInk(2, 2, 9) == 9 && DevPpInk(1, 2, 9) == DEV_PP_QUARTER && DevPpInk(0, 2, 9) == DEV_LOW_INK);
+    assert(DevPpInk(1, 1, 9) == 9 && DevPpInk(0, 1, 9) == DEV_LOW_INK);
+}
+
+/* Two RGB565 colours within one step of each other in every channel. */
+static int Near565(uint16_t a, uint16_t b)
+{
+    int dr = (a >> 11) - (b >> 11), dg = ((a >> 5) & 63) - ((b >> 5) & 63), db = (a & 31) - (b & 31);
+
+    return dr >= -1 && dr <= 1 && dg >= -1 && dg <= 1 && db >= -1 && db <= 1;
+}
+
+/* Chips: white small-font text with the chip's own dark shadow (none when it is DEV_WHITE); the width follows the text
+ * with 4 px each side, or is fixed with the text centred. DevChipShadow lands on the boards' pairs. */
+static void KitChips(void)
+{
+    static const struct { uint16_t bg, shadow; } kBoard[7] = {
+        {UI_RGB(0xE8, 0x6E, 0x28), UI_RGB(0x8A, 0x3A, 0x10)}, {UI_RGB(0x5A, 0x78, 0xC0), UI_RGB(0x2E, 0x40, 0x70)},
+        {UI_RGB(0x28, 0x96, 0x46), UI_RGB(0x14, 0x5A, 0x28)}, {UI_RGB(0x64, 0x6A, 0x84), UI_RGB(0x3A, 0x3E, 0x52)},
+        {UI_RGB(0x8C, 0x8C, 0x78), UI_RGB(0x4A, 0x4A, 0x3A)}, {UI_RGB(0xB8, 0x40, 0x2C), UI_RGB(0x6A, 0x20, 0x14)},
+        {UI_RGB(0xCC, 0x54, 0x18), UI_RGB(0x7A, 0x30, 0x08)},
+    };
+    const uint16_t bg = kBoard[0].bg, sh = DevChipShadow(bg);
+    int tw = DevSmallTextWidth("FIRE"), pw = DevSmallTextWidth("PSN") + 8, white = 0, shade = 0, left = W, right = -1;
+
+    for (int i = 0; i < 7; ++i)
+        assert(Near565(DevChipShadow(kBoard[i].bg), kBoard[i].shadow));
+    assert(Near565(DevChipShadow(DEV_FX_SUPER), DEV_FX_SUPER_SH) && Near565(DevChipShadow(DEV_FX_NOTVERY), DEV_FX_NOTVERY_SH)
+           && Near565(DevChipShadow(DEV_FX_EFFECTIVE), DEV_FX_EFFECTIVE_SH) && Near565(DevChipShadow(DEV_CAT_SPECIAL), DEV_CAT_SPECIAL_SH));
+    /* Auto width: the text and 4 px each side, h tall; only the chip's colour, white and the shadow; nothing else touched. */
+    clear(SENTINEL);
+    DevChip(10, 10, 0, 12, "FIRE", bg, sh);
+    assert(at(10, 10) == bg && at(10 + tw + 7, 21) == bg && at(10 + tw + 8, 10) == SENTINEL && at(10, 22) == SENTINEL);
+    for (int x = 10; x < 18 + tw; ++x)
+        for (int y = 10; y < 22; ++y) {
+            white += at(x, y) == DEV_WHITE;
+            shade += at(x, y) == sh;
+            assert(at(x, y) == bg || at(x, y) == DEV_WHITE || at(x, y) == sh);
+        }
+    assert(white > 0 && shade > 0);
+    Untouched(10, 10, tw + 8, 12);
+    /* Fixed width (BMoves' 40 px type chip): the white text inside the centred text box. */
+    clear(SENTINEL);
+    DevChip(10, 30, 40, 12, "FIRE", bg, sh);
+    assert(at(49, 30) == bg && at(50, 30) == SENTINEL);
+    for (int x = 10; x < 50; ++x)
+        for (int y = 30; y < 42; ++y)
+            if (at(x, y) == DEV_WHITE) {
+                left = x < left ? x : left;
+                right = x > right ? x : right;
+            }
+    assert(left >= 10 + (40 - tw) / 2 && left < 10 + (40 - tw) / 2 + 3 && right < 10 + (40 - tw) / 2 + tw);
+    Untouched(10, 30, 40, 12);
+    /* A fixed-width chip too narrow for its word clips it and counts it as a cut label; one wide enough does not. */
+    sDevKeyCut = 0;
+    DevChip(10, 30, 40, 12, "FIRE", bg, sh);
+    assert(sDevKeyCut == 0);
+    DevChip(10, 30, tw - 1, 12, "FIRE", bg, sh);
+    assert(sDevKeyCut == 1);
+    sDevKeyCut = 0;
+    /* No shadow (PSN, FNT): only the chip's colour and white. */
+    clear(SENTINEL);
+    DevChip(10, 50, 0, 10, "PSN", DEV_PSN, DEV_WHITE);
+    assert(Count(10, 50, pw, 10, DEV_WHITE) > 0 && Count(10, 50, pw, 10, DEV_PSN) + Count(10, 50, pw, 10, DEV_WHITE) == pw * 10);
+    Untouched(10, 50, pw, 10);
+}
+
+static const uint16_t kShell[4] = {DEV_SHELL_RED, DEV_SHELL_BLUE, DEV_SHELL_GREEN, DEV_SHELL_GREY};
+
+/* The kit's contract (the plan's Task 3 assertions). */
+static void KitPieces(void)
+{
+    CtrPokeTouchRect p, k;
+
+    assert(DevBlend(0xFFFF, 0x0000, 0) == 0xFFFF && DevBlend(0xFFFF, 0x0000, 256) == 0x0000);
+    assert(DevBlend(UI_RGB(248, 252, 248), 0x0000, 128) == UI_RGB(128, 128, 128));
+    for (int s = 0; s < 4; ++s) {
+        DevBegin(canvas, (uint8_t)s); DevShell(DEV_SCREWS_TOP | DEV_SCREWS_BOTTOM);
+        assert(at(160, 120) == kShell[s] && at(160, 0) == DevBlend(kShell[s], 0xFFFF, 64) && at(160, 1) == at(160, 0) && at(160, 2) == kShell[s]);
+        assert(at(160, 237) == DevBlend(kShell[s], 0, 77) && at(160, 239) == at(160, 237) && at(160, 236) == kShell[s]);
+        assert(at(4, 4) == DevBlend(kShell[s], 0, 90) && at(315, 234) == DevBlend(kShell[s], 0, 90));
+    }
+    DevBegin(canvas, 0); DevShell(0); assert(at(4, 4) == DEV_SHELL_RED);
+    p = DevScreen(&(CtrPokeTouchRect){8, 8, 304, 140});
+    assert(p.x == 14 && p.y == 14 && p.w == 292 && p.h == 128 && at(8, 70) == DEV_BEZEL_LINE && at(9, 70) == DEV_BEZEL
+           && at(13, 70) == DEV_BEZEL && at(14, 70) == DEV_PAPER && at(8, 8) == DEV_SHELL_RED && at(160, 148) == DevBlend(DEV_SHELL_RED, 0xFFFF, 64));
+    k = (CtrPokeTouchRect){8, 156, 96, 36};                     /* HOME's POKeDEX key, on a fresh shell each time */
+    DevShell(0);
+    assert(DevKey(&k, DEV_LOOK_KEY, 0, 6) == 156 && at(11, 174) == DEV_KEY && at(56, 156) == 0xFFFF && at(56, 190) == DEV_KEY_EDGE
+           && at(56, 191) == DEV_KEY_EDGE && at(56, 192) == DevBlend(DEV_SHELL_RED, 0, 97) && at(56, 194) == at(56, 192) && at(56, 195) == DEV_SHELL_RED && at(8, 156) == DEV_SHELL_RED);
+    DevShell(0);
+    assert(DevKey(&k, DEV_LOOK_KEY, 1, 6) == 158 && at(56, 157) == DEV_SHELL_RED && at(56, 158) == DEV_SUNK_EDGE && at(11, 176) == DEV_SUNK
+           && at(56, 194) == DevBlend(DEV_SHELL_RED, 0, 97) && at(56, 195) == DEV_SHELL_RED && at(94, 164) == DEV_LED);
+    DevShell(0);
+    assert(DevKey(&k, DEV_LOOK_DARK, 0, 6) == 156 && at(11, 174) == DEV_BEZEL && at(56, 156) == DEV_BEZEL_LINE);
+    DevShell(0);
+    assert(DevKey(&k, DEV_LOOK_FAINT, 0, 6) == 156 && at(11, 174) == DEV_FAINT && at(56, 190) == DEV_FAINT_EDGE);
+    DevShell(0);
+    DevKey(&k, DEV_LOOK_KEY, 0, 6); DevDim(&k); assert(at(11, 174) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
+    DevHole(&(CtrPokeTouchRect){164, 120, 148, 50}, 6); assert(at(238, 150) == DevBlend(DEV_SHELL_RED, 0, 72));
+    assert(at(238, 121) == DevBlend(DevBlend(DEV_SHELL_RED, 0, 72), 0, 90) && at(238, 123) == at(238, 150)
+           && at(238, 170) == DevBlend(DEV_SHELL_RED, 0xFFFF, 51) && at(238, 171) == DEV_SHELL_RED);   /* top rows; light row */
+    DevRow(&(CtrPokeTouchRect){16, 48, 244, 16}, 1); assert(at(20, 56) == DEV_BEZEL && DevRowInk(1) == DEV_PAPER && DevRowInk(0) == DEV_INK);
+    DevHpBar(76, 52, 150, 6, 112, 112); assert(at(76, 52) == DEV_HP_FRAME && at(100, 54) == DEV_HP_GREEN);
+    KitBarLevels();
+    assert(DevChosen(2, 2, -1) && !DevChosen(1, 2, -1) && DevChosen(1, 2, 1) && !DevChosen(2, 2, 1));
+    KitChips();
+    clear(0); DevRound(0, 0, 20, 20, 6, 0x1234); assert(at(0, 0) == 0 && at(1, 1) == 0 && at(2, 2) == 0x1234 && at(6, 0) == 0x1234 && at(0, 6) == 0x1234);
+    KitWrapLines();
+    sDevKeyCut = 0; DevKeyLabel(&(CtrPokeTouchRect){0, 0, 30, 24}, 0, DEV_LOOK_KEY, 0, "A VERY LONG LABEL"); assert(sDevKeyCut == 1); sDevKeyCut = 0;
+}
+
+/* DevUpper: the boards' and FireRed's capitals; POKé's é stays small; a letter the font has no capital for stays. */
+static void KitUpper(void)
+{
+    char out[40];
+
+    DevUpper(out, "Pok\xC3\xA9mon", sizeof(out));
+    assert(!strcmp(out, "POK\xC3\xA9MON"));
+    DevUpper(out, "Pok\xC3\xA9" "dex", sizeof(out));
+    assert(!strcmp(out, "POK\xC3\xA9" "DEX"));
+    DevUpper(out, "Pok\xC3\xA9 Ball", sizeof(out));
+    assert(!strcmp(out, "POK\xC3\xA9 BALL"));
+    DevUpper(out, "Zur\xC3\xBC" "ck", sizeof(out));                    /* German: u umlaut */
+    assert(!strcmp(out, "ZUR\xC3\x9C" "CK"));
+    DevUpper(out, "Regi\xC3\xB3n, Ning\xC3\xBAn, Espa\xC3\xB1" "a", sizeof(out));   /* Spanish: o, u acute, n tilde */
+    assert(!strcmp(out, "REGI\xC3\x93N, NING\xC3\x9AN, ESPA\xC3\x91" "A"));
+    DevUpper(out, "Caf\xC3\xA9 Stra\xC3\x9F" "e \xC5\x93uvre", sizeof(out));   /* an e acute away from POK; sharp s; oe */
+    assert(!strcmp(out, "CAF\xC3\x89 STRA\xC3\x9F" "E \xC5\x92UVRE"));
+    DevUpper(out, "POK\xC3\xA9MON 2x \x01\xd5", sizeof(out));            /* idempotent; a raw FireRed code kept */
+    assert(!strcmp(out, "POK\xC3\xA9MON 2X \x01\xd5"));
+    {
+        const char *e = "\xC3\x89", *u = "\xC3\x9C";                     /* the capitals made are the font's */
+
+        assert(GlyphCode(&e) == 0x06 && GlyphCode(&u) == 0xf3);
+    }
+    /* Recipe 0251's title case leaves the accented small letters as FireRed's own codes, escaped by 0x01 (the bridges'
+     * CtrBattleText): each becomes its capital's code where the charset has one; POKé's é stays small; a capital, or
+     * a code with no capital, is kept. */
+    DevUpper(out, "Zur\x01\xf6" "ck", sizeof(out));                       /* ü -> Ü */
+    assert(!strcmp(out, "ZUR\x01\xf3" "CK"));
+    DevUpper(out, "K\x01\xf4" "fer, Br\x01\xf5" "tchen", sizeof(out));     /* ä -> Ä, ö -> Ö */
+    assert(!strcmp(out, "K\x01\xf1" "FER, BR\x01\xf2" "TCHEN"));
+    DevUpper(out, "Regi\x01\x23" "n, Espa\x01\x29" "a, Ra\x01\x6f" "z", sizeof(out));   /* ó, ñ, í */
+    assert(!strcmp(out, "REGI\x01\x0e" "N, ESPA\x01\x14" "A, RA\x01\x5a" "Z"));
+    DevUpper(out, "Pok\x01\x1b" "mon, Caf\x01\x1b, \x01\x25" "uf", sizeof(out));       /* POKé stays; é, œ */
+    assert(!strcmp(out, "POK\x01\x1b" "MON, CAF\x01\x06, \x01\x10" "UF"));
+    DevUpper(out, "\x01\xf3\x01\x15\x01\x2a", sizeof(out));               /* Ü, ß, º kept */
+    assert(!strcmp(out, "\x01\xf3\x01\x15\x01\x2a"));
+    DevUpper(out, "AB\xC3\xA9", 4);                                       /* a letter that does not fit whole is left out */
+    assert(!strcmp(out, "AB"));
+    DevUpper(out, "Pok\xC3\xA9mon", 1);
+    assert(!out[0]);
+}
+
+/* Every piece on the red shell, for the eye (kit_sheet): the screen with its text, rows, icons, marks, bars, chips and
+ * paper buttons; every key look up and sunk, a dimmed key, a hole, small keys (a tab, arrows, a pill). */
+static void KitSheet(void)
+{
+    static const CtrPokeTouchRect kKeys[8] = {{8, 106, 72, 36}, {84, 106, 72, 36}, {160, 106, 72, 36}, {236, 106, 76, 36},
+                                               {8, 150, 72, 36}, {84, 150, 72, 36}, {8, 194, 72, 30}, {84, 196, 56, 24}};
+    static const int kLook[8] = {DEV_LOOK_KEY, DEV_LOOK_KEY, DEV_LOOK_DARK, DEV_LOOK_DARK, DEV_LOOK_FAINT, DEV_LOOK_FAINT,
+                                 DEV_LOOK_KEY, DEV_LOOK_KEY};
+    static const int kSunk[8] = {0, 1, 0, 1, 0, 1, 1, 1};
+    static const char *const kLabel[8] = {"POKéDEX", "POKéMON", "CANCEL", "BACK", "FAINTED", "CHOSEN", "SAVE", "INFO"};
+    static const unsigned kHp[3] = {112, 50, 9};
+    CtrPokeTouchRect p, dim = {160, 150, 72, 36}, hole = {236, 150, 76, 36}, pill = {248, 196, 64, 20};
+    int x, faceY;
+
+    DevBegin(canvas, 0);
+    DevShell(DEV_SCREWS_TOP | DEV_SCREWS_BOTTOM);
+    p = DevScreen(&(CtrPokeTouchRect){8, 8, 304, 92});
+    /* Text and rows (x 16..148). */
+    DevText("VERMILION", p.x + 4, p.y + 4, p.x + 134);
+    DevText2("Secondary ink", p.x + 4, p.y + 17, p.x + 134);
+    DevSmallText("KANTO POW ACC PP Lv", p.x + 4, p.y + 31, DEV_INK2, p.x + 134);
+    DevRow(&(CtrPokeTouchRect){p.x + 2, p.y + 42, 132, 16}, 1);
+    DevTextInk("POTION", p.x + 6, p.y + 46, p.x + 110, DevRowInk(1), DevRowInk(1));
+    DevTextRight("x5", p.x + 130, p.y + 46, DevRowInk(1));
+    DevRow(&(CtrPokeTouchRect){p.x + 2, p.y + 58, 132, 16}, 0);
+    DevTextInk("ANTIDOTE", p.x + 6, p.y + 62, p.x + 110, DevRowInk(0), DEV_INK_SH);
+    DevTextRight("x3", p.x + 130, p.y + 62, DevPpInk(3, 15, DevRowInk(0)));
+    /* Icons, marks, bars (x 152..236). */
+    DevMonIcon(0, 1, 152, p.y + 1, 0, 0);
+    DevMonIcon(1, 2, 186, p.y + 1, 1, 0);
+    DevMonIcon(2, 3, 186, p.y + 18, 1, 1);
+    DevGender(0, 206, p.y + 3);
+    DevGender(1, 206, p.y + 19);
+    DevTriangle(226, p.y + 7, 0, DEV_INK);
+    DevTriangle(226, p.y + 23, 1, DEV_INK);
+    for (int i = 0; i < 3; ++i) {
+        int w = DevLabelChip(152, p.y + 38 + i * 10, "HP", DEV_HP_FRAME, DEV_HP_LABEL);
+
+        DevHpBar(154 + w, p.y + 40 + i * 10, 82 - w, 5, kHp[i], 112);
+    }
+    x = DevLabelChip(152, p.y + 68, "EXP", DEV_HP_FRAME, DEV_EXP_LABEL);
+    Fill(152 + x, p.y + 68, 40, 9, DEV_HP_TRACK);
+    Fill(152 + x, p.y + 70, 26, 5, DEV_EXP);
+    /* Paper buttons and chips (x 240..304). */
+    DevPaperButton(&(CtrPokeTouchRect){244, p.y + 2, 44, 16}, 0);
+    DevTextInk("RUN", 248, p.y + 6, 286, DevRowInk(0), DEV_INK_SH);
+    DevPaperButton(&(CtrPokeTouchRect){244, p.y + 20, 44, 16}, 1);
+    DevTextInk("2x", 248, p.y + 24, 286, DevRowInk(1), DevRowInk(1));
+    DevChip(240, p.y + 38, 40, 12, "FIRE", UiTypeColor(10), DevChipShadow(UiTypeColor(10)));
+    DevChip(240, p.y + 52, 0, 12, "SPECIAL", DEV_CAT_SPECIAL, DEV_CAT_SPECIAL_SH);
+    DevChip(240, p.y + 66, 0, 12, "SUPER", DEV_FX_SUPER, DEV_FX_SUPER_SH);
+    DevChip(282, p.y + 39, 0, 10, "PSN", DEV_PSN, DEV_WHITE);
+    DevChip(282, p.y + 67, 0, 10, "FNT", DEV_FNT, DEV_WHITE);
+    /* The keys: KEY, DARK and FAINT up and sunk; a dimmed key, a hole; a short sunk key, a sunk tab, two dark arrows, a
+     * key arrow, a dark pill. */
+    for (int i = 0; i < 8; ++i) {
+        faceY = DevKey(&kKeys[i], kLook[i], kSunk[i], i == 7 ? 5 : 6);
+        DevKeyLabel(&kKeys[i], faceY, kLook[i], kSunk[i], kLabel[i]);
+        AssertKey(kKeys[i], kLook[i], kSunk[i]);
+    }
+    faceY = DevKey(&dim, DEV_LOOK_KEY, 0, 6);
+    DevKeyLabel(&dim, faceY, DEV_LOOK_KEY, 0, "DIMMED");
+    DevDim(&dim);
+    assert(at(dim.x + 3, dim.y + dim.h / 2) == DevBlend(DEV_SHELL_RED, DEV_KEY, DEV_A_DIM));
+    DevHole(&hole, 6);
+    faceY = DevKey(&(CtrPokeTouchRect){144, 196, 28, 24}, DEV_LOOK_DARK, 0, 5);
+    DevTriangle(158, faceY + 11, 0, DEV_DARK_INK);
+    faceY = DevKey(&(CtrPokeTouchRect){176, 196, 28, 24}, DEV_LOOK_DARK, 0, 5);
+    DevTriangle(190, faceY + 11, 1, DEV_DARK_INK);
+    faceY = DevKey(&(CtrPokeTouchRect){208, 194, 36, 30}, DEV_LOOK_KEY, 0, 6);
+    DevTriangle(226, faceY + 13, 3, DEV_KEY_INK);
+    faceY = DevKey(&pill, DEV_LOOK_DARK, 0, 10);
+    DevKeyLabel(&pill, faceY, DEV_LOOK_DARK, 0, "CANCEL");
+    shot("sheet");
+}
+
+static void SuiteKit(void)
+{
+    KitPieces();
+    KitUpper();
+    KitSheet();
+    assert(sDevKeyCut == 0);
+}
+
+/* ---- home: HOME as the red device (board B · Início) --------------------------------------------------------------- */
+
+static int HomeHitV(const void *view, int x, int y)
+{
+    return CtrPokeTouch_HomeHit((const CtrPokeTouchView *)view, x, y);
+}
+
+/* The board's HOME: VERMILION CITY in KANTO (the map's region, under the name), the player's name on the card, five
+ * Pokemon and a hole (HP 100, 66, 34, 0 and 8 %), the speed at 2x, the map's art there, another map open; no player on
+ * the map, no destination. Strings as FireRed has them: no casing (the B views are upper case). */
+static CtrPokeTouchView HomeBoard(void)
+{
+    static const uint8_t kHp[6] = {100, 66, 34, 0, 8, 0};
+    CtrPokeTouchView v;
+
+    memset(&v, 0, sizeof(v));
+    v.selected = v.pressed = PT_NONE;
+    v.optPressed = -1;
+    v.home = 1;
+    for (int i = 0; i < PT_COUNT; ++i)
+        v.enabled[i] = 1;
+    v.mapGroup = PT_MAP_KANTO;
+    v.mapReady = 1;
+    v.mapOpen = 3;
+    v.playerX = v.playerY = v.cursorX = v.cursorY = -1;
+    strcpy(v.bar[0], "VERMILION CITY");
+    strcpy(v.playerName, "RED");
+    for (int i = 0; i < 6; ++i) {
+        v.party[i] = (uint8_t)(i == 5 ? 0 : kHp[i] ? 1 : 2);
+        v.partyHp[i] = kHp[i];
+        v.partyIcon[i] = (uint16_t)(i == 5 ? 0 : 25 + i);
+    }
+    v.speed = 2;
+    v.speedEnabled = 1;
+    return v;
+}
+
+/* Two rectangles share a pixel. */
+static int Meets(CtrPokeTouchRect a, CtrPokeTouchRect b)
+{
+    return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+
+/* Words arrive in any case and HOME draws them as FireRed writes them. With small letters made wider than capitals:
+ * HOME with its game strings and reasons in proper case draws what it draws with them in capitals; the region key is
+ * as wide as its name in capitals; each key's word is the entry's in capitals, the card's the player's name as typed. */
+static void HomeUpperCase(CtrPokeTouchView v)
+{
+    static uint16_t capitals[W * H];
+    static uint8_t keepWidths[256], keepSmall[256];
+    CtrPokeTouchView proper;
+    char word[24];
+
+    memcpy(keepWidths, fontWidths, sizeof(keepWidths));
+    memcpy(keepSmall, smallWidths, sizeof(keepSmall));
+    for (unsigned c = 0xd5; c <= 0xee; ++c)        /* a..z */
+        fontWidths[c] = smallWidths[c] = 7;
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    v.cursorX = 9;
+    v.cursorY = 9;
+    strcpy(v.playerName, "Rick");
+    proper = v;
+    strcpy(v.bar[0], "VERMILION CITY");
+    strcpy(v.bar[2], "NOT VISITED YET");
+    strcpy(proper.bar[0], "Vermilion City");
+    strcpy(proper.bar[2], "Not visited yet");
+    CtrPokeTouch_Draw(canvas, &v);
+    memcpy(capitals, canvas, sizeof(capitals));
+    CtrPokeTouch_Draw(canvas, &proper);
+    assert(!memcmp(capitals, canvas, sizeof(capitals)));
+    assert(sHomeRibbon.w == DevTextWidth("KANTO") + 23 && DevTextWidth("KANTO") != DevTextWidth("Kanto"));
+    assert(!strcmp(DevHomeKeyWord(PT_POKEMON, &v, word), "POK\xC3\xA9MON") && !strcmp(DevHomeKeyWord(PT_CARD, &v, word), "Rick"));
+    memcpy(fontWidths, keepWidths, sizeof(keepWidths));
+    memcpy(smallWidths, keepSmall, sizeof(keepSmall));
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+}
+
+/* The suite as the plan gives it (HOME's keys hit where they are drawn, the map at 1:1, every cell of every map in the
+ * window, the name window inside it, a blink or a step presents only the window), the review's checks (upper case, the
+ * name window clear of the region key and FLY, the Fly reasons under a long name, an egg), then the states for the eye. */
+static void SuiteHome(void)
+{
+    static const int ids[6] = {PT_POKEDEX, PT_POKEMON, PT_BAG, PT_CARD, PT_SAVE, PT_OPTIONS};
+    static const int corner[5][2] = {{0, 0}, {21, 0}, {0, 14}, {21, 14}, {10, 7}};
+    static uint16_t tm[30 * 20], btm[30 * 20], gba[MAP_COLORS];
+    static uint8_t tl[MAP_TILES * 32], btl[MAP_TILES * 32];
+    CtrPokeTouchView v, old;
+    CtrPokeTouchRect r, keyArea = DevKeyArea(&kDevHomeMapKey), flyArea = DevKeyArea(&kDevHomeFly);
+    CtrDirtyList d;
+    int i, x, y, gx, gy, cx, cy, vx, vy, dx, dy, g;
+    const int flyX = kDevHomeFly.x + kDevHomeFly.w / 2, flyY = kDevHomeFly.y + kDevHomeFly.h / 2;
+
+    richArt = 1;
+    iconArt = 1;
+    sPlayer.key = -1;
+    assert(CtrPokeTouch_MapPrepare(PT_MAP_KANTO, 0));
+    v = HomeBoard();
+    CtrPokeTouch_Draw(canvas, &v);
+    old = v;
+    shot("plain");
+    for (i = 0; i < 6; ++i) {
+        AssertHits(HomeHitV, &v, kDevHomeKey[i], ids[i]);
+        AssertKey(kDevHomeKey[i], DEV_LOOK_KEY, 0);
+    }
+    assert(CtrPokeTouch_HomeHit(&v, 108, 174) == PT_NONE && at(108, 174) == DEV_SHELL_RED);      /* the gap */
+    assert(CtrPokeTouch_HomeHit(&v, 232, 131) == PT_RUN && CtrPokeTouch_HomeHit(&v, 280, 131) == PT_HOME_SPEED);
+    assert(CtrPokeTouch_HomeHit(&v, 225, 75) == PT_HOME_PARTY && CtrPokeTouch_HomeHit(&v, 256, 103) == PT_HOME_PARTY + 4
+           && CtrPokeTouch_HomeHit(&v, 287, 103) == PT_NONE && CtrPokeTouch_HomeHit(&v, 100, 80) == PT_NONE);
+    assert(CtrPokeTouch_HomeWindowPoint(14, 14, &vx, &vy) && vx == 0 && vy == 0 && CtrPokeTouch_HomeWindowPoint(205, 141, &vx, &vy)
+           && vx == 191 && vy == 127 && !CtrPokeTouch_HomeWindowPoint(206, 80, &vx, &vy) && !CtrPokeTouch_HomeWindowPoint(13, 80, &vx, &vy));
+    /* RUN's lamp as the board draws it: an 8x8 at 4 px in, its 6x6 face */
+    assert(at(241, 127) == DEV_HOME_LAMP_OFF_EDGE && at(248, 134) == DEV_HOME_LAMP_OFF_EDGE && at(242, 128) == DEV_HOME_LAMP_OFF
+           && at(247, 133) == DEV_HOME_LAMP_OFF && at(249, 130) == DEV_WHITE && at(240, 130) == DEV_WHITE);
+    /* the map at 1:1: window pixel (dx, dy) is the Region Map screen's (24 + dx, 28 + dy) (below the region key's rows) */
+    CtrPokeTouch_MapArt(0, tm, tl, gba, btm, btl);
+    for (dy = 20; dy < 128; dy += 9)
+        for (dx = 0; dx < 192; dx += 7)
+            assert(at(14 + dx, 14 + dy) == Gba(gba[MapColor(tm, tl, btm, btl, 24 + dx, 28 + dy)]));
+    /* every cell of every region inside the window with room for its 16x16 icon; a tap on it gives it back; the name
+     * window of a destination there stays in the window and clear of the region key and FLY (their widest, with drops) */
+    strcpy(v.bar[0], "VERMILION CITY");
+    for (g = 0; g < PT_MAP_COUNT; ++g) {
+        v.mapGroup = (uint8_t)g;
+        DevCheckTouch(&old, &v);
+        for (cy = 0; cy < 15; ++cy)
+            for (cx = 0; cx < 22; ++cx) {
+                CtrPokeTouchView pick = v;
+
+                assert(CtrPokeTouch_HomeCellPoint(&v, cx, cy, &x, &y) && x - 8 >= 14 && y - 8 >= 14 && x + 8 <= 206 && y + 8 <= 142);
+                assert(CtrPokeTouch_HomeMapCell(&v, x, y, &gx, &gy) && gx == cx && gy == cy);
+                pick.cursorX = (int8_t)cx;
+                pick.cursorY = (int8_t)cy;
+                assert(DevHomeLabelRect(&pick, &r) && r.x >= 14 && r.y >= 14 && r.x + r.w <= 206 && r.y + r.h <= 142);
+                assert(!Meets(r, keyArea) && !Meets(r, flyArea));
+            }
+    }
+    assert(CtrPokeTouch_HomeCellPoint(&v, 0, 0, &x, &y) && x == 26 && y == 22 && !CtrPokeTouch_HomeCellPoint(&v, 22, 0, &x, &y));
+    v.mapGroup = 0;
+    /* the destination's name window stays inside the window, at the corners and the middle */
+    for (i = 0; i < 5; ++i) {
+        v.cursorX = (int8_t)corner[i][0];
+        v.cursorY = (int8_t)corner[i][1];
+        DevCheckTouch(&old, &v);
+        assert(DevHomeLabelRect(&v, &r) && r.x >= 14 && r.y >= 14 && r.x + r.w <= 206 && r.y + r.h <= 142);
+    }
+    /* a blink or a step: the window alone */
+    v.cursorFrame ^= 1;
+    d = DevCheckTouch(&old, &v);
+    assert(d.count == 1 && d.rects[0].x0 == 14 && d.rects[0].y0 == 14 && d.rects[0].x1 == 206 && d.rects[0].y1 == 142);
+    v.playerX = 21;
+    v.playerY = 14;
+    d = DevCheckTouch(&old, &v);
+    assert(d.count == 1 && d.rects[0].x1 == 206 && d.rects[0].y1 == 142);
+    v.pressed = PT_POKEMON;
+    assert(DevWhole(DevCheckTouch(&old, &v)));
+    AssertKey(kDevHomeKey[1], DEV_LOOK_KEY, 1);
+    assert(at(198, 164) == DEV_LED);
+    v.pressed = PT_NONE;
+    v.enabled[PT_SAVE] = 0;
+    DevCheckTouch(&old, &v);
+    assert(at(115, 215) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
+    v.flyOk = 1;
+    DevCheckTouch(&old, &v);
+    assert(CtrPokeTouch_FlyHit(flyX, flyY));
+    v.flyOk = 0;
+    DevCheckTouch(&old, &v);
+    assert(!CtrPokeTouch_FlyHit(flyX, flyY));
+    assert(CtrPokeTouch_HomeRibbonHit(20, 20));
+    v.mapOpen = 1;
+    DevCheckTouch(&old, &v);
+    assert(!CtrPokeTouch_HomeRibbonHit(20, 20));
+    v.shell = 2;
+    assert(DevWhole(DevCheckTouch(&old, &v)) && at(160, 152) == DEV_SHELL_GREEN);
+    /* nothing HOME draws changed: nothing presented */
+    v.optPressed = 3;
+    v.registeredItem = 7;
+    d = DevCheckTouch(&old, &v);
+    assert(d.count == 0);
+
+    /* Upper case, whatever case the words arrive in. */
+    HomeUpperCase(HomeBoard());
+    v = HomeBoard();
+    CtrPokeTouch_Draw(canvas, &v);
+    old = v;
+    /* Why a place cannot be flown to, under a name of two lines: one line, every reason whole; a reason too long for it
+     * counts as cut. */
+    strcpy(v.bar[0], "WATER LABYRINTH PATH");
+    v.cursorX = 9;
+    v.cursorY = 9;
+    for (i = UIS_FLY_UNVISITED; i <= UIS_FLY_BUSY; ++i) {
+        snprintf(v.bar[2], PT_BAR_LEN, "%s", CtrUiText((CtrUiString)i));
+        DevCheckTouch(&old, &v);
+        assert(Count(212, 33, 90, 8, DEV_INK) > 0 && Count(212, 46, 90, 7, DEV_INK2) > 0);   /* the name's 2nd line; the reason */
+    }
+    assert(sDevKeyCut == 0);
+    strcpy(v.bar[2], "A REASON FAR TOO LONG FOR ONE LINE");
+    DevCheckTouch(&old, &v);
+    assert(sDevKeyCut > 0);
+    sDevKeyCut = 0;
+    /* An egg: its icon, no HP bar (FireRed shows none). */
+    v = HomeBoard();
+    v.party[5] = 1;
+    v.partyHp[5] = 100;
+    v.partyIcon[5] = 412;
+    v.partyEgg = 1u << 5;
+    DevCheckTouch(&old, &v);
+    assert(at(245, 112) == DEV_HP_FRAME && at(276, 112) == DEV_PAPER && at(287, 112) == DEV_PAPER);
+    assert(CtrPokeTouch_HomeHit(&v, 287, 103) == PT_HOME_PARTY + 5);
+
+    /* The states for the eye, each through Update first. pressed: POKeMON held (the board's). */
+    v = HomeBoard();
+    v.playerX = 13;
+    v.playerY = 9;
+    DevCheckTouch(&old, &v);
+    v.pressed = PT_POKEMON;
+    DevCheckTouch(&old, &v);
+    shot("pressed");
+    /* selection: a town picked that can be flown to (its cursor and name; FLY), RUN on, SPD held */
+    v.pressed = PT_HOME_SPEED;
+    v.running = 1;
+    v.cursorX = 14;
+    v.cursorY = 6;
+    v.flyOk = 1;
+    DevCheckTouch(&old, &v);
+    shot("selection");
+    /* flypick: FLY chosen in the Party, the map waits for a town (the hint in two lines); a Pokemon held */
+    v.pressed = PT_HOME_PARTY + 2;
+    v.running = 0;
+    v.cursorX = v.cursorY = -1;
+    v.flyOk = 0;
+    strcpy(v.bar[0], "FLY");
+    snprintf(v.bar[2], PT_BAR_LEN, "%s", CtrUiText(UIS_FLY_PICK));
+    DevCheckTouch(&old, &v);
+    assert(Count(212, 33, 90, 7, DEV_INK2) > 0 && Count(212, 46, 90, 7, DEV_INK2) > 0);   /* the hint takes two lines */
+    shot("flypick");
+    /* sevii: another map; a place that cannot be flown to says why */
+    assert(CtrPokeTouch_MapPrepare(PT_MAP_SEVII123, 0));
+    v.pressed = PT_NONE;
+    v.mapGroup = PT_MAP_SEVII123;
+    v.mapOpen = 3;
+    v.playerX = v.playerY = -1;
+    v.cursorX = 9;
+    v.cursorY = 9;
+    strcpy(v.bar[0], "TWO ISLAND");
+    snprintf(v.bar[2], PT_BAR_LEN, "%s", CtrUiText(UIS_FLY_UNVISITED));
+    DevCheckTouch(&old, &v);
+    shot("sevii");
+    /* fainted: two down, one with a status, an egg (no bar); SPD and RUN not usable now, SAVE neither; the green shell */
+    assert(CtrPokeTouch_MapPrepare(PT_MAP_KANTO, 0));
+    v = HomeBoard();
+    v.playerX = 13;
+    v.playerY = 9;
+    v.party[0] = 2;
+    v.partyHp[0] = 0;
+    v.party[2] = 2;
+    v.partyHp[2] = 0;
+    v.party[4] = 3;
+    v.party[5] = 1;
+    v.partyHp[5] = 100;
+    v.partyIcon[5] = 412;
+    v.partyEgg = 1u << 5;
+    v.speed = 1;
+    v.speedEnabled = 0;
+    v.enabled[PT_RUN] = 0;
+    v.enabled[PT_SAVE] = 0;
+    v.shell = 2;
+    DevCheckTouch(&old, &v);
+    shot("fainted");
+    richArt = 0;
+    iconArt = 0;
+    sPlayer.key = -1;
+    assert(sDevKeyCut == 0);
+}
+
+/* ---- battle: the commands, the quick ball, the moves, the targets, Safari, idle (boards B · Comandos, B · Golpes) ---- */
+
+static int BatHitV(const void *view, int x, int y)
+{
+    return CtrBattleUi_Hit((const CtrBattleView *)view, x, y);
+}
+
+/* The boards' battle: CHARMELEON (male) Lv36 at 112/112 in the lead; the balls able, able, a status, fainted, able, none;
+ * its moves FLAMETHROWER (FIRE, special, super effective, 15/15, with its description), SCRATCH (NORMAL, effective,
+ * 15/35), GROWL (NORMAL, a status move: no power, no chip, 40/40) and BRICK BREAK (FIGHT, physical, not very effective,
+ * 3/15); a double battle's targets: two foes and the ally. The quick ball's POKe BALL x21 among four kinds. Strings as
+ * FireRed has them: no casing (the B views are upper case). */
+static CtrBattleView BatBoard(void)
+{
+    static const struct {
+        const char *name, *type, *power;
+        int t, pp, max, fx;
+    } kMove[4] = {
+        {"FLAMETHROWER", "FIRE", "95", 10, 15, 15, CTR_FX_DOUBLE}, {"SCRATCH", "NORMAL", "40", 0, 15, 35, CTR_FX_NEUTRAL},
+        {"GROWL", "NORMAL", "-", 0, 40, 40, CTR_FX_NONE}, {"BRICK BREAK", "FIGHT", "75", 1, 3, 15, CTR_FX_HALF},
+    };
+    static const struct {
+        const char *name;
+        int side, level, fx, hp, max;
+    } kTarget[3] = {{"PIDGEOTTO", 0, 34, CTR_FX_NEUTRAL, 61, 98}, {"RATICATE", 0, 31, CTR_FX_DOUBLE, 80, 80},
+                    {"PIKACHU", 1, 30, CTR_FX_NONE, 54, 80}};
+    static const uint8_t kParty[6] = {1, 1, 3, 2, 1, 0}, kHp[6] = {100, 70, 52, 0, 90, 0};
+    CtrBattleView v;
+
+    memset(&v, 0, sizeof(v));
+    v.pressed = -1;
+    v.cursor = -1;
+    memcpy(v.party, kParty, sizeof(kParty));
+    memcpy(v.partyHp, kHp, sizeof(kHp));
+    v.partyStatus[2] = 2;
+    strcpy(v.activeName, "CHARMELEON");
+    v.activeNameIsSpecies = 1;
+    v.activeLevel = 36;
+    v.activeGender = 0;
+    v.activeSlot = 0;
+    v.activeIcon = 5;
+    v.activeHp = v.activeMaxHp = 112;
+    v.activeType[0] = 10;
+    v.activeType[1] = -1;
+    strcpy(v.activeTypeName[0], "FIRE");
+    v.ballItem = 4;
+    v.ballQty = 21;
+    v.ballPlace = 0;
+    strcpy(v.ballName, "POK\xC3\xA9 BALL");
+    for (int i = 0; i < 4; ++i) {
+        CtrBattleMove *m = &v.move[i];
+
+        m->present = 1;
+        m->type = (uint8_t)kMove[i].t;
+        strcpy(m->name, kMove[i].name);
+        strcpy(m->typeName, kMove[i].type);
+        strcpy(m->power, kMove[i].power);
+        strcpy(m->accuracy, "100");
+        m->pp = (uint8_t)kMove[i].pp;
+        m->maxPp = (uint8_t)kMove[i].max;
+        m->matchup = (uint8_t)kMove[i].fx;
+    }
+    v.move[0].stab = 1;
+    v.move[0].effectChance = 10;
+    strcpy(v.move[0].desc, "A powerful fire attack that may inflict a burn.");
+    for (int i = 0; i < 3; ++i) {
+        CtrBattleTarget *t = &v.target[i];
+
+        t->present = 1;
+        t->battler = (int8_t)(i == 2 ? 2 : 2 * i + 1);
+        t->side = (uint8_t)kTarget[i].side;
+        t->level = (uint8_t)kTarget[i].level;
+        t->matchup = (uint8_t)kTarget[i].fx;
+        t->hp = (uint16_t)kTarget[i].hp;
+        t->maxHp = (uint16_t)kTarget[i].max;
+        strcpy(t->name, kTarget[i].name);
+        t->nameIsSpecies = 1;
+    }
+    return v;
+}
+
+/* The move screen and the keys draw the game's words in capitals, whatever case they arrive in: with small letters made
+ * wider than capitals, the moves in proper case draw what they draw in capitals. */
+static void BatUpperCase(CtrBattleView v)
+{
+    static uint16_t capitals[W * H];
+    static uint8_t keepWidths[256], keepSmall[256];
+    static const char *const kProper[4][2] = {{"Flamethrower", "Fire"}, {"Scratch", "Normal"}, {"Growl", "Normal"},
+                                              {"Brick Break", "Fight"}};
+    CtrBattleView proper = v;
+
+    memcpy(keepWidths, fontWidths, sizeof(keepWidths));
+    memcpy(keepSmall, smallWidths, sizeof(keepSmall));
+    for (unsigned c = 0xd5; c <= 0xee; ++c)        /* a..z */
+        fontWidths[c] = smallWidths[c] = 7;
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    for (int i = 0; i < 4; ++i) {
+        strcpy(proper.move[i].name, kProper[i][0]);
+        strcpy(proper.move[i].typeName, kProper[i][1]);
+    }
+    v.state = proper.state = BUI_MOVE;
+    v.cursor = proper.cursor = 0;
+    CtrBattleUi_Draw(canvas, &v);
+    memcpy(capitals, canvas, sizeof(capitals));
+    CtrBattleUi_Draw(canvas, &proper);
+    assert(!memcmp(capitals, canvas, sizeof(capitals)));
+    memcpy(fontWidths, keepWidths, sizeof(keepWidths));
+    memcpy(smallWidths, keepSmall, sizeof(keepSmall));
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+}
+
+/* A Pokemon's name: its species' own in capitals whatever case it arrives in (recipe 0251 title-cases the species
+ * names: "Charmeleon" shows as CHARMELEON), one its player gave as typed ("Sparky"), on the action screen (the lead and
+ * the question) and on the target keys. Small letters are made wider than capitals, so the case shows in the pixels. */
+static void BatNames(CtrBattleView v)
+{
+    static uint16_t first[W * H];
+    static uint8_t keepWidths[256], keepSmall[256];
+    CtrBattleView other;
+
+    memcpy(keepWidths, fontWidths, sizeof(keepWidths));
+    memcpy(keepSmall, smallWidths, sizeof(keepSmall));
+    for (unsigned c = 0xd5; c <= 0xee; ++c)        /* a..z */
+        fontWidths[c] = smallWidths[c] = 7;
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    v.state = BUI_ACTION;
+    other = v;
+    strcpy(v.activeName, "CHARMELEON");
+    strcpy(other.activeName, "Charmeleon");
+    v.activeNameIsSpecies = other.activeNameIsSpecies = 1;
+    CtrBattleUi_Draw(canvas, &v);
+    memcpy(first, canvas, sizeof(first));
+    CtrBattleUi_Draw(canvas, &other);
+    assert(!memcmp(first, canvas, sizeof(first)));                 /* the species' own: CHARMELEON */
+    strcpy(v.activeName, "SPARKY");
+    strcpy(other.activeName, "Sparky");
+    v.activeNameIsSpecies = other.activeNameIsSpecies = 0;
+    CtrBattleUi_Draw(canvas, &v);
+    memcpy(first, canvas, sizeof(first));
+    CtrBattleUi_Draw(canvas, &other);
+    assert(memcmp(first, canvas, sizeof(first)));                  /* a nickname: Sparky, as typed */
+    assert(Count(76, 17, 140, 12, DEV_INK) > 0 && Count(20, 71, 280, 15, DEV_INK) > 0);
+    v.state = other.state = BUI_TARGET;
+    v.cursor = other.cursor = -1;
+    strcpy(v.target[0].name, "PIDGEOTTO");
+    strcpy(other.target[0].name, "Pidgeotto");
+    strcpy(v.target[2].name, "PIKACHU");
+    strcpy(other.target[2].name, "Pikachu");
+    v.target[0].nameIsSpecies = other.target[0].nameIsSpecies = v.target[2].nameIsSpecies = other.target[2].nameIsSpecies = 1;
+    CtrBattleUi_Draw(canvas, &v);
+    memcpy(first, canvas, sizeof(first));
+    CtrBattleUi_Draw(canvas, &other);
+    assert(!memcmp(first, canvas, sizeof(first)));
+    strcpy(v.target[2].name, "SPARKY");
+    strcpy(other.target[2].name, "Sparky");
+    v.target[2].nameIsSpecies = other.target[2].nameIsSpecies = 0;
+    CtrBattleUi_Draw(canvas, &v);
+    memcpy(first, canvas, sizeof(first));
+    CtrBattleUi_Draw(canvas, &other);
+    assert(memcmp(first, canvas, sizeof(first)));
+    memcpy(fontWidths, keepWidths, sizeof(keepWidths));
+    memcpy(smallWidths, keepSmall, sizeof(keepSmall));
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+}
+
+/* The plan's suite (each key hit where it is drawn, the touch or else the cursor sinks one key, the quick ball's arrows
+ * and its grey states, RUN when there is no running, holes for missing moves, nothing hit while idle), the boards'
+ * pieces where the boards put them, then the states for the eye. */
+static void SuiteBattle(void)
+{
+    CtrBattleView v = BatBoard(), old;
+    CtrPokeTouchRect prev, next;
+    int i, x, y, hpW, fightX;
+
+    old = v;
+    CtrBattleUi_Draw(canvas, &old);
+    v.state = BUI_ACTION; v.cursor = 0; DevCheckBattle(&old, &v);            /* a trainer: three keys */
+    AssertHits(BatHitV, &v, kDevBatFight, BUI_ACT_FIGHT); AssertKey(kDevBatFight, DEV_LOOK_KEY, 1); assert(at(302, 114) == DEV_LED);
+    AssertHits(BatHitV, &v, kDevBatRow3[0], BUI_ACT_BAG); AssertHits(BatHitV, &v, kDevBatRow3[1], BUI_ACT_POKEMON); AssertHits(BatHitV, &v, kDevBatRow3[2], BUI_ACT_RUN);
+    assert(CtrBattleUi_Hit(&v, 108, 200) == -1 && CtrBattleUi_Hit(&v, 160, 50) == -1);
+    for (i = 0; i < 3; ++i)
+        AssertKey(kDevBatRow3[i], DEV_LOOK_KEY, 0);
+    /* the screen: the lead's icon at 2x (its frame 0 from (4, 8)), the balls, HP, the prompt */
+    assert(BPartyIcon(0, v.activeIcon) && at(20, 18) == sBPIcon[0].pal[sBPIcon[0].pixels[8 * 32 + 4]] && at(21, 19) == at(20, 18));
+    assert(at(40, 30) == DEV_PAPER);                                          /* the stub icon's hole */
+    assert(at(232, 24) == UI_RGB(0x62, 0x62, 0x62) && at(244, 24) == at(232, 24) && at(256, 24) == UI_RGB(0xE0, 0xB0, 0x20)
+           && at(268, 24) == UI_RGB(0xC8, 0xC8, 0xC0) && at(280, 24) == at(232, 24));
+    assert(at(292, 20) == UI_RGB(0xB0, 0xB0, 0xA8) && at(292, 24) == DEV_PAPER);   /* none: a ring */
+    hpW = DevSmallTextWidth("HP") + 2;
+    assert(at(76, 52) == DEV_HP_FRAME && at(76 + hpW + 3, 53) == DEV_HP_FRAME && at(76 + hpW + 3 + 75, 55) == DEV_HP_GREEN
+           && at(76 + hpW + 3 + 149, 58) == DEV_HP_FRAME && at(76 + hpW + 3 + 150, 55) == DEV_PAPER);
+    assert(Count(20, 71, 280, 15, DEV_INK) > 0 && Count(76, 17, 140, 12, DEV_INK) > 0);   /* the prompt; the name */
+    assert(Count(76, 33, 8, 10, DEV_MALE) > 0);                                           /* the gender mark */
+    /* FIGHT's crossed swords: 24x24, 10 px left of the word, the pair centred on the key (sunk: face at 106); blended
+     * at their edges, nothing between them and the word */
+    fightX = 8 + (304 - (24 + 10 + UiTextWidth(CTR_TR("FIGHT", "LUCHAR", "KAMPF"), 2))) / 2;
+    assert(Count(fightX, 122, 24, 24, UI_RGB(0xA0, 0x2A, 0x20)) > 20 && Count(fightX + 24, 106, 10, 56, UI_RGB(0xA0, 0x2A, 0x20)) == 0);
+    assert(Count(fightX, 122, 24, 24, DEV_SUNK) + Count(fightX, 122, 24, 24, UI_RGB(0xA0, 0x2A, 0x20)) < 24 * 24);
+    assert(Count(fightX + 34, 125, 40, 18, UI_RGB(0xA0, 0x2A, 0x20)) > 0 && Count(8, 106, fightX - 8, 56, UI_RGB(0xA0, 0x2A, 0x20)) == 0);
+    assert(at(fightX + 5, 127) == UI_RGB(0xA0, 0x2A, 0x20) && at(fightX + 18, 127) == UI_RGB(0xA0, 0x2A, 0x20));   /* the blades */
+    shot("action");
+    v.runBlocked = 1; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 264, 200) == -1 && at(219, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
+    shot("action_runblocked");
+    v.runBlocked = 0; v.ball = CTR_QUICK_BALL_READY; v.ballCount = 4; v.ballItem = 4; v.ballQty = 21; DevCheckBattle(&old, &v);   /* wild: four keys */
+    assert(CtrBattleUi_Hit(&v, 121, 180) == BUI_ACT_BALL && CtrBattleUi_Hit(&v, 97, 218) == BUI_ACT_BALL_PREV && CtrBattleUi_Hit(&v, 151, 218) == BUI_ACT_BALL_NEXT
+           && CtrBattleUi_Hit(&v, 44, 200) == BUI_ACT_BAG && CtrBattleUi_Hit(&v, 198, 200) == BUI_ACT_POKEMON && CtrBattleUi_Hit(&v, 275, 200) == BUI_ACT_RUN);
+    AssertHits(BatHitV, &v, kDevBatRow4[0], BUI_ACT_BAG); AssertHits(BatHitV, &v, kDevBatRow4[1], BUI_ACT_BALL);
+    AssertHits(BatHitV, &v, kDevBatRow4[2], BUI_ACT_POKEMON); AssertHits(BatHitV, &v, kDevBatRow4[3], BUI_ACT_RUN);
+    prev = DevBatBallArrow(&kDevBatRow4[1], 0);
+    next = DevBatBallArrow(&kDevBatRow4[1], 1);
+    /* an arrow answers 3 px round itself, on its key */
+    assert(CtrBattleUi_Hit(&v, prev.x - 2, prev.y - 3) == BUI_ACT_BALL_PREV && CtrBattleUi_Hit(&v, next.x + next.w + 1, next.y + next.h + 2) == BUI_ACT_BALL_NEXT);
+    assert(CtrBattleUi_Hit(&v, prev.x + prev.w + 3, prev.y) == BUI_ACT_BALL && CtrBattleUi_Hit(&v, prev.x, prev.y - 4) == BUI_ACT_BALL);
+    assert(Count(prev.x, prev.y, prev.w, prev.h, DEV_KEY_INK) > 0 && Count(next.x, next.y, next.w, next.h, DEV_KEY_INK) > 0);
+    shot("action_ball");
+    v.ballCount = 1; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 97, 218) == BUI_ACT_BALL);
+    assert(Count(prev.x, prev.y, prev.w, prev.h, DEV_KEY_INK) == 0 && Count(next.x, next.y, next.w, next.h, DEV_KEY_INK) == 0);
+    v.ball = CTR_QUICK_BALL_FULL; v.ballCount = 4; DevCheckBattle(&old, &v);       /* grey: dimmed, the throw still hit (the game says why), no arrows */
+    assert(CtrBattleUi_Hit(&v, 121, 180) == BUI_ACT_BALL && CtrBattleUi_Hit(&v, 97, 218) == BUI_ACT_BALL && at(88, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
+    shot("action_ballfull");
+    v.ball = CTR_QUICK_BALL_EMPTY; v.ballCount = 0; v.ballItem = 0; v.ballQty = 0; DevCheckBattle(&old, &v);
+    assert(CtrBattleUi_Hit(&v, 121, 180) == BUI_ACT_BALL && at(88, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
+    v.ball = CTR_QUICK_BALL_AREA; v.ballItem = 4; v.ballQty = 21; DevCheckBattle(&old, &v);
+    assert(CtrBattleUi_Hit(&v, 151, 218) == BUI_ACT_BALL);
+    v.ball = CTR_QUICK_BALL_READY; v.ballCount = 4; v.pressed = BUI_ACT_BALL_NEXT; DevCheckBattle(&old, &v);
+    AssertKey(kDevBatRow4[1], DEV_LOOK_KEY, 1); AssertKey(kDevBatFight, DEV_LOOK_KEY, 0);                 /* the touch, not the cursor */
+    v.pressed = -1; v.cursor = CTR_ACTION_BALL; DevCheckBattle(&old, &v);
+    AssertKey(kDevBatRow4[1], DEV_LOOK_KEY, 1); AssertKey(kDevBatFight, DEV_LOOK_KEY, 0);                 /* the cursor on the ball */
+    v.cursor = 0;
+    v.pressed = -1; DevCheckBattle(&old, &v); v.activeFrame ^= 1; v.showCursor ^= 1; assert(DevCheckBattle(&old, &v).count == 0);   /* not drawn: no redraw */
+    /* nor anything else the commands do not draw: the party's HP and conditions, the lead's types, the ball's name and
+     * place, the moves and the targets, the Party and the Bag */
+    v.partyHp[1] = 40; v.partyStatus[0] = 5; v.activeType[1] = 2; strcpy(v.activeTypeName[1], "FLYING");
+    strcpy(v.ballName, "ULTRA BALL"); v.ballPlace = 2; v.move[0].priority = 1; v.move[1].pp = 3; v.target[0].battler = 3;
+    v.target[1].hp = 7; v.bag.count = 7; v.pty.cursor = 2; v.safari = 1;
+    assert(DevCheckBattle(&old, &v).count == 0);
+    v.safari = 0; v.move[1].pp = 15; v.target[1].hp = 80; assert(DevCheckBattle(&old, &v).count == 0);
+    v.shell = 1; assert(DevWhole(DevCheckBattle(&old, &v)) && at(160, 100) == DEV_SHELL_BLUE);
+    v.shell = 0; DevCheckBattle(&old, &v);
+    /* to the ember Bag and back: the whole screen each way */
+    v.state = BUI_BAG; assert(DevWhole(DevCheckBattle(&old, &v)));
+    v.state = BUI_ACTION; assert(DevWhole(DevCheckBattle(&old, &v)));
+
+    v.state = BUI_MOVE; v.cursor = 1; assert(DevWhole(DevCheckBattle(&old, &v)));
+    v.activeHp = 50; v.party[5] = 1; v.ballQty = 3; v.runBlocked = 1; assert(DevCheckBattle(&old, &v).count == 0);   /* the lead: not drawn here */
+    v.activeHp = 112; v.party[5] = 0; v.ballQty = 21; v.runBlocked = 0; DevCheckBattle(&old, &v);
+    for (i = 0; i < 4; ++i) AssertHits(BatHitV, &v, kDevBatMove[i], i);
+    AssertHits(BatHitV, &v, kDevBatCancel, BUI_CANCEL); AssertKey(kDevBatMove[1], DEV_LOOK_KEY, 1);
+    AssertKey(kDevBatMove[0], DEV_LOOK_KEY, 0); AssertKey(kDevBatCancel, DEV_LOOK_DARK, 0);
+    v.pressed = BUI_CANCEL; DevCheckBattle(&old, &v); AssertKey(kDevBatCancel, DEV_LOOK_DARK, 1); AssertKey(kDevBatMove[1], DEV_LOOK_KEY, 0);
+    v.pressed = -1;
+    /* the board's state: the cursor on FLAMETHROWER */
+    v.cursor = 0; DevCheckBattle(&old, &v);
+    assert(at(19, 100) == UiTypeColor(10) && at(62, 100) == DEV_FX_SUPER);                    /* sunk: 2 px lower */
+    assert(at(175, 98) == UiTypeColor(0) && at(218, 98) == DEV_FX_EFFECTIVE && at(218, 168) == DEV_FX_NOTVERY);
+    assert(at(62, 168) == DEV_KEY && Count(62, 166, 40, 10, DEV_INK2) > 0);                   /* GROWL: "STATUS", no chip */
+    assert(Count(164, 114, 148, 14, DEV_PP_HALF) > 0 && Count(164, 184, 148, 14, DEV_PP_QUARTER) > 0);   /* 15/35, 3/15 */
+    assert(Count(14, 14, 292, 16, DEV_CAT_SPECIAL) > 0 && Count(14, 14, 292, 16, DEV_CAT_PHYSICAL) == 0);
+    assert(Count(20, 31, 280, 26, DEV_INK2) > 0 && Count(12, 214, 120, 12, DEV_WHITE) > 0);   /* the description; the hint */
+    shot("moves");
+    v.cursor = 3; DevCheckBattle(&old, &v);
+    assert(Count(14, 14, 292, 16, DEV_CAT_PHYSICAL) > 0 && Count(14, 14, 292, 16, DEV_CAT_SPECIAL) == 0);
+    v.cursor = 2; DevCheckBattle(&old, &v);                                                     /* no power: no category */
+    assert(Count(14, 14, 292, 16, DEV_CAT_PHYSICAL) == 0 && Count(14, 14, 292, 16, DEV_CAT_SPECIAL) == 0);
+    v.cursor = 0; v.move[0].desc[0] = 0; DevCheckBattle(&old, &v);                            /* no description: STAB, the effect */
+    assert(Count(20, 31, 280, 14, DEV_INK2) > 0);
+    v.move[0] = BatBoard().move[0];
+    v.cursor = 1; DevCheckBattle(&old, &v);
+    BatUpperCase(v);
+    BatNames(v);
+    CtrBattleUi_Draw(canvas, &old);
+    v.move[2].present = v.move[3].present = 0; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 82, 173) == -1);   /* two moves: holes */
+    assert(CtrBattleUi_Hit(&v, 238, 173) == -1 && at(82, 173) == DevBlend(DEV_SHELL_RED, 0, DEV_A_HOLE));
+    shot("moves_two");
+    v.move[2] = BatBoard().move[2];
+    v.move[3] = BatBoard().move[3];
+
+    v.state = BUI_TARGET; /* target[0], target[1] foes, target[2] the ally */ DevCheckBattle(&old, &v); AssertHits(BatHitV, &v, kDevBatMove[1], 1); AssertHits(BatHitV, &v, kDevBatCancel, BUI_CANCEL);
+    AssertHits(BatHitV, &v, kDevBatMove[0], 0); AssertHits(BatHitV, &v, kDevBatMove[2], 2);
+    assert(CtrBattleUi_Hit(&v, 238, 173) == -1);                                              /* no fourth: a hole */
+    assert(at(19, 98) == DEV_STAT_UP && at(19, 168) == DEV_BLUE_INK && at(218, 100) == DEV_FX_SUPER);   /* FOE, ALLY; RATICATE */
+    assert(at(18, 72 + 46) == DEV_HP_FRAME && Count(80, 184, 76, 14, DEV_KEY_INK) > 0);    /* the bar; the ally's hp/max */
+    shot("target");
+
+    v.state = BUI_SAFARI; v.cursor = 2; DevCheckBattle(&old, &v); for (i = 0; i < 4; ++i) AssertHits(BatHitV, &v, kDevBatMove[i], i);
+    AssertKey(kDevBatMove[2], DEV_LOOK_KEY, 1); AssertKey(kDevBatMove[0], DEV_LOOK_KEY, 0);
+    assert(CtrBattleUi_Hit(&v, 200, 222) == -1 && Count(14, 14, 292, 44, DEV_INK) > 0);       /* no CANCEL; the prompt */
+    shot("safari");
+
+    v.state = BUI_IDLE; v.ball = CTR_QUICK_BALL_READY; v.ballCount = 4; v.ballItem = 4; v.ballQty = 21;   /* a wild battle */
+    DevCheckBattle(&old, &v); for (y = 0; y < 240; y += 3) for (x = 0; x < 320; x += 3) assert(CtrBattleUi_Hit(&v, x, y) == -1);
+    assert(at(11, 132) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128) && at(11, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
+    assert(at(108, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));                         /* the quick ball's key, grey */
+    assert(Count(20, 71, 280, 15, DEV_INK) == 0 && Count(76, 17, 140, 12, DEV_INK) > 0);   /* no prompt; the lead still */
+    shot("idle");
+    v.cursor = 3; v.pressed = 2; assert(DevCheckBattle(&old, &v).count == 0);             /* idle: no key chosen */
+    v.ball = CTR_QUICK_BALL_NONE; v.ballCount = 0; DevCheckBattle(&old, &v);                /* a trainer: three keys */
+    assert(at(108, 200) == DEV_SHELL_RED && at(219, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
+    v.safari = 1; assert(DevWhole(DevCheckBattle(&old, &v)));                              /* the Safari Zone: its own keys */
+    for (y = 0; y < 240; y += 3) for (x = 0; x < 320; x += 3) assert(CtrBattleUi_Hit(&v, x, y) == -1);
+    for (i = 0; i < 4; ++i)
+        assert(at(kDevBatMove[i].x + 3, kDevBatMove[i].y + 31) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
+    assert(Count(14, 14, 292, 44, DEV_INK) == 0 && at(11, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
+    shot("idle_safari");
+    assert(sDevKeyCut == 0);
+}
+
+/* ---- main --------------------------------------------------------------------------------------------------------- */
+
+static const struct { const char *name; void (*run)(void); } kSuites[] = {
+    {"kit", SuiteKit},
+    {"home", SuiteHome},
+    {"battle", SuiteBattle},
+};
+
+int main(int argc, char **argv)
+{
+    const char *pack = getenv("FIRERED_TEST_PAK"), *stub = getenv("DEVICE_FONT_W");
+    int all = argc > 1 && !strcmp(argv[1], "all"), ran = 0;
+
+    if (argc != 2) {
+        fprintf(stderr, "usage: device_render_test <suite> (kit, home, all)\n");
+        return 2;
+    }
+    gOut = getenv("DEVICE_OUT");
+    if (stub && atoi(stub) > 1 && atoi(stub) <= 16)
+        gStubW = (unsigned)atoi(stub);
+    SyntheticFont(font, 0);
+    SyntheticFont(smallFont, 1);
+    if (pack) {
+        PackOpen(pack);
+        if (!PackFont("graphics/fonts/latin_normal.fwlatfont", font, sizeof(font))
+            || !PackFont("graphics/fonts/latin_small.hwlatfont", smallFont, sizeof(smallFont))) {
+            SyntheticFont(font, 0);
+            SyntheticFont(smallFont, 1);
+            puts("NOTE device: synthetic font");
+        }
+    }
+    ReadWidths(getenv("DEVICE_WIDTHS"), fontWidths);
+    ReadWidths(getenv("DEVICE_SMALL_WIDTHS"), smallWidths);
+    for (unsigned i = 0; i < sizeof(kSuites) / sizeof(kSuites[0]); ++i)
+        if (all || !strcmp(argv[1], kSuites[i].name)) {
+            gSuite = kSuites[i].name;
+            sDevKeyCut = 0;
+            kSuites[i].run();
+            printf("PASS device %s\n", kSuites[i].name);
+            ++ran;
+        }
+    if (!ran) {
+        fprintf(stderr, "no suite %s\n", argv[1]);
+        return 2;
+    }
+    if (all)
+        puts("PASS device all");
+    if (realPack)
+        fclose(realPack);
+    free(realIndex);
+    return 0;
+}

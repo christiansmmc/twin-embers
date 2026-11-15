@@ -26,6 +26,11 @@ enum {
     PT_NONE = 0xff
 };
 
+/* HOME's own touch places beyond the keys (CtrPokeTouch_HomeHit, a view's `pressed`): the game's speed (a tap is a
+ * START press for the turbo) and a Pokemon of the party (PT_HOME_PARTY + its slot, a tap opens POKeMON). Never START
+ * menu entries or field commands. */
+enum { PT_HOME_SPEED = 0x40, PT_HOME_PARTY = 0x48 };
+
 /* What Fly does at a map section (CtrPokeTouch_FlyStatus): not a destination, or
  * one, and why it cannot be used (unvisited, no party member that knows Fly, no
  * badge for it, not outdoors, the field busy), or can. */
@@ -42,17 +47,18 @@ typedef struct { int16_t x, y, w, h; } CtrPokeTouchRect;
  * live state (CtrPokeTouch_Map* in the game, patch 0064). The maps are its
  * REGIONMAP_* values. */
 enum { PT_MAP_KANTO, PT_MAP_SEVII123, PT_MAP_SEVII45, PT_MAP_SEVII67, PT_MAP_COUNT };
-/* The map is redrawn at 4x from that art by 3ds_home_map_impl.h: an image of 768x576 pixels that the viewport shows at one of three zooms (0: the
- * whole width, 1: about 0.8, 2: about 1.45) round a centre in the image's own pixels. A tap picks the town whose orb is near it, else the cell
- * (22x15) it is in. */
-bool CtrPokeTouch_MapPrepare(int group, int version);                  /* a frame's work on a map's image; true once it is there */
-bool CtrPokeTouch_HomeCellWorld(int cx, int cy, int *wx, int *wy);     /* a cell's centre in the image */
-void CtrPokeTouch_HomeClamp(int zoom, int *cx, int *cy);               /* a centre kept so the image covers the viewport */
-bool CtrPokeTouch_HomePick(int zoom, int cx, int cy, int vx, int vy, int *gx, int *gy);   /* the cell under a viewport pixel */
-int CtrPokeTouch_HomeScale(int zoom);                                  /* a zoom's scale in 1/256 */
-void CtrPokeTouch_HomeReveal(int zoom, int *cx, int *cy, int gx, int gy);   /* scroll to a cell only if it is out of the window */
-bool CtrPokeTouch_HomeRibbonHit(int x, int y);                         /* the region ribbon, when it leads to another map */
-int CtrPokeTouch_HomeZoomHit(int x, int y);                            /* +1: the "+" button, -1: "-", else 0 */
+/* HOME's map window (the red device, 3ds_device_home_impl.h): the Region Map's own picture at 1:1, its 192x128 from
+ * (PT_HOME_SRC_X, PT_HOME_SRC_Y) of the game's 240x160 screen, at (PT_HOME_X, PT_HOME_Y) of the lower screen. That crop
+ * holds the whole 22x15 grid of 8x8 cells (screen x 32..207, y 32..151) with room for a 16x16 icon on every cell, so
+ * every town and the player are in it on every map. (PT_VIEW_* stay the GBA picture's.) */
+#define PT_HOME_X 14
+#define PT_HOME_Y 14
+#define PT_HOME_W 192
+#define PT_HOME_H 128
+#define PT_HOME_SRC_X 24
+#define PT_HOME_SRC_Y 28
+bool CtrPokeTouch_MapPrepare(int group, int version);                  /* the window's picture of a map; false: no art */
+bool CtrPokeTouch_HomeRibbonHit(int x, int y);                         /* the region key, when it leads to another map */
 /* The native OPTIONS screen (3ds_poketouch_options.c holds the rows): it fills the viewport with up
  * to PT_OPT_MAX rows, each a label on the left and, on the right, "<" value ">". A row is 228x20 at
  * (PT_VIEW_X + 6, PT_VIEW_Y + 4 + 22 row). On a row, the label selects it (its description goes to
@@ -396,18 +402,22 @@ typedef struct {
     uint8_t selected;           /* the active destination, or PT_NONE */
     uint8_t running;            /* the running mode is on (Running Shoes) */
     uint8_t viewport;           /* the GPU shows a GBA picture in the viewport */
-    uint8_t home;               /* the HOME map fills the viewport (no GBA picture) */
+    uint8_t home;               /* HOME is the lower screen (the red device's; with no GBA picture) */
     uint8_t mapGroup;           /* which map: PT_MAP_KANTO..PT_MAP_SEVII67 */
     uint8_t mapVersion;         /* what else its art depends on (CtrPokeTouch_MapVersion) */
-    uint8_t mapZoom;            /* the zoom (0..2) the viewport shows the image at, and the point of the image at its centre */
-    int16_t mapCX, mapCY;
-    uint8_t mapReady;           /* the image of the map has been built (CtrPokeTouch_MapPrepare) */
-    uint8_t mapOpen;            /* the maps the ribbon leads to, a bit each (PT_MAP_*): with more than one, the ribbon says so */
+    uint8_t mapReady;           /* the map's art was there (CtrPokeTouch_MapPrepare) */
+    uint8_t mapOpen;            /* the maps the region key leads to, a bit each (PT_MAP_*): with more than one, it says so */
     uint8_t playerFemale;       /* Leaf's map icon rather than Red's */
     int8_t playerX, playerY;    /* the player's cell on the map (22x15), -1: none */
     int8_t cursorX, cursorY;    /* the selected cell (FireRed's cursor icon), -1: none */
     uint8_t cursorFrame;        /* which of the cursor's two blink frames (0 with none) */
-    uint8_t flyOk;              /* the selected destination can be Flown to now: the note says so on a pill */
+    uint8_t flyOk;              /* the selected destination can be Flown to now: HOME shows FLY */
+    uint8_t party[6];           /* HOME's party: 0 no Pokemon, 1 able, 2 fainted, 3 a status (as CtrBattleView) */
+    uint8_t partyHp[6];         /* HP left as a percentage (an egg: 100) */
+    uint16_t partyIcon[6];      /* each slot's party icon (a species number, as CtrBottomParty_IconSpecies) */
+    uint8_t partyEgg;           /* the slots that hold an egg, a bit each: no HP bar (FireRed shows none) */
+    uint8_t speed;             /* the turbo chosen (3ds_fast_forward.h): 1 off, 2..4 the multiplier */
+    uint8_t speedEnabled;       /* a tap on SPD can change it now (where START could) */
     uint8_t options;            /* the OPTIONS screen fills the viewport (no GBA picture, no map) */
     uint8_t optPage;            /* 0-based page index in OPTIONS */
     uint8_t optPageCount;       /* total pages in OPTIONS */
@@ -454,6 +464,7 @@ typedef struct {
     CtrPokeTouchName name;      /* the naming screen, when name.on */
     CtrPokeTouchBox box;        /* a PC box, when box.on */
     CtrPokeTouchChoice choice;  /* a choice of the field, when choice.on */
+    uint8_t shell;          /* the lower screen's shell colour: 0 red, 1 blue, 2 green, 3 grey (CtrOptions_Shell) */
 } CtrPokeTouchView;
 
 extern const CtrPokeTouchRect gCtrPokeTouchRects[PT_COUNT];
@@ -474,9 +485,18 @@ int CtrPokeTouch_OptionSegment(int x, int count);
  * while confirming, OK (PT_SAVE_FIRST) after a result, none while writing. */
 int CtrPokeTouch_SaveHit(int x, int y, int state);
 
-/* PT_* under a bottom-screen pixel, or PT_NONE. */
+/* The START column's PT_* under a bottom-screen pixel, or PT_NONE (every view but HOME). */
 int CtrPokeTouch_HitTest(int x, int y);
-bool CtrPokeTouch_FlyHit(int x, int y);          /* HOME's FLY button, while it is drawn */
+bool CtrPokeTouch_FlyHit(int x, int y);          /* HOME's FLY key, while it is drawn */
+/* HOME (view->home, no GBA picture) under lower-screen point (x, y): its keys PT_POKEDEX..PT_OPTIONS, PT_RUN,
+ * PT_HOME_SPEED, PT_HOME_PARTY + a slot that holds a Pokemon, else PT_NONE (the map window is not a key). */
+int CtrPokeTouch_HomeHit(const CtrPokeTouchView *view, int x, int y);
+/* A lower-screen point in HOME's map window, as the window's own pixel (vx, vy); false outside it. */
+bool CtrPokeTouch_HomeWindowPoint(int x, int y, int *vx, int *vy);
+/* The centre of the map's cell (cx, cy) of the 22x15 grid on the lower screen; false off the grid. */
+bool CtrPokeTouch_HomeCellPoint(const CtrPokeTouchView *view, int cx, int cy, int *x, int *y);
+/* The 8x8 cell under a lower-screen point; false off the grid or outside the window. */
+bool CtrPokeTouch_HomeMapCell(const CtrPokeTouchView *view, int x, int y, int *cx, int *cy);
 /* What the field Bag (view->bag.on) shows under lower-screen point (x, y): a PT_BAG_HIT_* code, or -1. */
 int CtrPokeTouch_BagHit(const CtrPokeTouchView *view, int x, int y);
 int CtrPokeTouch_BagRailTarget(const CtrPokeTouchBag *bag, int y);   /* the cursor index the rail's thumb at y stands for (-1: no rail) */
@@ -537,21 +557,18 @@ void CtrPokeTouch_Draw(uint16_t *canvas, const CtrPokeTouchView *view);
  * is added to `dirty` to be presented; nothing is added when nothing changed. */
 void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const CtrPokeTouchView *view,
                          CtrDirtyList *dirty);
-/* One step of the embers rising over the backdrop of whatever screen the canvas holds (PokeTouch, the battle, the
- * Summary): drawn only where the backdrop shows and, with `pictureShown`, off the GBA picture; with `on` false they
- * are only taken away. What changed is added to `dirty`. */
-void CtrPokeTouch_Embers(uint16_t *canvas, int on, int low, int pictureShown, CtrDirtyList *dirty);
 /* The lower screen with nothing to show for FireRed's screen above (its title, naming, a shop, an evolution, a trade):
  * the ember backdrop, and the project's logo when `logo`. */
 void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo);
 
 /*
- * The battle screen (3ds_battle_ui.inc, CtrBattleUi_*): the whole lower screen while FireRed's battle is on the
- * upper one. While the player's controller waits at the action menu it is the MAIN design (FIGHT large, BAG, RUN
- * and POKeMON below, the party's six Poke Balls above); at the move list, the four move cards (name, type,
- * description and power of the real moves) and CANCEL; at any other moment only the frame and the balls.
+ * The battle screen (3ds_device_battle_impl.h, CtrBattleUi_*): the whole lower screen while FireRed's battle is on
+ * the upper one, drawn as the red device. While the player's controller waits at the action menu: a screen with the
+ * lead and the party's six balls, FIGHT across, BAG, POKeMON and RUN below; at the move list, the chosen move on the
+ * screen (type, category, power, accuracy, description) and the four move keys and CANCEL; at any other moment the
+ * action screen with its keys grey.
  * Everything shown is what the controller reports: the screen has no state of its own. In a wild battle a fourth button
- * between BAG and POKeMON throws a ball at once (the quick ball: the ball's own icon, name and count, arrows or a swipe
+ * between BAG and POKeMON throws a ball at once (the quick ball: the ball's own icon and count, arrows or a swipe
  * across it for the others, CTR_ACTION_BALL as the controller's cursor). In the battle Bag (BUI_BAG, the Bag FireRed
  * opens from BAG) it is a remote for that Bag: its items (the Items pocket: the balls have their button, the key items
  * stay out but for the Berry Pouch, which BERRIES opens) with icon and quantity, the selected item's detail, and
@@ -652,32 +669,37 @@ typedef struct {
     uint8_t matchup;                /* CTR_FX_* effectiveness of the chosen move against this battler */
     uint16_t hp, maxHp;
     char name[BUI_NAME_LEN];
+    uint8_t nameIsSpecies;          /* the name is its species' own (shown in capitals), not one the player gave */
 } CtrBattleTarget;
 typedef struct {
     uint8_t state;                  /* BUI_* */
     int16_t pressed;                /* the button held under a touch, or -1 */
-    int8_t cursor;                  /* the controller's own cursor, drawn only while showCursor (the last input was a button) */
-    uint8_t showCursor;
+    int8_t cursor;                  /* the controller's own cursor: the chosen key, unless a touch holds another */
+    uint8_t showCursor;             /* the last input was a button (the ember Party and Bag draw the cursor only then) */
     uint8_t party[6];               /* 0 no Pokemon, 1 able, 2 fainted, 3 status condition */
     uint8_t partyHp[6];             /* HP left as a percentage (an egg: 100) */
     uint8_t partyStatus[6];         /* 0 none, else 1..6 PSN PAR SLP FRZ BRN PKRS */
-    char activeName[BUI_NAME_LEN];  /* the Pokemon in the lead (party slot 0): the action screen's footer */
+    char activeName[BUI_NAME_LEN];  /* the Pokemon in the field: the action screen's lead and question */
+    uint8_t activeNameIsSpecies;    /* its name is its species' own (shown in capitals), not one the player gave */
     uint8_t activeLevel;
+    uint8_t activeGender;           /* 0 male, 1 female, 2 none (CtrBottomParty_Gender) */
     uint8_t activeSlot;             /* its slot in the party */
     uint16_t activeIcon;            /* its party icon (a species number, as CtrBottomParty_IconSpecies gives it) */
-    int8_t activeType[2];           /* its types (FireRed's numbers), -1 for none: the badges of the FIGHT banner */
+    int8_t activeType[2];           /* its types (FireRed's numbers), -1 for none (not drawn) */
     char activeTypeName[2][12];
-    uint8_t activeFrame;            /* 0 or 1, the icon's bounce: it flips about four times a second */
+    uint8_t activeFrame;            /* 0 or 1, flips about four times a second (not drawn: the icon is its frame 0) */
     uint16_t activeHp, activeMaxHp;
     uint8_t ball;                   /* the quick ball: CTR_QUICK_BALL_* (3ds_battle_nav.h), NONE for no button */
-    uint8_t ballPlace, ballCount;   /* the ball shown among the Bag's balls (the dots) */
+    uint8_t ballPlace, ballCount;   /* the ball shown among the Bag's balls (its place is not drawn; others: the arrows) */
     uint16_t ballItem, ballQty;
     uint8_t runBlocked;             /* BUI_ACTION: fleeing is impossible now (a trainer, a trapping ability or move): RUN is grey and takes no tap */
-    char ballName[BUI_ITEM_LEN];
+    char ballName[BUI_ITEM_LEN];    /* (not drawn) */
+    uint8_t safari;                 /* BUI_IDLE in the Safari Zone: its own keys, grey */
     CtrBattleMove move[4];
     CtrBattleBag bag;
     CtrBattleParty pty;
     CtrBattleTarget target[4];
+    uint8_t shell;          /* the lower screen's shell colour: 0 red, 1 blue, 2 green, 3 grey (CtrOptions_Shell) */
 } CtrBattleView;
 
 void CtrBattleUi_Draw(uint16_t *canvas, const CtrBattleView *view);
@@ -709,6 +731,7 @@ typedef struct {
     uint8_t trainer;                /* TRAINER is shown (FireRed is on its first page) */
     uint8_t ivView;                 /* STATS shows the IVs, EVs and Hidden Power instead of the experience */
     uint8_t loading;                /* nothing reported yet: the frame only */
+    uint8_t shell;          /* the lower screen's shell colour: 0 red, 1 blue, 2 green, 3 grey (CtrOptions_Shell) */
 } CtrSummaryUiView;
 
 void CtrSummaryUi_Draw(uint16_t *canvas, const CtrSummaryUiView *view);

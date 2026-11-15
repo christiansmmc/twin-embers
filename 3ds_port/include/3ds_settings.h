@@ -5,7 +5,7 @@
 /* The port's own settings that outlive a session, kept in a small text file on the SD card
  * (sdmc:/3ds/classicfirered3ds/settings.cfg, lines of "name=number") and not in the game save, so they
  * travel with the console and never touch the save format. Read once on first use; a missing or
- * damaged file means the defaults (turbo off, auto-run off, EMBERS not chosen, REPEL AGAIN on). Each setter writes the file only when
+ * damaged file means the defaults (turbo off, auto-run off, shell red, REPEL AGAIN on). Each setter writes the file only when
  * the value changes. */
 
 #ifndef CTR_SETTINGS_PATH
@@ -20,9 +20,9 @@ void CtrSettings_SetTurbo(unsigned turbo);
 int CtrSettings_AutoRun(void);
 void CtrSettings_SetAutoRun(int on);
 
-/* The EMBERS level the player chose (CTR_EMBERS_*, 0..2), or -1 when none was: the console's default then. */
-int CtrSettings_Embers(void);
-void CtrSettings_SetEmbers(int level);
+/* The SHELL COLOUR the player chose: 0 red (the default), 1 blue, 2 green, 3 grey; anything else is 0. */
+int CtrSettings_Shell(void);
+void CtrSettings_SetShell(int shell);
 
 /* Whether a Repel that wears off offers to use another (REPEL AGAIN on the OPTIONS screen): on by default. */
 int CtrSettings_RepelAgain(void);

@@ -30,7 +30,8 @@ static const char *const sHourName[HOUR_COUNT] = {
     "18:00", "18:30", "19:00", "19:30", "20:00", "20:30",
     "21:00", "21:30", "22:00", "22:30", "23:00", "23:30",
 };
-static const char *const sEmbers[] = {CTR_TR("Off", "No", "Aus"), CTR_TR("Low", "Bajo", "Wenig"), CTR_TR("High", "Alto", "Viel")};     /* CTR_EMBERS_* */
+/* SHELL COLOUR: the colour of the lower screen's shell (0 red, 1 blue, 2 green, 3 grey). */
+static const char *const sShell[] = {CTR_TR("Red", "Rojo", "Rot"), CTR_TR("Blue", "Azul", "Blau"), CTR_TR("Green", "Verde", "Gr\xC3\xBCn"), CTR_TR("Grey", "Gris", "Grau")};
 /* EXP SHARE: who gets experience (HALF: the whole team shares as if each held an EXP. SHARE; FULL: every Pokemon that can
  * still fight gets the share of one that fought). */
 static const char *const sExpShare[] = {CTR_TR("Off", "No", "Aus"), CTR_TR("Half", "Mitad", "Halb"), CTR_TR("Full", "Toda", "Voll")};
@@ -47,7 +48,6 @@ static int sPortTypeMatchup;
 static int sPortMoveDetails;
 static int sPortDayNight;
 static int sPortHour = HOUR_DEFAULT;
-static int sPortEmbers = CTR_EMBERS_HIGH;
 
 static int TwoCount(void) { return 2; }
 static int GetTypeMatchup(void) { return sPortTypeMatchup; }
@@ -113,19 +113,15 @@ static int GetTmReuse(void) { return !CtrSettings_TmReuse(); }
 static void SetTmReuse(int v) { CtrSettings_SetTmReuse(!(v & 1)); }
 static int GetExpShare(void) { return CtrSettings_ExpShare(); }
 static void SetExpShare(int v) { CtrSettings_SetExpShare(v); }
-static int GetEmbers(void) { return sPortEmbers; }
-static void SetEmbers(int v)
-{
-    sPortEmbers = v < 0 || v >= CTR_EMBERS_COUNT ? CTR_EMBERS_HIGH : v;
-    CtrSettings_SetEmbers(sPortEmbers);     /* kept for the next session; the file is written only on a change */
-}
+static int GetShell(void) { return CtrSettings_Shell(); }
+static int ShellCount(void) { return 4; }
+static void SetShell(int v) { CtrSettings_SetShell(v); }
 
 int CtrOptions_TypeMatchup(void) { return sPortTypeMatchup == 0; }
 int CtrOptions_MoveDetails(void) { return sPortMoveDetails == 0; }
 int CtrOptions_DayNight(void) { return sPortDayNight != DAY_NIGHT_OFF; }
 int CtrOptions_DayNightSecond(void) { return sPortDayNight == DAY_NIGHT_FIXED ? sPortHour * HOUR_STEP_SECONDS : -1; }
-int CtrOptions_Embers(void) { return sPortEmbers != CTR_EMBERS_OFF; }
-int CtrOptions_EmbersLow(void) { return sPortEmbers == CTR_EMBERS_LOW; }
+int CtrOptions_Shell(void) { return CtrSettings_Shell(); }
 int CtrOptions_RepelAgain(void) { return CtrSettings_RepelAgain(); }
 int CtrOptions_Companion(void) { return CtrSettings_Companion(); }
 int CtrOptions_ExpShare(void) { return CtrSettings_ExpShare(); }
@@ -153,13 +149,6 @@ unsigned CtrOptions_RandomSpecies(unsigned seed, unsigned place, unsigned specie
     return h < 251 ? h + 1 : h - 251 + 277;
 }
 
-void CtrOptions_EmbersInit(int isNew3ds)
-{
-    int stored = CtrSettings_Embers();
-
-    sPortEmbers = stored >= 0 && stored < CTR_EMBERS_COUNT ? stored : isNew3ds ? CTR_EMBERS_HIGH : CTR_EMBERS_LOW;
-}
-
 /* The rows by section: Settings, Graphics, QoL, Nuzlocke. */
 static const CtrOptionRow sRows[] = {
     /* Settings: how the game plays and sounds. */
@@ -178,11 +167,11 @@ static const CtrOptionRow sRows[] = {
      GetDayNight, DayNightCount, SetDayNight},
     {CTR_TR("Hour", "Hora", "Stunde"), {CTR_TR("The hour outdoors when", "La hora fuera si", "Uhrzeit in der Oberwelt,"), CTR_TR("Day/Night is Fixed.", "D\xC3\xAD" "a/Noche est\xC3\xA1 en Fija.", "bei TAG/NACHT FEST.")}, 0, sHourName, NULL,
      GetHour, HourCount, SetHour},
-    {CTR_TR("Embers", "Ascuas", "Funken"), {CTR_TR("Sparks behind the menus.", "Chispas tras los men\xC3\xBAs.", "Funken hinter den Men\xC3\xBCs."), CTR_TR("Low suits an Old 3DS.", "Bajo sirve en Old 3DS.", "Wenig passt f\xC3\xBCr Old 3DS.")}, 0, sEmbers, NULL,
-     GetEmbers, ThreeCount, SetEmbers},
     {CTR_TR("Companion", "Acompa\xC3\xB1" "ante", "Begleiter"), {CTR_TR("A Pokemon follows you,", "Un Pok\xC3\xA9mon te sigue,", "Ein Pok\xC3\xA9mon folgt dir,"), CTR_TR("or you become one.", "o t\xC3\xBA eres ese Pok\xC3\xA9mon.", "oder du bist es selbst.")}, 0, sCompanion, NULL,
      GetCompanion, ThreeCount, SetCompanion},
     /* Graphics, page 2: the looks (a preview card takes the rows it does not use). */
+    {CTR_TR("Shell colour", "Color carcasa", "Geh\xC3\xA4usefarbe"), {CTR_TR("The colour of the", "El color de la", "Farbe des"), CTR_TR("lower screen's shell.", "carcasa de abajo.", "unteren Geh\xC3\xA4uses.")}, 0, sShell, NULL,
+     GetShell, ShellCount, SetShell},
     {CTR_TR("Red look", "Aspecto rojo", "Rot-Look"), {CTR_TR("Red's look, from the", "El aspecto de Rojo, de", "Rots Aussehen, aus"), CTR_TR("alternative looks.", "los aspectos extra.", "den Builder-Looks.")}, 0, sLookNames, NULL,
      GetLookRed, LookCount, SetLookRed},
     {CTR_TR("Leaf look", "Aspecto hoja", "Blatt-Look"), {CTR_TR("Leaf's look, from the", "El aspecto de Hoja, de", "Aussehen von Blatt, aus"), CTR_TR("alternative looks.", "los aspectos extra.", "den Builder-Looks.")}, 0, sLookNames, NULL,
@@ -226,7 +215,7 @@ static const CtrOptionRow sRows[] = {
 
 /* The pages: the first row of each, then the end. The looks page is short on purpose: the look preview is a card in the rows a page
  * does not use. Four sections hold them: Settings, Graphics (three pages: the screen, the looks, the wild Pokemon), QoL and Nuzlocke. */
-enum { PAGE1 = 0, PAGE2 = 5, PAGE3 = 11, PAGE4 = 14, PAGE5 = 17, PAGE6 = 23 };
+enum { PAGE1 = 0, PAGE2 = 5, PAGE3 = 10, PAGE4 = 14, PAGE5 = 17, PAGE6 = 23 };
 static const uint8_t sPageStart[] = {PAGE1, PAGE2, PAGE3, PAGE4, PAGE5, PAGE6, ROWS};
 static const uint8_t sPageSection[] = {0, 1, 1, 1, 2, 3};
 #define PAGES ((int)(sizeof(sPageStart) / sizeof(sPageStart[0])) - 1)
@@ -344,7 +333,7 @@ int CtrOptions_IsLevels(int row)
 {
     const CtrOptionRow *r = CtrOptions_Row(row);
 
-    return r != NULL && (r->names == sEmbers || r->names == sCompanion || r->names == sExpShare);
+    return r != NULL && (r->names == sCompanion || r->names == sExpShare);
 }
 
 void CtrOptions_Set(int row, int value)

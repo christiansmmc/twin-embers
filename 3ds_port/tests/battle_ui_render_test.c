@@ -1,9 +1,9 @@
-/* The battle screen (3ds_battle_ui_impl.h) through the production renderer with synthetic game bridges.
+/* The battle Bag and Party (the ember look left in 3ds_battle_ui_impl.h) and the Summary through the production renderer
+ * with synthetic game bridges; the rest of the battle screen is the red device's (device_render_test.c's battle suite).
  *
- * Every state of the controller (actions, moves, targets, Safari, Bag with its menu and message, Party with its modals)
- * is drawn; each press, cursor move and state change must leave the canvas exactly as a full redraw would (the dirty
- * rectangles are complete); the screen is the PokeTouch red (no navy of the shared theme remains in it) and the buttons'
- * hit areas answer to the same points as before. No ROM-derived data: the font is blank unless BATTLE_UI_FONT names
+ * The Bag with its menu and message and the Party with its modals are drawn; each press, cursor move and state change
+ * must leave the canvas exactly as a full redraw would (the dirty rectangles are complete); the screen is the PokeTouch
+ * red (no navy of the shared theme remains in it) and the buttons' hit areas answer to the same points as before. No ROM-derived data: the font is blank unless BATTLE_UI_FONT names
  * a 256x64-byte glyph file (a local viewing aid), and BATTLE_UI_OUT names a directory for one PPM per state.
  *
  * usage: battle_ui_render_test [print-hits] */
@@ -108,8 +108,8 @@ int CtrPokeTouch_Wallpaper(unsigned id, unsigned short *rgb555)
 static uint16_t canvas[W * H], reference[W * H];
 static uint16_t at(int x, int y) { return canvas[x * H + H - 1 - y]; }
 
-/* The state last drawn: the action menu and the Bag were redrawn for the quick ball (issue #16), so their geometry
- * is checked by the assertions on them below, not against the renderer before the restyle. */
+/* The state last drawn: the Bag was redrawn for the quick ball (issue #16), so its geometry is checked by the
+ * assertions on it below, not by its silhouette. */
 static int sState;
 
 static void settle(const CtrBattleView *oldRaw, const CtrBattleView *vRaw)
@@ -143,7 +143,7 @@ static void mask(void)
 {
     uint16_t bg = at(1, 100);
 
-    if (sState == BUI_ACTION || sState == BUI_BAG)
+    if (sState == BUI_BAG)
         return;
 
     for (int x = 0; x < W; ++x)
@@ -222,7 +222,7 @@ static void put(const char *dir, const char *name)
 static unsigned sHitCrc;
 static void hits(const CtrBattleView *v)
 {
-    if (v->state == BUI_ACTION || v->state == BUI_BAG)
+    if (v->state == BUI_BAG)
         return;
     for (int y = 0; y < H; y += 3)
         for (int x = 0; x < W; x += 3) {
@@ -378,262 +378,9 @@ int main(int argc, char **argv)
 #endif
     memset(&v, 0, sizeof(v));
     v.pressed = -1;
-    v.party[0] = v.party[1] = v.party[2] = v.party[4] = 1; v.party[3] = 2;
-    v.partyHp[0] = 100; v.partyHp[1] = 62; v.partyHp[2] = 35; v.partyHp[4] = 9; v.party[1] = 3; v.partyStatus[1] = 2;
-    names(v.activeName, sizeof(v.activeName), "Charizard"); v.activeLevel = 52; v.activeIcon = 6; v.activeSlot = 0; v.activeHp = 158; v.activeMaxHp = 158;
-    v.activeType[0] = 10; v.activeType[1] = 2; names(v.activeTypeName[0], 12, "FIRE"); names(v.activeTypeName[1], 12, "FLYING");
-    { static CtrBattleView c_; c_ = v; CtrTextCase_Battle(&c_); CtrBattleUi_Draw(canvas, &c_); }   /* BUI_IDLE: the backdrop and the strip */
-    put(out, "00_idle");
-    old = v;
 
-    /* ACTION */
-    v.state = BUI_ACTION; v.showCursor = 1; v.cursor = BUI_ACT_FIGHT;
-    settle(&old, &v); old = v; put(out, "01_action"); hits(&v);
-    v.pressed = BUI_ACT_FIGHT; settle(&old, &v); old = v; put(out, "01b_action_pressed_fight"); v.pressed = -1; settle(&old, &v); old = v;
-    v.activeType[1] = -1; v.activeTypeName[1][0] = 0; settle(&old, &v); old = v; put(out, "01c_action_one_type");
-    v.activeType[1] = 2; names(v.activeTypeName[1], 12, "FLYING"); settle(&old, &v); old = v;
-    for (k = 0; k < 4; ++k) {
-        v.cursor = (int8_t)k; settle(&old, &v); old = v;
-        v.pressed = (int16_t)k; settle(&old, &v); old = v;
-        if (k == 3) put(out, "02_action_pressed_run");
-        v.pressed = -1; settle(&old, &v); old = v;
-    }
-    v.showCursor = 0; settle(&old, &v); old = v;
-#ifndef BATTLE_UI_BEFORE
-    /* The quick ball (a wild battle): four buttons in the row, the ball's button between BAG and POKeMON with its
-     * arrows in its lower corners; the cursor on it and off it, its presses, another ball, none left, the boxes full,
-     * one kind only (no arrows), and back to three buttons (a trainer). */
-    v.ball = CTR_QUICK_BALL_READY; v.ballCount = 4; v.ballPlace = 1; v.ballItem = 2; v.ballQty = 21;
-    gnames(v.ballName, BUI_ITEM_LEN, "GREAT BALL");
-    settle(&old, &v); old = v; put(out, "02b_action_ball");
-    assert(CtrBattleUi_Hit(&v, 8 + 30, 120 + 30) == BUI_ACT_BAG);
-    assert(CtrBattleUi_Hit(&v, 85 + 36, 120 + 30) == BUI_ACT_BALL);
-    assert(CtrBattleUi_Hit(&v, 85 + 13, 120 + 95) == BUI_ACT_BALL_PREV);
-    assert(CtrBattleUi_Hit(&v, 85 + 73 - 13, 120 + 95) == BUI_ACT_BALL_NEXT);
-    assert(CtrBattleUi_Hit(&v, 162 + 36, 120 + 30) == BUI_ACT_POKEMON);
-    assert(CtrBattleUi_Hit(&v, 239 + 36, 120 + 30) == BUI_ACT_RUN);
-    assert(CtrBattleUi_Hit(&v, 150, 60) == BUI_ACT_FIGHT);
-    v.showCursor = 1;
-    for (k = 0; k < 5; ++k) {
-        v.cursor = (int8_t)k; settle(&old, &v); old = v;
-    }
-    v.cursor = CTR_ACTION_BALL;
-    for (k = BUI_ACT_BALL; k <= BUI_ACT_BALL_NEXT; ++k) {
-        v.pressed = (int16_t)k; settle(&old, &v); old = v;
-        if (k == BUI_ACT_BALL) put(out, "02c_action_ball_pressed");
-        v.pressed = -1; settle(&old, &v); old = v;
-    }
-    v.pressed = 2; settle(&old, &v); old = v; v.pressed = -1; settle(&old, &v); old = v;
-    v.ballPlace = 2; v.ballItem = 3; v.ballQty = 8; gnames(v.ballName, BUI_ITEM_LEN, "ULTRA BALL");
-    settle(&old, &v); old = v;
-    v.ball = CTR_QUICK_BALL_EMPTY; v.ballCount = 0; settle(&old, &v); old = v; put(out, "02d_action_no_balls");
-    assert(CtrBattleUi_Hit(&v, 85 + 13, 120 + 95) == BUI_ACT_BALL);    /* no arrows: the button only says so */
-    v.ball = CTR_QUICK_BALL_FULL; v.ballCount = 4; settle(&old, &v); old = v;
-    v.ball = CTR_QUICK_BALL_AREA; v.ballCount = 4; settle(&old, &v); old = v;     /* NUZLOCKE: this area's catch was used: grey, with its words */
-    assert(CtrBattleUi_Hit(&v, 85 + 13, 120 + 95) == BUI_ACT_BALL);    /* no arrows either */
-    v.ball = CTR_QUICK_BALL_READY; v.ballCount = 1; settle(&old, &v); old = v;
-    assert(CtrBattleUi_Hit(&v, 85 + 13, 120 + 95) == BUI_ACT_BALL);    /* one kind of ball: no other to go to */
-    v.ball = CTR_QUICK_BALL_NONE; v.cursor = 0; settle(&old, &v); old = v;
-    assert(CtrBattleUi_Hit(&v, 8 + 30, 120 + 30) == BUI_ACT_BAG && CtrBattleUi_Hit(&v, 111 + 30, 120 + 30) == BUI_ACT_POKEMON
-           && CtrBattleUi_Hit(&v, 214 + 30, 120 + 30) == BUI_ACT_RUN);
-    /* RUN when fleeing is impossible (a trainer, a trap): grey, with its words, and a tap on it is nothing; the rest still answers. */
-    v.runBlocked = 1; settle(&old, &v); old = v; put(out, "02e_action_run_blocked");
-    assert(CtrBattleUi_Hit(&v, 214 + 30, 120 + 30) == -1);
-    assert(CtrBattleUi_Hit(&v, 111 + 30, 120 + 30) == BUI_ACT_POKEMON && CtrBattleUi_Hit(&v, 8 + 30, 120 + 30) == BUI_ACT_BAG);
-    v.ball = CTR_QUICK_BALL_READY; v.ballCount = 2; v.ballQty = 7; v.ballItem = 1; names(v.ballName, BUI_ITEM_LEN, "POKE BALL");
-    settle(&old, &v); old = v; put(out, "02f_action_ball_run_blocked");       /* the ball's xN beside the grey RUN */
-    assert(CtrBattleUi_Hit(&v, 239 + 36, 120 + 30) == -1 && CtrBattleUi_Hit(&v, 85 + 36, 120 + 30) == BUI_ACT_BALL);
-    v.runBlocked = 0; v.ball = CTR_QUICK_BALL_NONE; settle(&old, &v); old = v;
-    assert(CtrBattleUi_Hit(&v, 214 + 30, 120 + 30) == BUI_ACT_RUN);
-    v.showCursor = 0; settle(&old, &v); old = v;
-#endif
-
-    /* MOVE */
-    v.state = BUI_MOVE; v.showCursor = 1; v.cursor = 1;
-    for (k = 0; k < 4; ++k) {
-        CtrBattleMove *m = &v.move[k];
-        static const char *const nm[4] = {"FLAMETHROWER", "EARTHQUAKE", "SURF", "THUNDERBOLT"};
-        static const char *const tn[4] = {"FIRE", "GROUND", "WATER", "ELECTR"};
-        static const int ty[4] = {10, 4, 11, 13};
-
-        m->present = k != 3 || 1; m->type = (uint8_t)ty[k];
-        names(m->name, sizeof(m->name), nm[k]); names(m->typeName, sizeof(m->typeName), tn[k]);
-        names(m->power, sizeof(m->power), k == 2 ? "-" : "90");
-        m->maxPp = 15; m->pp = (uint8_t)(k == 0 ? 15 : k == 1 ? 7 : k == 2 ? 3 : 0);
-    }
-    v.move[3].present = 0;
-    settle(&old, &v); old = v; put(out, "03_moves"); hits(&v);
-#ifndef BATTLE_UI_BEFORE
-    /* Llama: the move cards are 150 x 53 at x 8 and 162, y 36 and 93; CANCEL is the tall slate button right of the text window (an empty slot answers nothing). */
-    assert(CtrBattleUi_Hit(&v, 8 + 75, 36 + 25) == 0 && CtrBattleUi_Hit(&v, 162 + 75, 36 + 25) == 1 && CtrBattleUi_Hit(&v, 8 + 75, 93 + 25) == 2);
-    assert(CtrBattleUi_Hit(&v, 162 + 75, 93 + 25) == -1 && CtrBattleUi_Hit(&v, 159, 60) == -1 && CtrBattleUi_Hit(&v, 100, 200) == -1);
-    assert(CtrBattleUi_Hit(&v, 240 + 36, 154 + 40) == BUI_CANCEL && CtrBattleUi_Hit(&v, 240 + 36, 154 + 77) == BUI_CANCEL && CtrBattleUi_Hit(&v, 240 + 36, 153) == -1);
-#endif
-#ifndef BATTLE_UI_BEFORE
-    if (getenv("BATTLE_UI_MATCHUPS")) {
-        /* The matchup badges (opt-in: the baseline comparison above does not draw them). On the last row of each move
-         * card, at its left under POW, a badge in the colour of its meaning (x2 and x4 green, x1/2 orange, x0 grey): that colour
-         * is counted over the row, and the other three must not appear in it. (Llama: the badge moved from the second row, right of POW,
-         * to the third, under it, as the mockup draws it.) */
-        static const uint8_t fx[4] = {CTR_FX_DOUBLE, CTR_FX_HALF, CTR_FX_IMMUNE, CTR_FX_QUADRUPLE};
-        const uint16_t fill[4] = {kBFxColor[CTR_FX_DOUBLE], kBFxColor[CTR_FX_HALF], kBFxColor[CTR_FX_IMMUNE], kBFxColor[CTR_FX_QUADRUPLE]};
-        CtrBattleView w = v;
-
-        for (k = 0; k < 4; ++k) {
-            w.move[k] = v.move[k < 3 ? k : 0];
-            w.move[k].present = 1;
-            w.move[k].matchup = fx[k];
-        }
-        w.showCursor = 0;
-        settle(&old, &w); old = w; put(out, "03b_move_matchups");
-        for (k = 0; k < 4; ++k) {
-            const CtrPokeTouchRect *r = &sBCard[k];
-            int found = 0;
-
-            for (int y = r->y + 34; y < r->y + 47; ++y)
-                for (int x = r->x + 13; x < r->x + 86; ++x)
-                    found += at(x, y) == fill[k];
-            assert(found >= 12);           /* the mark is there, in the colour of its meaning */
-            for (int c = 0; c < 4; ++c)
-                if (c != k) {
-                    int other = 0;
-
-                    for (int y = r->y + 34; y < r->y + 47; ++y)
-                        for (int x = r->x + 13; x < r->x + 86; ++x)
-                            other += at(x, y) == fill[c];
-                    assert(other == 0);    /* and in no other */
-                }
-        }
-        /* A neutral hit draws nothing: the row of the first card has none of its colour any more. */
-        {
-            const CtrPokeTouchRect *r = &sBCard[0];
-            int left = 0;
-
-            w.move[0].matchup = CTR_FX_NONE;
-            settle(&old, &w); old = w;
-            for (int y = r->y + 34; y < r->y + 47; ++y)
-                for (int x = r->x + 13; x < r->x + 86; ++x)
-                    left += at(x, y) == fill[0];
-            assert(left == 0);
-        }
-        settle(&old, &v); old = v;       /* and back to the cards without tags */
-    }
-#endif
-#ifndef BATTLE_UI_BEFORE
-    if (getenv("BATTLE_UI_TYPES")) {
-        /* The type sheet's eighteen cards (opt-in), four to a screen: "98_types_N", for a comparison with the sheet. */
-        static const struct { const char *name, *type; int t, pp, max, fx; } kSheet[18] = {
-            {"FLAMETHROWER", "FIRE", 10, 10, 15, CTR_FX_DOUBLE}, {"EARTHQUAKE", "GROUND", 4, 8, 10, CTR_FX_HALF},
-            {"SURF", "WATER", 11, 3, 15, CTR_FX_IMMUNE}, {"SOLARBEAM", "GRASS", 12, 4, 10, CTR_FX_QUADRUPLE},
-            {"THUNDERBOLT", "ELECTR", 13, 15, 15, CTR_FX_DOUBLE}, {"ICE BEAM", "ICE", 15, 10, 10, CTR_FX_DOUBLE},
-            {"AERIAL ACE", "FLYING", 2, 20, 20, CTR_FX_DOUBLE}, {"ROCK SLIDE", "ROCK", 5, 10, 10, CTR_FX_DOUBLE},
-            {"CROSS CHOP", "FIGHT", 1, 5, 5, CTR_FX_DOUBLE}, {"SLUDGE BOMB", "POISON", 3, 10, 10, CTR_FX_DOUBLE},
-            {"MEGAHORN", "BUG", 6, 7, 10, CTR_FX_DOUBLE}, {"IRON TAIL", "STEEL", 8, 12, 15, CTR_FX_HALF},
-            {"PSYCHIC", "PSYCHC", 14, 10, 10, CTR_FX_DOUBLE}, {"SHADOW BALL", "GHOST", 7, 12, 15, CTR_FX_DOUBLE},
-            {"CRUNCH", "DARK", 17, 15, 15, CTR_FX_DOUBLE}, {"DRAGON CLAW", "DRAGON", 16, 15, 15, CTR_FX_DOUBLE},
-            {"BODY SLAM", "NORMAL", 0, 15, 15, CTR_FX_NEUTRAL}, {"CURSE", "???", 9, 10, 10, CTR_FX_NEUTRAL}};
-        CtrBattleView w = v;
-
-        w.showCursor = 0; w.pressed = -1;
-        for (int screen = 0; screen < 5; ++screen) {
-            char name[32];
-
-            for (k = 0; k < 4; ++k) {
-                CtrBattleMove *m = &w.move[k];
-                int n = screen * 4 + k;
-
-                memset(m, 0, sizeof(*m));
-                if (n >= 18)
-                    continue;
-                m->present = 1; m->type = (uint8_t)kSheet[n].t; m->pp = (uint8_t)kSheet[n].pp; m->maxPp = (uint8_t)kSheet[n].max;
-                m->matchup = (uint8_t)kSheet[n].fx;
-                names(m->name, sizeof(m->name), kSheet[n].name); names(m->typeName, sizeof(m->typeName), kSheet[n].type);
-            }
-            settle(&old, &w); old = w;
-            snprintf(name, sizeof(name), "98_types_%d", screen);
-            put(out, name);
-        }
-        settle(&old, &v); old = v;
-    }
-#endif
-#ifndef BATTLE_UI_BEFORE
-    if (getenv("BATTLE_UI_MOCK")) {
-        /* The reference mockup's data (opt-in): drawn as "99_mock" for a pixel comparison with the design (llama2_mockup.html, panel 2:
-         * the moves; the tray of panel 1: five balls, the fourth fainted, one empty slot). */
-        static const char *const nm[4] = {"EARTHQUAKE", "FLAMETHROWER", "DRAGON CLAW", "SWORDS DANCE"};
-        static const char *const tn[4] = {"GROUND", "FIRE", "DRAGON", "NORMAL"};
-        static const int ty[4] = {4, 10, 16, 0}, pp[4] = {10, 15, 2, 20}, mp[4] = {10, 15, 15, 20};
-        static const uint8_t fx[4] = {CTR_FX_DOUBLE, CTR_FX_HALF, CTR_FX_NONE, CTR_FX_NONE};
-        static const char *const pw[4] = {"100", "90", "80", "-"};
-        CtrBattleView w = v;
-
-        for (k = 0; k < 4; ++k) {
-            CtrBattleMove *m = &w.move[k];
-
-            memset(m, 0, sizeof(*m));
-            m->present = 1; m->type = (uint8_t)ty[k]; m->pp = (uint8_t)pp[k]; m->maxPp = (uint8_t)mp[k]; m->matchup = fx[k];
-            names(m->name, sizeof(m->name), nm[k]); names(m->typeName, sizeof(m->typeName), tn[k]);
-            names(m->power, sizeof(m->power), pw[k]);
-            names(m->accuracy, sizeof(m->accuracy), k == 3 ? "-" : "100");
-        }
-        w.move[0].stab = 1;
-        names(w.move[0].desc, sizeof(w.move[0].desc), "A quake that hits everyone in the battle.");
-        w.cursor = 0; w.showCursor = 1; w.pressed = -1;
-        for (k = 0; k < 6; ++k) { w.party[k] = 1; w.partyHp[k] = 100; w.partyStatus[k] = 0; }
-        w.party[5] = 0; w.partyHp[1] = 82; w.partyHp[2] = 44; w.party[3] = 2; w.partyHp[3] = 0; w.activeSlot = 0;
-        settle(&old, &w); old = w; put(out, "99_mock");
-        w.showCursor = 0; w.pressed = 1; settle(&old, &w); old = w; put(out, "99_mock_card");
-        w.pressed = BUI_CANCEL; settle(&old, &w); old = w; put(out, "99_mock_cancel");
-        w.pressed = -1; w.showCursor = 1; w.cursor = 1; settle(&old, &w); old = w; put(out, "99_mock_second");
-        {
-            /* panel 4 of the mockup: the Party's six cards, the first chosen, one with a status, one fainted, one slot empty */
-            static const char *const pn[5] = {"GROUDON", "CHARIZARD", "PIKACHU", "ONIX", "GYARADOS"};
-            static const uint8_t lv[5] = {100, 36, 30, 25, 28};
-            static const uint16_t hp[5] = {319, 98, 31, 0, 90}, mx[5] = {319, 120, 70, 80, 90};
-            CtrBattleView q = w;
-
-            q.state = BUI_PARTY; q.cursor = 0; q.showCursor = 1;
-            memset(&q.pty, 0, sizeof(q.pty));
-            for (k = 0; k < 5; ++k) {
-                q.pty.present[k] = 1; q.pty.level[k] = lv[k]; q.pty.hp[k] = hp[k]; q.pty.maxHp[k] = mx[k]; q.pty.icon[k] = (uint16_t)(k + 1);
-                names(q.pty.name[k], sizeof(q.pty.name[k]), pn[k]);
-            }
-            q.pty.status[2] = 2; q.pty.cursor = 0; q.pty.mode = BUI_PTY_SWITCH;
-            settle(&old, &q); old = q; put(out, "99_mock_party");
-            q.pty.cursor = 3; settle(&old, &q); old = q; put(out, "99_mock_party_fainted_chosen");
-            settle(&old, &w); old = w;
-        }
-        settle(&old, &v); old = v;
-    }
-#endif
-    v.pressed = 2; settle(&old, &v); old = v; v.pressed = -1; settle(&old, &v); old = v;
-    v.pressed = BUI_CANCEL; settle(&old, &v); old = v; put(out, "04_moves_cancel_pressed");
-    v.pressed = -1; v.cursor = 0; settle(&old, &v); old = v;
-
-    /* TARGET */
-    v.state = BUI_TARGET;
-    for (k = 0; k < 4; ++k) {
-        CtrBattleTarget *t = &v.target[k];
-        static const char *const nm[4] = {"RATICATE", "PIDGEOT", "CHARIZARD", "BLASTOISE"};
-
-        t->present = 1; t->side = (uint8_t)(k >= 2); t->battler = (int8_t)k; t->level = (uint8_t)(30 + 7 * k);
-        t->maxHp = 120; t->hp = (uint16_t)(120 - 35 * k);
-        names(t->name, sizeof(t->name), nm[k]);
-    }
-    v.target[1].present = 0;
-    settle(&old, &v); old = v; put(out, "05_targets"); hits(&v);
-#ifndef BATTLE_UI_BEFORE
-    assert(CtrBattleUi_Hit(&v, 8 + 75, 36 + 25) == 0 && CtrBattleUi_Hit(&v, 162 + 75, 36 + 25) == -1);
-    assert(CtrBattleUi_Hit(&v, 8 + 75, 93 + 25) == 2 && CtrBattleUi_Hit(&v, 162 + 75, 93 + 25) == 3 && CtrBattleUi_Hit(&v, 240 + 36, 154 + 40) == BUI_CANCEL);
-#endif
-    v.pressed = 0; settle(&old, &v); old = v; v.pressed = -1; settle(&old, &v); old = v;
-
-    /* SAFARI */
-    v.state = BUI_SAFARI; v.cursor = 2;
-    settle(&old, &v); old = v; put(out, "06_safari"); hits(&v);
-    v.pressed = 1; settle(&old, &v); old = v; v.pressed = -1; settle(&old, &v); old = v;
-
-    /* BAG */
+    /* BAG (the ember look's, as the Party below; the commands, the moves, the targets, Safari and idle are the red
+     * device's: device_render_test.c's battle suite) */
     v.state = BUI_BAG;
     {
         CtrBattleBag *b = &v.bag;
@@ -644,7 +391,10 @@ int main(int argc, char **argv)
         b->selItem = 2; gnames(b->selName, BUI_ITEM_LEN, "SUPER POTION");
         names(b->selDesc, BUI_DESC_LEN, "Restores the HP of one POKeMON by 50 points.");
     }
-    settle(&old, &v); old = v; put(out, "07_bag"); hits(&v);
+    { static CtrBattleView c_; c_ = v; CtrTextCase_Battle(&c_); CtrBattleUi_Draw(canvas, &c_); }   /* the Bag opens drawn in full; updates follow */
+    old = v;
+    sState = v.state;
+    put(out, "07_bag"); hits(&v);
     /* The scroll rail is a slider: the arrows are their own buttons, the rail between them takes a press anywhere on it, and its target
      * runs from the first item at the top to the last at the bottom, never going back. */
     assert(CtrBattleUi_Hit(&v, 180, 165) == BUI_BAG_DOWN);
@@ -724,8 +474,7 @@ int main(int argc, char **argv)
     assert(CtrBattleUi_Hit(&v, 270, 185) == BUI_PTY_CONFIRM && CtrBattleUi_Hit(&v, 270, 220) == BUI_PTY_CANCEL);
     v.pty.mode = BUI_PTY_FORCED; v.pty.button = -1; memset(v.pty.entry, 0, sizeof(v.pty.entry)); settle(&old, &v); old = v;
 #endif
-    v.state = BUI_ACTION; settle(&old, &v); old = v;
-    v.state = BUI_IDLE; settle(&old, &v);
+    v.state = BUI_BAG; settle(&old, &v); old = v;          /* from the Party back to the Bag: drawn whole */
 
     /* SUMMARY */
     {
@@ -803,19 +552,16 @@ int main(int argc, char **argv)
                                         UI_BORDER_LIT, UI_SEPARATOR, UI_TEXT_SH, UI_TEXT_DIM,
                                         UI_RGB(34, 56, 100)};      /* (UI_PANEL_LO and UI_HP_TRACK are left out: the Llama slate pieces, #14182c and #20263f, squeeze to them) */
         CtrBattleView s = v;
-        int states[] = {BUI_IDLE, BUI_ACTION, BUI_MOVE, BUI_TARGET, BUI_SAFARI, BUI_BAG, BUI_PARTY};
+        int states[] = {BUI_BAG, BUI_PARTY};       /* the ember states left (the others are the red device's) */
 
         for (size_t i = 0; i < sizeof(states) / sizeof(states[0]); ++i) {
             s.state = (uint8_t)states[i];
             { static CtrBattleView c_; c_ = s; CtrTextCase_Battle(&c_); CtrBattleUi_Draw(canvas, &c_); }
-            if (states[i] == BUI_MOVE || states[i] == BUI_IDLE || states[i] == BUI_ACTION)
-                continue;                  /* these screens are their artwork, whatever colours it holds */
             for (int n = 0; n < W * H; ++n)
                 for (size_t j = 0; j < sizeof(navy) / sizeof(navy[0]); ++j)
-                    /* The Llama ball tray (on the screens with the balls on top) and the Bag's scroll rail are slate gradients whose steps, squeezed
-                     * to RGB565, land on a navy colour or two: their boxes are not looked at. */
+                    /* The Bag's scroll rail is a slate gradient whose steps, squeezed to RGB565, land on a navy colour or
+                     * two: its box is not looked at. */
                     if (canvas[n] == navy[j]
-                        && !(states[i] != BUI_BAG && states[i] != BUI_PARTY && n / H >= 62 && n / H < 62 + 196 && H - 1 - n % H >= 5 && H - 1 - n % H < 30)
                         && !(states[i] == BUI_BAG && n / H >= 181 && n / H < 191 && H - 1 - n % H >= 58 && H - 1 - n % H < 152)) {
                         fprintf(stderr, "state %d keeps the navy theme colour %04x at %d\n", states[i], navy[j], n);
                         assert(0);

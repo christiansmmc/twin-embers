@@ -1,0 +1,82 @@
+#ifndef CTR_DEVICE_LAYOUT_H
+#define CTR_DEVICE_LAYOUT_H
+
+#include "3ds_poketouch.h"
+
+/*
+ * The red device (style B): the rectangles of the lower screen's B views, in screen pixels, taken from the owner's
+ * boards. One source for what a view draws, what its touch hits and what device_layout_test checks (on the screen with
+ * the drop, keys at least 28x20, the keys of one state apart). A key's rectangle is its resting face, as the boards
+ * give it; its drop shadow takes DEV_DROP rows under it, and a chosen key is drawn DEV_SINK rows lower inside that
+ * same area, so DevKeyArea is both where a key paints and where it is hit.
+ *
+ * Every rectangle here is `static const CtrPokeTouchRect kDev... __attribute__((unused))` or a static inline function
+ * (a list's n-th row, a grid's cell).
+ */
+
+#define DEV_DROP 3      /* rows of a key's drop shadow under its face */
+#define DEV_SINK 2      /* rows a chosen (sunk) key's face is drawn lower */
+
+/* Where a key paints and is hit: its face and the drop under it. */
+static inline CtrPokeTouchRect DevKeyArea(const CtrPokeTouchRect *r)
+{
+    CtrPokeTouchRect a = {r->x, r->y, r->w, (int16_t)(r->h + DEV_DROP)};
+
+    return a;
+}
+
+/* ---- HOME (board B · Início, 3ds_device_home_impl.h) ------------------------------------------------------------------
+ * The screen: its paper holds the map's window on the left (PT_HOME_X/Y/W/H, 3ds_poketouch.h) and the panel on the
+ * right: the place's name (two lines, DEV_LINE_H apart), the region line, a rule, the party's six cells, RUN and SPD
+ * (paper buttons: no drop). Under the screen the six keys, in PT_* order. In the window, over the map: the region key
+ * (its width is its text's: the most it may take is kDevHomeMapKey.w) and FLY. A text's rectangle is the board's box;
+ * the capitals start 3 px into a box of the normal font, 2 px into one of the small font. */
+static const CtrPokeTouchRect kDevHomeScreen __attribute__((unused)) = {8, 8, 304, 140};
+static const CtrPokeTouchRect kDevHomeKey[6] __attribute__((unused)) = {
+    {8, 156, 96, 36}, {112, 156, 96, 36}, {216, 156, 96, 36}, {8, 198, 96, 34}, {112, 198, 96, 34}, {216, 198, 96, 34},
+};
+static const CtrPokeTouchRect kDevHomeRun __attribute__((unused)) = {210, 123, 44, 16};
+static const CtrPokeTouchRect kDevHomeSpeed __attribute__((unused)) = {258, 123, 44, 16};
+static const CtrPokeTouchRect kDevHomeName __attribute__((unused)) = {212, 17, 90, 26};
+static const CtrPokeTouchRect kDevHomeRegion __attribute__((unused)) = {212, 44, 90, 10};
+static const CtrPokeTouchRect kDevHomeRule __attribute__((unused)) = {210, 58, 92, 1};
+static const CtrPokeTouchRect kDevHomeMapKey __attribute__((unused)) = {16, 16, 96, 14};
+/* FLY at the window's top right: the board's place (16, 122) covers Cinnabar Island (Kanto's cell 4,14); cells 17-21 of
+ * rows 0-2 hold no place on any of the four maps. */
+static const CtrPokeTouchRect kDevHomeFly __attribute__((unused)) = {158, 16, 44, 16};
+
+/* The party's cell i (0-5), three to a row: its icon, its HP bar, and where a touch on it is taken. */
+static inline CtrPokeTouchRect DevHomeCell(int i)
+{
+    CtrPokeTouchRect r = {(int16_t)(210 + 31 * (i % 3)), (int16_t)(62 + 28 * (i / 3)), 30, 28};
+
+    return r;
+}
+
+/* ---- The battle (boards B · Comandos and B · Golpes, 3ds_device_battle_impl.h) -----------------------------------------
+ * The commands (ACTION; IDLE shows them dimmed): the screen with the lead, FIGHT across, and under it a row of three
+ * keys (BAG, POKeMON, RUN: a trainer) or of four (BAG, the quick ball, POKeMON, RUN: a wild battle). The moves (MOVE),
+ * a double battle's targets (TARGET) and the Safari Zone's BALL BAIT ROCK RUN (SAFARI): the short screen and four keys
+ * in the controller's 2x2 order; MOVE and TARGET add CANCEL, a dark pill. The quick ball's arrows are on its key. */
+static const CtrPokeTouchRect kDevBatScreen __attribute__((unused)) = {8, 8, 304, 88};
+static const CtrPokeTouchRect kDevBatMoveScreen __attribute__((unused)) = {8, 8, 304, 56};
+static const CtrPokeTouchRect kDevBatFight __attribute__((unused)) = {8, 104, 304, 56};
+static const CtrPokeTouchRect kDevBatRow3[3] __attribute__((unused)) = {{8, 170, 96, 60}, {112, 170, 96, 60}, {216, 170, 96, 60}};
+static const CtrPokeTouchRect kDevBatRow4[4] __attribute__((unused)) = {
+    {8, 170, 73, 60}, {85, 170, 73, 60}, {162, 170, 73, 60}, {239, 170, 73, 60},
+};
+static const CtrPokeTouchRect kDevBatMove[4] __attribute__((unused)) = {
+    {8, 72, 148, 62}, {164, 72, 148, 62}, {8, 142, 148, 62}, {164, 142, 148, 62},
+};
+static const CtrPokeTouchRect kDevBatCancel __attribute__((unused)) = {236, 212, 76, 20};
+#define DEV_BAT_ARROW_SLOP 3    /* the quick ball's arrows answer this much round themselves (on their key) */
+
+/* The quick ball's arrow (previous, or `next`) on its key r: the key's lower corners, under the ball. */
+static inline CtrPokeTouchRect DevBatBallArrow(const CtrPokeTouchRect *r, int next)
+{
+    CtrPokeTouchRect a = {(int16_t)(next ? r->x + r->w - 22 : r->x + 2), (int16_t)(r->y + 38), 20, 20};
+
+    return a;
+}
+
+#endif

@@ -49,6 +49,7 @@
 #include "3ds_ui_strings.h"
 #include "3ds_perf.h"
 #include "3ds_lang.h"
+#include "3ds_settings.h"
 
 int CtrBattleAction_Next(int cursor, int dir)
 {
@@ -971,11 +972,9 @@ static void SummaryBar(const CtrSummaryView *v, CtrPokeTouchView *t)
  * Region Map's own layers) and shows FireRed's cursor there, without stopping
  * the field; a second tap on the same section starts the real Fly when FireRed
  * allows it (CtrPokeTouch_FlyStatus), else does nothing. The selection is
- * dropped when the map changes or a menu takes the screen. */
-#define MAP_TAP_SLOP 6          /* a touch that moves further pans the map: it is not a tap */
-#define HOME_ZOOMS 3
-#define HOME_MID_X 384          /* the middle of the image (768x576) */
-#define HOME_MID_Y 288
+ * dropped when the map changes or a menu takes the screen. The map is the
+ * game's at 1:1 in a fixed window: nothing zooms or pans. */
+#define MAP_TAP_SLOP 6          /* a touch that moves further is not a tap */
 #define MAPSEC_NONE_VALUE 0     /* what the bridge reports for no map section */
 
 static struct {
@@ -983,13 +982,11 @@ static struct {
     int x, y;                   /* the selected cell */
     int group, version;         /* on this map */
     int mapsec, dungeon;        /* its map section and the dungeon over it (0: none) */
-    int down, downX, downY, lastX, lastY;   /* a touch that began in the viewport (GBA pixels) */
+    int down, downX, downY, lastX, lastY;   /* a touch that began in the map's window (lower-screen pixels) */
     unsigned frames;            /* the cursor's blink clock */
     int view;                   /* the map shown + 1 (0: the player's), and the player's own + 1, to tell when it changes */
     int playerGroup;
-    int centered;               /* the map has been centred since HOME came back (it starts at the overview, on the player's town) */
-    int zoom, panX, panY;       /* the zoom (0..2) and the image point at the viewport's centre */
-    int dragging, prevX, prevY; /* a touch that has moved: it pans the map instead of picking a town */
+    int dragging;               /* the touch has moved further than a tap: it picks nothing */
 } sHome;
 
 /* FLY chosen in the Party: FireRed's Fly map is not opened, the Party goes back to the field and HOME's map is where the
@@ -1030,14 +1027,54 @@ static int HomeFind(int group, int cx, int cy, int *fx, int *fy, int *mapsec, in
     return 1;
 }
 
-/* A tap at viewport pixel (gx, gy) of the map shown (which may be another region than the player's: Fly goes there too). It only selects; the
- * zoom stays, and the map scrolls only if the town is out of the window. */
-static void HomeTap(int gx, int gy)
+/* Whether the cell (cx, cy) of `group` is a place Fly goes to. */
+static int HomeFlyCell(int group, int cx, int cy)
+{
+    int mapsec, dungeon;
+
+    return CtrPokeTouch_MapSection(group, cx, cy, &mapsec, &dungeon) && mapsec != MAPSEC_NONE_VALUE
+        && CtrPokeTouch_FlyStatus((unsigned)mapsec) != PT_FLY_NONE;
+}
+
+/* The cell a tap at lower-screen (x, y) of `v`'s map window picks: the cell under it; but when that cell is no place
+ * Fly goes to, the nearest one that is, whose cell's centre lies within 8 px of the tap (a town is one 8x8 cell at 1:1:
+ * a near miss still takes it, as v0.6.0's orb did). False off the map's cells. */
+static int HomePick(const CtrPokeTouchView *v, int group, int x, int y, int *cx, int *cy)
+{
+    int best = 8 * 8 + 1, bx = 0, by = 0;
+
+    if (!CtrPokeTouch_HomeMapCell(v, x, y, cx, cy))
+        return 0;
+    if (HomeFlyCell(group, *cx, *cy))
+        return 1;
+    for (int dy = -1; dy <= 1; ++dy)
+        for (int dx = -1; dx <= 1; ++dx) {
+            int px, py, d;
+
+            if ((!dx && !dy) || !CtrPokeTouch_HomeCellPoint(v, *cx + dx, *cy + dy, &px, &py))
+                continue;
+            d = (px - x) * (px - x) + (py - y) * (py - y);
+            if (d < best && HomeFlyCell(group, *cx + dx, *cy + dy)) {
+                best = d;
+                bx = *cx + dx;
+                by = *cy + dy;
+            }
+        }
+    if (best <= 8 * 8) {
+        *cx = bx;
+        *cy = by;
+    }
+    return 1;
+}
+
+/* A tap on cell (cx, cy) of the map shown (which may be another region than the player's: Fly goes there too). It only
+ * selects. */
+static void HomeTap(int cx, int cy)
 {
     int group = sHome.view - 1, version = CtrPokeTouch_MapVersion();
-    int cx, cy, x, y, mapsec, dungeon;
+    int x, y, mapsec, dungeon;
 
-    if (group < 0 || !CtrPokeTouch_HomePick(sHome.zoom, sHome.panX, sHome.panY, gx, gy, &cx, &cy)) {
+    if (group < 0) {
         sHome.valid = 0;
         return;
     }
@@ -1064,10 +1101,9 @@ static void HomeTap(int gx, int gy)
     sHome.group = group; sHome.version = version;
     sHome.mapsec = mapsec; sHome.dungeon = dungeon;
     sHome.frames = 0;
-    CtrPokeTouch_HomeReveal(sHome.zoom, &sHome.panX, &sHome.panY, x, y);
 }
 
-/* The ribbon: the next map the game has opened (Kanto, Sevii 1-3, 4-5, 6-7), at the overview. */
+/* The region key: the next map the game has opened (Kanto, Sevii 1-3, 4-5, 6-7). */
 static void HomeNextMap(unsigned open)
 {
     int group = sHome.view - 1;
@@ -1080,58 +1116,67 @@ static void HomeNextMap(unsigned open)
             break;
         }
     }
-    sHome.centered = 0;
     sHome.valid = 0;
-}
-
-/* The "+" and "-" buttons: another zoom, keeping the selected town (else the centre) where it is. */
-static void HomeZoom(int dir)
-{
-    int zoom = sHome.zoom + dir, wx, wy;
-
-    if (zoom < 0 || zoom >= HOME_ZOOMS)
-        return;
-    sHome.zoom = zoom;
-    if (sHome.valid && CtrPokeTouch_HomeCellWorld(sHome.x, sHome.y, &wx, &wy)) {
-        sHome.panX = wx;
-        sHome.panY = wy;
-    }
-    CtrPokeTouch_HomeClamp(sHome.zoom, &sHome.panX, &sHome.panY);
 }
 
 /* HOME's bar for the selection: its name, and what Fly says about it. */
 static void HomeSelectionBar(CtrPokeTouchView *v)
 {
-    static const char *const sWhy[] = {
-        [PT_FLY_UNVISITED] = CTR_TR("Not visited yet", "A\xc3\xban sin visitar", "Noch nicht besucht"), [PT_FLY_NO_MON] = CTR_TR("No Pok\xc3\xa9mon knows Fly", "Ning\xC3\xBAn Pok\xC3\xA9mon sabe vuelo", "Kein Pok\xC3\xA9mon kann Fliegen"),
-        [PT_FLY_NO_BADGE] = CTR_TR("A new Badge is needed", "Hace falta otra medalla", "Neuer Orden ben\xC3\xB6tigt"), [PT_FLY_NO_PLACE] = CTR_TR("Can't Fly here", "Aqu\xc3\xad no se puede volar", "Hier nicht m\xC3\xB6glich"),
-        [PT_FLY_BUSY] = CTR_TR("Not right now", "Ahora no", "Jetzt nicht"),
+    static const CtrUiString sWhy[PT_FLY_OK] = {
+        [PT_FLY_UNVISITED] = UIS_FLY_UNVISITED, [PT_FLY_NO_MON] = UIS_FLY_NO_MON, [PT_FLY_NO_BADGE] = UIS_FLY_NO_BADGE,
+        [PT_FLY_NO_PLACE] = UIS_FLY_NO_PLACE, [PT_FLY_BUSY] = UIS_FLY_BUSY,
     };
     int status = sHome.mapsec != MAPSEC_NONE_VALUE ? CtrPokeTouch_FlyStatus((unsigned)sHome.mapsec) : PT_FLY_NONE;
 
     CtrPokeTouch_MapSectionName((unsigned)(sHome.mapsec != MAPSEC_NONE_VALUE ? sHome.mapsec : sHome.dungeon),
                                 v->bar[0], PT_BAR_LEN);
     v->flyOk = status == PT_FLY_OK;
-    if (status == PT_FLY_OK) {
-        snprintf(v->bar[1], PT_BAR_LEN, CTR_TR("Fly available", "Puedes volar", "Fliegen m\xC3\xB6glich"));
-        snprintf(v->bar[2], PT_BAR_LEN, CTR_TR("Tap Fly, or the place again", "Toca Volar o el lugar otra vez", "Fliegen oder Ort erneut tippen"));
-    } else if (status != PT_FLY_NONE) {
-        snprintf(v->bar[1], PT_BAR_LEN, CTR_TR("Fly unavailable", "No puedes volar", "Fliegen nicht m\xC3\xB6glich"));
-        snprintf(v->bar[2], PT_BAR_LEN, "%s", sWhy[status]);
-    } else if (sHome.mapsec != MAPSEC_NONE_VALUE && sHome.dungeon != MAPSEC_NONE_VALUE) {
-        CtrPokeTouch_MapSectionName((unsigned)sHome.dungeon, v->bar[1], PT_BAR_LEN);
+    if (status > PT_FLY_NONE && status < PT_FLY_OK)
+        snprintf(v->bar[2], PT_BAR_LEN, "%s", CtrUiText(sWhy[status]));      /* why not: the line under the place */
+}
+
+/* The party as the lower screen shows it (CtrBattleView's fields, HOME's): per slot 0 no Pokemon, 1 able, 2 fainted, 3 a
+ * status condition; the HP left as a percentage (an egg: 100; 1 while any is left); the status (1..6, 0 for an egg);
+ * the party icon (`icon` may be NULL); and the eggs, a bit per slot (`eggs` may be NULL). */
+static void PartyFill(uint8_t kind[6], uint8_t hp[6], uint8_t status[6], uint16_t icon[6], uint8_t *eggs)
+{
+    if (eggs)
+        *eggs = 0;
+    for (int i = 0; i < 6; ++i) {
+        kind[i] = hp[i] = status[i] = 0;
+        if (icon)
+            icon[i] = 0;
+        if (CtrBottomParty_SlotEmpty(i))
+            continue;
+        if (CtrBottomParty_HP(i) == 0 && !CtrBottomParty_IsEgg(i))
+            kind[i] = 2;
+        else if (CtrBottomParty_Status(i) != 0 && !CtrBottomParty_IsEgg(i))
+            kind[i] = 3;
+        else
+            kind[i] = 1;
+        {
+            unsigned left = CtrBottomParty_HP(i), max = CtrBottomParty_MaxHP(i);
+            unsigned st = CtrBottomParty_IsEgg(i) ? 0 : CtrBottomParty_Status(i);
+
+            hp[i] = (uint8_t)(CtrBottomParty_IsEgg(i) || !max ? 100 : left >= max ? 100 : left ? (left * 100 / max ? left * 100 / max : 1) : 0);
+            status[i] = (uint8_t)(st > 6 ? 0 : st);
+            if (icon)
+                icon[i] = (uint16_t)CtrBottomParty_IconSpecies(i);
+            if (eggs && CtrBottomParty_IsEgg(i))
+                *eggs = (uint8_t)(*eggs | 1u << i);
+        }
     }
 }
 
-/* HOME, the field's lower screen: FireRed's own map of where the player is (redrawn at 4x), and the location's name and region on the
- * bar. The ribbon switches to another map the game has opened. */
-static unsigned sHomeOpen;                  /* the maps the ribbon leads to, as the last frame saw them */
+/* HOME, the field's lower screen: FireRed's own map of where the player is (at 1:1), the location's name and region,
+ * the party and the game's speed. The region key switches to another map the game has opened. */
+static unsigned sHomeOpen;                  /* the maps the region key leads to, as the last frame saw them */
 
 static void HomeMapState(Snapshot *s)
 {
-    static const char *const sRegions[PT_MAP_COUNT] = {CTR_TR("Main region", "Regi\xc3\xb3n principal", "Kanto"), CTR_TR("Island region", "Islas Sete", "Sevii-Eilande"), CTR_TR("Island region", "Islas Sete", "Sevii-Eilande"), CTR_TR("Island region", "Islas Sete", "Sevii-Eilande")};
-    int group = CtrPokeTouch_MapGroup(), px, py, mapsec, version = CtrPokeTouch_MapVersion(), wx, wy;
-    unsigned open = 0;
+    int group = CtrPokeTouch_MapGroup(), px, py, mapsec, version = CtrPokeTouch_MapVersion();
+    unsigned open = 0, turbo = CtrSettings_Turbo();
+    uint8_t status[6];
 
     if (group < 0 || group >= PT_MAP_COUNT)
         group = PT_MAP_KANTO;
@@ -1143,11 +1188,12 @@ static void HomeMapState(Snapshot *s)
         sHome.playerGroup = group + 1;              /* the player went to another region: its map */
         sHome.view = 0;
     }
-    if (sHome.view == 0 || !(open >> (sHome.view - 1) & 1)) {
+    if (sHome.view == 0 || !(open >> (sHome.view - 1) & 1))
         sHome.view = group + 1;
-        sHome.centered = 0;
-    }
     s->touch.home = 1;
+    PartyFill(s->touch.party, s->touch.partyHp, status, s->touch.partyIcon, &s->touch.partyEgg);
+    s->touch.speed = (uint8_t)(turbo >= 2 && turbo <= 4 ? turbo : 1);
+    s->touch.speedEnabled = (uint8_t)(CtrBottom_TurboCanCycle() != 0);
     s->touch.mapGroup = (uint8_t)(sHome.view - 1);
     s->touch.mapVersion = (uint8_t)version;
     s->touch.mapOpen = (uint8_t)open;
@@ -1158,21 +1204,6 @@ static void HomeMapState(Snapshot *s)
         s->touch.playerX = (int8_t)px;
         s->touch.playerY = (int8_t)py;
     }
-    if (!sHome.centered && s->touch.mapReady) {
-        /* HOME starts at the overview, on the player's town (or the map's middle). */
-        sHome.centered = 1;
-        sHome.zoom = 0;
-        sHome.panX = HOME_MID_X;
-        sHome.panY = HOME_MID_Y;
-        if (s->touch.playerX >= 0 && CtrPokeTouch_HomeCellWorld(s->touch.playerX, s->touch.playerY, &wx, &wy)) {
-            sHome.panX = wx;
-            sHome.panY = wy;
-        }
-        CtrPokeTouch_HomeClamp(sHome.zoom, &sHome.panX, &sHome.panY);
-    }
-    s->touch.mapZoom = (uint8_t)sHome.zoom;
-    s->touch.mapCX = (int16_t)sHome.panX;
-    s->touch.mapCY = (int16_t)sHome.panY;
     s->touch.cursorX = s->touch.cursorY = -1;
     if (sHome.valid && (sHome.group != s->touch.mapGroup || sHome.version != s->touch.mapVersion))
         sHome.valid = 0;                /* another map: the selection means nothing */
@@ -1185,13 +1216,10 @@ static void HomeMapState(Snapshot *s)
     }
     if (sFlyPick) {
         snprintf(s->touch.bar[0], PT_BAR_LEN, CTR_TR("Fly", "Vuelo", "Fliegen"));
-        snprintf(s->touch.bar[1], PT_BAR_LEN, CTR_TR("Tap a town to go there.", "Toca un pueblo para ir.", "Ort antippen zum Hinfliegen."));
-        snprintf(s->touch.bar[2], PT_BAR_LEN, CTR_TR("Any button: cancel", "Cualquier bot\xc3\xb3n: cancelar", "Beliebige Taste: Zur\xC3\xBC" "ck"));
+        snprintf(s->touch.bar[2], PT_BAR_LEN, "%s", CtrUiText(UIS_FLY_PICK));
         return;
     }
-    CtrPokeTouch_Location(s->touch.bar[0], PT_BAR_LEN);
-    snprintf(s->touch.bar[1], PT_BAR_LEN, "%s", sRegions[s->touch.mapGroup]);
-    snprintf(s->touch.bar[2], PT_BAR_LEN, CTR_TR("Tap a destination", "Toca un destino", "Ziel antippen"));
+    CtrPokeTouch_Location(s->touch.bar[0], PT_BAR_LEN);   /* under it HOME shows the map's region */
 }
 
 /* The battle screen's touch: a button pressed under a finger (a BUI_ACT_* number); on the quick ball, where the
@@ -2696,12 +2724,52 @@ static void PokeTouchActivate(int id)
     }
 }
 
+/* HOME's own touch places (3ds_poketouch.h PT_HOME_*): SPEED where START could change the speed, a Pokemon of the
+ * party where POKeMON could open. -1 for any other id. */
+static int HomeTouchEnabled(int id)
+{
+    if (id == PT_HOME_SPEED)
+        return CtrBottom_TurboCanCycle() ? 1 : 0;
+    if (id >= PT_HOME_PARTY && id < PT_HOME_PARTY + 6)
+        return FieldEnabled(PT_POKEMON) ? 1 : 0;
+    return -1;
+}
+
+static int sTurboTap;               /* SPEED was tapped: the game bridge takes it as a START press for the turbo */
+
+/* A tap on HOME's own places: SPEED asks for the next speed, a Pokemon of the party opens POKeMON. 0 for any other
+ * id (a key: PokeTouchActivate's). */
+static int HomeTouchActivate(int id)
+{
+    if (id == PT_HOME_SPEED) {
+        sTurboTap = 1;
+        return 1;
+    }
+    if (id >= PT_HOME_PARTY && id < PT_HOME_PARTY + 6) {
+        PokeTouchActivate(PT_POKEMON);
+        return 1;
+    }
+    return 0;
+}
+
+bool CtrBottom_TakeTurboTap(void)
+{
+    bool tap = sTurboTap != 0;
+
+    sTurboTap = 0;
+    return tap;
+}
+
 /* What the field's sidebar can do now. OPTIONS is the native screen: never
  * with FireRed's own START menu up (its entry would open FireRed's Options),
  * and no-op once open; while it is open the entries that have no destination
- * of their own yet are off. */
+ * of their own yet are off. HOME's own places follow HomeTouchEnabled. */
 static int FieldEnabled(int id)
 {
+    int home = HomeTouchEnabled(id);
+
+    if (home >= 0)
+        return home;
     /* While SAVE is up the field is locked (so FireRed's own checks say no to everything) and the
      * sidebar is off: SAVE's NO, its B and its OK are the ways out. */
     if (SaveActive() || !CtrPokeTouch_Enabled(id))
@@ -2874,7 +2942,13 @@ static void UpdateSave(void)
 }
 
 /* Touch-down presses an enabled element, moving off releases the highlight,
- * release over it acts once. Holding never repeats. */
+ * release over it acts once. Holding never repeats. HOME's own keys and places
+ * are its (CtrPokeTouch_HomeHit); OPTIONS and SAVE keep the START column. */
+static int PokeTouchHit(int x, int y)
+{
+    return NativeActive() ? CtrPokeTouch_HitTest(x, y) : CtrPokeTouch_HomeHit(&sShown.touch, x, y);
+}
+
 static void ProcessPokeTouch(const CtrInput *in)
 {
     if (OptionsActive())
@@ -2882,10 +2956,9 @@ static void ProcessPokeTouch(const CtrInput *in)
     if (SaveActive())
         ProcessSaveInput(in);
     if (in->touchDown) {
-        int id = CtrPokeTouch_HitTest((int)in->touchX, (int)in->touchY), gx, gy;
-        /* HOME's FLY button: the selected place, asked of the game now (the same as tapping the place again). */
-        if (!NativeActive() && sHome.valid && sHome.mapsec != MAPSEC_NONE_VALUE
-            && CtrPokeTouch_FlyHit((int)in->touchX, (int)in->touchY)) {
+        int x = (int)in->touchX, y = (int)in->touchY, id = PokeTouchHit(x, y), vx, vy;
+        /* HOME's FLY: the selected place, asked of the game now (the same as tapping the place again). */
+        if (!NativeActive() && sHome.valid && sHome.mapsec != MAPSEC_NONE_VALUE && CtrPokeTouch_FlyHit(x, y)) {
             if (CtrPokeTouch_FlyStatus((unsigned)sHome.mapsec) == PT_FLY_OK) {
                 CtrPokeTouch_RequestFly((unsigned)sHome.mapsec);
                 sHome.valid = 0;
@@ -2894,75 +2967,59 @@ static void ProcessPokeTouch(const CtrInput *in)
             sPoke.id = PT_NONE;
             return;
         }
-        /* HOME's ribbon (the next map) and its zoom buttons act at once; the town the ribbon or a button sits over is not picked. */
-        if (!NativeActive() && id == PT_NONE) {
-            int zoom = CtrPokeTouch_HomeZoomHit((int)in->touchX, (int)in->touchY);
-
-            if (CtrPokeTouch_HomeRibbonHit((int)in->touchX, (int)in->touchY)) {
-                HomeNextMap(sHomeOpen);
-                sPoke.id = PT_NONE;
-                sHome.down = 0;
-                return;
-            }
-            if (zoom) {
-                HomeZoom(zoom);
-                sPoke.id = PT_NONE;
-                sHome.down = 0;
-                return;
-            }
+        /* HOME's region key (the next map) acts at once; the town under it is not picked. */
+        if (!NativeActive() && id == PT_NONE && CtrPokeTouch_HomeRibbonHit(x, y)) {
+            HomeNextMap(sHomeOpen);
+            sPoke.id = PT_NONE;
+            sHome.down = 0;
+            return;
         }
         sPoke.id = (uint8_t)(id != PT_NONE && FieldEnabled(id) ? id : PT_NONE);
         sPoke.inside = sPoke.id != PT_NONE;
-        /* A touch on the map (the viewport): a tap when released near where it began.
-         * The OPTIONS rows are there instead while that screen is up. */
-        sHome.down = !NativeActive() && id == PT_NONE && CtrPokeTouch_ViewportToGba((int)in->touchX, (int)in->touchY, &gx, &gy);
+        /* A touch on the map's window: a tap when released near where it began. */
+        sHome.down = !NativeActive() && id == PT_NONE && CtrPokeTouch_HomeWindowPoint(x, y, &vx, &vy);
         if (sHome.down) {
-            sHome.downX = sHome.lastX = sHome.prevX = gx;
-            sHome.downY = sHome.lastY = sHome.prevY = gy;
+            sHome.downX = sHome.lastX = x;
+            sHome.downY = sHome.lastY = y;
             sHome.dragging = 0;
         }
         return;
     }
     if (sHome.down) {
-        int gx, gy;
-        if (in->touchActive) {
-            if (CtrPokeTouch_ViewportToGba((int)in->touchX, (int)in->touchY, &gx, &gy)) {
-                sHome.lastX = gx;
-                sHome.lastY = gy;
-                if (!sHome.dragging && (sHome.lastX - sHome.downX > MAP_TAP_SLOP || sHome.downX - sHome.lastX > MAP_TAP_SLOP
-                                        || sHome.lastY - sHome.downY > MAP_TAP_SLOP || sHome.downY - sHome.lastY > MAP_TAP_SLOP))
-                    sHome.dragging = 1;
-                if (sHome.dragging) {               /* the map follows the finger */
-                    int scale = CtrPokeTouch_HomeScale(sHome.zoom);
+        int vx, vy, cx, cy;
 
-                    sHome.panX -= (gx - sHome.prevX) * 256 / scale;
-                    sHome.panY -= (gy - sHome.prevY) * 256 / scale;
-                    CtrPokeTouch_HomeClamp(sHome.zoom, &sHome.panX, &sHome.panY);
-                }
-                sHome.prevX = gx;
-                sHome.prevY = gy;
+        if (in->touchActive) {
+            if (CtrPokeTouch_HomeWindowPoint((int)in->touchX, (int)in->touchY, &vx, &vy)) {
+                sHome.lastX = (int)in->touchX;
+                sHome.lastY = (int)in->touchY;
             } else {
                 sHome.lastX = sHome.lastY = -1000;    /* left the map */
             }
+            if (sHome.lastX - sHome.downX > MAP_TAP_SLOP || sHome.downX - sHome.lastX > MAP_TAP_SLOP
+                || sHome.lastY - sHome.downY > MAP_TAP_SLOP || sHome.downY - sHome.lastY > MAP_TAP_SLOP)
+                sHome.dragging = 1;
             return;
         }
         sHome.down = 0;
-        if (!sHome.dragging && sHome.lastX - sHome.downX <= MAP_TAP_SLOP && sHome.downX - sHome.lastX <= MAP_TAP_SLOP
-            && sHome.lastY - sHome.downY <= MAP_TAP_SLOP && sHome.downY - sHome.lastY <= MAP_TAP_SLOP)
-            HomeTap(sHome.downX, sHome.downY);
+        if (!sHome.dragging) {
+            if (HomePick(&sShown.touch, sHome.view - 1, sHome.downX, sHome.downY, &cx, &cy))
+                HomeTap(cx, cy);
+            else
+                sHome.valid = 0;            /* the window's edge, off the cells: nothing there */
+        }
         sHome.dragging = 0;
         return;
     }
     if (sPoke.id == PT_NONE)
         return;
     if (in->touchActive) {
-        sPoke.inside = CtrPokeTouch_HitTest((int)in->touchX, (int)in->touchY) == sPoke.id;
+        sPoke.inside = PokeTouchHit((int)in->touchX, (int)in->touchY) == sPoke.id;
         return;
     }
     int id = sPoke.id, inside = sPoke.inside;
     sPoke.id = PT_NONE;
     sPoke.inside = 0;
-    if (inside && FieldEnabled(id))
+    if (inside && FieldEnabled(id) && !HomeTouchActivate(id))
         PokeTouchActivate(id);
 }
 
@@ -4687,26 +4744,6 @@ static int NavPressedShown(void)
     return (sShown.summaryUi && sShown.sum.pressed != -1) || (sShown.battleUi && sShown.battle.pressed != -1);
 }
 
-/* The embers rising behind the menus (the EMBERS option): one step a frame over the screen on the canvas, PokeTouch's
- * or the Summary's (the battle's artwork has its own backdrop), kept off the GBA picture and the HOME map. */
-static void EmbersStep(const Snapshot *s, CtrDirtyList *dirty)
-{
-    int picture;
-
-    if (s->battleUi && s->battle.state != BUI_PARTY)
-        return;
-    if (s->mode == MODE_OFF && !sSession.active) {
-        CtrPokeTouch_Embers(sCanvas, CtrOptions_Embers(), CtrOptions_EmbersLow(), 0, dirty);   /* the idle backdrop */
-        return;
-    }
-    if (s->battleUi) {
-        CtrPokeTouch_Embers(sCanvas, CtrOptions_Embers(), CtrOptions_EmbersLow(), 0, dirty);
-        return;
-    }
-    picture = !s->summaryUi && (s->touch.viewport || (s->touch.home && !s->touch.options && !s->touch.save));
-    CtrPokeTouch_Embers(sCanvas, CtrOptions_Embers(), CtrOptions_EmbersLow(), picture, dirty);
-}
-
 void CtrBottom_Frame(void)
 {
     int mode;
@@ -4743,8 +4780,7 @@ void CtrBottom_Frame(void)
         sHome.valid = 0;                /* a menu or a battle has the screen: no selection */
         sHome.down = 0;
         sHome.dragging = 0;
-        sHome.centered = 0;             /* and HOME comes back at the overview, on the player's own map */
-        sHome.view = 0;
+        sHome.view = 0;                 /* and HOME comes back on the player's own map */
     } else {
         ++sHome.frames;
     }
@@ -4793,8 +4829,10 @@ void CtrBottom_Frame(void)
     else
         BatPlanClear();
     RunStoragePlan(mode);
-    if (mode != MODE_BATTLE && !(mode == MODE_BAG && CtrBottomBag_InBattle()) && mode != MODE_PARTY)
+    if (mode != MODE_BATTLE && !(mode == MODE_BAG && CtrBottomBag_InBattle()) && mode != MODE_PARTY) {
         sBat.down = sBat.inside = 0;
+        sBatSafari = 0;                 /* the battle is over: the next one is no Safari until its chooser says so */
+    }
     /* The battle keeps the upper screen from the pick of BAG or POKeMON (or a replacement), before the Bag or Party exists (its fade and setup are never shown). */
     if (mode == MODE_BATTLE)
         sBatHold = CtrBattle_BagPending() || CtrBattle_PartyPending() ? 1 : 0;
@@ -4888,10 +4926,12 @@ void CtrBottom_Frame(void)
     /* Only the view that is drawn is cased (Render draws the battle's or the touch view, never both), and a held picture
      * (nav: state is sShown) was cased when it was first built. */
     if (!nav) {
-        if (state.battleUi)
-            CtrTextCase_Battle(&state.battle);
-        else
-            CtrTextCase_Touch(&state.touch);
+        state.touch.shell = state.battle.shell = state.sum.shell = (uint8_t)CtrOptions_Shell();
+        if (state.battleUi) {
+            if (state.battle.state == BUI_PARTY || state.battle.state == BUI_BAG)
+                CtrTextCase_Battle(&state.battle);  /* the other states are the red device's: FireRed's capitals */
+        } else if (!state.touch.home || state.touch.viewport)
+            CtrTextCase_Touch(&state.touch);    /* HOME is the red device's: FireRed's capitals (DevUpper) */
     }
     /* The logo only once nothing has been shown for a while: a screen's few frames of change show the backdrop. */
     sIdleFrames = state.mode == MODE_OFF && !sSession.active ? (sIdleFrames < IDLE_LOGO_FRAMES ? sIdleFrames + 1
@@ -4935,7 +4975,6 @@ void CtrBottom_Frame(void)
                 CtrBattleUi_Update(sCanvas, &sShown.battle, &state.battle, &dirty);
             else
                 CtrPokeTouch_Update(sCanvas, &sShown.touch, &state.touch, &dirty);
-            EmbersStep(&state, &dirty);
             ProfSpan(&sProf.frameUi, profT);
             sShown = state;
             profT = ProfNow();
@@ -4964,13 +5003,6 @@ void CtrBottom_Frame(void)
             ProfFrameEnd(&full);
         }
         return;
-    }
-    if (!sReveal.active && sHaveShown) {
-        CtrDirtyList dirty;
-
-        CtrDirty_Clear(&dirty);
-        EmbersStep(&sShown, &dirty);
-        Present(&dirty);
     }
     RevealStep();
     ProfFrameEnd(NULL);
