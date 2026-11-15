@@ -562,12 +562,13 @@ void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const Ct
 void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo);
 
 /*
- * The battle screen (3ds_battle_ui.inc, CtrBattleUi_*): the whole lower screen while FireRed's battle is on the
- * upper one. While the player's controller waits at the action menu it is the MAIN design (FIGHT large, BAG, RUN
- * and POKeMON below, the party's six Poke Balls above); at the move list, the four move cards (name, type,
- * description and power of the real moves) and CANCEL; at any other moment only the frame and the balls.
+ * The battle screen (3ds_device_battle_impl.h, CtrBattleUi_*): the whole lower screen while FireRed's battle is on
+ * the upper one, drawn as the red device. While the player's controller waits at the action menu: a screen with the
+ * lead and the party's six balls, FIGHT across, BAG, POKeMON and RUN below; at the move list, the chosen move on the
+ * screen (type, category, power, accuracy, description) and the four move keys and CANCEL; at any other moment the
+ * action screen with its keys grey.
  * Everything shown is what the controller reports: the screen has no state of its own. In a wild battle a fourth button
- * between BAG and POKeMON throws a ball at once (the quick ball: the ball's own icon, name and count, arrows or a swipe
+ * between BAG and POKeMON throws a ball at once (the quick ball: the ball's own icon and count, arrows or a swipe
  * across it for the others, CTR_ACTION_BALL as the controller's cursor). In the battle Bag (BUI_BAG, the Bag FireRed
  * opens from BAG) it is a remote for that Bag: its items (the Items pocket: the balls have their button, the key items
  * stay out but for the Berry Pouch, which BERRIES opens) with icon and quantity, the selected item's detail, and
@@ -679,6 +680,7 @@ typedef struct {
     uint8_t partyStatus[6];         /* 0 none, else 1..6 PSN PAR SLP FRZ BRN PKRS */
     char activeName[BUI_NAME_LEN];  /* the Pokemon in the lead (party slot 0): the action screen's footer */
     uint8_t activeLevel;
+    uint8_t activeGender;           /* 0 male, 1 female, 2 none (CtrBottomParty_Gender) */
     uint8_t activeSlot;             /* its slot in the party */
     uint16_t activeIcon;            /* its party icon (a species number, as CtrBottomParty_IconSpecies gives it) */
     int8_t activeType[2];           /* its types (FireRed's numbers), -1 for none: the badges of the FIGHT banner */

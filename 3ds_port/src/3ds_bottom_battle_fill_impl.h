@@ -50,6 +50,7 @@ static void BattleCommon(CtrBattleView *v)
             CtrBottomParty_Nickname(slot, v->activeName);
             v->activeName[sizeof(v->activeName) - 1] = 0;
             v->activeLevel = (uint8_t)(level > 255 ? 255 : level);
+            v->activeGender = (uint8_t)CtrBottomParty_Gender(slot);
             v->activeSlot = (uint8_t)slot;
             v->activeIcon = (uint16_t)CtrBottomParty_IconSpecies(slot);
             v->activeFrame = (uint8_t)((sBatAnim++ / 15) & 1);

@@ -4925,9 +4925,10 @@ void CtrBottom_Frame(void)
      * (nav: state is sShown) was cased when it was first built. */
     if (!nav) {
         state.touch.shell = state.battle.shell = state.sum.shell = (uint8_t)CtrOptions_Shell();
-        if (state.battleUi)
-            CtrTextCase_Battle(&state.battle);
-        else if (!state.touch.home || state.touch.viewport)
+        if (state.battleUi) {
+            if (state.battle.state == BUI_PARTY || state.battle.state == BUI_BAG)
+                CtrTextCase_Battle(&state.battle);  /* the other states are the red device's: FireRed's capitals */
+        } else if (!state.touch.home || state.touch.viewport)
             CtrTextCase_Touch(&state.touch);    /* HOME is the red device's: FireRed's capitals (DevUpper) */
     }
     /* The logo only once nothing has been shown for a while: a screen's few frames of change show the backdrop. */

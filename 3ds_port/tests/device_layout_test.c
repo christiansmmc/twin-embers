@@ -146,11 +146,45 @@ static int HomeFaults(void)
     return faults;
 }
 
+/* The battle (boards B · Comandos and B · Golpes): the brief's numbers; each screen with its light row above the keys
+ * under it; the quick ball's arrows on its key's face. */
+static int BattleFaults(void)
+{
+    int faults = 0;
+
+    assert(Same(kDevBatScreen, (CtrPokeTouchRect){8, 8, 304, 88}) && Same(kDevBatMoveScreen, (CtrPokeTouchRect){8, 8, 304, 56}));
+    assert(Same(kDevBatFight, (CtrPokeTouchRect){8, 104, 304, 56}) && Same(kDevBatCancel, (CtrPokeTouchRect){236, 212, 76, 20}));
+    for (int i = 0; i < 3; ++i)
+        assert(Same(kDevBatRow3[i], (CtrPokeTouchRect){(int16_t)(8 + 104 * i), 170, 96, 60}));
+    for (int i = 0; i < 4; ++i) {
+        assert(Same(kDevBatRow4[i], (CtrPokeTouchRect){(int16_t)(8 + 77 * i), 170, 73, 60}));
+        assert(Same(kDevBatMove[i], (CtrPokeTouchRect){(int16_t)(i & 1 ? 164 : 8), (int16_t)(i < 2 ? 72 : 142), 148, 62}));
+    }
+    for (int next = 0; next < 2; ++next) {
+        const CtrPokeTouchRect *k = &kDevBatRow4[1];
+        CtrPokeTouchRect a = DevBatBallArrow(k, next);
+
+        assert(Same(a, (CtrPokeTouchRect){(int16_t)(next ? k->x + k->w - 22 : k->x + 2), (int16_t)(k->y + 38), 20, 20}));
+        if (!Within(a, *k, 0)) {
+            fprintf(stderr, "battle: the quick ball's %s arrow leaves its key\n", next ? "next" : "previous");
+            ++faults;
+        }
+    }
+    if (kDevBatScreen.y + kDevBatScreen.h + 1 > kDevBatFight.y || kDevBatMoveScreen.y + kDevBatMoveScreen.h + 1 > kDevBatMove[0].y) {
+        fprintf(stderr, "battle: a screen (with its light row) reaches its keys\n");
+        ++faults;
+    }
+    return faults;
+}
+
 int main(void)
 {
     /* Every rectangle the header holds, by name, and the keys of each view state. */
     const CtrPokeTouchRect homeKeys[] = {kDevHomeKey[0], kDevHomeKey[1], kDevHomeKey[2], kDevHomeKey[3], kDevHomeKey[4],
                                          kDevHomeKey[5], kDevHomeRun, kDevHomeSpeed};
+    const CtrPokeTouchRect batTrainer[] = {kDevBatFight, kDevBatRow3[0], kDevBatRow3[1], kDevBatRow3[2]};
+    const CtrPokeTouchRect batWild[] = {kDevBatFight, kDevBatRow4[0], kDevBatRow4[1], kDevBatRow4[2], kDevBatRow4[3]};
+    const CtrPokeTouchRect batMoves[] = {kDevBatMove[0], kDevBatMove[1], kDevBatMove[2], kDevBatMove[3], kDevBatCancel};
     const DevNamedRect rects[] = {
         {"HOME screen", kDevHomeScreen}, {"HOME POKeDEX", kDevHomeKey[0]}, {"HOME POKeMON", kDevHomeKey[1]},
         {"HOME BAG", kDevHomeKey[2]}, {"HOME card", kDevHomeKey[3]}, {"HOME SAVE", kDevHomeKey[4]},
@@ -158,8 +192,14 @@ int main(void)
         {"HOME name", kDevHomeName}, {"HOME region line", kDevHomeRegion}, {"HOME rule", kDevHomeRule},
         {"HOME region key", kDevHomeMapKey}, {"HOME FLY", kDevHomeFly},
         {"HOME cell 0", DevHomeCell(0)}, {"HOME cell 5", DevHomeCell(5)},
+        {"battle screen", kDevBatScreen}, {"battle moves' screen", kDevBatMoveScreen}, {"battle FIGHT", kDevBatFight},
+        {"battle BAG (3)", kDevBatRow3[0]}, {"battle POKeMON (3)", kDevBatRow3[1]}, {"battle RUN (3)", kDevBatRow3[2]},
+        {"battle BAG (4)", kDevBatRow4[0]}, {"battle BALL", kDevBatRow4[1]}, {"battle POKeMON (4)", kDevBatRow4[2]},
+        {"battle RUN (4)", kDevBatRow4[3]}, {"battle move 0", kDevBatMove[0]}, {"battle move 1", kDevBatMove[1]},
+        {"battle move 2", kDevBatMove[2]}, {"battle move 3", kDevBatMove[3]}, {"battle CANCEL", kDevBatCancel},
     };
-    const DevGroup groups[] = {DEV_GROUP("HOME", homeKeys)};
+    const DevGroup groups[] = {DEV_GROUP("HOME", homeKeys), DEV_GROUP("battle, a trainer", batTrainer),
+                               DEV_GROUP("battle, wild", batWild), DEV_GROUP("battle moves", batMoves)};
     int faults = 0;
 
     RulesCatchFaults();
@@ -173,6 +213,7 @@ int main(void)
     for (unsigned i = 0; i < sizeof(groups) / sizeof(groups[0]); ++i)
         faults += GroupFaults(&groups[i]);
     faults += HomeFaults();
+    faults += BattleFaults();
     assert(faults == 0);
     puts("PASS device layout");
     return 0;
