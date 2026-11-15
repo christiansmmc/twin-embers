@@ -146,4 +146,50 @@ static inline CtrPokeTouchRect DevSumRow(int i)
     return r;
 }
 
+/* ---- The Bag (boards B · BAG and B · BAG: menu do item; 3ds_device_bag_impl.h) -----------------------------------------
+ * One page for the field's Bag, its TM Case and Berry Pouch, a mart's BUY, the item PC's WITHDRAW ITEM, the mailbox and
+ * the battle's Bag. Across the top the keys: the Bag's three pockets (the battle's: ITEMS and BERRIES), a case's one key
+ * (kDevBagCaseKey), or a title on a screen (kDevBagTitle: a mart, the item PC, the mailbox). Under them the list's screen
+ * with its rows (DevBagRow: no drop) and the tall ▲▼ beside it; under that the description's screen (the item's icon
+ * in kDevBagDescIcon, the text from kDevBagDescText) and CLOSE, a dark key. With the item's menu, YES / NO or how many
+ * open, the list's screen and the description's narrow (kDevBagListNarrow, kDevBagDescNarrow) and the keys stand in a
+ * column on the right: the menu's (DevBagMenuKey), YES / NO (DevBagMenuKey(2, i)), or how many (kDevBagQty*). */
+#define DEV_BAG_ROW_H 16
+static const CtrPokeTouchRect kDevBagPocket[3] __attribute__((unused)) = {{8, 8, 96, 24}, {112, 8, 96, 24}, {216, 8, 96, 24}};
+static const CtrPokeTouchRect kDevBagCaseKey __attribute__((unused)) = {8, 8, 304, 24};
+static const CtrPokeTouchRect kDevBagTitle __attribute__((unused)) = {8, 6, 304, 28};
+static const CtrPokeTouchRect kDevBagList __attribute__((unused)) = {8, 40, 260, 144};
+static const CtrPokeTouchRect kDevBagListNarrow __attribute__((unused)) = {8, 40, 184, 144};
+static const CtrPokeTouchRect kDevBagUp __attribute__((unused)) = {276, 40, 36, 66};
+static const CtrPokeTouchRect kDevBagDown __attribute__((unused)) = {276, 114, 36, 66};
+static const CtrPokeTouchRect kDevBagDesc __attribute__((unused)) = {8, 190, 228, 42};
+static const CtrPokeTouchRect kDevBagDescNarrow __attribute__((unused)) = {8, 190, 184, 42};
+static const CtrPokeTouchRect kDevBagDescIcon __attribute__((unused)) = {18, 199, 24, 24};
+static const CtrPokeTouchRect kDevBagDescText __attribute__((unused)) = {46, 197, 180, 27};
+static const CtrPokeTouchRect kDevBagClose __attribute__((unused)) = {244, 190, 68, 40};
+/* How many: the count's screen between ▲ and ▼, OK and CANCEL under them. */
+static const CtrPokeTouchRect kDevBagQtyUp __attribute__((unused)) = {200, 40, 112, 30};
+static const CtrPokeTouchRect kDevBagQtyScreen __attribute__((unused)) = {200, 76, 112, 40};
+static const CtrPokeTouchRect kDevBagQtyDown __attribute__((unused)) = {200, 122, 112, 30};
+static const CtrPokeTouchRect kDevBagQtyOk __attribute__((unused)) = {200, 158, 112, 30};
+static const CtrPokeTouchRect kDevBagQtyCancel __attribute__((unused)) = {200, 194, 112, 36};
+
+/* Row i (0-7) of the list, on the wide screen or (`narrow`) the narrow one. */
+static inline CtrPokeTouchRect DevBagRow(int i, int narrow)
+{
+    CtrPokeTouchRect r = {16, (int16_t)(48 + DEV_BAG_ROW_H * i), (int16_t)(narrow ? 168 : 244), DEV_BAG_ROW_H};
+
+    return r;
+}
+
+/* Key i of a menu of n (1-6): one column, 38 apart up to five keys (the last, a dark one, 38 tall, the others 30), 32
+ * apart and 26 tall for six. */
+static inline CtrPokeTouchRect DevBagMenuKey(int n, int i)
+{
+    int p = n <= 5 ? 38 : 32, h = n <= 5 ? (i == n - 1 ? 38 : 30) : 26;
+    CtrPokeTouchRect r = {200, (int16_t)(40 + p * i), 112, (int16_t)h};
+
+    return r;
+}
+
 #endif

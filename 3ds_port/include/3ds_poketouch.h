@@ -97,11 +97,12 @@ enum { PT_SAVE_NONE, PT_SAVE_FIRST, PT_SAVE_SECOND };  /* the button: YES or OK,
 #define PT_BAR_LINES 3
 #define PT_BAR_LEN 40
 
-/* The field Bag drawn by the port in the viewport (3ds_field_bag_impl.h), a remote for FireRed's own Bag: its pockets
- * as tabs, the rows of the list it shows (items, then CLOSE BAG), the item's description in the note, and over the
- * list the menu, the quantity box, the question or the message it has open. Everything is the Bag's own state.
- * The TM Case and the Berry Pouch it opens are drawn the same way, with their title in place of the pockets. */
-#define PT_BAG_ROWS 5
+/* The field Bag drawn by the port as the red device (3ds_device_bag_impl.h), a remote for FireRed's own Bag: its
+ * pockets as keys, the rows of the list it shows (its items; FireRed's CLOSE BAG row is the CLOSE key), the item's
+ * description, and the menu, the quantity box, the question or the message it has open. Everything is the Bag's own
+ * state. The TM Case and the Berry Pouch it opens, a mart's BUY, the item PC's WITHDRAW ITEM and the mailbox are drawn
+ * the same way, with their name or title in place of the pockets. */
+#define PT_BAG_ROWS 8
 #define PT_BAG_MENU_MAX 6
 enum { PT_BAG_KIND_BAG = 0, PT_BAG_KIND_TMCASE, PT_BAG_KIND_POUCH, PT_BAG_KIND_SHOP,   /* SHOP: a mart's BUY list */
        PT_BAG_KIND_ITEMPC };                                                          /* ITEMPC: the PC's WITHDRAW ITEM */
@@ -110,7 +111,8 @@ enum { PT_BAG_STATE_BUSY = 0, PT_BAG_STATE_LIST, PT_BAG_STATE_ACTIONS, PT_BAG_ST
        PT_BAG_STATE_MESSAGE };
 /* Hit codes (CtrPokeTouch_BagHit). */
 enum { PT_BAG_HIT_TAB = 100, PT_BAG_HIT_ROW = 200, PT_BAG_HIT_MENU = 300, PT_BAG_HIT_MESSAGE = 500, PT_BAG_HIT_UP = 600,
-       PT_BAG_HIT_DOWN, PT_BAG_HIT_QTY_UP = 610, PT_BAG_HIT_QTY_DOWN, PT_BAG_HIT_QTY_OK, PT_BAG_HIT_QTY_CANCEL, PT_BAG_HIT_RAIL = 620 };
+       PT_BAG_HIT_DOWN, PT_BAG_HIT_QTY_UP = 610, PT_BAG_HIT_QTY_DOWN, PT_BAG_HIT_QTY_OK, PT_BAG_HIT_QTY_CANCEL,
+       PT_BAG_HIT_CLOSE = 630 };
 typedef struct {
     uint8_t on;                     /* the viewport shows this Bag (no GBA picture) */
     uint8_t kind;                   /* PT_BAG_KIND_*: the Bag, or a case it opens */
@@ -121,7 +123,7 @@ typedef struct {
     uint8_t asked;                  /* the pocket a touch on a tab asked for, 0xFF none (the Bag is being walked to it) */
     uint8_t pocket;                 /* FireRed's pocket: 0 Items, 1 Key Items, 2 Poke Balls */
     uint8_t state;                  /* PT_BAG_STATE_*: the Bag's own input state */
-    int16_t count;                  /* items in the pocket; row `count` is CLOSE BAG */
+    int16_t count;                  /* items in the pocket; FireRed's row `count` is CLOSE BAG (the CLOSE key) */
     int16_t cursor;                 /* the Bag's selection (count: CLOSE BAG) */
     int16_t first;                  /* the list index of the first row shown */
     struct {
@@ -130,6 +132,7 @@ typedef struct {
         uint16_t price;             /* a mart's row: what one costs */
         char name[20];
     } row[PT_BAG_ROWS];
+    uint8_t typed;                  /* the rows' and the selection's names are ones the player typed (the mailbox's writers) */
     uint16_t selItem;               /* the selected item, its name and description */
     char selName[20];
     char selDesc[112];
@@ -499,7 +502,6 @@ bool CtrPokeTouch_HomeCellPoint(const CtrPokeTouchView *view, int cx, int cy, in
 bool CtrPokeTouch_HomeMapCell(const CtrPokeTouchView *view, int x, int y, int *cx, int *cy);
 /* What the field Bag (view->bag.on) shows under lower-screen point (x, y): a PT_BAG_HIT_* code, or -1. */
 int CtrPokeTouch_BagHit(const CtrPokeTouchView *view, int x, int y);
-int CtrPokeTouch_BagRailTarget(const CtrPokeTouchBag *bag, int y);   /* the cursor index the rail's thumb at y stands for (-1: no rail) */
 /* What the Pokedex (view->dex.on) shows under lower-screen point (x, y): a PT_DEX_HIT_* code, or -1. */
 int CtrPokeTouch_DexHit(const CtrPokeTouchView *view, int x, int y);
 /* The top menu row a tab (0-2) leads to, and the first row of the habitat/search page before (-1) or after (1) the
@@ -570,9 +572,10 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo);
  * Everything shown is what the controller reports: the screen has no state of its own. In a wild battle a fourth button
  * between BAG and POKeMON throws a ball at once (the quick ball: the ball's own icon and count, arrows or a swipe
  * across it for the others, CTR_ACTION_BALL as the controller's cursor). In the battle Bag (BUI_BAG, the Bag FireRed
- * opens from BAG) it is a remote for that Bag: its items (the Items pocket: the balls have their button, the key items
- * stay out but for the Berry Pouch, which BERRIES opens) with icon and quantity, the selected item's detail, and
- * CANCEL; what it shows is the Bag's own state and save data. In the Party (BUI_PARTY, the field's and the battle's: a
+ * opens from BAG; 3ds_device_bag_impl.h, the field Bag's page) it is a remote for that Bag: its items (the Items pocket:
+ * the balls have their button, the key items stay out but for the Berry Pouch, which BERRIES opens) with icon and
+ * quantity, the selected item's description, its menu or message, and CLOSE; what it shows is the Bag's own state and
+ * save data. In the Party (BUI_PARTY, the field's and the battle's: a
  * switch, the replacement for a Pokemon that fainted, the target of an item; 3ds_device_party_impl.h) it is a remote for
  * FireRed's Party, drawn as the red device: the six Pokemon as bays in two columns (icon, name, HP bar and numbers, level
  * or condition), the screen with what the Party says, its menu or message when it has one open, and CANCEL unless the
@@ -601,14 +604,14 @@ typedef struct {
     char desc[BUI_DESC_LEN];        /* FireRed's description, wrapped when drawn */
 } CtrBattleMove;
 enum { BUI_BAG_TAB = 100, BUI_BAG_ROW = 200, BUI_BAG_MENU = 300, BUI_BAG_CANCEL = 400, BUI_BAG_MESSAGE = 500,
-       BUI_BAG_UP = 600, BUI_BAG_DOWN = 601, BUI_BAG_BERRIES = 602, BUI_BAG_RAIL = 603 };
-#define BUI_BAG_ROWS 5
+       BUI_BAG_UP = 600, BUI_BAG_DOWN = 601, BUI_BAG_BERRIES = 602 };
+#define BUI_BAG_ROWS 8
 #define BUI_ITEM_LEN 20
 typedef struct {
     uint8_t pocket;                 /* FireRed's pocket: 0 Items, 1 Key Items, 2 Poke Balls */
     uint8_t bagState;               /* the Bag's own input state (CTR_BAG_*: list, menu, message, busy ...) */
     int16_t count;                  /* items in the pocket */
-    int16_t cursor;                 /* the selected item (count is the list's own CANCEL row) */
+    int16_t cursor;                 /* the selected item (count is the list's own CANCEL row: the CLOSE key) */
     int16_t first;                  /* the item of the first row shown */
     struct {
         uint16_t item;              /* 0: no item in the row */
@@ -711,7 +714,6 @@ void CtrBattleUi_Draw(uint16_t *canvas, const CtrBattleView *view);
 void CtrBattleUi_Update(uint16_t *canvas, const CtrBattleView *old, const CtrBattleView *view, CtrDirtyList *dirty);
 /* The button under a canvas point of the screen `view` shows, or -1. */
 int CtrBattleUi_Hit(const CtrBattleView *view, int x, int y);
-int CtrBattleUi_BagRailTarget(const CtrBattleBag *bag, int y);       /* the same for the battle Bag */
 
 
 /*

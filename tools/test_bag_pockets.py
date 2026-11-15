@@ -23,8 +23,8 @@ def added(path):
 
 class BagPockets(unittest.TestCase):
     def test_field_tabs_are_in_the_games_pocket_order(self):
-        src = read('3ds_port/src/3ds_field_bag_impl.h')
-        labels = re.search(r'sFBTabLabel\[3\]\s*=\s*\{([^}]*)\}', src).group(1)
+        src = read('3ds_port/src/3ds_device_bag_impl.h')
+        labels = re.search(r'kDevBagPocketLabel\[3\]\s*=\s*\{([^}]*)\}', src).group(1)
         self.assertEqual([x.strip() for x in labels.split(',')], ['UIS_BAG_ITEMS', 'UIS_BAG_KEY_ITEMS', 'UIS_BAG_BALLS'])
         head = read('3ds_port/include/3ds_bag_pockets.h')
         self.assertRegex(head, r'CTR_BAGP_ITEMS = 0, CTR_BAGP_KEY_ITEMS = 1, CTR_BAGP_POKE_BALLS = 2')
@@ -33,7 +33,7 @@ class BagPockets(unittest.TestCase):
 
     def test_the_battle_bag_has_no_second_pocket_order(self):
         # A table {Items, Poke Balls, Key Items} once named the tabs of the battle Bag; the game walks Items, Key Items, Poke Balls.
-        for rel in ('3ds_port/src/3ds_battle_ui_impl.h', '3ds_port/include/3ds_poketouch.h'):
+        for rel in ('3ds_port/src/3ds_battle_ui_impl.h', '3ds_port/src/3ds_device_bag_impl.h', '3ds_port/include/3ds_poketouch.h'):
             self.assertNotIn('sBTabPocket', read(rel))
             self.assertNotIn('CtrBattleUi_TabPocket', read(rel))
 

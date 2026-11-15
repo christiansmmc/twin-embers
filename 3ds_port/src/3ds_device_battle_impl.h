@@ -1,8 +1,8 @@
 /* The battle's lower screen as the red device (style B; boards B · Comandos and B · Golpes), included by
- * 3ds_poketouch.c after the kit, HOME and the Party. It owns CtrBattleUi_Draw / Update / Hit: the Party (the field's and
- * the battle's, BUI_PARTY) is 3ds_device_party_impl.h's (DevPartyDraw / DevPartyHit / DevPartyUndrawn); the battle Bag
- * keeps the ember look for now (3ds_battle_ui_impl.h: BEmberDraw / BEmberUpdate / BEmberHit). Every rectangle is
- * 3ds_device_layout.h's, so what is drawn is what a touch takes.
+ * 3ds_poketouch.c after the kit, HOME, the Party and the Bag. It owns CtrBattleUi_Draw / Update / Hit: the Party (the
+ * field's and the battle's, BUI_PARTY) is 3ds_device_party_impl.h's (DevPartyDraw / DevPartyHit / DevPartyUndrawn), the
+ * battle's Bag (BUI_BAG) 3ds_device_bag_impl.h's (DevBagBattleDraw / DevBagBattleHit / DevBagBattleSame). Every
+ * rectangle is 3ds_device_layout.h's, so what is drawn is what a touch takes.
  *
  * ACTION, the commands: the shell with its four screws; the screen with the lead (its icon at 2x, its name, gender and
  * level, the party's six balls, its HP) and FireRed's question; FIGHT across; under it BAG, POKeMON and RUN, and in a
@@ -232,7 +232,7 @@ int CtrBattleUi_Hit(const CtrBattleView *v, int x, int y)
     if (v->state == BUI_PARTY)
         return DevPartyHit(v, x, y);
     if (v->state == BUI_BAG)
-        return BEmberHit(v, x, y);
+        return DevBagBattleHit(v, x, y);
     if (v->state == BUI_ACTION) {
         for (int i = 0; i < 5; ++i) {
             const CtrPokeTouchRect *r = DevBatActKey(v, kDevBatActs[i]);
@@ -683,12 +683,10 @@ static void DevBatSafari(const CtrBattleView *v, int idle)
 
 void CtrBattleUi_Draw(uint16_t *canvas, const CtrBattleView *v)
 {
-    if (v->state == BUI_BAG) {
-        BEmberDraw(canvas, v);
-        return;
-    }
     DevBegin(canvas, v->shell);
-    if (v->state == BUI_PARTY)
+    if (v->state == BUI_BAG)
+        DevBagBattleDraw(v);
+    else if (v->state == BUI_PARTY)
         DevPartyDraw(v);
     else if (v->state == BUI_MOVE || v->state == BUI_TARGET)
         DevBatMoves(v);
@@ -750,17 +748,20 @@ static void DevBatUndrawn(CtrBattleView *still, const CtrBattleView *v)
         still->safari = v->safari;
 }
 
-/* From one Bag to the next, the ember look's own; anything else: what a red device state draws changed (the Party's
- * undrawn fields are its own, DevPartyUndrawn), the screen whole. */
+/* What a state draws changed (the Party's undrawn fields are its own, DevPartyUndrawn; the Bag compares its pages,
+ * DevBagBattleSame): the screen whole. */
 void CtrBattleUi_Update(uint16_t *canvas, const CtrBattleView *old, const CtrBattleView *v, CtrDirtyList *dirty)
 {
     CtrBattleView still;
 
+    CtrDirty_Clear(dirty);
     if (old->state == BUI_BAG && v->state == BUI_BAG) {
-        BEmberUpdate(canvas, old, v, dirty);
+        if (!DevBagBattleSame(old, v)) {
+            CtrBattleUi_Draw(canvas, v);
+            CtrDirty_Add(dirty, 0, 0, W, H);
+        }
         return;
     }
-    CtrDirty_Clear(dirty);
     still = *old;
     if (v->state == BUI_PARTY)
         DevPartyUndrawn(&still, v);

@@ -11,7 +11,7 @@
  *   DEVICE_WIDTHS=file        the normal font's 256 glyph widths; DEVICE_SMALL_WIDTHS=file the small font's
  *   DEVICE_FONT_W=n           the stub glyph width
  *
- * usage: device_render_test <suite>   (kit, home, battle, party, summary, or all; prints PASS device <suite>) */
+ * usage: device_render_test <suite>   (kit, home, battle, party, summary, bag, or all; prints PASS device <suite>) */
 #include <assert.h>
 #ifndef PT_SOURCE
 #define PT_SOURCE "3ds_poketouch.c"
@@ -129,7 +129,7 @@ static void ReadWidths(const char *path, uint8_t widths[256])
     fclose(f);
 }
 
-/* ---- Game bridges: battle_ui_render_test.c's set and poketouch_render_test.c's map art --------------------------- */
+/* ---- Game bridges: the battle's (the ember drawer's harness had them) and poketouch_render_test.c's map art ------- */
 
 /* The pack's files with FIRERED_TEST_PAK; else the two item icons, synthesised: a literal-only GBA LZ stream of 24x24
  * 4bpp tiles (3x3) and of a palette, so the full-size icon path runs without game data. */
@@ -1285,7 +1285,7 @@ static void SuiteBattle(void)
     v.safari = 0; v.move[1].pp = 15; v.target[1].hp = 80; assert(DevCheckBattle(&old, &v).count == 0);
     v.shell = 1; assert(DevWhole(DevCheckBattle(&old, &v)) && at(160, 100) == DEV_SHELL_BLUE);
     v.shell = 0; DevCheckBattle(&old, &v);
-    /* to the ember Bag and back: the whole screen each way */
+    /* to the Bag and back: the whole screen each way */
     v.state = BUI_BAG; assert(DevWhole(DevCheckBattle(&old, &v)));
     v.state = BUI_ACTION; assert(DevWhole(DevCheckBattle(&old, &v)));
 
@@ -1562,7 +1562,7 @@ static void SuiteParty(void)
     CtrBattleUi_Draw(canvas, &old);
     v.pty.button = -1; v.pty.caption[0] = 0;                                   /* the cursor on a slot again, no prompt */
     v.pty.panel = BUI_PTY_NONE; DevCheckBattle(&old, &v); v.pty.iconFrame[0] ^= 1; assert(DevCheckBattle(&old, &v).count == 0);   /* icons are not animated in B */
-    /* to the battle's commands and the ember Bag and back: the whole screen each way */
+    /* to the battle's commands and the Bag and back: the whole screen each way */
     v.state = BUI_ACTION; assert(DevWhole(DevCheckBattle(&old, &v)));
     v.state = BUI_PARTY; assert(DevWhole(DevCheckBattle(&old, &v)));
     v.state = BUI_BAG; assert(DevWhole(DevCheckBattle(&old, &v)));
@@ -1899,6 +1899,296 @@ static void SuiteSummary(void)
     assert(sDevKeyCut == 0);                      /* main prints PASS device summary */
 }
 
+/* ---- bag: the field Bag, a case, a mart's BUY, the item PC, the mailbox, the battle Bag (boards B · BAG) -------------- */
+
+static int BagHitV(const void *view, int x, int y)
+{
+    return CtrPokeTouch_BagHit((const CtrPokeTouchView *)view, x, y);
+}
+
+/* The board's Items pocket: the first eight of nine, FireRed's cursor on SUPER POTION (row 1) with its description; no
+ * pocket asked for; the item's menu (USE GIVE TOSS REGISTER CANCEL, and CHECK before CANCEL for a menu of six) ready for
+ * its state. Names as FireRed has them. */
+static const struct { const char *name; int qty; } kBagItem[8] = {
+    {"POTION", 5}, {"SUPER POTION", 2}, {"ANTIDOTE", 3}, {"PARLYZ HEAL", 1}, {"ESCAPE ROPE", 2}, {"REPEL", 4},
+    {"FULL HEAL", 1}, {"MAX REPEL", 3},
+};
+static const char kBagDesc[] = "A spray-type wound medicine. It restores the HP of one POK\xC3\xA9MON by 50 points.";
+
+static CtrPokeTouchView BagBoard(void)
+{
+    static const char *const kMenu[6] = {"USE", "GIVE", "TOSS", "REGISTER", "CANCEL", "CANCEL"};
+    CtrPokeTouchView v;
+    CtrPokeTouchBag *b = &v.bag;
+
+    memset(&v, 0, sizeof(v));
+    v.selected = v.pressed = PT_NONE;
+    v.optPressed = -1;
+    b->on = 1;
+    b->kind = PT_BAG_KIND_BAG;
+    b->asked = 0xFF;
+    b->state = PT_BAG_STATE_LIST;
+    b->count = 9;
+    b->cursor = 1;
+    b->moveType = -1;
+    b->pressed = -1;
+    for (int i = 0; i < 8; ++i) {
+        b->row[i].item = (uint16_t)(13 + i);
+        b->row[i].qty = (uint16_t)kBagItem[i].qty;
+        strcpy(b->row[i].name, kBagItem[i].name);
+    }
+    b->selItem = 14;
+    strcpy(b->selName, "SUPER POTION");
+    strcpy(b->selDesc, kBagDesc);
+    for (int i = 0; i < 6; ++i)
+        strcpy(b->menuName[i], kMenu[i]);
+    return v;
+}
+
+/* The battle's Bag with the same rows: the Items pocket, no Berry Pouch; its menu USE, CANCEL. */
+static CtrBattleView BagBattle(void)
+{
+    CtrBattleView v;
+    CtrBattleBag *b = &v.bag;
+
+    memset(&v, 0, sizeof(v));
+    v.state = BUI_BAG;
+    v.pressed = -1;
+    v.cursor = -1;
+    b->count = 9;
+    b->cursor = 1;
+    for (int i = 0; i < 8; ++i) {
+        b->row[i].item = (uint16_t)(13 + i);
+        b->row[i].qty = (uint16_t)kBagItem[i].qty;
+        strcpy(b->row[i].name, kBagItem[i].name);
+    }
+    b->selItem = 14;
+    strcpy(b->selName, "SUPER POTION");
+    strcpy(b->selDesc, kBagDesc);
+    strcpy(b->menuName[0], "USE");
+    strcpy(b->menuName[1], "CANCEL");
+    return v;
+}
+
+/* With small letters wider than capitals: `a` and `b` drawn alike (or not, `same` 0). */
+static void BagSamePixels(const CtrPokeTouchView *a, const CtrPokeTouchView *b, int same)
+{
+    static uint16_t first[W * H];
+    static uint8_t keepWidths[256], keepSmall[256];
+
+    memcpy(keepWidths, fontWidths, sizeof(keepWidths));
+    memcpy(keepSmall, smallWidths, sizeof(keepSmall));
+    for (unsigned c = 0xd5; c <= 0xee; ++c)        /* a..z */
+        fontWidths[c] = smallWidths[c] = 7;
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    CtrPokeTouch_Draw(canvas, a);
+    memcpy(first, canvas, sizeof(first));
+    CtrPokeTouch_Draw(canvas, b);
+    if ((memcmp(first, canvas, sizeof(first)) == 0) != same) {
+        fprintf(stderr, "%s: kind %d state %d, rows %s / %s: drawn %s\n", gSuite, a->bag.kind, a->bag.state,
+                a->bag.row[0].name, b->bag.row[0].name, same ? "differently" : "alike");
+        assert(0);
+    }
+    memcpy(fontWidths, keepWidths, sizeof(keepWidths));
+    memcpy(smallWidths, keepSmall, sizeof(keepSmall));
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+}
+
+/* Upper case (decision 5): FireRed's names in any case drawn in capitals (the rows, the selection, the menu, a case's
+ * name, a TM's type, CLOSE's word); a mailbox's writers as typed. */
+static void BagUpperCase(CtrPokeTouchView v)
+{
+    CtrPokeTouchView other;
+
+    v.bag.state = PT_BAG_STATE_ACTIONS;
+    v.bag.menuCount = 5;
+    other = v;
+    strcpy(other.bag.row[0].name, "Potion");
+    strcpy(other.bag.row[1].name, "Super Potion");
+    strcpy(other.bag.selName, "Super Potion");
+    strcpy(other.bag.menuName[0], "Use");
+    strcpy(other.bag.menuName[4], "Cancel");
+    BagSamePixels(&v, &other, 1);
+    v.bag.state = other.bag.state = PT_BAG_STATE_LIST;
+    v.bag.kind = other.bag.kind = PT_BAG_KIND_TMCASE;
+    strcpy(v.bag.title, "TM CASE");
+    strcpy(other.bag.title, "Tm Case");
+    v.bag.moveType = other.bag.moveType = 4;
+    strcpy(v.bag.typeName, "GROUND");
+    strcpy(other.bag.typeName, "Ground");
+    strcpy(v.bag.closeName, "CLOSE");
+    strcpy(other.bag.closeName, "Close");
+    BagSamePixels(&v, &other, 1);
+    v.bag.kind = other.bag.kind = PT_BAG_KIND_ITEMPC;
+    v.bag.moveType = other.bag.moveType = -1;
+    v.bag.typed = other.bag.typed = 1;
+    strcpy(v.bag.row[1].name, "MOM");
+    strcpy(other.bag.row[1].name, "MOM");
+    strcpy(v.bag.row[0].name, "Rick");
+    strcpy(other.bag.row[0].name, "Rick");
+    BagSamePixels(&v, &other, 1);
+    strcpy(v.bag.row[0].name, "RICK");
+    BagSamePixels(&v, &other, 0);
+}
+
+/* The plan's suite (every key hit where it is drawn, the cursor's row inverted, CLOSE sunk for the game's cursor on its
+ * row, the item's menu, how many, YES / NO, a message, a case, a mart, the battle's Bag), the review's checks (a touch
+ * chooses, what is not drawn, upper case, the shell, the ways in and out), then the states for the eye. */
+static void SuiteBag(void)
+{
+    CtrPokeTouchView v = BagBoard(), old = v, home;
+    CtrBattleView bv = BagBattle(), bo = bv;
+    const uint16_t arrowOff = UI_RGB(0xB8, 0xB0, 0xA0);
+    int i;
+
+    CtrPokeTouch_Draw(canvas, &old);
+    DevCheckTouch(&old, &v);
+    /* the plan's suite */
+    for (i = 0; i < 3; ++i) AssertHits(BagHitV, &v, kDevBagPocket[i], PT_BAG_HIT_TAB + i);
+    AssertKey(kDevBagPocket[0], DEV_LOOK_KEY, 1);
+    v.bag.asked = 2; DevCheckTouch(&old, &v); AssertKey(kDevBagPocket[2], DEV_LOOK_KEY, 1); AssertKey(kDevBagPocket[0], DEV_LOOK_KEY, 0); v.bag.asked = 0xFF;
+    for (i = 0; i < 8; ++i) AssertRowHits(BagHitV, &v, DevBagRow(i, 0), PT_BAG_HIT_ROW + i);
+    assert(at(20, 72) == DEV_BEZEL);                                                                  /* row 1, the cursor's, inverted */
+    assert(CtrPokeTouch_BagHit(&v, 294, 73) == -1 && CtrPokeTouch_BagHit(&v, 294, 147) == PT_BAG_HIT_DOWN);   /* nothing above yet */
+    AssertHits(BagHitV, &v, kDevBagClose, PT_BAG_HIT_CLOSE);
+    DevCheckTouch(&old, &v);
+    /* the board's pieces: the pocket's LED, the rows on the paper with their counts at the right, the cursor's row in
+     * the paper's ink, ▲ grey and ▼ dark, the item's icon and description, CLOSE dark */
+    assert(at(94, 15) == DEV_LED && at(200, 15) != DEV_LED && at(20, 56) == DEV_PAPER);
+    assert(Count(232, 48, 22, 16, DEV_INK) > 0 && Count(232, 64, 22, 16, DEV_PAPER) > 0 && Count(40, 64, 60, 16, DEV_PAPER) > 0);
+    assert(Count(290, 70, 9, 7, arrowOff) > 0 && Count(290, 144, 9, 7, DEV_KEY_INK) > 0);
+    assert(at(22, 51) != DEV_PAPER && Count(18, 199, 24, 24, DEV_PAPER) < 24 * 24 && Count(46, 197, 180, 27, DEV_INK) > 0);
+    AssertKey(kDevBagClose, DEV_LOOK_DARK, 0); assert(Count(244, 190, 68, 40, DEV_DARK_INK) > 0);
+    shot("items");
+    /* a touch chooses: a row (the cursor's not), ▼; ▲ cannot go up, so its touch draws nothing; what the page does not
+     * draw (the column, the bar, BACK, the registered items outside Key Items, the quantity box's maximum) draws nothing */
+    v.bag.pressed = PT_BAG_HIT_ROW + 3; DevCheckTouch(&old, &v); assert(at(20, 104) == DEV_BEZEL && at(20, 72) == DEV_PAPER);
+    v.bag.pressed = PT_BAG_HIT_DOWN; DevCheckTouch(&old, &v); AssertKey(kDevBagDown, DEV_LOOK_KEY, 1); assert(at(20, 72) == DEV_BEZEL);
+    v.bag.pressed = PT_BAG_HIT_CLOSE; DevCheckTouch(&old, &v); AssertKey(kDevBagClose, DEV_LOOK_DARK, 1); assert(at(20, 72) == DEV_PAPER);
+    v.bag.pressed = PT_BAG_HIT_TAB + 1; DevCheckTouch(&old, &v); AssertKey(kDevBagPocket[1], DEV_LOOK_KEY, 1); AssertKey(kDevBagPocket[0], DEV_LOOK_KEY, 0);
+    v.bag.pressed = -1; DevCheckTouch(&old, &v);
+    v.bag.pressed = PT_BAG_HIT_UP; assert(DevCheckTouch(&old, &v).count == 0);
+    v.bag.pressed = -1; strcpy(v.bar[0], "Items"); v.enabled[PT_BAG] = 1; v.backVisible = 1; v.registeredItem = 13;
+    v.bag.regX = 13; v.bag.tossMax = 99; v.bag.titleItem = 7; strcpy(v.bag.prompt, "?"); v.bag.money = 500;
+    assert(DevCheckTouch(&old, &v).count == 0);
+    v.bag.prompt[0] = 0;
+    v.shell = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && at(1, 100) == DEV_SHELL_BLUE);
+    v.shell = 0; DevCheckTouch(&old, &v);
+    v.bag.cursor = v.bag.count; DevCheckTouch(&old, &v); AssertKey(kDevBagClose, DEV_LOOK_DARK, 1);     /* the game's cursor on CLOSE BAG */
+    assert(at(20, 72) == DEV_PAPER && Count(46, 197, 180, 27, DEV_INK) == 0);
+    shot("close");
+    v.bag.count = 0; v.bag.cursor = 0; DevCheckTouch(&old, &v); assert(CtrPokeTouch_BagHit(&v, 138, 56) == -1); AssertKey(kDevBagClose, DEV_LOOK_DARK, 1);
+    assert(Count(16, 48, 244, 16, DEV_BEZEL) == 0 && Count(16, 48, 244, 128, DEV_INK2) > 0);            /* no rows: the pocket is empty */
+    shot("empty");
+    v.bag.count = 9; v.bag.cursor = 1;
+    /* the item menu: USE GIVE TOSS REGISTER CANCEL */
+    v.bag.state = PT_BAG_STATE_ACTIONS; v.bag.menuCount = 5; v.bag.menuCursor = 0; DevCheckTouch(&old, &v);
+    for (i = 0; i < 5; ++i) AssertHits(BagHitV, &v, DevBagMenuKey(5, i), PT_BAG_HIT_MENU + i);
+    AssertKey(DevBagMenuKey(5, 4), DEV_LOOK_DARK, 0); assert(CtrPokeTouch_BagHit(&v, 56, 20) == -1 && CtrPokeTouch_BagHit(&v, 196, 56) == -1);
+    assert(at(11, 20) == DevBlend(DEV_SHELL_RED, DEV_SUNK, 128));                                     /* the pockets at half strength */
+    /* the narrow list, its words grey but the cursor's row; USE sunk with its LED; the narrow screen says what is selected */
+    AssertKey(DevBagMenuKey(5, 0), DEV_LOOK_KEY, 1); assert(at(300 + 2, 46 + 2) == DEV_LED && at(20, 72) == DEV_BEZEL);
+    assert(Count(16, 48, 168, 16, DEV_INK_DIM) > 0 && Count(16, 48, 168, 128, DEV_INK) == 0 && at(195, 100) == DEV_SHELL_RED);
+    assert(Count(46, 196, 136, 30, DEV_INK) > 0 && Count(244, 190, 68, 40, DEV_DARK_INK) > 0);
+    v.bag.pressed = PT_BAG_HIT_MENU + 2; DevCheckTouch(&old, &v); AssertKey(DevBagMenuKey(5, 2), DEV_LOOK_KEY, 1); AssertKey(DevBagMenuKey(5, 0), DEV_LOOK_KEY, 0);
+    v.bag.pressed = -1; DevCheckTouch(&old, &v);
+    v.bag.pressed = PT_BAG_HIT_ROW + 2; assert(DevCheckTouch(&old, &v).count == 0);                 /* the rows take no touch now */
+    v.bag.pressed = -1; strcpy(v.bag.menuName[5], "X"); assert(DevCheckTouch(&old, &v).count == 0); /* rows past the menu */
+    shot("menu");
+    v.bag.menuCount = 6; strcpy(v.bag.menuName[4], "CHECK"); strcpy(v.bag.menuName[5], "CANCEL");
+    DevCheckTouch(&old, &v); AssertHits(BagHitV, &v, DevBagMenuKey(6, 5), PT_BAG_HIT_MENU + 5);
+    AssertKey(DevBagMenuKey(6, 5), DEV_LOOK_DARK, 0); AssertKey(DevBagMenuKey(6, 4), DEV_LOOK_KEY, 0);
+    shot("menu6");
+    v.bag.state = PT_BAG_STATE_QUANTITY; DevCheckTouch(&old, &v);
+    assert(CtrPokeTouch_BagHit(&v, 256, 55) == PT_BAG_HIT_QTY_UP && CtrPokeTouch_BagHit(&v, 256, 137) == PT_BAG_HIT_QTY_DOWN
+           && CtrPokeTouch_BagHit(&v, 256, 173) == PT_BAG_HIT_QTY_OK && CtrPokeTouch_BagHit(&v, 256, 212) == PT_BAG_HIT_QTY_CANCEL);
+    /* how many: the count on its screen, OK a key, CANCEL dark, the question; a touch sinks its key */
+    v.bag.tossCount = 3; DevCheckTouch(&old, &v);
+    AssertKey(kDevBagQtyUp, DEV_LOOK_KEY, 0); AssertKey(kDevBagQtyOk, DEV_LOOK_KEY, 0); AssertKey(kDevBagQtyCancel, DEV_LOOK_DARK, 0);
+    assert(Count(206, 82, 100, 28, DEV_INK) > 0 && Count(46, 196, 136, 30, DEV_INK) > 0 && at(203, 79) == DEV_BEZEL);
+    v.bag.pressed = PT_BAG_HIT_QTY_UP; DevCheckTouch(&old, &v); AssertKey(kDevBagQtyUp, DEV_LOOK_KEY, 1);
+    v.bag.pressed = -1; DevCheckTouch(&old, &v);
+    shot("quantity");
+    /* selling: what that many fetch and the money */
+    v.bag.use = PT_BAG_USE_SELL; v.bag.sale = 450; v.bag.money = 3000; DevCheckTouch(&old, &v); assert(Count(206, 96, 100, 12, DEV_INK2) > 0);
+    v.bag.use = PT_BAG_USE_FIELD; v.bag.sale = 0; v.bag.money = 0;
+    v.bag.state = PT_BAG_STATE_YESNO; DevCheckTouch(&old, &v); assert(CtrPokeTouch_BagHit(&v, 256, 55) == PT_BAG_HIT_MENU && CtrPokeTouch_BagHit(&v, 256, 93) == PT_BAG_HIT_MENU + 1);
+    /* YES / NO: two keys, YES the cursor's; the question on the narrow screen */
+    strcpy(v.bag.prompt, "Throw away 3 of this item?"); DevCheckTouch(&old, &v);
+    AssertKey(DevBagMenuKey(2, 0), DEV_LOOK_KEY, 1); AssertKey(DevBagMenuKey(2, 1), DEV_LOOK_KEY, 0); assert(Count(46, 196, 136, 30, DEV_INK) > 0);
+    shot("yesno");
+    v.bag.state = PT_BAG_STATE_MESSAGE; DevCheckTouch(&old, &v); assert(CtrPokeTouch_BagHit(&v, 5, 5) == PT_BAG_HIT_MESSAGE && CtrPokeTouch_BagHit(&v, 315, 235) == PT_BAG_HIT_MESSAGE);
+    /* a message: on the list's screen with its arrow; the pockets, the arrows and CLOSE grey, none sunk */
+    strcpy(v.bag.prompt, "Threw away 3 SUPER POTIONS."); DevCheckTouch(&old, &v);
+    assert(Count(14, 46, 248, 132, DEV_INK) > 0 && Count(14, 46, 248, 132, DEV_BEZEL) == 0 && at(11, 20) == DevBlend(DEV_SHELL_RED, DEV_SUNK, 128));
+    assert(at(279, 73) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128) && at(247, 210) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, 128));
+    v.bag.pressed = PT_BAG_HIT_MESSAGE; assert(DevCheckTouch(&old, &v).count == 0);
+    v.bag.pressed = -1;
+    shot("message");
+    v.bag.state = PT_BAG_STATE_LIST; v.bag.kind = PT_BAG_KIND_TMCASE; strcpy(v.bag.title, "TM CASE"); DevCheckTouch(&old, &v);
+    AssertKey(kDevBagCaseKey, DEV_LOOK_KEY, 1); assert(CtrPokeTouch_BagHit(&v, 160, 20) == -1);
+    /* a TM: its type's chip before the description; HMs without a count */
+    for (i = 0; i < 8; ++i) { snprintf(v.bag.row[i].name, sizeof(v.bag.row[i].name), "TM%02d DIG", 26 + i); v.bag.row[i].qty = (uint16_t)(i == 7 ? 0 : 1); }
+    strcpy(v.bag.row[7].name, "HM01 CUT"); strcpy(v.bag.selName, "DIG"); strcpy(v.bag.closeName, "CLOSE");
+    v.bag.moveType = 4; strcpy(v.bag.typeName, "GROUND"); DevCheckTouch(&old, &v);
+    assert(Count(46, 197, 60, 10, UiTypeColor(4)) > 0 && Count(232, 160, 22, 16, DEV_INK) == 0 && Count(232, 144, 22, 16, DEV_INK) > 0);
+    shot("tmcase");
+    v.bag.kind = PT_BAG_KIND_POUCH; strcpy(v.bag.title, "BERRY POUCH"); v.bag.moveType = -1;
+    for (i = 0; i < 8; ++i) { snprintf(v.bag.row[i].name, sizeof(v.bag.row[i].name), "%s BERRY", i & 1 ? "ORAN" : "CHERI"); v.bag.row[i].qty = (uint16_t)(1 + i); }
+    strcpy(v.bag.selName, "ORAN BERRY"); DevCheckTouch(&old, &v); AssertKey(kDevBagCaseKey, DEV_LOOK_KEY, 1);
+    shot("pouch");
+    v.bag.kind = PT_BAG_KIND_SHOP; strcpy(v.bag.title, "POKe MART"); v.bag.money = 3000; DevCheckTouch(&old, &v); assert(CtrPokeTouch_BagHit(&v, 160, 20) == -1);   /* the title */
+    /* a mart: the title on a screen with the money at its right, prices at the rows' right, how many the Bag holds */
+    for (i = 0; i < 8; ++i) { strcpy(v.bag.row[i].name, kBagItem[i].name); v.bag.row[i].qty = 0; v.bag.row[i].price = (uint16_t)(200 + 100 * i); }
+    strcpy(v.bag.selName, "SUPER POTION"); v.bag.showOwned = 1; v.bag.owned = 2; strcpy(v.bag.closeName, "Cancel"); DevCheckTouch(&old, &v);
+    assert(at(9, 20) == DEV_BEZEL && Count(250, 12, 56, 16, DEV_INK) > 0 && Count(222, 48, 32, 16, DEV_INK) > 0);
+    assert(Count(46, 197, 60, 10, DEV_BLUE_INK) > 0);
+    v.bag.state = PT_BAG_STATE_QUANTITY; v.bag.sale = 1400; DevCheckTouch(&old, &v); AssertKey(kDevBagQtyCancel, DEV_LOOK_DARK, 0);
+    assert(at(11, 20) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, 128));                                   /* the title grey */
+    v.bag.state = PT_BAG_STATE_LIST; v.bag.sale = 0; DevCheckTouch(&old, &v);
+    shot("shop");
+    v.bag.kind = PT_BAG_KIND_ITEMPC; strcpy(v.bag.title, "WITHDRAW ITEM"); v.bag.money = 0; v.bag.showOwned = 0;
+    for (i = 0; i < 8; ++i) { v.bag.row[i].price = 0; v.bag.row[i].qty = (uint16_t)kBagItem[i].qty; }
+    DevCheckTouch(&old, &v); AssertHits(BagHitV, &v, kDevBagClose, PT_BAG_HIT_CLOSE);
+    shot("itempc");
+    strcpy(v.bag.title, "MAILBOX"); v.bag.typed = 1; v.bag.count = 3; v.bag.cursor = 0;
+    for (i = 0; i < 3; ++i) { strcpy(v.bag.row[i].name, i ? "MOM" : "Rick"); v.bag.row[i].item = (uint16_t)(121 + i); v.bag.row[i].qty = 0; }
+    strcpy(v.bag.selName, "Rick"); v.bag.selItem = 121; strcpy(v.bag.selDesc, "A MAIL to be held by a POK\xC3\xA9MON.");
+    DevCheckTouch(&old, &v); assert(CtrPokeTouch_BagHit(&v, 138, 48 + 16 * 3 + 8) == -1 && CtrPokeTouch_BagHit(&v, 138, 48 + 8) == PT_BAG_HIT_ROW);
+    shot("mailbox");
+    BagUpperCase(BagBoard());
+    /* the way in and out: HOME and the Bag, each whole */
+    CtrPokeTouch_Draw(canvas, &old);
+    home = BagBoard(); home.bag.on = 0; home.home = 1; home.playerX = home.playerY = home.cursorX = home.cursorY = -1;
+    assert(DevWhole(DevCheckTouch(&old, &home)));
+    v = BagBoard(); assert(DevWhole(DevCheckTouch(&old, &v)));
+    /* the battle Bag */
+    CtrBattleUi_Draw(canvas, &bo);
+    DevCheckBattle(&bo, &bv); AssertKey(kDevBagPocket[0], DEV_LOOK_KEY, 1);
+    assert(CtrBattleUi_Hit(&bv, 56, 20) == -1 && CtrBattleUi_Hit(&bv, 160, 20) == -1);                 /* no Berry Pouch: no BERRIES */
+    assert(at(160, 20) == DEV_SHELL_RED && at(264, 20) == DEV_SHELL_RED && at(20, 72) == DEV_BEZEL);
+    shot("battle");
+    bv.bag.berries = 365; DevCheckBattle(&bo, &bv); AssertHits(BatHitV, &bv, kDevBagPocket[1], BUI_BAG_BERRIES);
+    AssertRowHits(BatHitV, &bv, DevBagRow(0, 0), BUI_BAG_ROW); AssertHits(BatHitV, &bv, kDevBagClose, BUI_BAG_CANCEL);
+    /* BERRIES under a touch is the one sunk; the battle's own fields are not drawn; to the commands and back, whole */
+    AssertKey(kDevBagPocket[1], DEV_LOOK_KEY, 0); assert(at(264, 20) == DEV_SHELL_RED);
+    shot("battle_berries");
+    bv.pressed = BUI_BAG_BERRIES; DevCheckBattle(&bo, &bv); AssertKey(kDevBagPocket[1], DEV_LOOK_KEY, 1); AssertKey(kDevBagPocket[0], DEV_LOOK_KEY, 0);
+    bv.pressed = BUI_BAG_DOWN; DevCheckBattle(&bo, &bv); AssertKey(kDevBagDown, DEV_LOOK_KEY, 1); AssertKey(kDevBagPocket[0], DEV_LOOK_KEY, 1);
+    bv.pressed = -1; DevCheckBattle(&bo, &bv);
+    bv.activeHp = 7; bv.party[2] = 2; bv.cursor = 2; bv.showCursor = 1; bv.bag.bagState = 3; assert(DevCheckBattle(&bo, &bv).count == 0);
+    strcpy(bv.bag.row[0].name, "Potion"); assert(DevCheckBattle(&bo, &bv).count == 0);           /* drawn as POTION all the same */
+    strcpy(bv.bag.row[0].name, "POTION"); DevCheckBattle(&bo, &bv);
+    bv.state = BUI_ACTION; assert(DevWhole(DevCheckBattle(&bo, &bv)));
+    bv.state = BUI_BAG; assert(DevWhole(DevCheckBattle(&bo, &bv)));
+    bv.bag.menuCount = 2; DevCheckBattle(&bo, &bv); AssertHits(BatHitV, &bv, DevBagMenuKey(2, 0), BUI_BAG_MENU); AssertHits(BatHitV, &bv, DevBagMenuKey(2, 1), BUI_BAG_MENU + 1);
+    AssertKey(DevBagMenuKey(2, 1), DEV_LOOK_DARK, 0); assert(CtrBattleUi_Hit(&bv, 160, 20) == -1 && CtrBattleUi_Hit(&bv, 50, 60) == -1);
+    bv.bag.menuCount = 0; strcpy(bv.bag.message, "..."); DevCheckBattle(&bo, &bv); assert(CtrBattleUi_Hit(&bv, 5, 5) == BUI_BAG_MESSAGE);
+    assert(sDevKeyCut == 0);                      /* main prints PASS device bag */
+}
+
 /* ---- main --------------------------------------------------------------------------------------------------------- */
 
 static const struct { const char *name; void (*run)(void); } kSuites[] = {
@@ -1907,6 +2197,7 @@ static const struct { const char *name; void (*run)(void); } kSuites[] = {
     {"battle", SuiteBattle},
     {"party", SuiteParty},
     {"summary", SuiteSummary},
+    {"bag", SuiteBag},
 };
 
 int main(int argc, char **argv)
@@ -1915,7 +2206,7 @@ int main(int argc, char **argv)
     int all = argc > 1 && !strcmp(argv[1], "all"), ran = 0;
 
     if (argc != 2) {
-        fprintf(stderr, "usage: device_render_test <suite> (kit, home, battle, party, summary, all)\n");
+        fprintf(stderr, "usage: device_render_test <suite> (kit, home, battle, party, summary, bag, all)\n");
         return 2;
     }
     gOut = getenv("DEVICE_OUT");

@@ -5,25 +5,21 @@
 #include "3ds_poketouch.h"
 
 /*
- * The names FireRed's text gives the lower screen's views, in proper case (3ds_text_case.h). Nicknames, the player's and
- * the rival's names, a mail's writer and the box names are what the player typed and stay as they are; the Bag's item
- * names (and a case's moves) are done where they are read (3ds_bottom.c, CtrBottomBag_ItemName), because a mailbox's
- * rows share the Bag's list and hold the writers' names.
+ * The names FireRed's text gives the lower screen's views still in the ember look, in proper case (3ds_text_case.h).
+ * Nicknames, the player's and the rival's names, a mail's writer and the box names are what the player typed and stay as
+ * they are. The red device's views (HOME, the battle, the Party, the Summary, the Bag) are not cased: they draw FireRed's
+ * names in capitals (decision 5). The Bag's item names (and a case's moves) are cased where they are read (3ds_bottom.c,
+ * CtrBottomBag_ItemName) for the bars of the ember views; the Bag's page upper-cases them again.
  */
 #define CTR_CASE(f) CtrTextCase(f)
 #define CTR_CASE_ALL(a) do { for (size_t i_ = 0; i_ < sizeof(a) / sizeof((a)[0]); ++i_) CtrTextCase((a)[i_]); } while (0)
 
-/* The field's views (the Bag's rows and selected name are left, see above). */
+/* The field's views in the ember look. */
 static inline void CtrTextCase_Touch(CtrPokeTouchView *v)
 {
-    CtrPokeTouchBag *b = &v->bag;
     CtrPokeTouchDex *d = &v->dex;
 
     CTR_CASE_ALL(v->bar);
-    CTR_CASE(b->title);
-    CTR_CASE(b->closeName);
-    CTR_CASE(b->typeName);
-    CTR_CASE_ALL(b->menuName);
     for (int i = 0; i < PT_DEX_MENU_MAX; ++i)
         CTR_CASE(d->menu[i].name);
     for (int i = 0; i < PT_DEX_ROWS; ++i)
@@ -51,16 +47,6 @@ static inline void CtrTextCase_Touch(CtrPokeTouchView *v)
         CTR_CASE(v->card.row[i].label);
     for (int i = 0; i < PT_CHOICE_MAX; ++i)
         CTR_CASE(v->choice.label[i]);
-}
-
-static inline void CtrTextCase_Battle(CtrBattleView *v)
-{
-    for (int i = 0; i < 4; ++i) {
-        CTR_CASE(v->move[i].name);
-        CTR_CASE(v->move[i].typeName);
-    }
-    CTR_CASE_ALL(v->activeTypeName);
-    CTR_CASE_ALL(v->bag.menuName);
 }
 
 #undef CTR_CASE

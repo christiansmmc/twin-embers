@@ -225,13 +225,13 @@ static void Fill(int x, int y, int w, int h, uint16_t c)
 }
 
 /* FireRed's charmap for the two-byte UTF-8 Latin letters its European
- * releases use (U+00A1..U+00FF and Œ/œ): accents, Ñ/ñ, ¿, ¡, º, ª, ¥. */
+ * releases use (U+00A1..U+00FF and Œ/œ): accents, Ñ/ñ, ¿, ¡, º, ª, ¥, ×. */
 static unsigned LatinCode(unsigned char lead, unsigned char next)
 {
     static const uint8_t sC3[64] = {
         /* U+00C0 À Á Â Ã Ä Å Æ Ç */ 0x01, 0x02, 0x03, 0, 0xf1, 0, 0, 0x04,
         /* U+00C8 È É Ê Ë Ì Í Î Ï */ 0x05, 0x06, 0x07, 0x08, 0x09, 0x5a, 0x0b, 0x0c,
-        /* U+00D0 Ð Ñ Ò Ó Ô Õ Ö × */ 0, 0x14, 0x0d, 0x0e, 0x0f, 0, 0xf2, 0,
+        /* U+00D0 Ð Ñ Ò Ó Ô Õ Ö × */ 0, 0x14, 0x0d, 0x0e, 0x0f, 0, 0xf2, 0xb9,   /* ×: the Bag's counts, "×5" */
         /* U+00D8 Ø Ù Ú Û Ü Ý Þ ß */ 0, 0x11, 0x12, 0x13, 0xf3, 0, 0, 0x15,
         /* U+00E0 à á â ã ä å æ ç */ 0x16, 0x17, 0, 0, 0xf4, 0, 0, 0x19,
         /* U+00E8 è é ê ë ì í î ï */ 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x6f, 0x20, 0x21,
@@ -981,9 +981,6 @@ static int FrameShown(const CtrPokeTouchView *v)
     return v->viewport;
 }
 
-/* The field Bag the port draws (3ds_field_bag_impl.h, included at the end). */
-static void FBagFrame(const CtrPokeTouchView *v);
-static void FBagNote(const CtrPokeTouchView *v, int w);
 /* The Pokedex the port draws (3ds_field_dex_impl.h, included at the end). */
 static void FDexFrame(const CtrPokeTouchView *v);
 static void FDexNote(const CtrPokeTouchView *v, int w);
@@ -1012,8 +1009,8 @@ static void FNameNote(const CtrPokeTouchView *v, int w);
 static void FBoxFrame(const CtrPokeTouchView *v);
 static void FBoxNote(const CtrPokeTouchView *v, int w);
 
-/* The frame's area: the window frame round the GBA picture, OPTIONS' rows, the save card, or the Bag, on the embers
- * (HOME is the red device's, 3ds_device_home_impl.h). */
+/* The frame's area: the window frame round the GBA picture, OPTIONS' rows or the save card, on the embers (HOME and
+ * the Bag are the red device's, 3ds_device_home_impl.h and 3ds_device_bag_impl.h). */
 static void MenuFrame(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchRect *r = &sMenuFrame;
@@ -1049,10 +1046,6 @@ static void MenuFrame(const CtrPokeTouchView *v)
     }
     if (v->box.on && !v->viewport) {
         FBoxFrame(v);
-        return;
-    }
-    if (v->bag.on && !v->viewport) {
-        FBagFrame(v);
         return;
     }
     if (v->save && !v->viewport) {
@@ -1197,7 +1190,7 @@ static void Bar(const CtrPokeTouchView *v)
     for (int i = 0; i < PT_BAR_LINES; ++i)
         if (v->bar[i][0])
             lines = i + 1;
-    if (!v->viewport && !v->save && (v->dex.on || v->card.on || v->learn.on || v->relearn.on || v->mail.on || v->choice.on || v->name.on || v->box.on || v->bag.on))
+    if (!v->viewport && !v->save && (v->dex.on || v->card.on || v->learn.on || v->relearn.on || v->mail.on || v->choice.on || v->name.on || v->box.on))
         Em2NoteShadow(NOTE_X, NOTE_Y, w, NOTE_H);           /* the screens that draw their own note (each puts the shadow its note throws) */
     if (v->save && !v->viewport)
         SaveNote(v);
@@ -1217,8 +1210,6 @@ static void Bar(const CtrPokeTouchView *v)
         FNameNote(v, w);
     else if (v->box.on && !v->viewport)
         FBoxNote(v, w);
-    else if (v->bag.on && !v->viewport)
-        FBagNote(v, w);
     else {
         /* The note is FireRed's window (the Llama mockup's): the subject at its top left, a rule under it, then the lines that say more, 14 apart,
          * dimmer. */
@@ -1363,6 +1354,10 @@ bool CtrPokeTouch_ViewportToGba(int x, int y, int *gx, int *gy)
 static int DevHomeShown(const CtrPokeTouchView *v);
 static void DevHomeDraw(const CtrPokeTouchView *v);
 static void DevHomeUpdate(const CtrPokeTouchView *old, const CtrPokeTouchView *v, CtrDirtyList *dirty);
+/* The field's Bag, its cases, a mart's BUY, the item PC, the mailbox: the red device's (3ds_device_bag_impl.h). */
+static int DevBagShown(const CtrPokeTouchView *v);
+static void DevBagFieldDraw(const CtrPokeTouchView *v);
+static void DevBagFieldUpdate(const CtrPokeTouchView *old, const CtrPokeTouchView *v, CtrDirtyList *dirty);
 
 void CtrPokeTouch_Draw(uint16_t *canvas, const CtrPokeTouchView *v)
 {
@@ -1372,6 +1367,10 @@ void CtrPokeTouch_Draw(uint16_t *canvas, const CtrPokeTouchView *v)
         return;
     }
     sHomeShown = 0;                     /* HOME's region key and FLY are not on the screen */
+    if (DevBagShown(v)) {
+        DevBagFieldDraw(v);
+        return;
+    }
     if (v->ec.on) {
         FEasyDraw(v);
         return;
@@ -1415,16 +1414,25 @@ void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const Ct
         CtrDirty_Add(dirty, 0, 0, W, H);
         return;
     }
+    if (DevBagShown(old) && DevBagShown(v)) {
+        DevBagFieldUpdate(old, v, dirty);
+        return;
+    }
+    if (DevBagShown(old) || DevBagShown(v)) {
+        CtrPokeTouch_Draw(canvas, v);
+        CtrDirty_Add(dirty, 0, 0, W, H);
+        return;
+    }
     if (v->ec.on || old->ec.on) {
         FEasyUpdate(canvas, old, v, dirty);
         return;
     }
-    if (memcmp(&old->bag, &v->bag, sizeof(v->bag)) || memcmp(&old->dex, &v->dex, sizeof(v->dex))
+    if (memcmp(&old->dex, &v->dex, sizeof(v->dex))
         || memcmp(&old->card, &v->card, sizeof(v->card)) || memcmp(&old->learn, &v->learn, sizeof(v->learn))
         || memcmp(&old->relearn, &v->relearn, sizeof(v->relearn)) || memcmp(&old->mail, &v->mail, sizeof(v->mail))
         || memcmp(&old->name, &v->name, sizeof(v->name)) || memcmp(&old->box, &v->box, sizeof(v->box))
         || memcmp(&old->choice, &v->choice, sizeof(v->choice))) {
-        /* The Bag or the Pokedex: its whole area and its note (the description follows the selection). */
+        /* The Pokedex, the card, ...: its whole area and its note (the description follows the selection). */
         MenuFrame(v);
         Mark(dirty, &sMenuFrame);
         Bar(v);
@@ -1556,6 +1564,7 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
 #include "3ds_device_kit_impl.h"   /* the red device (style B): its kit, for the B views below */
 #include "3ds_device_home_impl.h"  /* HOME */
 #include "3ds_device_party_impl.h"  /* the Party: bays, its menu, YES / NO, a message, the level up */
+#include "3ds_device_bag_impl.h"  /* the Bag, its cases, a mart's BUY, the item PC, the mailbox, the battle's Bag */
 #include "3ds_device_battle_impl.h"  /* the battle: commands, moves, targets, Safari, idle */
 #include "3ds_device_summary_impl.h"  /* the Summary: INFO, STATS (IV / EV), MOVES, the move details, MEMO */
 #include "3ds_field_bag_impl.h"

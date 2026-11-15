@@ -750,10 +750,12 @@ static void PartyEchoMode(int mode)
 }
 
 /* Dragging a list: a finger on a row that moves this far up or down scrolls instead of tapping, one row per
- * LIST_DRAG_ROW pixels (the lower screen's row pitch), the content following the finger. */
+ * LIST_DRAG_ROW pixels (the Pokedex's row pitch; the red device's Bag's rows are BAG_DRAG_ROW apart), the content
+ * following the finger. */
 #define LIST_DRAG_SLOP 8
 #define BALL_SWIPE_STEP 18      /* pixels across the quick ball for one ball */
 #define LIST_DRAG_ROW 26
+#define BAG_DRAG_ROW 16
 
 /* The field's choice's touch (ProcessChoiceTouch), as the Bag's. */
 static struct {
@@ -3324,20 +3326,10 @@ static void ProcessBattleBagTouch(const CtrInput *in)
         sBat.down = sBat.inside = btn >= 0;
         sBat.btn = btn;
         sBat.state = state;
-        if (btn != BUI_BAG_RAIL)
-            return;
+        return;
     }
     if (!sBat.down)
         return;
-    if (sBat.btn == BUI_BAG_RAIL && (in->touchActive || in->touchDown)) {
-        /* The rail is a slider: a press jumps there, a drag follows the finger, release does nothing. */
-        int target = CtrBattleUi_BagRailTarget(&sShown.battle.bag, (int)in->touchY);
-
-        sBat.inside = 0;
-        if (target >= 0 && target != list->cursor() && sBagPlan.kind == BAGPLAN_NONE)
-            BagPlanStart(list, BAGPLAN_LIST, target, 0, 0);
-        return;
-    }
     if (in->touchActive) {
         sBat.inside = btn == sBat.btn;
         return;
@@ -3372,9 +3364,9 @@ static void ProcessBattleBagTouch(const CtrInput *in)
 }
 
 /* The field Bag's touch: press, track, release, one action, on what the lower screen showed (CtrPokeTouch_BagHit).
- * A row selects its item, a tap on the selected one (or on CLOSE BAG) sends A; a tab presses LEFT / RIGHT until the
- * Bag is in that pocket; the arrows move the cursor a page; the menu's rows and YES / NO are walked to and taken; the
- * quantity box counts with UP / DOWN and takes A or B; a tap off the menu is B; a message takes A. All through the
+ * A row selects its item, a tap on the selected one sends A, a drag on the rows scrolls them; a pocket key presses
+ * LEFT / RIGHT until the Bag is in that pocket; ▲▼ move the cursor a page; CLOSE is B; the menu's keys and YES / NO
+ * are walked to and taken; the quantity box counts with UP / DOWN and takes A or B; a message takes A. All through the
  * Bag's own keys, so FireRed decides what each does. A held physical button cancels it. */
 static void ProcessFieldBagTouch(const FieldList *f, const CtrInput *in)
 {
@@ -3404,27 +3396,16 @@ static void ProcessFieldBagTouch(const FieldList *f, const CtrInput *in)
         sFieldBag.y0 = (int)in->touchY;
         sFieldBag.cursor0 = list->cursor();
         sFieldBag.scrolling = 0;
-        if (hit != PT_BAG_HIT_RAIL)
-            return;
+        return;
     }
     if (!sFieldBag.down)
         return;
-    if (sFieldBag.code == PT_BAG_HIT_RAIL && (in->touchActive || in->touchDown)) {
-        /* The rail is a slider: a press jumps there, a drag follows the finger, release does nothing. */
-        int target = CtrPokeTouch_BagRailTarget(&sShown.touch.bag, (int)in->touchY);
-
-        sFieldBag.inside = 0;
-        sFieldBag.scrolling = 1;
-        if (target >= 0 && target != list->cursor() && sBagPlan.kind == BAGPLAN_NONE)
-            BagPlanStart(list, BAGPLAN_LIST, target, 0, 0);
-        return;
-    }
     if (in->touchActive) {
         int dy = (int)in->touchY - sFieldBag.y0;
 
         if (state == BAG_LIST && sFieldBag.code >= PT_BAG_HIT_ROW && sFieldBag.code < PT_BAG_HIT_ROW + PT_BAG_ROWS
             && (sFieldBag.scrolling || dy >= LIST_DRAG_SLOP || -dy >= LIST_DRAG_SLOP)) {
-            int target = sFieldBag.cursor0 - (dy + (dy < 0 ? -LIST_DRAG_ROW / 2 : LIST_DRAG_ROW / 2)) / LIST_DRAG_ROW;
+            int target = sFieldBag.cursor0 - (dy + (dy < 0 ? -BAG_DRAG_ROW / 2 : BAG_DRAG_ROW / 2)) / BAG_DRAG_ROW;
 
             sFieldBag.scrolling = 1;
             sFieldBag.pocketTarget = -1;
@@ -3442,7 +3423,7 @@ static void ProcessFieldBagTouch(const FieldList *f, const CtrInput *in)
         if (code >= PT_BAG_HIT_ROW && code < PT_BAG_HIT_ROW + PT_BAG_ROWS) {
             int index = b->first + code - PT_BAG_HIT_ROW;
 
-            BagPlanStart(list, BAGPLAN_LIST, index, index == b->cursor || index == b->count, 0);
+            BagPlanStart(list, BAGPLAN_LIST, index, index == b->cursor, 0);
         } else if (code >= PT_BAG_HIT_TAB && code < PT_BAG_HIT_TAB + 3) {
             sFieldBag.pocketTarget = code - PT_BAG_HIT_TAB;
             sFieldBag.pocketWait = 90;
@@ -3452,6 +3433,8 @@ static void ProcessFieldBagTouch(const FieldList *f, const CtrInput *in)
             BagPlanStart(list, BAGPLAN_LIST, b->cursor - page < 0 ? 0 : b->cursor - page, 0, 0);
         else if (code == PT_BAG_HIT_DOWN)
             BagPlanStart(list, BAGPLAN_LIST, b->cursor + page > b->count ? b->count : b->cursor + page, 0, 0);
+        else if (code == PT_BAG_HIT_CLOSE)
+            BagPlanStart(list, BAGPLAN_PRESS, 0, 0, K_B);
         else if (code == PT_BAG_HIT_QTY_UP || code == PT_BAG_HIT_QTY_DOWN || code == PT_BAG_HIT_QTY_OK
                  || code == PT_BAG_HIT_QTY_CANCEL || code == PT_BAG_HIT_MESSAGE)
             BagPlanStart(list, BAGPLAN_PRESS, 0, 0, code == PT_BAG_HIT_QTY_UP ? K_UP : code == PT_BAG_HIT_QTY_DOWN ? K_DOWN
@@ -4328,11 +4311,12 @@ static int ProcessTouch(int mode)
         return ProcessSummaryTouch(in);
     }
     if (mode == MODE_SHOP || mode == MODE_ITEMPC || mode == MODE_MAILBOX) {
-        /* A mart's BUY list, the item PC's WITHDRAW ITEM, the mailbox: modal, nothing on the sidebar routes away. */
+        /* A mart's BUY list, the item PC's WITHDRAW ITEM, the mailbox: modal, nothing on the sidebar routes away; the
+         * red device's CLOSE is their B (no BACK). */
         sPoke.id = PT_NONE;
         sPoke.inside = 0;
         sTouch.active = 0;
-        ProcessBack(mode, in);
+        sBack.down = sBack.inside = 0;
         ProcessFieldBagTouch(FieldListFor(mode), in);
         return HIT_NONE;
     }
@@ -4396,6 +4380,16 @@ static int ProcessTouch(int mode)
             return ProcessSummaryGbaTouch(in);
         return HIT_NONE;
     }
+    if (FieldListFor(mode) != NULL) {
+        /* The field's Bag and its cases: the red device's page takes the whole screen (no column, no BACK: its CLOSE
+         * is B, and the column's rectangles lie over its ▲▼ and CLOSE). */
+        sPoke.id = PT_NONE;
+        sPoke.inside = 0;
+        sTouch.active = 0;
+        sBack.down = sBack.inside = 0;
+        ProcessFieldBagTouch(FieldListFor(mode), in);
+        return HIT_NONE;
+    }
     ProcessRouteTouch(mode, in);
     ProcessBack(mode, in);
     if (mode == MODE_CARD) {
@@ -4409,10 +4403,6 @@ static int ProcessTouch(int mode)
             ProcessDexPageTouch(in);
         else
             ProcessDexTouch(in);
-        return HIT_NONE;
-    }
-    if (FieldListFor(mode) != NULL) {
-        ProcessFieldBagTouch(FieldListFor(mode), in);
         return HIT_NONE;
     }
     if (in->held & 0x3ffu || (sHaveShown && mode != sShown.mode))
@@ -4927,11 +4917,8 @@ void CtrBottom_Frame(void)
      * (nav: state is sShown) was cased when it was first built. */
     if (!nav) {
         state.touch.shell = state.battle.shell = state.sum.shell = (uint8_t)CtrOptions_Shell();
-        if (state.battleUi) {
-            if (state.battle.state == BUI_BAG)
-                CtrTextCase_Battle(&state.battle);  /* the other states (the Party too) are the red device's: FireRed's capitals */
-        } else if (!state.touch.home || state.touch.viewport)
-            CtrTextCase_Touch(&state.touch);    /* HOME is the red device's: FireRed's capitals (DevUpper) */
+        if (!state.battleUi && (!state.touch.home || state.touch.viewport))
+            CtrTextCase_Touch(&state.touch);    /* HOME, the Bag and the battle's states are the red device's: FireRed's capitals (DevUpper) */
     }
     /* The logo only once nothing has been shown for a while: a screen's few frames of change show the backdrop. */
     sIdleFrames = state.mode == MODE_OFF && !sSession.active ? (sIdleFrames < IDLE_LOGO_FRAMES ? sIdleFrames + 1

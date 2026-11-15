@@ -758,7 +758,6 @@ unsigned CtrBattle_BerryPouch(void) { return 99u; }
 int CtrBottomSummary_Page(void) { return 0; }
 uint16_t CtrBottom_FilterGameKeys(uint16_t held) { return held; }
 int CtrBattleUi_Hit(const CtrBattleView *v, int x, int y) { (void)v; (void)x; (void)y; return hitCode; }
-int CtrBattleUi_BagRailTarget(const CtrBattleBag *b, int y) { (void)b; (void)y; return -1; }
 static void BagPlanClear(void) { memset(&sBagPlan, 0, sizeof(sBagPlan)); }
 static void BagPlanStart(const ListScreen *list, int kind, int target, int activate, uint16_t keys)
 { (void)list; sBagPlan.kind = kind; sBagPlan.target = target; sBagPlan.activate = activate; sBagPlan.keys = keys; }
