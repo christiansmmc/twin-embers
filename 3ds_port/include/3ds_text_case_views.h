@@ -3,7 +3,6 @@
 
 #include "3ds_text_case.h"
 #include "3ds_poketouch.h"
-#include "3ds_summary.h"
 
 /*
  * The names FireRed's text gives the lower screen's views, in proper case (3ds_text_case.h). Nicknames, the player's and
@@ -13,18 +12,6 @@
  */
 #define CTR_CASE(f) CtrTextCase(f)
 #define CTR_CASE_ALL(a) do { for (size_t i_ = 0; i_ < sizeof(a) / sizeof((a)[0]); ++i_) CtrTextCase((a)[i_]); } while (0)
-
-static inline void CtrTextCase_Summary(CtrSummaryView *v)
-{
-    CTR_CASE(v->species);
-    CTR_CASE(v->item);
-    CTR_CASE_ALL(v->types);
-    CTR_CASE(v->ability);
-    CTR_CASE(v->nature);
-    CTR_CASE_ALL(v->moveNames);
-    CTR_CASE_ALL(v->moveTypes);
-    CTR_CASE(v->hpTypeName);
-}
 
 /* The field's views (the Bag's rows and selected name are left, see above). */
 static inline void CtrTextCase_Touch(CtrPokeTouchView *v)

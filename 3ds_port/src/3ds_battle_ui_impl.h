@@ -104,12 +104,6 @@ static void BDescribeN(const char *text, int x, int y, int width, int maxLines, 
 }
 
 
-/* The PP colour FireRed's move list uses: the usual ink, then yellow at half, orange at a quarter, red at none. */
-static uint16_t BPpColor(unsigned pp, unsigned max)
-{
-    return pp == 0 ? UI_HP_LOW : pp * 4 <= max ? UI_WARN : pp * 2 <= max ? UI_HP_MID : UI_TEXT;
-}
-
 
 /* The Party's icons (the red device's Party, the battle's lead and HOME draw them). */
 extern int CtrBottomParty_Icon(int slot, unsigned char *tilesOut, unsigned short *palOut);

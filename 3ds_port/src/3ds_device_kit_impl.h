@@ -591,15 +591,15 @@ UI_FN void DevWrapCopy(char *line, const char *s, int n)
     line[n] = 0;
 }
 
-/* DevWrapFirst's lines, drawn when `draw`, else only counted. */
-UI_FN int DevWrapRun(const char *s, int x, int top, int firstWidth, int width, int maxLines, uint16_t ink,
+/* DevWrapFirst's lines, drawn when `draw`, else only counted; the first from firstX, the others from x. */
+UI_FN int DevWrapRun(const char *s, int firstX, int x, int top, int firstWidth, int width, int maxLines, uint16_t ink,
                      uint16_t shadow, int draw)
 {
     char line[128];
     int lines = 0;
 
     while (lines < maxLines) {
-        int fit = 0, end = 0, room = lines ? width : firstWidth;
+        int fit = 0, end = 0, room = lines ? width : firstWidth, from = lines ? x : firstX;
 
         while (*s == ' ' || *s == '\n')
             ++s;
@@ -618,7 +618,7 @@ UI_FN int DevWrapRun(const char *s, int x, int top, int firstWidth, int width, i
         }
         DevWrapCopy(line, s, fit);
         if (draw)
-            DevTextInk(line, x, top + lines * DEV_LINE_H, x + room, ink, shadow);
+            DevTextInk(line, from, top + lines * DEV_LINE_H, from + room, ink, shadow);
         ++lines;
         s += fit;
     }
@@ -632,7 +632,14 @@ UI_FN int DevWrapRun(const char *s, int x, int top, int firstWidth, int width, i
 UI_FN int DevWrapFirst(const char *s, int x, int top, int firstWidth, int width, int maxLines, uint16_t ink,
                        uint16_t shadow)
 {
-    return DevWrapRun(s, x, top, firstWidth, width, maxLines, ink, shadow, 1);
+    return DevWrapRun(s, x, x, top, firstWidth, width, maxLines, ink, shadow, 1);
+}
+
+/* Text wrapped in lines `width` wide from x (DevWrapFirst), its first line going on from firstX, after what is drawn
+ * before it on that line (the Summary's ability name before its description). */
+UI_FN int DevWrapAfter(const char *s, int firstX, int x, int top, int width, int maxLines, uint16_t ink, uint16_t shadow)
+{
+    return DevWrapRun(s, firstX, x, top, x + width - firstX, width, maxLines, ink, shadow, 1);
 }
 
 /* DevWrapFirst with every line `width` wide. */
@@ -644,7 +651,7 @@ UI_FN int DevWrap(const char *s, int x, int top, int width, int maxLines, uint16
 /* The lines DevWrap would draw `s` in (at most maxLines; 0 for no text), drawing nothing: a text centred down a box. */
 UI_FN int DevWrapLines(const char *s, int width, int maxLines)
 {
-    return DevWrapRun(s, 0, 0, width, width, maxLines, 0, 0, 0);
+    return DevWrapRun(s, 0, 0, 0, width, width, maxLines, 0, 0, 0);
 }
 
 /* `s` cut to fit `room` with "..." after it, into out (size bytes). */
@@ -721,6 +728,38 @@ UI_FN void DevKeyLabelInk(const CtrPokeTouchRect *r, int faceY, const char *s, u
 UI_FN void DevKeyLabel(const CtrPokeTouchRect *r, int faceY, int look, int sunk, const char *s)
 {
     DevKeyLabelInk(r, faceY, s, DevKeyInk(look, sunk), DevKeyInkShadow(look, sunk));
+}
+
+/* A key's label in `ink` over `shadow` (DevKeyLabelInk: centred, cut and counted when too wide), clear of the LED a
+ * sunk key lights at its top right where the two share rows (keys under 40 tall): moved left of it when it would run
+ * under it; a word too long to fit left of it at all (CONFIRM in German, a German field move on a two-column key, a
+ * Summary tab's word in Spanish) in the small font, sunk or not, so it does not change size when chosen. (The Party's
+ * and the Summary's.) */
+UI_FN void DevKeyWordInk(const CtrPokeTouchRect *r, int faceY, int sunk, const char *s, uint16_t ink, uint16_t shadow)
+{
+    int w = DevTextWidth(s), x = r->x + (r->w - w) / 2, top = faceY + (r->h - UI_TEXT_H) / 2;
+    int ledX = r->x + r->w - 7 - (r->h >= 30 ? 5 : 4) - 2, ledY = faceY + (r->h >= 40 ? 6 : 4);  /* its glow, 1 px apart */
+    int room = ledX - (r->x + 4);
+
+    if (top > ledY + 6 || top + UI_TEXT_H < ledY - 1) {             /* not in the LED's rows */
+        DevKeyLabelInk(r, faceY, s, ink, shadow);
+        return;
+    }
+    if (w > room && DevSmallTextWidth(s) <= room) {
+        DevFitWord(s, 1, r->x + 4, room, faceY, r->h, 1, ink, shadow);
+        return;
+    }
+    if (!sunk || w > r->w - 8 || x + w <= ledX) {
+        DevKeyLabelInk(r, faceY, s, ink, shadow);
+        return;
+    }
+    DevTextInk(s, ledX - w < r->x + 4 ? r->x + 4 : ledX - w, top, r->x + r->w, ink, shadow);
+}
+
+/* A key's label in its look's ink, clear of its LED (DevKeyWordInk). */
+UI_FN void DevKeyWord(const CtrPokeTouchRect *r, int faceY, int look, int sunk, const char *s)
+{
+    DevKeyWordInk(r, faceY, sunk, s, DevKeyInk(look, sunk), DevKeyInkShadow(look, sunk));
 }
 
 /* ---- Marks, bars, chips, icons ------------------------------------------------------------------------------------- */

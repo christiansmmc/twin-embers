@@ -1557,7 +1557,7 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
 #include "3ds_device_home_impl.h"  /* HOME */
 #include "3ds_device_party_impl.h"  /* the Party: bays, its menu, YES / NO, a message, the level up */
 #include "3ds_device_battle_impl.h"  /* the battle: commands, moves, targets, Safari, idle */
-#include "3ds_summary_ui_impl.h"
+#include "3ds_device_summary_impl.h"  /* the Summary: INFO, STATS (IV / EV), MOVES, the move details, MEMO */
 #include "3ds_field_bag_impl.h"
 #include "3ds_field_dex_impl.h"
 #include "3ds_field_card_impl.h"

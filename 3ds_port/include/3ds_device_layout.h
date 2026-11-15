@@ -119,4 +119,31 @@ static inline CtrPokeTouchRect DevPtyMenuKey(int n, int i)
     return r;
 }
 
+/* ---- The Summary (boards B · Resumo: INFO, STATS, MOVES; 3ds_device_summary_impl.h) -----------------------------------
+ * The four tabs (INFO, STATS, MOVES, MEMO: SUI_TAB_* order) and the previous / next Pokemon (dark keys) across the top;
+ * the screen, its paper's left column (DEV_PAPER2) with the Pokemon (its picture in kDevSumPic, the 80x80 one centred on
+ * it) and the page's rows on the right; under it the note and BACK. MOVES and the move details list the moves in
+ * DevSumRow(0..3), the details' CANCEL in DevSumRow(4) (rows: no drop). STATS' switch (STATS | IV/EV) is drawn in
+ * kDevSumIvSwitch and taken in the larger kDevSumIvSwitchHit. */
+static const CtrPokeTouchRect kDevSumTab[4] __attribute__((unused)) = {
+    {8, 8, 56, 24}, {68, 8, 56, 24}, {128, 8, 56, 24}, {188, 8, 56, 24},
+};
+static const CtrPokeTouchRect kDevSumPrev __attribute__((unused)) = {252, 8, 28, 24};
+static const CtrPokeTouchRect kDevSumNext __attribute__((unused)) = {284, 8, 28, 24};
+static const CtrPokeTouchRect kDevSumScreen __attribute__((unused)) = {8, 40, 304, 140};
+static const CtrPokeTouchRect kDevSumColumn __attribute__((unused)) = {14, 46, 104, 128};
+static const CtrPokeTouchRect kDevSumPic __attribute__((unused)) = {34, 82, 64, 64};
+static const CtrPokeTouchRect kDevSumNote __attribute__((unused)) = {8, 188, 228, 44};
+static const CtrPokeTouchRect kDevSumBack __attribute__((unused)) = {244, 188, 68, 42};
+static const CtrPokeTouchRect kDevSumIvSwitch __attribute__((unused)) = {228, 49, 70, 13};
+static const CtrPokeTouchRect kDevSumIvSwitchHit __attribute__((unused)) = {224, 46, 78, 20};
+
+/* Row i (0-3 a move, 4 the details' CANCEL) of MOVES and the move details. */
+static inline CtrPokeTouchRect DevSumRow(int i)
+{
+    CtrPokeTouchRect r = {124, (int16_t)(52 + 24 * i), 176, 22};
+
+    return r;
+}
+
 #endif

@@ -387,18 +387,18 @@ extern unsigned CtrBottomDex_Height(unsigned species);
 extern unsigned CtrBottomDex_Weight(unsigned species);
 extern void CtrBottomDex_Description(unsigned species, char *out, int size);
 extern int CtrBottomDex_Types(unsigned species, int *types, char *first, char *second, int size);
-/* Game names in proper case (3ds_text_case.h): the Bag's items and a case's moves as they are read (a mailbox shares the list), the Summary as it is reported. */
+/* Game names in proper case (3ds_text_case.h): the Bag's items and a case's moves as they are read (a mailbox shares the list). The
+ * Summary, a red device view, gets them as FireRed has them (it draws them upper case: decision 5). */
 #define CtrBottomBag_ItemName(i, o, n) (CtrBottomBag_ItemName((i), (o), (n)), CtrTextCase(o))
 #define CtrBottomTMCase_MoveName(i, o, n) (CtrBottomTMCase_MoveName((i), (o), (n)), CtrTextCase(o))
 /* The Summary's view is read at most once a frame (the session-ready check and the snapshot both ask, with nothing of the game
- * running between them): the first read is cased and kept, CtrBottom_Frame forgets it at its start. */
+ * running between them): the first read is kept, CtrBottom_Frame forgets it at its start. */
 static int sSumViewValid;
 static CtrSummaryView sSumViewMemo;
 static void SummaryViewNow(CtrSummaryView *o)
 {
     if (!sSumViewValid) {
         CtrBottomSummary_GetView(&sSumViewMemo);
-        CtrTextCase_Summary(&sSumViewMemo);
         sSumViewValid = 1;
     }
     *o = sSumViewMemo;
@@ -515,7 +515,7 @@ typedef struct {
     unsigned char canAdvance;
     unsigned serial;
     CtrSummaryView summary;         /* a field Summary: FireRed's own, in the viewport */
-    CtrSummaryUiView sum;           /* a battle Summary: its own screen (3ds_summary_ui.inc) */
+    CtrSummaryUiView sum;           /* a battle Summary: its own screen (3ds_device_summary_impl.h) */
     unsigned char summaryUi;        /* it is what the lower screen shows */
     CtrPokeTouchView touch;
     CtrBattleView battle;
@@ -2023,7 +2023,7 @@ static void RunSumPlan(void)
     }
 }
 
-/* The Summary's own screen (3ds_summary_ui.inc): what FireRed's Summary reports, and the touch held on it. While FireRed
+/* The Summary's own screen (3ds_device_summary_impl.h): what FireRed's Summary reports, and the touch held on it. While FireRed
  * loads a Pokemon (its setup, a switch to another one) it reports no data: the last complete report of the same Summary
  * stays on the screen meanwhile, so nothing blinks. TRAINER is FireRed's first page shown as its trainer memo: chosen by
  * its tab, and left as soon as FireRed is on another page with no plan of ours walking it there. */

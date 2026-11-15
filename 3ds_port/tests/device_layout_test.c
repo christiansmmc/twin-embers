@@ -275,6 +275,54 @@ static int PartyFaults(void)
     return faults;
 }
 
+/* The Summary (boards B · Resumo): the brief's numbers; the tabs and the arrows (with their drops) above the screen, the
+ * note and BACK under it, side by side; on the screen's paper the left column with the picture's box (the 80x80 picture
+ * centred on it fits the column too), and right of the column the switch (inside the larger rectangle that takes it) and
+ * the five rows, one under the other. */
+static int SummaryFaults(void)
+{
+    const CtrPokeTouchRect paper = {14, 46, 292, 128}, big = {26, 74, 80, 80};
+    int faults = 0;
+
+    for (int i = 0; i < 4; ++i)
+        assert(Same(kDevSumTab[i], (CtrPokeTouchRect){(int16_t)(8 + 60 * i), 8, 56, 24}));
+    assert(Same(kDevSumPrev, (CtrPokeTouchRect){252, 8, 28, 24}) && Same(kDevSumNext, (CtrPokeTouchRect){284, 8, 28, 24}));
+    assert(Same(kDevSumScreen, (CtrPokeTouchRect){8, 40, 304, 140}) && Same(kDevSumColumn, (CtrPokeTouchRect){14, 46, 104, 128}));
+    assert(Same(kDevSumPic, (CtrPokeTouchRect){34, 82, 64, 64}) && Same(kDevSumNote, (CtrPokeTouchRect){8, 188, 228, 44}));
+    assert(Same(kDevSumBack, (CtrPokeTouchRect){244, 188, 68, 42}) && Same(kDevSumIvSwitch, (CtrPokeTouchRect){228, 49, 70, 13}));
+    assert(Same(kDevSumIvSwitchHit, (CtrPokeTouchRect){224, 46, 78, 20}));
+    for (int i = 0; i < 5; ++i) {
+        CtrPokeTouchRect r = DevSumRow(i);
+
+        assert(Same(r, (CtrPokeTouchRect){124, (int16_t)(52 + 24 * i), 176, 22}));
+        if (!Within(r, paper, 0) || r.x < kDevSumColumn.x + kDevSumColumn.w
+            || (i > 0 && r.y < DevSumRow(i - 1).y + DevSumRow(i - 1).h)) {
+            fprintf(stderr, "Summary: row %d leaves the paper right of the column, or meets the row above\n", i);
+            ++faults;
+        }
+    }
+    if (!Within(kDevSumIvSwitch, kDevSumIvSwitchHit, 0) || !Within(kDevSumIvSwitch, paper, 0)
+        || kDevSumIvSwitch.x < kDevSumColumn.x + kDevSumColumn.w) {
+        fprintf(stderr, "Summary: the switch leaves its touch area or the paper right of the column\n");
+        ++faults;
+    }
+    if (!Within(kDevSumColumn, paper, 0) || !Within(kDevSumPic, kDevSumColumn, 0) || !Within(big, kDevSumColumn, 0)) {
+        fprintf(stderr, "Summary: the column leaves the paper, or a picture the column\n");
+        ++faults;
+    }
+    for (int i = 0; i < 4; ++i)
+        if (kDevSumTab[i].y + kDevSumTab[i].h + DEV_DROP > kDevSumScreen.y) {
+            fprintf(stderr, "Summary: tab %d reaches the screen\n", i);
+            ++faults;
+        }
+    if (kDevSumPrev.y + kDevSumPrev.h + DEV_DROP > kDevSumScreen.y || kDevSumScreen.y + kDevSumScreen.h + 1 > kDevSumNote.y
+        || kDevSumScreen.y + kDevSumScreen.h + 1 > kDevSumBack.y || kDevSumNote.x + kDevSumNote.w > kDevSumBack.x) {
+        fprintf(stderr, "Summary: an arrow reaches the screen, the screen the note or BACK, or the note BACK\n");
+        ++faults;
+    }
+    return faults;
+}
+
 int main(void)
 {
     /* Every rectangle the header holds, by name, and the keys of each view state. */
@@ -288,6 +336,8 @@ int main(void)
     const CtrPokeTouchRect ptyMulti[] = {DevPtyBay(0), DevPtyBay(1), DevPtyBay(2), DevPtyBay(3), DevPtyBay(4), DevPtyBay(5),
                                          kDevPtyConfirm, kDevPtyCancelLow};
     const CtrPokeTouchRect ptyOk[] = {kDevPtyCancel};
+    const CtrPokeTouchRect sumKeys[] = {kDevSumTab[0], kDevSumTab[1], kDevSumTab[2], kDevSumTab[3], kDevSumPrev, kDevSumNext,
+                                        kDevSumBack};
     CtrPokeTouchRect ptyMenu[8][8];
     DevGroup ptyMenus[8];
     static const char *const kMenuName[8] = {"Party menu of 1", "Party menu of 2", "Party menu of 3", "Party menu of 4",
@@ -307,11 +357,16 @@ int main(void)
         {"Party note", kDevPtyNote}, {"Party CANCEL", kDevPtyCancel}, {"Party CONFIRM", kDevPtyConfirm},
         {"Party CANCEL (several)", kDevPtyCancelLow}, {"Party menu's screen", kDevPtyMenuNote},
         {"Party level-up screen", kDevPtyLevelScreen}, {"Party bay 0", DevPtyBay(0)}, {"Party bay 5", DevPtyBay(5)},
+        {"Summary INFO", kDevSumTab[0]}, {"Summary STATS", kDevSumTab[1]}, {"Summary MOVES", kDevSumTab[2]},
+        {"Summary MEMO", kDevSumTab[3]}, {"Summary previous", kDevSumPrev}, {"Summary next", kDevSumNext},
+        {"Summary screen", kDevSumScreen}, {"Summary column", kDevSumColumn}, {"Summary picture", kDevSumPic},
+        {"Summary note", kDevSumNote}, {"Summary BACK", kDevSumBack}, {"Summary switch", kDevSumIvSwitch},
+        {"Summary switch's touch", kDevSumIvSwitchHit}, {"Summary row 0", DevSumRow(0)}, {"Summary CANCEL row", DevSumRow(4)},
     };
     const DevGroup groups[] = {DEV_GROUP("HOME", homeKeys), DEV_GROUP("battle, a trainer", batTrainer),
                                DEV_GROUP("battle, wild", batWild), DEV_GROUP("battle moves", batMoves),
                                DEV_GROUP("Party", ptyBays), DEV_GROUP("Party, several", ptyMulti),
-                               DEV_GROUP("Party level up", ptyOk)};
+                               DEV_GROUP("Party level up", ptyOk), DEV_GROUP("Summary", sumKeys)};
     int faults = 0;
 
     RulesCatchFaults();
@@ -334,6 +389,7 @@ int main(void)
     faults += HomeFaults();
     faults += BattleFaults();
     faults += PartyFaults();
+    faults += SummaryFaults();
     assert(faults == 0);
     puts("PASS device layout");
     return 0;

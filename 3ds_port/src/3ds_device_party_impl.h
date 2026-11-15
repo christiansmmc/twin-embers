@@ -268,37 +268,6 @@ static const char *DevPtyModeWords(const CtrBattleParty *p)
     return CTR_TR("Choose a POK\xC3\xA9MON.", "Elige un POK\xC3\xA9MON.", "W\xC3\xA4hle ein POK\xC3\xA9MON.");
 }
 
-/* A key's label in `ink` over `shadow` (DevKeyLabelInk: centred, cut and counted when too wide), clear of the LED a
- * sunk key lights at its top right where the two share rows (keys under 40 tall): moved left of it when it would run
- * under it; a word too long to fit left of it at all (CONFIRM in German, a German field move on a two-column key) in the
- * small font, sunk or not, so it does not change size when chosen. */
-static void DevPtyKeyLabel(const CtrPokeTouchRect *r, int faceY, int sunk, const char *s, uint16_t ink, uint16_t shadow)
-{
-    int w = DevTextWidth(s), x = r->x + (r->w - w) / 2, top = faceY + (r->h - UI_TEXT_H) / 2;
-    int ledX = r->x + r->w - 7 - (r->h >= 30 ? 5 : 4) - 2, ledY = faceY + (r->h >= 40 ? 6 : 4);  /* its glow, 1 px apart */
-    int room = ledX - (r->x + 4);
-
-    if (top > ledY + 6 || top + UI_TEXT_H < ledY - 1) {             /* not in the LED's rows */
-        DevKeyLabelInk(r, faceY, s, ink, shadow);
-        return;
-    }
-    if (w > room && DevSmallTextWidth(s) <= room) {
-        DevFitWord(s, 1, r->x + 4, room, faceY, r->h, 1, ink, shadow);
-        return;
-    }
-    if (!sunk || w > r->w - 8 || x + w <= ledX) {
-        DevKeyLabelInk(r, faceY, s, ink, shadow);
-        return;
-    }
-    DevTextInk(s, ledX - w < r->x + 4 ? r->x + 4 : ledX - w, top, r->x + r->w, ink, shadow);
-}
-
-/* A key's label in its look's ink (DevPtyKeyLabel). */
-static void DevPtyKeyWord(const CtrPokeTouchRect *r, int faceY, int look, int sunk, const char *s)
-{
-    DevPtyKeyLabel(r, faceY, sunk, s, DevKeyInk(look, sunk), DevKeyInkShadow(look, sunk));
-}
-
 /* CANCEL (and CONFIRM picking several) under the bays: `cursor` and `pressed` choose the sunk one; `dim` greys them. */
 static void DevPtyLeaveKeys(const CtrBattleParty *p, int cursor, int pressed, int dim)
 {
@@ -308,10 +277,10 @@ static void DevPtyLeaveKeys(const CtrBattleParty *p, int cursor, int pressed, in
     if (p->mode == BUI_PTY_MULTI) {
         sunk = DevChosen(BUI_PTY_CONFIRM, cursor, pressed);
         faceY = DevKey(&kDevPtyConfirm, DEV_LOOK_KEY, sunk, 6);
-        DevPtyKeyWord(&kDevPtyConfirm, faceY, DEV_LOOK_KEY, sunk, CTR_TR("CONFIRM", "CONFIRMAR", "BEST\xC3\x84TIGEN"));
+        DevKeyWord(&kDevPtyConfirm, faceY, DEV_LOOK_KEY, sunk, CTR_TR("CONFIRM", "CONFIRMAR", "BEST\xC3\x84TIGEN"));
         sunk = DevChosen(BUI_PTY_CANCEL, cursor, pressed);
         faceY = DevKey(&kDevPtyCancelLow, DEV_LOOK_DARK, sunk, 6);
-        DevPtyKeyWord(&kDevPtyCancelLow, faceY, DEV_LOOK_DARK, sunk, cancel);
+        DevKeyWord(&kDevPtyCancelLow, faceY, DEV_LOOK_DARK, sunk, cancel);
         if (dim) {
             DevDim(&kDevPtyConfirm);
             DevDim(&kDevPtyCancelLow);
@@ -319,7 +288,7 @@ static void DevPtyLeaveKeys(const CtrBattleParty *p, int cursor, int pressed, in
     } else if (p->mode != BUI_PTY_FORCED) {
         sunk = DevChosen(BUI_PTY_CANCEL, cursor, pressed);
         faceY = DevKey(&kDevPtyCancel, DEV_LOOK_DARK, sunk, 6);
-        DevPtyKeyWord(&kDevPtyCancel, faceY, DEV_LOOK_DARK, sunk, cancel);
+        DevKeyWord(&kDevPtyCancel, faceY, DEV_LOOK_DARK, sunk, cancel);
         if (dim)
             DevDim(&kDevPtyCancel);
     }
@@ -364,9 +333,9 @@ static void DevPtyMenu(const CtrBattleView *v)
 
         DevUpper(word, p->menuName[i], sizeof(word));
         if (!dark && ((p->menuBlue >> i) & 1))
-            DevPtyKeyLabel(&r, faceY, sunk, word, DEV_BLUE_INK, DevKeyInkShadow(look, sunk));
+            DevKeyWordInk(&r, faceY, sunk, word, DEV_BLUE_INK, DevKeyInkShadow(look, sunk));
         else
-            DevPtyKeyWord(&r, faceY, look, sunk, word);
+            DevKeyWord(&r, faceY, look, sunk, word);
     }
     DevPtyScreen(&kDevPtyMenuNote, p->caption[0] || p->panel == BUI_PTY_YESNO ? p->caption
                  : CTR_TR("Do what with this POK\xC3\xA9MON?", "\xC2\xBF" "Qu\xC3\xA9 hacer con este POK\xC3\xA9MON?",
@@ -403,7 +372,7 @@ static void DevPtyLevelUp(const CtrBattleView *v)
     }
     DevPtyScreen(&kDevPtyNote, p->message, 0);
     faceY = DevKey(&kDevPtyCancel, DEV_LOOK_KEY, 1, 6);
-    DevPtyKeyWord(&kDevPtyCancel, faceY, DEV_LOOK_KEY, 1, CTR_TR("OK", "OK", "OK"));
+    DevKeyWord(&kDevPtyCancel, faceY, DEV_LOOK_KEY, 1, CTR_TR("OK", "OK", "OK"));
 }
 
 /* The Party, whole (canvas and shell already set by CtrBattleUi_Draw). */

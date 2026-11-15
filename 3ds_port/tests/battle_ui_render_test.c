@@ -1,6 +1,6 @@
-/* The battle Bag (the ember look left in 3ds_battle_ui_impl.h) and the Summary through the production renderer with
- * synthetic game bridges; the rest of the battle screen and the Party are the red device's (device_render_test.c's
- * battle and party suites).
+/* The battle Bag (the ember look left in 3ds_battle_ui_impl.h) through the production renderer with synthetic game
+ * bridges; the rest of the battle screen, the Party and the Summary are the red device's (device_render_test.c's
+ * battle, party and summary suites).
  *
  * The Bag with its menu and message is drawn; each press, cursor move and state change
  * must leave the canvas exactly as a full redraw would (the dirty rectangles are complete); the screen is the PokeTouch
@@ -96,6 +96,7 @@ int CtrBottomParty_Icon(int slot, unsigned char *tiles, unsigned short *pal)
     return 1;
 }
 
+/* The Summary's art (its drawer is in the renderer too, checked by device_render_test.c): none. */
 unsigned CtrBottomSummary_IconSpecies(void) { return 0; }
 int CtrBottomSummary_Icon(unsigned char *tiles, unsigned short *pal)
 { (void)tiles; (void)pal; return 0; }
@@ -233,35 +234,6 @@ static void hits(const CtrBattleView *v)
         }
 }
 
-static void settle_summary(const CtrSummaryUiView *oldRaw, const CtrSummaryUiView *vRaw)
-{
-    CtrDirtyList dirty;
-    static CtrSummaryUiView oc, vc;
-    const CtrSummaryUiView *old = &oc, *v = &vc;
-
-    oc = *oldRaw; vc = *vRaw; CtrTextCase_Summary(&oc.data); CtrTextCase_Summary(&vc.data);
-
-    CtrDirty_Clear(&dirty);
-    CtrSummaryUi_Update(canvas, old, v, &dirty);
-    memcpy(reference, canvas, sizeof(canvas));
-    CtrSummaryUi_Draw(canvas, v);
-    if (memcmp(reference, canvas, sizeof(canvas))) {
-        for (int x = 0; x < W; ++x)
-            for (int y = 0; y < H; ++y)
-                if (reference[x * H + H - 1 - y] != canvas[x * H + H - 1 - y]) {
-                    fprintf(stderr, "summary redraw mismatch at %d,%d page=%d pressed=%d\n", x, y, v->data.page, v->pressed);
-                    assert(0);
-                }
-    }
-}
-
-static void summary_hits(const CtrSummaryUiView *v)
-{
-    for (int y = 0; y < H; y += 3)
-        for (int x = 0; x < W; x += 3)
-            sHitCrc = sHitCrc * 31u + (unsigned)(CtrSummaryUi_Hit(v, x, y) + 7);
-}
-
 static void names(char *dst, size_t n, const char *s) { snprintf(dst, n, "%s", s); }
 /* A name of the game's text: proper case, as the Bag's reader gives it (3ds_bottom.c CtrBottomBag_ItemName). */
 static void gnames(char *dst, size_t n, const char *s) { names(dst, n, s); CtrTextCase(dst); }
@@ -365,75 +337,6 @@ int main(int argc, char **argv)
     v.bag.menuCount = 0; names(v.bag.message, sizeof(v.bag.message), "The POKeMON's HP was restored by 50 points.");
     settle(&old, &v); old = v; put(out, "10_bag_message"); v.bag.message[0] = 0; settle(&old, &v); old = v;
 
-    /* SUMMARY */
-    {
-        CtrSummaryUiView sv, so;
-        int tab;
-
-        memset(&sv, 0, sizeof(sv));
-        sv.pressed = -1;
-        sv.icon = 1;
-        sv.data.ready = 1; sv.data.mon = 0; sv.data.cursor = 0; sv.data.level[0] = 0;
-        names(sv.data.nickname, 12, "CHARIZARD"); names(sv.data.species, 12, "CHARIZARD"); names(sv.data.level, 8, "50");
-        names(sv.data.gender, 2, "M"); names(sv.data.dex, 8, "006"); names(sv.data.ot, 16, "RED"); names(sv.data.id, 8, "12345");
-        names(sv.data.item, 20, "LEFTOVERS"); names(sv.data.types[0], 12, "FIRE"); names(sv.data.types[1], 12, "FLYING");
-        sv.data.typeIds[0] = 10; sv.data.typeIds[1] = 2;
-        names(sv.data.hp, 12, "120/150"); sv.data.hpCur = 120; sv.data.hpMax = 150;
-        for (k = 0; k < 5; ++k) names(sv.data.stats[k], 8, k == 0 ? "104" : "89");
-        names(sv.data.exp, 12, "125000"); names(sv.data.nextExp, 12, "4200");
-        names(sv.data.ability, 16, "BLAZE"); names(sv.data.abilityDesc, 64, "Powers up FIRE moves in a pinch.");
-        names(sv.data.memo, 256, "Hatched at Pallet Town. Met at Lv5.");
-        names(sv.data.nature, 12, "ADAMANT"); sv.data.ribbons = 2;
-        for (k = 0; k < 4; ++k) {
-            static const char *const mv[4] = {"FLAMETHROWER", "WING ATTACK", "DRAGON CLAW", "SLASH"};
-            static const char *const mt[4] = {"FIRE", "FLYING", "DRAGON", "NORMAL"};
-            static const unsigned char mi[4] = {10, 2, 16, 0};
-
-            sv.data.moves[k] = (unsigned short)(k + 1);
-            names(sv.data.moveNames[k], 16, mv[k]); names(sv.data.pp[k], 12, "15/15"); names(sv.data.moveTypes[k], 12, mt[k]);
-            names(sv.data.power[k], 8, "90"); names(sv.data.accuracy[k], 8, "100"); sv.data.moveTypeIds[k] = mi[k];
-        }
-        names(sv.data.moveDesc, 256, "A powerful fire attack that may burn the target.");
-        so = sv;
-        { CtrSummaryUiView c_ = so; CtrTextCase_Summary(&c_.data); CtrSummaryUi_Draw(canvas, &c_); }   /* the screen opens drawn in full; updates follow */
-        for (tab = 0; tab < 5; ++tab) {
-            static const char *const nm[5] = {"16_summary_info", "17_summary_stats", "18_summary_moves", "19_summary_move_details",
-                                              "20_summary_trainer"};
-
-            sv.data.page = tab == 1 ? SUI_PAGE_SKILLS : tab == 2 ? SUI_PAGE_MOVES : tab == 3 ? SUI_PAGE_MOVES_INFO : SUI_PAGE_INFO;
-            sv.trainer = tab == 4;
-            sv.data.cursor = tab == 3 ? 1 : 0;
-            settle_summary(&so, &sv); so = sv; put(out, nm[tab]); summary_hits(&sv);
-            sv.pressed = SUI_HIT_NEXT; settle_summary(&so, &sv); so = sv;
-            sv.pressed = SUI_HIT_BACK; settle_summary(&so, &sv); so = sv;
-            sv.pressed = SUI_HIT_TAB + 1; settle_summary(&so, &sv); so = sv;
-            sv.pressed = -1; settle_summary(&so, &sv); so = sv;
-        }
-        /* STATS' other view: the IVs as bars, the EVs, Hidden Power; the switch in its corner is hit on STATS only. */
-        {
-            static const unsigned char iv[6] = {25, 30, 14, 31, 19, 28}, ev[6] = {6, 0, 0, 252, 0, 252};
-
-            sv.data.page = SUI_PAGE_SKILLS; sv.trainer = 0; sv.pressed = -1; sv.ivView = 1;
-            memcpy(sv.data.iv, iv, sizeof(iv)); memcpy(sv.data.ev, ev, sizeof(ev));
-            sv.data.hpType = 10; sv.data.hpPower = 70; names(sv.data.hpTypeName, sizeof(sv.data.hpTypeName), "FIRE");
-            settle_summary(&so, &sv); so = sv; put(out, "21_summary_iv_ev"); summary_hits(&sv);
-            assert(CtrSummaryUi_Hit(&sv, 285, 85) == SUI_HIT_IVTOGGLE);
-            sv.pressed = SUI_HIT_IVTOGGLE; settle_summary(&so, &sv); so = sv;
-            sv.pressed = -1; sv.ivView = 0; settle_summary(&so, &sv); so = sv;
-            assert(CtrSummaryUi_Hit(&sv, 285, 85) == SUI_HIT_IVTOGGLE);
-            sv.data.page = SUI_PAGE_SKILLS; names(sv.data.exp, 12, "128000"); names(sv.data.nextExp, 12, "4651");   /* Medium Fast, level 50: 125000 -> 132651, 42% */
-            settle_summary(&so, &sv); so = sv; put(out, "21b_summary_exp");
-            names(sv.data.level, 8, "5"); names(sv.data.exp, 12, "135"); names(sv.data.nextExp, 12, "10");   /* Medium Fast: 125 -> 216 */
-            settle_summary(&so, &sv); so = sv;
-            names(sv.data.level, 8, "100"); names(sv.data.exp, 12, "1000000"); names(sv.data.nextExp, 12, "0");   /* full bar, no next */
-            settle_summary(&so, &sv); so = sv; put(out, "21c_summary_exp_100");
-            names(sv.data.level, 8, "50"); names(sv.data.exp, 12, "125000"); names(sv.data.nextExp, 12, "4200");
-            sv.data.page = SUI_PAGE_MOVES; settle_summary(&so, &sv); so = sv;
-            assert(CtrSummaryUi_Hit(&sv, 285, 85) != SUI_HIT_IVTOGGLE);
-        }
-        sv.loading = 1; settle_summary(&so, &sv);
-    }
-
     /* The red of PokeTouch: nothing of the shared navy theme may remain on any state. */
 #ifndef BATTLE_UI_BEFORE
     {
@@ -456,23 +359,6 @@ int main(int argc, char **argv)
                         assert(0);
                     }
             assert(at(1, 100) == EMBER_BG(1, 100) || at(1, 100) == PT_RED_BG);   /* the ember backdrop, or the flat red not yet redone */
-        }
-        {
-            CtrSummaryUiView sv;
-
-            memset(&sv, 0, sizeof(sv));
-            sv.pressed = -1; sv.data.ready = 1; sv.data.typeIds[0] = 10; sv.data.typeIds[1] = 2; sv.data.hpCur = 90; sv.data.hpMax = 150;
-            for (int page = 0; page < 4; ++page) {
-                sv.data.page = page;
-                { CtrSummaryUiView c_ = sv; CtrTextCase_Summary(&c_.data); CtrSummaryUi_Draw(canvas, &c_); }
-                for (int n = 0; n < W * H; ++n)
-                    for (size_t j = 0; j < sizeof(navy) / sizeof(navy[0]); ++j)
-                        if (canvas[n] == navy[j]) {
-                            fprintf(stderr, "summary page %d keeps the navy theme colour %04x at %d\n", page, navy[j], n);
-                            assert(0);
-                        }
-                assert(at(1, 100) == EMBER_BG(1, 100));
-            }
         }
     }
 #endif

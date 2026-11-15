@@ -715,25 +715,25 @@ int CtrBattleUi_BagRailTarget(const CtrBattleBag *bag, int y);       /* the same
 
 
 /*
- * The Pokemon Summary (3ds_summary_ui.inc, CtrSummaryUi_*): the whole lower screen while FireRed's Summary of the party
- * runs hidden behind it, from the field's Party or the battle's (the same screen for both). It shows what the Summary
- * reports (CtrSummaryView) in the premium design: a header with the Pokemon (icon, nickname, gender, number, species,
- * level) and the buttons for the previous and next one, the tabs INFO / STATS / MOVES / TRAINER, the page and a footer
- * with BACK. INFO, STATS and MOVES are FireRed's three pages (its move details are MOVES with a move selected);
- * TRAINER is the trainer memo of its first page, shown on its own.
+ * The Pokemon Summary (3ds_device_summary_impl.h, CtrSummaryUi_*): the whole lower screen while FireRed's Summary of the
+ * party runs hidden behind it, from the field's Party, the battle's or a PC box (the same screen for all). It shows what
+ * the Summary reports (CtrSummaryView) as the red device: the tabs INFO / STATS / MOVES / MEMO and the keys for the
+ * previous and next Pokemon, the screen with the Pokemon and the page, the note and BACK. INFO, STATS and MOVES are
+ * FireRed's three pages (its move details are MOVES with a move selected); MEMO (SUI_TAB_TRAINER) is the trainer memo
+ * of its first page, shown on its own.
  */
 enum { SUI_TAB_INFO = 0, SUI_TAB_STATS, SUI_TAB_MOVES, SUI_TAB_TRAINER, SUI_TABS };
 /* Hit codes (CtrSummaryUi_Hit): the tabs, the previous / next Pokemon, BACK, a move card or row, the details' CANCEL. */
 enum { SUI_HIT_TAB = 0, SUI_HIT_PREV = 10, SUI_HIT_NEXT = 11, SUI_HIT_BACK = 12, SUI_HIT_MOVE = 20, SUI_HIT_CANCEL = 24,
-       SUI_HIT_IVTOGGLE = 30 /* the STATS page's EXP / IV-EV switch */ };
+       SUI_HIT_IVTOGGLE = 30 /* the STATS page's STATS | IV/EV switch */ };
 /* FireRed's Summary pages (pokemon_summary_screen.h PSS_PAGE_*). */
 enum { SUI_PAGE_INFO = 0, SUI_PAGE_SKILLS, SUI_PAGE_MOVES, SUI_PAGE_MOVES_INFO };
 typedef struct {
     CtrSummaryView data;            /* what the Summary reports (the last complete report while it loads a Pokemon) */
     uint16_t icon;                  /* FireRed's icon species of the Pokemon shown (the icon cache's key) */
     int16_t pressed;                /* the hit code under a held touch, or -1 */
-    uint8_t trainer;                /* TRAINER is shown (FireRed is on its first page) */
-    uint8_t ivView;                 /* STATS shows the IVs, EVs and Hidden Power instead of the experience */
+    uint8_t trainer;                /* MEMO (SUI_TAB_TRAINER) is shown (FireRed is on its first page) */
+    uint8_t ivView;                 /* STATS shows the IVs, EVs and Hidden Power instead of the stats and the experience */
     uint8_t loading;                /* nothing reported yet: the frame only */
     uint8_t shell;          /* the lower screen's shell colour: 0 red, 1 blue, 2 green, 3 grey (CtrOptions_Shell) */
 } CtrSummaryUiView;

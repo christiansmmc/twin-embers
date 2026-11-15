@@ -650,7 +650,7 @@
   },
   {
    "path": "3ds_port/include/3ds_poketouch.h",
-   "sha256": "7cf2b222e37cfa860f1d18514fbb319a0300618ea7bfdcd5e0982aca0493f3c2",
+   "sha256": "9a0ce113ba11f494ada1527322a042a413335be337aedff867364086ffe2e205",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -758,7 +758,7 @@
   },
   {
    "path": "3ds_port/include/3ds_text_case_views.h",
-   "sha256": "bf1f2ad5189c0331368e1a59b7252325daabe94832a57b6c9eb8c64e400a22c0",
+   "sha256": "678a4c8670f15bf00f16c530990707d743bf4f45f1c2a02287bb4b744e487ed2",
    "review_status": "reviewed",
    "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -1027,7 +1027,7 @@
   },
   {
    "path": "3ds_port/src/3ds_battle_ui_impl.h",
-   "sha256": "a8d60fd253c6a0b9f7b7a1394f0d4ca74060bdb0233b36c2cefa1b3d63f6e461",
+   "sha256": "9a73cd10cace0ded6fb90c53237f185517c63de4ff29c0c3bd0d5da0c5e04c4a",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -1066,7 +1066,7 @@
   },
   {
    "path": "3ds_port/src/3ds_bottom.c",
-   "sha256": "2a5d47c9b2a7c7a4963eec41400d6c7217cec06679a1f40bb726ae73c03dfb6d",
+   "sha256": "f120613a28b20170f6b50759b9963746b64e6b4f53e641037474c59fbbe532f9",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -1488,7 +1488,7 @@
   },
   {
    "path": "3ds_port/src/3ds_poketouch.c",
-   "sha256": "d6098ae736200338483406ccd179deaaf71ba1c2154b1d384315c66fe315c5dd",
+   "sha256": "3f932c4150c8a82785029a0070b5c7cee8c59b011b437390b48b1f5c877dc54a",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -1576,19 +1576,6 @@
    "source_blob": "0e0136d5ffece47dd6587aaf92befbb58b382508",
    "source_sha256": "ea7be3d77de67beab5538af78db61468a6a3852368d01db16039b7c4e45f2774",
    "modified_for_distribution": false
-  },
-  {
-   "path": "3ds_port/src/3ds_summary_ui_impl.h",
-   "sha256": "7b2105d6186e6c7a3c36eeb3f15029657b4458e8965435def9d30c93148339f5",
-   "review_status": "reviewed",
-   "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md",
-   "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
-   "basis": "Pinned 96f95e0 Git blob verified; reviewed port-only text, no media/payload; inherited notices and external-game scope preserved; test fixtures synthetic",
-   "source_repository": "alex61194/pokemon-firered-3ds-clean",
-   "source_commit": "96f95e015af9f5f38e4a8aefca7cab29a78b030d",
-   "source_blob": "78e90a9a0b14233adeb351997399a271b8659e70",
-   "source_sha256": "3400000753892da3adc38d44b083792c6044658dc68cb553289250006da28503",
-   "modified_for_distribution": true
   },
   {
    "path": "3ds_port/src/3ds_touch_skin_impl.h",
@@ -1805,7 +1792,7 @@
   },
   {
    "path": "3ds_port/tests/battle_ui_render_test.c",
-   "sha256": "211899ced96f284654c9781e7c64ec7ccc82f2ff9ebd696adf681e0a288223e9",
+   "sha256": "268d2b9da82e1e1b320a9226a26df64ec15584e68bbf491349401c4e64283d54",
    "review_status": "reviewed",
    "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -6888,7 +6875,7 @@
   },
   {
    "path": "tools/test_battle_ui.py",
-   "sha256": "cda54834e7bb3cd649c1a79180ff36ade08d3e69e0e8a602001322a7252f8941",
+   "sha256": "aea3e9e4c8c0cfcb46772fe987e15452e42e5fe7e17d23055fde3901f5baeb94",
    "review_status": "reviewed",
    "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7505,7 +7492,7 @@
   },
   {
    "path": "3ds_port/include/3ds_device_layout.h",
-   "sha256": "17b87cb329e6ff76474732b49f1389215490d70b967dff1db0e9e26dd707e6b1",
+   "sha256": "ca7c373cba537fa577bf531e18af1be4520b9551a7b685764c1998410a9a833f",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7513,7 +7500,7 @@
   },
   {
    "path": "3ds_port/src/3ds_device_kit_impl.h",
-   "sha256": "9730814520d61f06c9a8ffc08ccfe84540080c55ca37ed12b3a5760c4711615a",
+   "sha256": "7c7c49b32238b9f0c0e96a64d2515e169cfb070d846078dbe8d5629c3ea21b52",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7521,7 +7508,7 @@
   },
   {
    "path": "3ds_port/tests/device_layout_test.c",
-   "sha256": "c3adc5ea6df97e7dcb6d010a5fa460cae9c8130fec02b32551d686820252e55b",
+   "sha256": "19ee0afa802effb918cf13eaef58eecdeb23b593abc1381a76212d7aadd3480e",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7529,7 +7516,7 @@
   },
   {
    "path": "3ds_port/tests/device_render_test.c",
-   "sha256": "16edac5743772b8839867bb69782fcdd7e4b1578ce1e69fe6b47713bd388ac27",
+   "sha256": "7861a0eb9fc31baf24c8fb33f5e8c7a804bd2ed1d816e66f95eaedbe199cbd2c",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7537,7 +7524,7 @@
   },
   {
    "path": "tools/render_device_views.py",
-   "sha256": "fd13b9929c668814238cdd02ac33c32d0e341faded2594ccf6eeeeac45e6784e",
+   "sha256": "7a208bda25b5e742b71f955f130f5f64a11439395cb7238b1668051bac3ffad1",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7545,7 +7532,7 @@
   },
   {
    "path": "tools/test_device_views.py",
-   "sha256": "a0c773da085e7ae24ba433f598d330f99b0dd2b39f973617d6fe9d9345da0566",
+   "sha256": "39fceccdca9c26fd64edfe84ce4378d441bbc13a4bcba4853054e2300214ed26",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7577,7 +7564,7 @@
   },
   {
    "path": "3ds_port/src/3ds_device_party_impl.h",
-   "sha256": "c6643769d3c231fe0c4f12ca803a80dff39c376347e85189687c1efa7b25cdf0",
+   "sha256": "ec286519e716192f66d679e2677359605c530125b58c60835e8562db6ff09eec",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7586,6 +7573,22 @@
   {
    "path": "patches/pokefirered/0265-summary-reports-nature.json",
    "sha256": "f5098a88d7a0f84cb7813b5d4ff7f6f570412abe8f3de385970be06ef41e04fd",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "3ds_port/include/3ds_nature.h",
+   "sha256": "6a9706b02eac40df9cf84ce70b3997cb7424291208b3ea85e1af9ca7c8a1fa92",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "3ds_port/src/3ds_device_summary_impl.h",
+   "sha256": "3bf797149b1be992490c7497552f77a618410f7a9b04841214e1bda7d292e8e8",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
