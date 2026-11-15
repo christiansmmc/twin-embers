@@ -177,6 +177,104 @@ static int BattleFaults(void)
     return faults;
 }
 
+/* The Party's action menu: the keys DevPtyMenuKey draws and the D-pad rule the game's input follows (3ds_party_grid.h,
+ * recipe 0257) must agree. Judged from the drawn rectangles alone: UP / DOWN go to the neighbour above or below in the same
+ * drawn column and wrap at its ends, LEFT / RIGHT to the other column at the same height, or at the lowest row of the right
+ * column when it is shorter. (battle_ui_render_test.c's check, on the red device's keys: 28 px a row, 24 tall, one
+ * column at x 206 or two at 132 and 226.) */
+static void PartyMenuGrid(void)
+{
+    for (int n = 1; n <= 8; ++n) {
+        CtrPokeTouchRect r[8];
+        int xs[2], nx = 0;
+
+        for (int i = 0; i < n; ++i) {
+            r[i] = DevPtyMenuKey(n, i);
+            assert(Inside(r[i]) && r[i].h == 24 && r[i].w == (n > 4 ? 86 : 106));
+            assert(r[i].x == (n <= 4 ? 206 : CtrPartyGrid_Col(n, i) ? 226 : 132));
+            if (!nx || r[i].x != xs[nx - 1]) {
+                assert(nx < 2 && (nx == 0 || r[i].x > xs[0]));
+                xs[nx++] = r[i].x;
+            }
+            for (int j = 0; j < i; ++j)
+                assert(!Overlap(r[i], r[j]));
+        }
+        assert(nx == (n > 4 ? 2 : 1));
+        for (int i = 0; i < n; ++i) {
+            int top = 1 << 30, bottom = -1, otherBottom = -1, sameRow = -1;
+
+            if (i > 0 && r[i].x == r[i - 1].x)
+                assert(r[i].y == r[i - 1].y + 28);                       /* a column fills from the top, 28 px a row */
+            if (i > 0 && r[i].x != r[i - 1].x)
+                assert(r[i].y == r[0].y);                                /* the right column starts level with the left */
+            for (int j = 0; j < n; ++j) {
+                if (r[j].x == r[i].x) {
+                    if (r[j].y < top) top = r[j].y;
+                    if (r[j].y > bottom) bottom = r[j].y;
+                } else {
+                    if (r[j].y > otherBottom) otherBottom = r[j].y;
+                    if (r[j].y == r[i].y) sameRow = j;
+                }
+            }
+            for (int d = CTR_PGRID_UP; d <= CTR_PGRID_RIGHT; ++d) {
+                int to = CtrPartyGrid_Move(n, i, d);
+
+                if (n <= 4) {
+                    assert(to == -1);                                    /* one column: the game's own list input */
+                    continue;
+                }
+                assert(to >= 0 && to < n);
+                if (d == CTR_PGRID_UP) {
+                    assert(r[to].x == r[i].x && r[to].y == (r[i].y > top ? r[i].y - 28 : bottom));
+                } else if (d == CTR_PGRID_DOWN) {
+                    assert(r[to].x == r[i].x && r[to].y == (r[i].y < bottom ? r[i].y + 28 : top));
+                } else {
+                    assert(r[to].x != r[i].x && r[to].y == (sameRow >= 0 ? r[i].y : otherBottom));
+                    assert(sameRow < 0 || to == sameRow);
+                }
+            }
+        }
+    }
+}
+
+/* The Party (boards B · POKeMON and its menu): the brief's numbers; the bays two to a row; with a menu the slim bays
+ * left of its keys, none of them reaching the menu's screen; each screen above nothing it would cover. */
+static int PartyFaults(void)
+{
+    int faults = 0;
+
+    assert(Same(kDevPtyNote, (CtrPokeTouchRect){8, 180, 222, 52}) && Same(kDevPtyCancel, (CtrPokeTouchRect){238, 180, 74, 50}));
+    assert(Same(kDevPtyConfirm, (CtrPokeTouchRect){238, 180, 74, 22}) && Same(kDevPtyCancelLow, (CtrPokeTouchRect){238, 206, 74, 24}));
+    assert(Same(kDevPtyMenuNote, (CtrPokeTouchRect){8, 182, 304, 50}) && Same(kDevPtyLevelScreen, (CtrPokeTouchRect){8, 8, 304, 166}));
+    for (int i = 0; i < 6; ++i) {
+        assert(Same(DevPtyBay(i), (CtrPokeTouchRect){(int16_t)(i & 1 ? 164 : 8), (int16_t)(8 + 56 * (i >> 1)), 148, 50}));
+        if (DevPtyBay(i).y + DevPtyBay(i).h + DEV_DROP > kDevPtyNote.y || DevPtyBay(i).y + DevPtyBay(i).h + DEV_DROP > kDevPtyCancel.y) {
+            fprintf(stderr, "Party: bay %d reaches the screen or CANCEL\n", i);
+            ++faults;
+        }
+    }
+    for (int n = 0; n <= 8; ++n)
+        for (int i = 0; i < 6; ++i) {
+            CtrPokeTouchRect s = DevPtySlim(n, i);
+
+            assert(Same(s, (CtrPokeTouchRect){8, (int16_t)(8 + 28 * i), (int16_t)(n <= 4 ? 188 : 116), 24}));
+            if (!Inside(s) || s.y + s.h + DEV_DROP > kDevPtyMenuNote.y) {
+                fprintf(stderr, "Party: slim bay %d (menu of %d) reaches the menu's screen\n", i, n);
+                ++faults;
+            }
+            for (int k = 0; k < n; ++k)
+                if (Overlap(s, DevPtyMenuKey(n, k)) || DevPtyMenuKey(n, k).y + DevPtyMenuKey(n, k).h + DEV_DROP > kDevPtyMenuNote.y) {
+                    fprintf(stderr, "Party: menu key %d of %d meets slim bay %d or the menu's screen\n", k, n, i);
+                    ++faults;
+                }
+        }
+    if (kDevPtyLevelScreen.y + kDevPtyLevelScreen.h + 1 > kDevPtyNote.y) {
+        fprintf(stderr, "Party: the level-up screen (with its light row) reaches the note\n");
+        ++faults;
+    }
+    return faults;
+}
+
 int main(void)
 {
     /* Every rectangle the header holds, by name, and the keys of each view state. */
@@ -185,6 +283,15 @@ int main(void)
     const CtrPokeTouchRect batTrainer[] = {kDevBatFight, kDevBatRow3[0], kDevBatRow3[1], kDevBatRow3[2]};
     const CtrPokeTouchRect batWild[] = {kDevBatFight, kDevBatRow4[0], kDevBatRow4[1], kDevBatRow4[2], kDevBatRow4[3]};
     const CtrPokeTouchRect batMoves[] = {kDevBatMove[0], kDevBatMove[1], kDevBatMove[2], kDevBatMove[3], kDevBatCancel};
+    const CtrPokeTouchRect ptyBays[] = {DevPtyBay(0), DevPtyBay(1), DevPtyBay(2), DevPtyBay(3), DevPtyBay(4), DevPtyBay(5),
+                                        kDevPtyCancel};
+    const CtrPokeTouchRect ptyMulti[] = {DevPtyBay(0), DevPtyBay(1), DevPtyBay(2), DevPtyBay(3), DevPtyBay(4), DevPtyBay(5),
+                                         kDevPtyConfirm, kDevPtyCancelLow};
+    const CtrPokeTouchRect ptyOk[] = {kDevPtyCancel};
+    CtrPokeTouchRect ptyMenu[8][8];
+    DevGroup ptyMenus[8];
+    static const char *const kMenuName[8] = {"Party menu of 1", "Party menu of 2", "Party menu of 3", "Party menu of 4",
+                                             "Party menu of 5", "Party menu of 6", "Party menu of 7", "Party menu of 8"};
     const DevNamedRect rects[] = {
         {"HOME screen", kDevHomeScreen}, {"HOME POKeDEX", kDevHomeKey[0]}, {"HOME POKeMON", kDevHomeKey[1]},
         {"HOME BAG", kDevHomeKey[2]}, {"HOME card", kDevHomeKey[3]}, {"HOME SAVE", kDevHomeKey[4]},
@@ -197,12 +304,24 @@ int main(void)
         {"battle BAG (4)", kDevBatRow4[0]}, {"battle BALL", kDevBatRow4[1]}, {"battle POKeMON (4)", kDevBatRow4[2]},
         {"battle RUN (4)", kDevBatRow4[3]}, {"battle move 0", kDevBatMove[0]}, {"battle move 1", kDevBatMove[1]},
         {"battle move 2", kDevBatMove[2]}, {"battle move 3", kDevBatMove[3]}, {"battle CANCEL", kDevBatCancel},
+        {"Party note", kDevPtyNote}, {"Party CANCEL", kDevPtyCancel}, {"Party CONFIRM", kDevPtyConfirm},
+        {"Party CANCEL (several)", kDevPtyCancelLow}, {"Party menu's screen", kDevPtyMenuNote},
+        {"Party level-up screen", kDevPtyLevelScreen}, {"Party bay 0", DevPtyBay(0)}, {"Party bay 5", DevPtyBay(5)},
     };
     const DevGroup groups[] = {DEV_GROUP("HOME", homeKeys), DEV_GROUP("battle, a trainer", batTrainer),
-                               DEV_GROUP("battle, wild", batWild), DEV_GROUP("battle moves", batMoves)};
+                               DEV_GROUP("battle, wild", batWild), DEV_GROUP("battle moves", batMoves),
+                               DEV_GROUP("Party", ptyBays), DEV_GROUP("Party, several", ptyMulti),
+                               DEV_GROUP("Party level up", ptyOk)};
     int faults = 0;
 
     RulesCatchFaults();
+    PartyMenuGrid();
+    for (int n = 1; n <= 8; ++n) {          /* the menu's keys of each size: a group each */
+        for (int i = 0; i < n; ++i)
+            ptyMenu[n - 1][i] = DevPtyMenuKey(n, i);
+        ptyMenus[n - 1] = (DevGroup){kMenuName[n - 1], ptyMenu[n - 1], n};
+        faults += GroupFaults(&ptyMenus[n - 1]);
+    }
     for (unsigned i = 0; i < sizeof(rects) / sizeof(rects[0]); ++i)
         if (!Inside(rects[i].r)) {
             const CtrPokeTouchRect *r = &rects[i].r;
@@ -214,6 +333,7 @@ int main(void)
         faults += GroupFaults(&groups[i]);
     faults += HomeFaults();
     faults += BattleFaults();
+    faults += PartyFaults();
     assert(faults == 0);
     puts("PASS device layout");
     return 0;

@@ -1,7 +1,8 @@
-"""The battle Bag and Party keep the "Llama" look (the owner's mockup, llama2_mockup.html) until they are redone as
-the red device; the rest of the battle's lower screen is the red device's (test_device_views.py's battle suite).
+"""The battle Bag keeps the "Llama" look (the owner's mockup, llama2_mockup.html) until it is redone as the red
+device; the rest of the battle's lower screen and the Party are the red device's (test_device_views.py's battle and
+party suites).
 
-Draws the Bag and the Party (and the Summary) through the production renderer with synthetic bridges
+Draws the Bag (and the Summary) through the production renderer with synthetic bridges
 (3ds_port/tests/battle_ui_render_test.c): incremental updates equal full redraws, no colour of the shared navy theme
 remains, the touch areas answer where the cards are drawn, and the fallback icons (no pack) move nothing. Up to the
 Ascuas restyle this test also compared the buttons' hit areas and every state's silhouette with the renderer before it

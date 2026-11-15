@@ -74,7 +74,6 @@ static inline void CtrTextCase_Battle(CtrBattleView *v)
     }
     CTR_CASE_ALL(v->activeTypeName);
     CTR_CASE_ALL(v->bag.menuName);
-    CTR_CASE_ALL(v->pty.menuName);
 }
 
 #undef CTR_CASE

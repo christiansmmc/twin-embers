@@ -2,6 +2,7 @@
 #define CTR_DEVICE_LAYOUT_H
 
 #include "3ds_poketouch.h"
+#include "3ds_party_grid.h"     /* the Party's menu: its grid */
 
 /*
  * The red device (style B): the rectangles of the lower screen's B views, in screen pixels, taken from the owner's
@@ -77,6 +78,45 @@ static inline CtrPokeTouchRect DevBatBallArrow(const CtrPokeTouchRect *r, int ne
     CtrPokeTouchRect a = {(int16_t)(next ? r->x + r->w - 22 : r->x + 2), (int16_t)(r->y + 38), 20, 20};
 
     return a;
+}
+
+/* ---- The Party (boards B · POKeMON and B · POKeMON: menu de ações, 3ds_device_party_impl.h) ------------------------------
+ * The field's and the battle's alike. The six bays two to a row in the game's order, the screen under them with what the
+ * Party says, CANCEL beside it (picking several: CONFIRM over a shorter CANCEL). With the action menu or YES / NO open
+ * (n rows) the bays become a column of slim ones and the rows keys beside them: one column of up to four as on the
+ * board, two columns beyond with the slim bays narrowed, as the game's D-pad walks them (3ds_party_grid.h, recipe 0257);
+ * the menu's screen takes the whole width under them. A Rare Candy's level up: a tall screen, OK in CANCEL's place. */
+static const CtrPokeTouchRect kDevPtyNote __attribute__((unused)) = {8, 180, 222, 52};
+static const CtrPokeTouchRect kDevPtyCancel __attribute__((unused)) = {238, 180, 74, 50};
+static const CtrPokeTouchRect kDevPtyConfirm __attribute__((unused)) = {238, 180, 74, 22};
+static const CtrPokeTouchRect kDevPtyCancelLow __attribute__((unused)) = {238, 206, 74, 24};
+static const CtrPokeTouchRect kDevPtyMenuNote __attribute__((unused)) = {8, 182, 304, 50};
+static const CtrPokeTouchRect kDevPtyLevelScreen __attribute__((unused)) = {8, 8, 304, 166};
+
+/* Slot i's bay (0-5): left to right, then down. */
+static inline CtrPokeTouchRect DevPtyBay(int i)
+{
+    CtrPokeTouchRect r = {(int16_t)(i & 1 ? 164 : 8), (int16_t)(8 + 56 * (i >> 1)), 148, 50};
+
+    return r;
+}
+
+/* Slot i's slim bay while a menu of n rows is open: the board's 188 wide beside one column, 116 beside two. */
+static inline CtrPokeTouchRect DevPtySlim(int n, int i)
+{
+    CtrPokeTouchRect r = {8, (int16_t)(8 + 28 * i), (int16_t)(n <= 4 ? 188 : 116), 24};
+
+    return r;
+}
+
+/* Row i's key of a menu of n rows: its column and row are the game's grid's (CtrPartyGrid_Col / _Row). */
+static inline CtrPokeTouchRect DevPtyMenuKey(int n, int i)
+{
+    int col = CtrPartyGrid_Col(n, i), row = CtrPartyGrid_Row(n, i);
+    CtrPokeTouchRect r = {(int16_t)(CtrPartyGrid_Cols(n) == 2 ? 132 + 94 * col : 206), (int16_t)(8 + 28 * row),
+                          (int16_t)(CtrPartyGrid_Cols(n) == 2 ? 86 : 106), 24};
+
+    return r;
 }
 
 #endif

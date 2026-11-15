@@ -1,7 +1,8 @@
-/* The battle Bag and Party (the ember look left in 3ds_battle_ui_impl.h) and the Summary through the production renderer
- * with synthetic game bridges; the rest of the battle screen is the red device's (device_render_test.c's battle suite).
+/* The battle Bag (the ember look left in 3ds_battle_ui_impl.h) and the Summary through the production renderer with
+ * synthetic game bridges; the rest of the battle screen and the Party are the red device's (device_render_test.c's
+ * battle and party suites).
  *
- * The Bag with its menu and message and the Party with its modals are drawn; each press, cursor move and state change
+ * The Bag with its menu and message is drawn; each press, cursor move and state change
  * must leave the canvas exactly as a full redraw would (the dirty rectangles are complete); the screen is the PokeTouch
  * red (no navy of the shared theme remains in it) and the buttons' hit areas answer to the same points as before. No ROM-derived data: the font is blank unless BATTLE_UI_FONT names
  * a 256x64-byte glyph file (a local viewing aid), and BATTLE_UI_OUT names a directory for one PPM per state.
@@ -89,7 +90,7 @@ int CtrPokeTouch_MarkShape(int mark, unsigned char *indexes) { (void)mark; (void
 int CtrPokeTouch_MapCursorIcon(uint8_t *tiles, uint16_t *pal) { (void)tiles; (void)pal; return 0; }
 int CtrBottomParty_Icon(int slot, unsigned char *tiles, unsigned short *pal)
 {
-    /* A flat 32x32 icon in the slot's own colour, so the plate and the faint tone are visible. */
+    /* A flat 32x32 icon in the slot's own colour. */
     memset(tiles, 0x11, 512); memset(pal, 0, 32);
     pal[1] = (unsigned short)((slot * 5 + 6) | (31 - slot * 4) << 5 | (slot * 3) << 10);
     return 1;
@@ -265,64 +266,6 @@ static void names(char *dst, size_t n, const char *s) { snprintf(dst, n, "%s", s
 /* A name of the game's text: proper case, as the Bag's reader gives it (3ds_bottom.c CtrBottomBag_ItemName). */
 static void gnames(char *dst, size_t n, const char *s) { names(dst, n, s); CtrTextCase(dst); }
 
-/* The Party's action menu: the rows BPMenuRow draws and the D-pad rule the game's input follows (3ds_party_grid.h, recipe 0257) must
- * agree. Judged from the drawn rectangles alone: UP / DOWN go to the neighbour above or below in the same drawn column and wrap at its
- * ends, LEFT / RIGHT to the other column at the same height, or at the lowest row of the right column when it is shorter. */
-static void partyMenuGrid(void)
-{
-    for (int n = 1; n <= 8; ++n) {
-        CtrPokeTouchRect r[8];
-        int xs[2], nx = 0;
-
-        for (int i = 0; i < n; ++i) {
-            r[i] = BPMenuRow(n, i);
-            assert(r[i].x >= 0 && r[i].x + r[i].w <= 320 && r[i].y >= 0 && r[i].y + r[i].h <= 240 && r[i].h == 27);
-            if (!nx || r[i].x != xs[nx - 1]) {
-                assert(nx < 2 && (nx == 0 || r[i].x > xs[0]));
-                xs[nx++] = r[i].x;
-            }
-            for (int j = 0; j < i; ++j)
-                assert(r[i].x + r[i].w <= r[j].x || r[j].x + r[j].w <= r[i].x || r[i].y + r[i].h <= r[j].y || r[j].y + r[j].h <= r[i].y);
-        }
-        assert(nx == (n > 4 ? 2 : 1));
-        for (int i = 0; i < n; ++i) {
-            int top = 1 << 30, bottom = -1, otherTop = 1 << 30, otherBottom = -1, sameRow = -1;
-
-            if (i > 0 && r[i].x == r[i - 1].x)
-                assert(r[i].y == r[i - 1].y + 30);                       /* a column fills from the top, 30 px a row */
-            if (i > 0 && r[i].x != r[i - 1].x)
-                assert(r[i].y == r[0].y);                                /* the right column starts level with the left */
-            for (int j = 0; j < n; ++j) {
-                if (r[j].x == r[i].x) {
-                    if (r[j].y < top) top = r[j].y;
-                    if (r[j].y > bottom) bottom = r[j].y;
-                } else {
-                    if (r[j].y < otherTop) otherTop = r[j].y;
-                    if (r[j].y > otherBottom) otherBottom = r[j].y;
-                    if (r[j].y == r[i].y) sameRow = j;
-                }
-            }
-            for (int d = CTR_PGRID_UP; d <= CTR_PGRID_RIGHT; ++d) {
-                int to = CtrPartyGrid_Move(n, i, d);
-
-                if (n <= 4) {
-                    assert(to == -1);                                    /* one column: the game's own list input */
-                    continue;
-                }
-                assert(to >= 0 && to < n);
-                if (d == CTR_PGRID_UP) {
-                    assert(r[to].x == r[i].x && r[to].y == (r[i].y > top ? r[i].y - 30 : bottom));
-                } else if (d == CTR_PGRID_DOWN) {
-                    assert(r[to].x == r[i].x && r[to].y == (r[i].y < bottom ? r[i].y + 30 : top));
-                } else {
-                    assert(r[to].x != r[i].x && r[to].y == (sameRow >= 0 ? r[i].y : otherBottom));
-                    assert(sameRow < 0 || to == sameRow);
-                }
-            }
-        }
-    }
-}
-
 int main(int argc, char **argv)
 {
     const char *out = getenv("BATTLE_UI_OUT"), *fontPath = getenv("BATTLE_UI_FONT");
@@ -330,7 +273,6 @@ int main(int argc, char **argv)
     int k;
 
     (void)argv;
-    partyMenuGrid();
 #ifndef BATTLE_UI_EXTERNAL_LOAD
 #ifndef BATTLE_UI_BEFORE
     gNoPack = getenv("BATTLE_UI_NO_PACK") != NULL;
@@ -379,8 +321,8 @@ int main(int argc, char **argv)
     memset(&v, 0, sizeof(v));
     v.pressed = -1;
 
-    /* BAG (the ember look's, as the Party below; the commands, the moves, the targets, Safari and idle are the red
-     * device's: device_render_test.c's battle suite) */
+    /* BAG (the ember look's; the commands, the moves, the targets, Safari, idle and the Party are the red device's:
+     * device_render_test.c's battle and party suites) */
     v.state = BUI_BAG;
     {
         CtrBattleBag *b = &v.bag;
@@ -422,59 +364,6 @@ int main(int argc, char **argv)
     settle(&old, &v); old = v; put(out, "09_bag_menu"); hits(&v);
     v.bag.menuCount = 0; names(v.bag.message, sizeof(v.bag.message), "The POKeMON's HP was restored by 50 points.");
     settle(&old, &v); old = v; put(out, "10_bag_message"); v.bag.message[0] = 0; settle(&old, &v); old = v;
-
-    /* PARTY */
-    v.state = BUI_PARTY;
-    {
-        CtrBattleParty *p = &v.pty;
-        static const char *const nm[6] = {"CHARIZARD", "PIDGEOT", "SNORLAX", "ALAKAZAM", "GENGAR", "BLASTOISE"};
-
-        for (k = 0; k < 6; ++k) {
-            p->present[k] = 1; p->level[k] = (uint8_t)(50 + k); p->maxHp[k] = 150; p->hp[k] = (uint16_t)(150 - 30 * k);
-            p->icon[k] = (uint16_t)(k + 1); names(p->name[k], sizeof(p->name[k]), nm[k]);
-        }
-        p->status[1] = 2; p->status[4] = 5; p->hp[3] = 0; p->cursor = 2; p->mode = BUI_PTY_SWITCH;
-    }
-    settle(&old, &v); old = v; put(out, "11_party"); hits(&v);
-#ifndef BATTLE_UI_BEFORE
-    /* Llama: the six cards are 150 x 51 at x 8 and 162, y 6, 59 and 112, two px apart down the columns; the text window answers nothing. */
-    assert(CtrBattleUi_Hit(&v, 8 + 75, 6 + 25) == BUI_PTY_SLOT && CtrBattleUi_Hit(&v, 162 + 75, 6 + 25) == BUI_PTY_SLOT + 1);
-    assert(CtrBattleUi_Hit(&v, 162 + 75, 59 + 25) == BUI_PTY_SLOT + 3 && CtrBattleUi_Hit(&v, 8 + 75, 112 + 25) == BUI_PTY_SLOT + 4);
-    assert(CtrBattleUi_Hit(&v, 8 + 75, 57 + 1) == -1 && CtrBattleUi_Hit(&v, 160, 30) == -1 && CtrBattleUi_Hit(&v, 100, 200) == -1);
-    assert(CtrBattleUi_Hit(&v, 240 + 36, 170 + 30) == BUI_PTY_CANCEL && CtrBattleUi_Hit(&v, 240 + 36, 169) == -1);
-#endif
-    v.pressed = BUI_PTY_SLOT + 1; settle(&old, &v); old = v; v.pressed = -1; settle(&old, &v); old = v;
-    v.pressed = BUI_PTY_CANCEL; settle(&old, &v); old = v; put(out, "12_party_cancel_pressed"); v.pressed = -1; settle(&old, &v); old = v;
-    v.pty.panel = BUI_PTY_ACTIONS; v.pty.menuCount = 3; v.pty.menuCursor = 0;
-    names(v.pty.menuName[0], 14, "SHIFT"); names(v.pty.menuName[1], 14, "SUMMARY"); names(v.pty.menuName[2], 14, "CANCEL");
-    settle(&old, &v); old = v; put(out, "13_party_menu"); hits(&v);
-    v.pty.panel = BUI_PTY_YESNO; v.pty.menuCount = 2; names(v.pty.menuName[0], 14, "YES"); names(v.pty.menuName[1], 14, "NO");
-    settle(&old, &v); old = v;
-    v.pty.panel = BUI_PTY_TEXT; names(v.pty.message, sizeof(v.pty.message), "CHARIZARD is already in battle!");
-    settle(&old, &v); old = v; put(out, "14_party_message"); hits(&v);
-    v.pty.panel = BUI_PTY_NONE; v.pty.tag[0] = BUI_PTY_TAG_ABLE; v.pty.tag[1] = BUI_PTY_TAG_NOT_ABLE; v.pty.tag[2] = BUI_PTY_TAG_LEARNED;
-    v.pty.tag[3] = BUI_PTY_TAG_NO_USE; v.pty.tag[4] = BUI_PTY_TAG_ABLE; settle(&old, &v); old = v; put(out, "12b_party_teach");
-    memset(v.pty.tag, 0, sizeof(v.pty.tag)); settle(&old, &v); old = v;
-    v.pty.mode = BUI_PTY_FORCED; settle(&old, &v); old = v; put(out, "15_party_forced"); hits(&v);
-#ifndef BATTLE_UI_BEFORE
-    /* A Rare Candy's level up: the card over the slots with the new stats, OK in CANCEL's place; pressed and not. */
-    v.pty.mode = BUI_PTY_SWITCH; v.pty.panel = BUI_PTY_LEVELUP; v.pty.lvSlot = 0; v.pty.lvLevel = 51;
-    for (k = 0; k < 6; ++k) { v.pty.lvStat[k] = (uint16_t)(120 + 9 * k); v.pty.lvGain[k] = (int16_t)(1 + k % 3); }
-    names(v.pty.message, sizeof(v.pty.message), "CHARIZARD grew to Lv. 51!");
-    settle(&old, &v); old = v; put(out, "15b_party_levelup");
-    v.pressed = BUI_PTY_MESSAGE; settle(&old, &v); old = v; v.pressed = -1; settle(&old, &v); old = v;
-    v.pty.panel = BUI_PTY_NONE; v.pty.mode = BUI_PTY_FORCED; settle(&old, &v); old = v;
-    /* Picking several (a link battle): CONFIRM over CANCEL, the order on the picked cards; the cursor on each button in turn. */
-    v.pty.mode = BUI_PTY_MULTI; v.pty.button = 0;
-    for (k = 0; k < 6; ++k) v.pty.entry[k] = BUI_PTY_ABLE;
-    v.pty.entry[1] = BUI_PTY_FIRST; v.pty.entry[2] = BUI_PTY_FIRST + 1; v.pty.entry[3] = BUI_PTY_NOT_ABLE;
-    settle(&old, &v); old = v; put(out, "15c_party_multi");
-    v.pty.button = 1; settle(&old, &v); old = v;
-    v.pressed = BUI_PTY_CONFIRM; settle(&old, &v); old = v; v.pressed = BUI_PTY_CANCEL; settle(&old, &v); old = v; v.pressed = -1; settle(&old, &v); old = v;
-    assert(CtrBattleUi_Hit(&v, 270, 185) == BUI_PTY_CONFIRM && CtrBattleUi_Hit(&v, 270, 220) == BUI_PTY_CANCEL);
-    v.pty.mode = BUI_PTY_FORCED; v.pty.button = -1; memset(v.pty.entry, 0, sizeof(v.pty.entry)); settle(&old, &v); old = v;
-#endif
-    v.state = BUI_BAG; settle(&old, &v); old = v;          /* from the Party back to the Bag: drawn whole */
 
     /* SUMMARY */
     {
@@ -552,7 +441,7 @@ int main(int argc, char **argv)
                                         UI_BORDER_LIT, UI_SEPARATOR, UI_TEXT_SH, UI_TEXT_DIM,
                                         UI_RGB(34, 56, 100)};      /* (UI_PANEL_LO and UI_HP_TRACK are left out: the Llama slate pieces, #14182c and #20263f, squeeze to them) */
         CtrBattleView s = v;
-        int states[] = {BUI_BAG, BUI_PARTY};       /* the ember states left (the others are the red device's) */
+        int states[] = {BUI_BAG};                  /* the ember state left (the others are the red device's) */
 
         for (size_t i = 0; i < sizeof(states) / sizeof(states[0]); ++i) {
             s.state = (uint8_t)states[i];

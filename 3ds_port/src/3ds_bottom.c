@@ -4928,8 +4928,8 @@ void CtrBottom_Frame(void)
     if (!nav) {
         state.touch.shell = state.battle.shell = state.sum.shell = (uint8_t)CtrOptions_Shell();
         if (state.battleUi) {
-            if (state.battle.state == BUI_PARTY || state.battle.state == BUI_BAG)
-                CtrTextCase_Battle(&state.battle);  /* the other states are the red device's: FireRed's capitals */
+            if (state.battle.state == BUI_BAG)
+                CtrTextCase_Battle(&state.battle);  /* the other states (the Party too) are the red device's: FireRed's capitals */
         } else if (!state.touch.home || state.touch.viewport)
             CtrTextCase_Touch(&state.touch);    /* HOME is the red device's: FireRed's capitals (DevUpper) */
     }

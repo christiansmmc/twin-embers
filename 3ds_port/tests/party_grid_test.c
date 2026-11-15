@@ -1,6 +1,6 @@
 /* The Party's action menu grid (3ds_party_grid.h): the layout of up to eight actions in one column or two, and the D-pad rule the game's input
  * (recipe 0257) walks it by. Every count, every cell, every direction. The drawing's own rectangles are checked against the same rule in
- * battle_ui_render_test.c (BPMenuRow), so the layout and the D-pad cannot drift apart.
+ * device_layout_test.c (DevPtyMenuKey), so the layout and the D-pad cannot drift apart.
  *
  * usage: party_grid_test */
 #include <assert.h>

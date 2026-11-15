@@ -273,6 +273,7 @@ static unsigned GlyphCode(const char **s)
         case ')': code=0x5d; break; case '%': code=0x5b; break;
         case '=': code=0x35; break; case ';': code=0x36; break;   /* BUTTON MODE's "L=A", the NUZLOCKE note */
         case '\'': code=0xb4; break; case '"': code=0xb2; break;   /* FireRed's closing quotes: KING'S ROCK, 2'00" */
+        case '+': code=0x2e; break;                                 /* a level up's gains, "+2" */
         default: break;
     }
     return code;
@@ -1554,6 +1555,7 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
 #include "3ds_battle_ui_impl.h"
 #include "3ds_device_kit_impl.h"   /* the red device (style B): its kit, for the B views below */
 #include "3ds_device_home_impl.h"  /* HOME */
+#include "3ds_device_party_impl.h"  /* the Party: bays, its menu, YES / NO, a message, the level up */
 #include "3ds_device_battle_impl.h"  /* the battle: commands, moves, targets, Safari, idle */
 #include "3ds_summary_ui_impl.h"
 #include "3ds_field_bag_impl.h"

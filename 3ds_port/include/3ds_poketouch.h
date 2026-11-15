@@ -572,10 +572,11 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo);
  * across it for the others, CTR_ACTION_BALL as the controller's cursor). In the battle Bag (BUI_BAG, the Bag FireRed
  * opens from BAG) it is a remote for that Bag: its items (the Items pocket: the balls have their button, the key items
  * stay out but for the Berry Pouch, which BERRIES opens) with icon and quantity, the selected item's detail, and
- * CANCEL; what it shows is the Bag's own state and save data. In the battle Party (BUI_PARTY:
- * a switch, the replacement for a Pokemon that fainted, or the target of an item) it is a remote for FireRed's Party: the
- * six Pokemon as panels in two columns (sprite, name, level, HP bar and numbers, status), its menu or message when it has one
- * open, and CANCEL unless the Party cannot be cancelled.
+ * CANCEL; what it shows is the Bag's own state and save data. In the Party (BUI_PARTY, the field's and the battle's: a
+ * switch, the replacement for a Pokemon that fainted, the target of an item; 3ds_device_party_impl.h) it is a remote for
+ * FireRed's Party, drawn as the red device: the six Pokemon as bays in two columns (icon, name, HP bar and numbers, level
+ * or condition), the screen with what the Party says, its menu or message when it has one open, and CANCEL unless the
+ * Party cannot be cancelled.
  */
 enum { BUI_IDLE = 0, BUI_ACTION, BUI_MOVE, BUI_BAG, BUI_PARTY, BUI_TARGET, BUI_SAFARI };
 /* Buttons (CtrBattleUi_Hit): the controller's action numbers while choosing an action, the move slots 0-3 and
@@ -639,19 +640,22 @@ typedef struct {
     uint8_t level[6];
     uint16_t hp[6], maxHp[6];
     uint16_t icon[6];               /* FireRed's icon species of the slot (the icon is read through the bridge) */
-    uint8_t iconFrame[6];           /* bit 0: which of the icon's two frames it shows (0 when fainted); bit 1: the hop's phase */
+    uint8_t iconFrame[6];           /* bit 0: which of the icon's two frames it shows (0 when fainted); bit 1: the hop's phase
+                                     * (not drawn: the bays show frame 0) */
     char name[6][11];
+    uint8_t nameIsSpecies[6];       /* the name is its species' own (shown in capitals), not one the player gave */
     int8_t cursor;                  /* the Party's own selection: a slot 0-5 */
     uint8_t mode;                   /* BUI_PTY_SWITCH, BUI_PTY_TARGET (an item's target), BUI_PTY_FORCED (no CANCEL) */
     uint8_t panel;                  /* BUI_PTY_*: what the Party has open over the slots */
     uint8_t menuCount;              /* its menu's rows (SHIFT, SUMMARY, CANCEL; YES, NO; the field's up to 8) */
     int8_t menuCursor;
     char menuName[8][14];
+    uint8_t menuBlue, menuDark;     /* bit i for menu row i: a field move (its name in blue), CANCEL (a dark key); 0 for YES / NO */
     char message[96];
     char caption[64];               /* what the Party says under the slots ("" for the mode's own words) */
-    uint8_t lead;                   /* the slots in the left column, as FireRed lays them out (1, or 2 in a double) */
+    uint8_t lead;                   /* the slots in the left column, as FireRed lays them out (1, or 2 in a double; not drawn) */
     uint8_t entry[6];               /* BUI_PTY_MULTI: BUI_PTY_NOT_ABLE, BUI_PTY_ABLE, or BUI_PTY_FIRST + its place in the order */
-    int8_t button;                  /* BUI_PTY_MULTI: the Party's cursor on CONFIRM (0) or CANCEL (1), else -1 */
+    int8_t button;                  /* the Party's cursor on CONFIRM (0, BUI_PTY_MULTI only) or CANCEL (1), else -1 */
     uint8_t tag[6];                 /* BUI_PTY_TAG_*: ABLE / NOT ABLE / LEARNED (a TM, HM or tutor move), NO USE (a stone) */
     uint8_t lvSlot, lvLevel;        /* BUI_PTY_LEVELUP: the Pokemon's slot and its new level */
     uint16_t lvStat[6];             /* its new stats, in the Summary's order (HP, ATTACK, DEFENSE, SP. ATK, SP. DEF, SPEED) */
@@ -675,7 +679,7 @@ typedef struct {
     uint8_t state;                  /* BUI_* */
     int16_t pressed;                /* the button held under a touch, or -1 */
     int8_t cursor;                  /* the controller's own cursor: the chosen key, unless a touch holds another */
-    uint8_t showCursor;             /* the last input was a button (the ember Party and Bag draw the cursor only then) */
+    uint8_t showCursor;             /* the last input was a button (not drawn: the red device always shows the cursor) */
     uint8_t party[6];               /* 0 no Pokemon, 1 able, 2 fainted, 3 status condition */
     uint8_t partyHp[6];             /* HP left as a percentage (an egg: 100) */
     uint8_t partyStatus[6];         /* 0 none, else 1..6 PSN PAR SLP FRZ BRN PKRS */

@@ -238,10 +238,52 @@ static uint8_t PartyTag(const char *text)
     return BUI_PTY_TAG_NONE;
 }
 
-/* Picking several: the page's arrow is on CONFIRM (0) or CANCEL (1) when the cursor, as echoed, is past the slots. */
+/* The Party's cursor, as echoed, past the slots: on CONFIRM (0, FireRed's slot 6, only when picking several) or CANCEL
+ * (1, its slot 7); -1 on a slot. The red device sinks that key. */
 static int8_t PartyButton(int multi, int cursor)
 {
-    return (int8_t)(multi && cursor >= PARTY_SIZE ? cursor - PARTY_SIZE : -1);
+    if (cursor == PARTY_SIZE + 1)
+        return 1;
+    return (int8_t)(multi && cursor == PARTY_SIZE ? 0 : -1);
+}
+
+/* The Party's action ids (CtrBottomParty_ActionId) the red device marks: party_menu.h's own (src/data/party_menu.h,
+ * its CURSOR_OPTION_* enum), named the same. */
+#define CURSOR_OPTION_CANCEL1 2
+#define CURSOR_OPTION_CANCEL2 9
+#define CURSOR_OPTION_FIELD_MOVES 18     /* the field moves are numbered from here (and HEAL, REMEMBER after them) */
+
+/* The rows of the Party's action menu the red device marks, bit i for row i: `blue`, a field move (FireRed draws their
+ * names in blue); `dark`, CANCEL (a dark key: it leaves). */
+static void PartyMenuMarks(const unsigned char *ids, int n, uint8_t *blue, uint8_t *dark)
+{
+    *blue = *dark = 0;
+    for (int i = 0; i < n && i < 8; ++i) {
+        if (ids[i] >= CURSOR_OPTION_FIELD_MOVES)
+            *blue |= (uint8_t)(1u << i);
+        if (ids[i] == CURSOR_OPTION_CANCEL1 || ids[i] == CURSOR_OPTION_CANCEL2)
+            *dark |= (uint8_t)(1u << i);
+    }
+}
+
+/* Whether slot `slot`'s Pokemon, of `species`, is called `name` by its species' own name (BatNameIsSpecies), kept per
+ * slot while the species and the name stay: the fill runs every frame. */
+static int PartyNameIsSpecies(int slot, const char *name, unsigned species)
+{
+    static struct {
+        unsigned species;
+        char name[16];
+        int is;
+    } kept[6];
+
+    if (slot < 0 || slot >= 6)
+        return 0;
+    if (kept[slot].species != species || strncmp(kept[slot].name, name, sizeof(kept[slot].name))) {
+        kept[slot].species = species;
+        BatCopy(kept[slot].name, sizeof(kept[slot].name), name);
+        kept[slot].is = BatNameIsSpecies(name, species);
+    }
+    return kept[slot].is;
 }
 
 /* The battle Party as the Party is now (the lower screen's own Party snapshot `s`, which reads FireRed's Party): the six
@@ -262,7 +304,7 @@ static void BattlePartyFill(Snapshot *s)
     /* SEND_OUT cannot be cancelled. Out of battle the Party says what it is for itself (its own prompt). */
     p->mode = s->chooseMultiple ? BUI_PTY_MULTI : !CtrBottomParty_InBattle() ? BUI_PTY_SWITCH
             : action == 1 ? BUI_PTY_FORCED : action == 3 ? BUI_PTY_TARGET : BUI_PTY_SWITCH;
-    /* Picking several: FireRed's cursor may be on CONFIRM (slot 6) or CANCEL (7). */
+    /* FireRed's cursor may be on CANCEL (slot 7) or, picking several, CONFIRM (6). */
     p->button = PartyButton(p->mode == BUI_PTY_MULTI, cursor);
     p->lead = (uint8_t)(CtrBottomParty_Layout() == 0 ? 1 : 2);
     p->caption[0] = 0;
@@ -287,6 +329,7 @@ static void BattlePartyFill(Snapshot *s)
         else
             p->tag[i] = PartyTag(s->description[i]);
         snprintf(p->name[i], sizeof(p->name[i]), "%s", s->nick[i]);
+        p->nameIsSpecies[i] = (uint8_t)(!p->egg[i] && PartyNameIsSpecies(i, p->name[i], CtrBottomParty_Species(i)));
     }
     {
         int slot, level, stats[6], gains[6];
@@ -315,7 +358,9 @@ static void BattlePartyFill(Snapshot *s)
         if (sPlan.kind == PLAN_MENU && sPlan.target < n)
             p->menuCursor = (int8_t)sPlan.target;      /* the row touched, not the cursor on its way there */
         for (int i = 0; i < n; ++i)
-            BatCopy(p->menuName[i], sizeof(p->menuName[i]), s->panel == PANEL_YESNO ? (i == 0 ? CTR_TR("Yes", "S\xC3\xAD", "Ja") : CTR_TR("No", "No", "Nein")) : s->actionNames[i]);
+            BatCopy(p->menuName[i], sizeof(p->menuName[i]), s->panel == PANEL_YESNO ? (i == 0 ? CTR_TR("YES", "S\xC3\x8D", "JA") : CTR_TR("NO", "NO", "NEIN")) : s->actionNames[i]);
+        if (s->panel == PANEL_ACTIONS)
+            PartyMenuMarks(s->actionIds, n, &p->menuBlue, &p->menuDark);  /* YES / NO: neither */
     } else if (s->panel == PANEL_MESSAGE) {
         p->panel = BUI_PTY_TEXT;
         BatCopy(p->message, sizeof(p->message), s->message);

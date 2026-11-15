@@ -1,6 +1,7 @@
 /* The battle's lower screen as the red device (style B; boards B · Comandos and B · Golpes), included by
- * 3ds_poketouch.c after the kit and HOME. It owns CtrBattleUi_Draw / Update / Hit; the battle Party and Bag keep the
- * ember look for now (3ds_battle_ui_impl.h: BEmberDraw / BEmberUpdate / BEmberHit). Every rectangle is
+ * 3ds_poketouch.c after the kit, HOME and the Party. It owns CtrBattleUi_Draw / Update / Hit: the Party (the field's and
+ * the battle's, BUI_PARTY) is 3ds_device_party_impl.h's (DevPartyDraw / DevPartyHit / DevPartyUndrawn); the battle Bag
+ * keeps the ember look for now (3ds_battle_ui_impl.h: BEmberDraw / BEmberUpdate / BEmberHit). Every rectangle is
  * 3ds_device_layout.h's, so what is drawn is what a touch takes.
  *
  * ACTION, the commands: the shell with its four screws; the screen with the lead (its icon at 2x, its name, gender and
@@ -228,7 +229,9 @@ static const int kDevBatActs[5] = {BUI_ACT_FIGHT, BUI_ACT_BAG, CTR_ACTION_BALL, 
 
 int CtrBattleUi_Hit(const CtrBattleView *v, int x, int y)
 {
-    if (v->state == BUI_PARTY || v->state == BUI_BAG)
+    if (v->state == BUI_PARTY)
+        return DevPartyHit(v, x, y);
+    if (v->state == BUI_BAG)
         return BEmberHit(v, x, y);
     if (v->state == BUI_ACTION) {
         for (int i = 0; i < 5; ++i) {
@@ -291,16 +294,6 @@ static uint16_t DevBatInkShadow(int sunk)
     return sunk ? DEV_SUNK_INK_SH : DEV_WHITE;
 }
 
-/* A Pokemon's name as FireRed shows it: its species' own name in capitals (`species`: the fill found it is that, recipe
- * 0251 having title-cased the species names), a name the player gave as typed. */
-static const char *DevBatMonName(const char *name, int species, char *out, size_t size)
-{
-    if (!species)
-        return name;
-    DevUpper(out, name, size);
-    return out;
-}
-
 /* ---- The commands (board B · Comandos) and IDLE ---------------------------------------------------------------------- */
 
 /* The lead's icon at 2x: its frame 0's 24x24 from (4, 8), where FireRed's icons sit in their 32x32. */
@@ -322,7 +315,7 @@ static void DevBatLeadIcon(const CtrBattleView *v)
 static void DevBatLead(const CtrBattleView *v, int prompt)
 {
     char text[64], name[BUI_NAME_LEN + 8];
-    const char *shown = DevBatMonName(v->activeName, v->activeNameIsSpecies, name, sizeof(name));
+    const char *shown = DevMonName(v->activeName, v->activeNameIsSpecies, name, sizeof(name));
     int x = 76, w;
 
     DevScreen(&kDevBatScreen);
@@ -616,7 +609,7 @@ static void DevBatTargetKey(const CtrBattleView *v, int i)
     snprintf(text, sizeof(text), CTR_TR("Lv%u", "Nv%u", "Lv%u"), (unsigned)t->level);
     lvW = DevTextWidth(text);
     DevTextInk(text, r->x + r->w - 20 - lvW, faceY + 11, r->x + r->w - 20, DevBatInk(sunk), DevBatInkShadow(sunk));
-    DevTextInk(DevBatMonName(t->name, t->nameIsSpecies, name, sizeof(name)), r->x + 10, faceY + 11, r->x + r->w - 24 - lvW,
+    DevTextInk(DevMonName(t->name, t->nameIsSpecies, name, sizeof(name)), r->x + 10, faceY + 11, r->x + r->w - 24 - lvW,
                DevBatInk(sunk), DevBatInkShadow(sunk));
     DevChip(r->x + 10, faceY + 25, 40, 12, t->side ? CTR_TR("ALLY", "ALIADO", "PARTNER") : CTR_TR("FOE", "RIVAL", "GEGNER"),
             side, DevChipShadow(side));
@@ -690,12 +683,14 @@ static void DevBatSafari(const CtrBattleView *v, int idle)
 
 void CtrBattleUi_Draw(uint16_t *canvas, const CtrBattleView *v)
 {
-    if (v->state == BUI_PARTY || v->state == BUI_BAG) {
+    if (v->state == BUI_BAG) {
         BEmberDraw(canvas, v);
         return;
     }
     DevBegin(canvas, v->shell);
-    if (v->state == BUI_MOVE || v->state == BUI_TARGET)
+    if (v->state == BUI_PARTY)
+        DevPartyDraw(v);
+    else if (v->state == BUI_MOVE || v->state == BUI_TARGET)
         DevBatMoves(v);
     else if (v->state == BUI_SAFARI || (v->state == BUI_IDLE && v->safari))
         DevBatSafari(v, v->state != BUI_SAFARI);
@@ -755,19 +750,22 @@ static void DevBatUndrawn(CtrBattleView *still, const CtrBattleView *v)
         still->safari = v->safari;
 }
 
-/* From one Party to the next or one Bag to the next, the ember look's own; anything else: what a red device state draws
- * changed, the screen whole. */
+/* From one Bag to the next, the ember look's own; anything else: what a red device state draws changed (the Party's
+ * undrawn fields are its own, DevPartyUndrawn), the screen whole. */
 void CtrBattleUi_Update(uint16_t *canvas, const CtrBattleView *old, const CtrBattleView *v, CtrDirtyList *dirty)
 {
     CtrBattleView still;
 
-    if ((old->state == BUI_PARTY && v->state == BUI_PARTY) || (old->state == BUI_BAG && v->state == BUI_BAG)) {
+    if (old->state == BUI_BAG && v->state == BUI_BAG) {
         BEmberUpdate(canvas, old, v, dirty);
         return;
     }
     CtrDirty_Clear(dirty);
     still = *old;
-    DevBatUndrawn(&still, v);
+    if (v->state == BUI_PARTY)
+        DevPartyUndrawn(&still, v);
+    else
+        DevBatUndrawn(&still, v);
     if (memcmp(&still, v, sizeof(still))) {
         CtrBattleUi_Draw(canvas, v);
         CtrDirty_Add(dirty, 0, 0, W, H);

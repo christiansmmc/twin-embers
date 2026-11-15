@@ -571,6 +571,64 @@ int main(void) {
         doc = json.loads((ROOT / 'patches/pokefirered/0264-party-extras-switch.json').read_text())
         self.assertEqual([f['path'] for f in doc['files']], ['src/party_menu.c'])
 
+    def test_party_menu_marks(self):
+        """The B Party's action menu: a field move's name in blue (FireRed's own colour for them, ids from
+        CURSOR_OPTION_FIELD_MOVES on), CANCEL a dark key (CURSOR_OPTION_CANCEL1 or _CANCEL2); bit i for row i. The ids
+        are party_menu.h's, named the same in the fill."""
+        battle = (ROOT / '3ds_port/src/3ds_bottom_battle_fill_impl.h').read_text(encoding='utf-8')
+        ids = '\n'.join(re.findall(r'#define CURSOR_OPTION_\w+ +\d+', battle))
+        self.assertIn('PartyMenuMarks(', function(battle, 'BattlePartyFill'))
+        self.run_c('''
+#include <assert.h>
+#include <stdint.h>
+''' + ids + '\n' + function(battle, 'PartyMenuMarks') + '''
+int main(void)
+{
+    static const unsigned char a[] = {0, 1, 3, 19, 20, 2}, c[] = {10, 0, 2};
+    uint8_t b = 0xff, d = 0xff;
+
+    assert(CURSOR_OPTION_CANCEL1 == 2 && CURSOR_OPTION_CANCEL2 == 9 && CURSOR_OPTION_FIELD_MOVES == 18);
+    PartyMenuMarks(a, 6, &b, &d);
+    assert(b == 0x18 && d == 0x20);
+    PartyMenuMarks(c, 3, &b, &d);
+    assert(b == 0 && d == 0x04);
+    return 0;
+}
+''')
+
+    def test_party_names(self):
+        """The B Party shows a Pokemon's name in capitals when it is its species' own (the battle's rule), as typed when
+        the player gave it; the answer is kept per slot while its species and name stay (the fill runs every frame)."""
+        battle = (ROOT / '3ds_port/src/3ds_bottom_battle_fill_impl.h').read_text(encoding='utf-8')
+        species = re.search(r'#define BAT_SPECIES \d+', battle).group(0)
+        code = '\n'.join(function(battle, n) for n in ('BatUpperByte', 'BatSameName', 'BatNameIsSpecies', 'BatCopy',
+                                                     'PartyNameIsSpecies'))
+        self.assertIn('PartyNameIsSpecies(', function(battle, 'BattlePartyFill'))
+        self.run_c('''
+#include <assert.h>
+#include <string.h>
+#include <stdint.h>
+static int calls;
+static void CtrBottomDex_Name(unsigned species, char *out, int size)
+{
+    (void)size;
+    ++calls;
+    strcpy(out, species == 5 ? "Charmeleon" : species == 17 ? "Pidgeotto" : "");
+}
+''' + species + '\n' + code + '''
+int main(void)
+{
+    assert(PartyNameIsSpecies(0, "CHARMELEON", 5) && calls == 1);
+    assert(PartyNameIsSpecies(0, "CHARMELEON", 5) && calls == 1);       /* kept */
+    assert(!PartyNameIsSpecies(0, "Sparky", 5) && calls == 2);          /* renamed: asked again */
+    assert(!PartyNameIsSpecies(0, "Sparky", 5) && calls == 2);
+    assert(!PartyNameIsSpecies(0, "CHARMELEON", 17) && calls == 3);     /* another Pokemon in the slot */
+    assert(PartyNameIsSpecies(1, "Pidgeotto", 17) && calls == 4);       /* each slot its own */
+    assert(!PartyNameIsSpecies(0, "CHARMELEON", 17) && calls == 4);
+    return 0;
+}
+''')
+
     def test_touch_shows_where_it_goes(self):
         """The owner saw the arrow go to a touched tab or Pokemon, back to where it was, then to it again. A Party slot
         touched (the Party takes the touch on its next frame) is shown as the selection until the Party's cursor is
@@ -622,11 +680,13 @@ int main(void) {
     sPartyEcho.slot = 3; sPartyEcho.wait = 30;
     PartyEchoMode(MODE_PARTY); assert(PartyEchoCursor(0) == 3);
     PartyEchoMode(MODE_FIELD); assert(sPartyEcho.slot == -1 && PartyEchoCursor(0) == 0);
-    /* picking several: the button follows the echoed cursor; otherwise there is none */
+    /* the button follows the echoed cursor: CONFIRM picking several, CANCEL always (the B Party sinks the key the
+     * cursor is on); a slot is none */
     sPartyEcho.slot = 6; sPartyEcho.wait = 30;
     assert(PartyButton(1, PartyEchoCursor(0)) == 0);                /* a touched CONFIRM shows at once */
     sPartyEcho.slot = 7; sPartyEcho.wait = 30;
-    assert(PartyButton(1, PartyEchoCursor(0)) == 1 && PartyButton(0, 7) == -1 && PartyButton(1, 2) == -1);
+    assert(PartyButton(1, PartyEchoCursor(0)) == 1 && PartyButton(0, 7) == 1 && PartyButton(1, 2) == -1);
+    assert(PartyButton(0, 6) == -1 && PartyButton(0, 2) == -1);     /* one at a time: no CONFIRM */
     sPartyEcho.slot = -1;
     /* the Bag: hold the picture on the way to a tab's pocket; draw a switched pocket while it slides */
     last.kind = PT_BAG_KIND_BAG; last.pocket = 0;

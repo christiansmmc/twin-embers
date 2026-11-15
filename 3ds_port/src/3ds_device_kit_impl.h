@@ -573,6 +573,16 @@ UI_FN void DevUpper(char *dst, const char *src, size_t size)
     dst[n] = 0;
 }
 
+/* A Pokemon's name as FireRed shows it: its species' own name in capitals (`species`: the fill found it is that, recipe
+ * 0251 having title-cased the species names), a name the player gave as typed. (The battle's and the Party's.) */
+UI_FN const char *DevMonName(const char *name, int species, char *out, size_t size)
+{
+    if (!species)
+        return name;
+    DevUpper(out, name, size);
+    return out;
+}
+
 /* The first n bytes of s as one line, a line break drawn as the space it stands for. */
 UI_FN void DevWrapCopy(char *line, const char *s, int n)
 {
@@ -581,12 +591,9 @@ UI_FN void DevWrapCopy(char *line, const char *s, int n)
     line[n] = 0;
 }
 
-/* Text wrapped at spaces and line breaks into at most maxLines lines from `top`, DEV_LINE_H apart, the first firstWidth
- * wide and the others `width`; a word wider than a line is cut at its end. A line break (FireRed's descriptions keep the
- * ones of its own window) is a space here. Breaking only there keeps UTF-8 and the raw-code escapes whole. Returns the
- * lines drawn. (Rework 1's KitWrapFirst.) */
-UI_FN int DevWrapFirst(const char *s, int x, int top, int firstWidth, int width, int maxLines, uint16_t ink,
-                       uint16_t shadow)
+/* DevWrapFirst's lines, drawn when `draw`, else only counted. */
+UI_FN int DevWrapRun(const char *s, int x, int top, int firstWidth, int width, int maxLines, uint16_t ink,
+                     uint16_t shadow, int draw)
 {
     char line[128];
     int lines = 0;
@@ -610,17 +617,34 @@ UI_FN int DevWrapFirst(const char *s, int x, int top, int firstWidth, int width,
             ++end;                          /* past the space, to the next word */
         }
         DevWrapCopy(line, s, fit);
-        DevTextInk(line, x, top + lines * DEV_LINE_H, x + room, ink, shadow);
+        if (draw)
+            DevTextInk(line, x, top + lines * DEV_LINE_H, x + room, ink, shadow);
         ++lines;
         s += fit;
     }
     return lines;
 }
 
+/* Text wrapped at spaces and line breaks into at most maxLines lines from `top`, DEV_LINE_H apart, the first firstWidth
+ * wide and the others `width`; a word wider than a line is cut at its end. A line break (FireRed's descriptions keep the
+ * ones of its own window) is a space here. Breaking only there keeps UTF-8 and the raw-code escapes whole. Returns the
+ * lines drawn. (Rework 1's KitWrapFirst.) */
+UI_FN int DevWrapFirst(const char *s, int x, int top, int firstWidth, int width, int maxLines, uint16_t ink,
+                       uint16_t shadow)
+{
+    return DevWrapRun(s, x, top, firstWidth, width, maxLines, ink, shadow, 1);
+}
+
 /* DevWrapFirst with every line `width` wide. */
 UI_FN int DevWrap(const char *s, int x, int top, int width, int maxLines, uint16_t ink, uint16_t shadow)
 {
     return DevWrapFirst(s, x, top, width, width, maxLines, ink, shadow);
+}
+
+/* The lines DevWrap would draw `s` in (at most maxLines; 0 for no text), drawing nothing: a text centred down a box. */
+UI_FN int DevWrapLines(const char *s, int width, int maxLines)
+{
+    return DevWrapRun(s, 0, 0, width, width, maxLines, 0, 0, 0);
 }
 
 /* `s` cut to fit `room` with "..." after it, into out (size bytes). */
@@ -666,25 +690,24 @@ UI_FN void DevFitWord(const char *s, int small, int x, int room, int top, int h,
         DevTextInk(s, at, top + (h - UI_TEXT_H) / 2, x + room, ink, shadow);
 }
 
-/* A key's label, centred on its face in the look's ink and shadow; cut with "..." when wider than the key less 8 px (and
- * then counted in sDevKeyCut). */
-UI_FN void DevKeyLabel(const CtrPokeTouchRect *r, int faceY, int look, int sunk, const char *s)
+/* A key's text ink and its shadow in the look (the shadow is the ink where there is none). */
+UI_FN uint16_t DevKeyInk(int look, int sunk)
+{
+    return look == DEV_LOOK_DARK ? DEV_DARK_INK : look == DEV_LOOK_FAINT ? DEV_FAINT_INK : sunk ? DEV_SUNK_INK : DEV_KEY_INK;
+}
+
+UI_FN uint16_t DevKeyInkShadow(int look, int sunk)
+{
+    return look == DEV_LOOK_KEY ? (sunk ? DEV_SUNK_INK_SH : DEV_WHITE) : DevKeyInk(look, sunk);
+}
+
+/* A key's label in `ink` over `shadow`, centred on its face; cut with "..." when wider than the key less 8 px (and then
+ * counted in sDevKeyCut). */
+UI_FN void DevKeyLabelInk(const CtrPokeTouchRect *r, int faceY, const char *s, uint16_t ink, uint16_t shadow)
 {
     char cut[64];
-    uint16_t ink, shadow;
     int w = DevTextWidth(s);
 
-    if (look == DEV_LOOK_DARK)
-        ink = shadow = DEV_DARK_INK;
-    else if (look == DEV_LOOK_FAINT)
-        ink = shadow = DEV_FAINT_INK;
-    else if (sunk) {
-        ink = DEV_SUNK_INK;
-        shadow = DEV_SUNK_INK_SH;
-    } else {
-        ink = DEV_KEY_INK;
-        shadow = DEV_WHITE;
-    }
     if (w > r->w - 8) {
         DevCutText(s, r->w - 8, cut, sizeof(cut));
         s = cut;
@@ -692,6 +715,12 @@ UI_FN void DevKeyLabel(const CtrPokeTouchRect *r, int faceY, int look, int sunk,
         ++sDevKeyCut;
     }
     DevTextInk(s, r->x + (r->w - w) / 2, faceY + (r->h - UI_TEXT_H) / 2, r->x + r->w, ink, shadow);
+}
+
+/* A key's label in the look's ink and shadow (DevKeyLabelInk). */
+UI_FN void DevKeyLabel(const CtrPokeTouchRect *r, int faceY, int look, int sunk, const char *s)
+{
+    DevKeyLabelInk(r, faceY, s, DevKeyInk(look, sunk), DevKeyInkShadow(look, sunk));
 }
 
 /* ---- Marks, bars, chips, icons ------------------------------------------------------------------------------------- */
