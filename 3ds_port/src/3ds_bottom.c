@@ -733,6 +733,21 @@ static int PartyEchoCursor(int cursor)
     return sPartyEcho.slot;
 }
 
+/* A physical button drops the echo; so does the lower screen being anywhere but the Party (it closed, or a Summary,
+ * the field or a battle took over): the next opening must not show a slot touched in the last one. ProcessTouch calls
+ * PartyEchoMode every frame with the mode, which covers the field's Party and the battle's alike. */
+static void PartyEchoKeys(unsigned held)
+{
+    if (held & 0x3ffu)
+        sPartyEcho.slot = -1;
+}
+
+static void PartyEchoMode(int mode)
+{
+    if (mode != MODE_PARTY)
+        sPartyEcho.slot = -1;
+}
+
 /* Dragging a list: a finger on a row that moves this far up or down scrolls instead of tapping, one row per
  * LIST_DRAG_ROW pixels (the lower screen's row pitch), the content following the finger. */
 #define LIST_DRAG_SLOP 8
@@ -3391,8 +3406,7 @@ static void ProcessBattlePartyTouch(const CtrInput *in)
 
     if (in->touchActive && sHaveShown)
         btn = CtrBattleUi_Hit(&sShown.battle, (int)in->touchX, (int)in->touchY);
-    if (in->held & 0x3ffu)
-        sPartyEcho.slot = -1;
+    PartyEchoKeys(in->held);
     if ((in->held & 0x3ffu) || !ready) {
         sBat.down = sBat.inside = 0;
         return;
@@ -4174,6 +4188,7 @@ static int ProcessTouch(int mode)
         sFieldDex.down = sFieldDex.inside = sFieldDex.scrolling = 0;
         sFieldDex.code = -1;
     }
+    PartyEchoMode(mode);
     if (mode != MODE_NAMING) {
         sNameTap.down = sNameTap.inside = 0;
         sNameTap.code = -1;

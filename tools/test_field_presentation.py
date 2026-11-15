@@ -432,6 +432,9 @@ int main(void) {
         fill = (ROOT / '3ds_port/src/3ds_bottom_field_fill_impl.h').read_text(encoding='utf-8')
         battle = (ROOT / '3ds_port/src/3ds_bottom_battle_fill_impl.h').read_text(encoding='utf-8')
         echo = function(bottom, 'PartyEchoCursor')
+        keys = function(bottom, 'PartyEchoKeys')
+        left = function(bottom, 'PartyEchoMode')
+        button = function(battle, 'PartyButton')
         hold = function(bottom, 'FieldBagHold')
         self.assertIn('PartyEchoCursor(s->cursor)', function(battle, 'BattlePartyFill'))
         self.assertIn('FieldBagHold(', function(fill, 'FieldBagFill'))
@@ -440,12 +443,14 @@ int main(void) {
 #include <stdint.h>
 #include "3ds_poketouch.h"
 enum { BAG_BUSY = 0, BAG_LIST };
+enum { MODE_FIELD = 1, MODE_PARTY = 2 };
+#define PARTY_SIZE 6
 static struct { int slot, wait; } sPartyEcho = {-1, 0};
 static struct { int pocketTarget; } sFieldBag = {-1};
 static int gState = BAG_LIST, gPocket = 0;
 static int CtrBottomBag_State(void) { return gState; }
 static int CtrBottomBag_Pocket(void) { return gPocket; }
-''' + echo + '\n' + hold + '''
+''' + '\n'.join([echo, keys, left, button, hold]) + '''
 int main(void) {
     CtrPokeTouchBag last = {0};
     /* the Party: the slot touched until the cursor gets there */
@@ -456,6 +461,19 @@ int main(void) {
     assert(PartyEchoCursor(1) == 1);
     sPartyEcho.slot = 5; sPartyEcho.wait = 2;
     assert(PartyEchoCursor(0) == 5 && PartyEchoCursor(0) == 0);     /* not forever */
+    /* a physical button drops it; so does leaving the Party (closed, a Summary or the field took over) */
+    sPartyEcho.slot = 3; sPartyEcho.wait = 30;
+    PartyEchoKeys(0); assert(PartyEchoCursor(0) == 3);
+    PartyEchoKeys(1u << 4); assert(sPartyEcho.slot == -1 && PartyEchoCursor(0) == 0);
+    sPartyEcho.slot = 3; sPartyEcho.wait = 30;
+    PartyEchoMode(MODE_PARTY); assert(PartyEchoCursor(0) == 3);
+    PartyEchoMode(MODE_FIELD); assert(sPartyEcho.slot == -1 && PartyEchoCursor(0) == 0);
+    /* picking several: the button follows the echoed cursor; otherwise there is none */
+    sPartyEcho.slot = 6; sPartyEcho.wait = 30;
+    assert(PartyButton(1, PartyEchoCursor(0)) == 0);                /* a touched CONFIRM shows at once */
+    sPartyEcho.slot = 7; sPartyEcho.wait = 30;
+    assert(PartyButton(1, PartyEchoCursor(0)) == 1 && PartyButton(0, 7) == -1 && PartyButton(1, 2) == -1);
+    sPartyEcho.slot = -1;
     /* the Bag: hold the picture on the way to a tab's pocket; draw a switched pocket while it slides */
     last.kind = PT_BAG_KIND_BAG; last.pocket = 0;
     gState = BAG_LIST; gPocket = 1; sFieldBag.pocketTarget = 2;

@@ -192,6 +192,12 @@ static uint8_t PartyTag(const char *text)
     return BUI_PTY_TAG_NONE;
 }
 
+/* Picking several: the page's arrow is on CONFIRM (0) or CANCEL (1) when the cursor, as echoed, is past the slots. */
+static int8_t PartyButton(int multi, int cursor)
+{
+    return (int8_t)(multi && cursor >= PARTY_SIZE ? cursor - PARTY_SIZE : -1);
+}
+
 /* The battle Party as the Party is now (the lower screen's own Party snapshot `s`, which reads FireRed's Party): the six
  * slots, the Party's selection, what it was opened for, and its menu or message when it has one open. */
 static void BattlePartyFill(Snapshot *s)
@@ -211,7 +217,7 @@ static void BattlePartyFill(Snapshot *s)
     p->mode = s->chooseMultiple ? BUI_PTY_MULTI : !CtrBottomParty_InBattle() ? BUI_PTY_SWITCH
             : action == 1 ? BUI_PTY_FORCED : action == 3 ? BUI_PTY_TARGET : BUI_PTY_SWITCH;
     /* Picking several: FireRed's cursor may be on CONFIRM (slot 6) or CANCEL (7). */
-    p->button = (int8_t)(p->mode == BUI_PTY_MULTI && cursor >= PARTY_SIZE ? cursor - PARTY_SIZE : -1);
+    p->button = PartyButton(p->mode == BUI_PTY_MULTI, cursor);
     p->lead = (uint8_t)(CtrBottomParty_Layout() == 0 ? 1 : 2);
     p->caption[0] = 0;
     if (!CtrBottomParty_InBattle() && s->panel != PANEL_MESSAGE)
