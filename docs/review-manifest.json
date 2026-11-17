@@ -7451,7 +7451,7 @@
   },
   {
    "path": "3ds_port/tests/device_render_test.c",
-   "sha256": "bf6d3d81567ca841b23d94567b3205577d06bcb3bb57ce8c21430c7ebd82a856",
+   "sha256": "c0ef95b4cb8ab7e9d50bfc9e08d48f3f6701c9d1c17a6c11c65e450abdbc40fd",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7658,8 +7658,24 @@
    "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
   },
   {
-   "path": "3ds_port/tests/device_suite_lists.h",
-   "sha256": "33cba25453b200fa58f425c0fbdcc96a368bc748e31d0e189fd1d6fabeaf3330",
+   "path": "3ds_port/tests/device_suite_choice.h",
+   "sha256": "fc9904ce90f6974f195261504e4e210ab0de18495c2e613a2671ad39fa663957",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "3ds_port/tests/device_suite_learn.h",
+   "sha256": "078dd6eb2ac52e693aa707c90f14a10214a10dd6c58d3997432f7cbc59c0104d",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "3ds_port/tests/device_suite_relearn.h",
+   "sha256": "d75fbfcf089e6855c743a0d67697296f79522b8a19a7c905c04c394d31f0703d",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

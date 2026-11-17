@@ -164,7 +164,7 @@ void *CtrData_Load(const char *path, uint32_t *len)
     }
     return out;
 }
-/* CtrPokeTouch_DexMonPic: device_suite_lists.h's (a species' picture while a suite sets picArt). */
+/* CtrPokeTouch_DexMonPic: device_suite_learn.h's (a species' picture while a suite sets picArt). */
 int CtrPokeTouch_DexMonPic80(unsigned species, unsigned char *pixels, unsigned short *palette)
 { (void)species; (void)pixels; (void)palette; return 0; }
 int CtrPokeTouch_DexMenuIcon(int id, unsigned char *tiles, unsigned short *palette)
@@ -495,6 +495,15 @@ static int Count(int x, int y, int w, int h, uint16_t c)
             n += at(i, j) == c;
     return n;
 }
+
+/* The same in rectangle r. */
+static __attribute__((unused)) int CountIn(CtrPokeTouchRect r, uint16_t c)
+{
+    return Count(r.x, r.y, r.w, r.h, c);
+}
+
+/* A dark key dimmed (DevDim): its face halfway to the red shell. */
+#define DIM_DARK DevBlend(DEV_SHELL_RED, DEV_BEZEL, DEV_A_DIM)
 
 #define SENTINEL 0x1234
 
@@ -2271,7 +2280,9 @@ static void SuiteBag(void)
 #include "device_suite_card.h"
 #include "device_suite_mail.h"
 #include "device_suite_dex.h"
-#include "device_suite_lists.h"   /* choice, learn, relearn */
+#include "device_suite_choice.h"
+#include "device_suite_learn.h"
+#include "device_suite_relearn.h"
 
 /* ---- main --------------------------------------------------------------------------------------------------------- */
 
