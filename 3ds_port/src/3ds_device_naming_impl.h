@@ -3,8 +3,9 @@
  * remote for FireRed's own keyboard (3ds_poketouch.h CtrPokeTouchName): the name's screen (the icon of a Pokemon being
  * named, FireRed's question over a slot for each character the name takes: a character typed, an underline under an
  * empty one, darker under the next, the gender sign after them); five keys across under it, the three pages (ABC, abc,
- * 123), DELETE and OK; the page's keys in four rows of FireRed's 8 columns (6 for its symbols), a place without a
- * character neither drawn nor hit. The page shown is sunk, or the page key held. FireRed's cursor sinks its key, or on
+ * 123), DELETE and OK; the page's keys in four rows of FireRed's 8 columns (6 for its symbols), every place of them a key
+ * (a short row ends in space keys: FireRed's rows are zero-filled, and 0x00 is its space), a place given as EOS (0xff)
+ * neither drawn nor hit. The page shown is sunk, or the page key held. FireRed's cursor sinks its key, or on
  * its button column DELETE (row 1) or OK (row 2), or (row 0, the page button) lights the LED of the page key its A turns
  * to, that key up; a held touch sinks what it holds instead (DevChosen). A key moves FireRed's cursor there and presses
  * its A, a page key turns to its page, DELETE is its B, OK its OK (3ds_bottom.c ProcessNameTouch); no BACK. Every

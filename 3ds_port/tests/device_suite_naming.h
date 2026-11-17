@@ -47,14 +47,17 @@ static void NameCodes(uint8_t *out, int size, const char *ascii)
 }
 
 /* FireRed's page `page` (0 the symbols, 1 the capitals, 2 the small letters) as CtrBottomNaming_Key gives each place of
- * it: sKeyboardChars, "ABCDEF ." "GHIJKL ," "MNOPQRS" "TUVWXYZ" in 8 columns (EOS after a short row), the small letters
- * the same, the symbols in 6 ("01234" "56789" "!?♂♀/-" "…“”‘'"), EOS past a page's columns. */
+ * it: sKeyboardChars, "ABCDEF ." "GHIJKL ," "MNOPQRS" "TUVWXYZ" in 8 columns, the small letters the same, the symbols in
+ * 6 ("01234" "56789" "!?♂♀/-" "…“”‘'"). Its rows are __() strings, which preproc writes without a terminator, and C
+ * fills the rest of each row of 8 with 0x00, FireRed's space: a short row ends in space keys (column 7 of the letters'
+ * last two rows, column 5 of the symbols' rows 0, 1 and 3), which FireRed's cursor reaches and its A types. Past a
+ * page's columns, EOS (0xff). */
 static void NameFill(CtrPokeTouchView *v, uint8_t page)
 {
     static const char *const kLetters[PT_NAME_ROWS] = {"ABCDEF .", "GHIJKL ,", "MNOPQRS", "TUVWXYZ"};
     static const uint8_t kSymbols[PT_NAME_ROWS][6] = {
-        {0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xff}, {0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xff},
-        {0xab, 0xac, 0xb5, 0xb6, 0xba, 0xae}, {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xff},
+        {0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0x00}, {0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0x00},
+        {0xab, 0xac, 0xb5, 0xb6, 0xba, 0xae}, {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0x00},
     };
     CtrPokeTouchName *n = &v->name;
 
@@ -67,8 +70,10 @@ static void NameFill(CtrPokeTouchView *v, uint8_t page)
             continue;
         }
         NameCodes(n->key[r], PT_NAME_COLS, kLetters[r]);
-        for (int c = 0; page == 2 && c < PT_NAME_COLS; ++c)
-            if (n->key[r][c] >= 0xbb && n->key[r][c] <= 0xd4)
+        for (int c = 0; c < PT_NAME_COLS; ++c)
+            if (n->key[r][c] == 0xff)
+                n->key[r][c] = 0x00;                /* the row's zero fill: a space */
+            else if (page == 2 && n->key[r][c] >= 0xbb && n->key[r][c] <= 0xd4)
                 n->key[r][c] += 0x1a;               /* A..Z -> a..z */
     }
 }
@@ -92,22 +97,26 @@ static CtrPokeTouchView NameBoard(void)
     return v;
 }
 
-/* Review Focus 1: on each of FireRed's pages every key it has is hit where it is drawn, a place without one (0xff) is
- * neither drawn nor hit, the three page keys turn to their pages, DELETE and OK are hit, and the page shown is sunk. */
+/* Review Focus 1: on each of FireRed's pages every key it has is hit where it is drawn (every place of its columns: the
+ * space keys that end its short rows too), the three page keys turn to their pages, DELETE and OK are hit, and the page
+ * shown is sunk; then the capitals' page again with one place without a key (EOS, synthetic: FireRed's pages have none
+ * inside their columns), neither drawn nor hit. */
 static void NameEveryKey(CtrPokeTouchView v)
 {
-    static const uint8_t page[3] = {1, 2, 0};
+    static const uint8_t page[4] = {1, 2, 0, 1};
+    int bare = 0;
 
-    for (int p = 0; p < 3; ++p) {
-        NameFill(&v, page[p]); DevCheckTouch(&gNameOld, &v);
+    for (int p = 0; p < 4; ++p) {
+        NameFill(&v, page[p]); if (p == 3) v.name.key[2][7] = 0xff; DevCheckTouch(&gNameOld, &v);
         for (int r = 0; r < 4; ++r) for (int c = 0; c < v.name.cols; ++c) {
             CtrPokeTouchRect k = DevNameKey(v.name.cols, r, c);
-            if (v.name.key[r][c] == 0xff) assert(CtrPokeTouch_NameHit(&v, k.x + k.w / 2, k.y + k.h / 2) == -1 && at(k.x + 3, k.y + k.h / 2) == DEV_SHELL_RED);
+            if (v.name.key[r][c] == 0xff) { assert(CtrPokeTouch_NameHit(&v, k.x + k.w / 2, k.y + k.h / 2) == -1 && at(k.x + 3, k.y + k.h / 2) == DEV_SHELL_RED); ++bare; }
             else AssertHits(NameHitV, &v, k, PT_NAME_HIT_KEY + r * PT_NAME_COLS + c);
         }
         for (int t = 0; t < 3; ++t) AssertHits(NameHitV, &v, DevNameTop(t), PT_NAME_HIT_TAB + page[t]);
-        AssertHits(NameHitV, &v, DevNameTop(3), PT_NAME_HIT_DELETE); AssertHits(NameHitV, &v, DevNameTop(4), PT_NAME_HIT_OK); AssertKey(DevNameTop(p), DEV_LOOK_KEY, 1);
+        AssertHits(NameHitV, &v, DevNameTop(3), PT_NAME_HIT_DELETE); AssertHits(NameHitV, &v, DevNameTop(4), PT_NAME_HIT_OK); AssertKey(DevNameTop((page[p] + 2) % 3), DEV_LOOK_KEY, 1);
     }
+    assert(bare == 1);
 }
 
 /* Every key of the page drawn up but `key` (row * PT_NAME_COLS + column; -1 none), sunk; DELETE and OK up but `button`
@@ -219,11 +228,20 @@ static void SuiteNaming(void)
     v.name.gender = 0; DevCheckTouch(&gNameOld, &v); assert(CountIn(kNamePaper, DEV_MALE) == 0 && CountIn(kNamePaper, DEV_FEMALE) == 0);
     v.mapGroup ^= 1; v.speed ^= 1; assert(DevCheckTouch(&gNameOld, &v).count == 0);
 
-    /* the keys: FireRed's character on each, the space key its mark alone; the cursor's key sunk with its LED */
+    /* the keys: FireRed's character on each, a space key its mark alone (the letters' column 6, and the places a short
+     * row leaves: column 7 of the letters' last two rows, column 5 of the symbols' rows 0, 1, 3); the cursor's key sunk
+     * with its LED */
     v = NameBoard(); v.name.curCol = 3; v.name.curRow = 2; DevCheckTouch(&gNameOld, &v);
     r = DevNameKey(8, 2, 3); assert(Count(r.x, r.y, r.w, r.h + DEV_DROP, DEV_LED) > 0 && Count(r.x, r.y, r.w, r.h + DEV_DROP, DEV_SUNK_INK) > 0);
     r = DevNameKey(8, 0, 0); assert(Count(r.x, r.y, r.w, r.h + DEV_DROP, DEV_LED) == 0 && Count(r.x, r.y, r.w, r.h + DEV_DROP, DEV_KEY_INK) > 0);
     r = DevNameKey(8, 0, 6); assert(v.name.key[0][6] == 0 && Count(r.x, r.y, r.w, r.h + DEV_DROP, DEV_KEY_INK) == 13 + 3 + 3);
+    for (i = 2; i < 4; ++i) { r = DevNameKey(8, i, 7); assert(v.name.key[i][7] == 0 && Count(r.x, r.y, r.w, r.h + DEV_DROP, DEV_KEY_INK) == 13 + 3 + 3); }
+    other = v; NameFill(&other, 0); other.name.curCol = 0; DevCheckTouch(&gNameOld, &other);
+    for (i = 0; i < 4; ++i) {
+        r = DevNameKey(6, i, 5);
+        assert((other.name.key[i][5] == 0) == (i != 2) && (i == 2 || Count(r.x, r.y, r.w, r.h + DEV_DROP, DEV_KEY_INK) == 13 + 3 + 3));
+    }
+    DevCheckTouch(&gNameOld, &v);
     /* a touch sinks what it holds instead of the cursor's: another key, OK over the cursor's key, a key over the cursor
      * on DELETE, a page key over the page shown (and no LED of the page button's while it is held) */
     v.name.pressed = PT_NAME_HIT_OK; DevCheckTouch(&gNameOld, &v); NameSunk(&v, -1, PT_NAME_HIT_OK);

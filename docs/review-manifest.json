@@ -7675,7 +7675,7 @@
   },
   {
    "path": "3ds_port/src/3ds_device_naming_impl.h",
-   "sha256": "00f9c7ad1eaac0807277e5ce1c24670027a1dfe8f38fa1671559998649060556",
+   "sha256": "ca722712f74990472bfbdb85eddf386bf3d2dd159b7a839c616d2e822f4ef33c",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7683,7 +7683,7 @@
   },
   {
    "path": "3ds_port/tests/device_suite_naming.h",
-   "sha256": "3200002c83a9b0e854ff421f216eaeb7842b7d721c7231c5178de03b9efa5191",
+   "sha256": "fa7eae0fd0fc154306c52e7af6d1dcc79082d7c7c78da6242b064e77cabe42e9",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
