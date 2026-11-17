@@ -32,8 +32,8 @@ def exe(folder, name):
 
 def build(out, extra=()):
     subprocess.run([cc(), '-std=c11', '-O1', '-Wall', '-Wextra', '-Werror', *extra, '-I', str(PORT / 'include'),
-                    '-I', str(PORT / 'src'), str(PORT / 'tests/device_render_test.c'), str(PORT / 'src/3ds_pak.c'),
-                    '-o', str(out), '-lm'], check=True)
+                    '-I', str(PORT / 'src'), '-I', str(PORT / 'tests'), str(PORT / 'tests/device_render_test.c'),
+                    str(PORT / 'src/3ds_pak.c'), '-o', str(out), '-lm'], check=True)
 
 
 def clean_env(**extra):
@@ -85,6 +85,9 @@ class DeviceViews(unittest.TestCase):
 
     def test_bag(self):
         self.assertIn('PASS device bag', run(self.harness, 'bag'))
+
+    def test_options(self):
+        self.assertIn('PASS device options', run(self.harness, 'options'))
 
     def test_kit_shot(self):
         """DEVICE_OUT writes <suite>_<state>.ppm: the kit's sheet, 320x240."""

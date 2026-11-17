@@ -11,7 +11,7 @@
  *   DEVICE_WIDTHS=file        the normal font's 256 glyph widths; DEVICE_SMALL_WIDTHS=file the small font's
  *   DEVICE_FONT_W=n           the stub glyph width
  *
- * usage: device_render_test <suite>   (kit, home, battle, party, summary, bag, or all; prints PASS device <suite>) */
+ * usage: device_render_test <suite>   (kit, home, battle, party, summary, bag, options, or all; prints PASS device <suite>) */
 #include <assert.h>
 #ifndef PT_SOURCE
 #define PT_SOURCE "3ds_poketouch.c"
@@ -434,6 +434,12 @@ static __attribute__((unused)) void AssertRowHits(DevHitFn hit, const void *view
     HitAt(hit, view, r.x + r.w - 1, r.y + r.h - 1, code, 1);
     HitAt(hit, view, r.x - 1, r.y, code, 0);
     HitAt(hit, view, r.x + r.w, r.y, code, 0);
+}
+
+/* BACK of a field view without a board, as the dispatcher hits it (CtrPokeTouch_BackHit): 1 on it. */
+static __attribute__((unused)) int BackV(const void *view, int x, int y)
+{
+    return CtrPokeTouch_BackHit((const CtrPokeTouchView *)view, x, y);
 }
 
 /* ---- kit: the kit's pieces, then a sheet of all of them on the red shell ----------------------------------------- */
@@ -2218,6 +2224,9 @@ static void SuiteBag(void)
     assert(sDevKeyCut == 0);                      /* main prints PASS device bag */
 }
 
+/* The views without a board (plan 3), a suite header each. */
+#include "device_suite_options.h"
+
 /* ---- main --------------------------------------------------------------------------------------------------------- */
 
 static const struct { const char *name; void (*run)(void); } kSuites[] = {
@@ -2227,6 +2236,7 @@ static const struct { const char *name; void (*run)(void); } kSuites[] = {
     {"party", SuiteParty},
     {"summary", SuiteSummary},
     {"bag", SuiteBag},
+    {"options", SuiteOptions},
 };
 
 int main(int argc, char **argv)
@@ -2235,7 +2245,7 @@ int main(int argc, char **argv)
     int all = argc > 1 && !strcmp(argv[1], "all"), ran = 0;
 
     if (argc != 2) {
-        fprintf(stderr, "usage: device_render_test <suite> (kit, home, battle, party, summary, bag, all)\n");
+        fprintf(stderr, "usage: device_render_test <suite> (kit, home, battle, party, summary, bag, options, all)\n");
         return 2;
     }
     gOut = getenv("DEVICE_OUT");

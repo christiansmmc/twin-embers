@@ -12,7 +12,7 @@
  * same area, so DevKeyArea is both where a key paints and where it is hit.
  *
  * Every rectangle here is `static const CtrPokeTouchRect kDev... __attribute__((unused))` or a static inline function
- * (a list's n-th row, a grid's cell).
+ * (a list's n-th row, a grid's cell, a key of a row across).
  */
 
 #define DEV_DROP 3      /* rows of a key's drop shadow under its face */
@@ -174,12 +174,24 @@ static const CtrPokeTouchRect kDevBagQtyDown __attribute__((unused)) = {200, 122
 static const CtrPokeTouchRect kDevBagQtyOk __attribute__((unused)) = {200, 158, 112, 30};
 static const CtrPokeTouchRect kDevBagQtyCancel __attribute__((unused)) = {200, 194, 112, 36};
 
+/* Row i of a list h tall a row on kDevBagList's paper, the wide one or (`narrow`) kDevBagListNarrow's. */
+static inline CtrPokeTouchRect DevListRow(int i, int narrow, int h)
+{
+    CtrPokeTouchRect r = {16, (int16_t)(48 + h * i), (int16_t)(narrow ? 168 : 244), (int16_t)h};
+
+    return r;
+}
+
 /* Row i (0-7) of the list, on the wide screen or (`narrow`) the narrow one. */
 static inline CtrPokeTouchRect DevBagRow(int i, int narrow)
 {
-    CtrPokeTouchRect r = {16, (int16_t)(48 + DEV_BAG_ROW_H * i), (int16_t)(narrow ? 168 : 244), DEV_BAG_ROW_H};
+    return DevListRow(i, narrow, DEV_BAG_ROW_H);
+}
 
-    return r;
+/* Row i (0-4) of a list of tall rows (24 px) on the same papers. */
+static inline CtrPokeTouchRect DevTallRow(int i, int narrow)
+{
+    return DevListRow(i, narrow, 24);
 }
 
 /* Key i of a menu of n (1-6): one column, 38 apart up to five keys (the last, a dark one, 38 tall, the others 30), 32
@@ -189,6 +201,68 @@ static inline CtrPokeTouchRect DevBagMenuKey(int n, int i)
     int p = n <= 5 ? 38 : 32, h = n <= 5 ? (i == n - 1 ? 38 : 30) : 26;
     CtrPokeTouchRect r = {200, (int16_t)(40 + p * i), 112, (int16_t)h};
 
+    return r;
+}
+
+/* ---- The shapes the views without a board share (plan 3) ------------------------------------------------------------
+ * No board draws these views: they reuse the boarded pages' shapes by name (the Bag's list page, the Summary's screen
+ * and note, HOME's key places) and these few. Keys across the screen (DevAcross: the Bag's pockets, the battle's rows);
+ * the small note (a screen) with two small keys and the Bag's CLOSE beside it; a tall screen over a wide key; a
+ * question's note beside YES and NO in HOME's third and sixth key places. */
+static const CtrPokeTouchRect kDevSmallNote __attribute__((unused)) = {8, 190, 152, 42};
+static const CtrPokeTouchRect kDevSmallKey[2] __attribute__((unused)) = {{168, 190, 32, 40}, {204, 190, 32, 40}};
+static const CtrPokeTouchRect kDevTallScreen __attribute__((unused)) = {8, 8, 304, 172};
+static const CtrPokeTouchRect kDevWideKey __attribute__((unused)) = {8, 188, 304, 42};
+static const CtrPokeTouchRect kDevAskNote __attribute__((unused)) = {8, 156, 200, 76};
+static const CtrPokeTouchRect kDevAskYes __attribute__((unused)) = {216, 156, 96, 36};
+static const CtrPokeTouchRect kDevAskNo __attribute__((unused)) = {216, 198, 96, 34};
+
+/* Key i of n (1-8) across x 8..312, at y and h tall: 8 px apart up to three keys, 4 beyond. (n 3 at y 8 are the Bag's
+ * pockets, n 4 at y 170 the battle's wild row, n 2 at y 72 its moves' top row.) */
+static inline CtrPokeTouchRect DevAcross(int n, int i, int y, int h)
+{
+    int g = n <= 3 ? 8 : 4, w = (304 - g * (n - 1)) / n;
+    CtrPokeTouchRect r = {(int16_t)(8 + (w + g) * i), (int16_t)y, (int16_t)w, (int16_t)h};
+
+    return r;
+}
+
+/* ---- OPTIONS (no board; 3ds_device_options_impl.h) --------------------------------------------------------------------
+ * The Bag's list page: the four sections across the top (DevAcross(4, s, 8, 24)), the rows on kDevBagList's paper
+ * (DevOptRow) with ▲ ▼ (kDevBagUp, kDevBagDown) paging beside them, the description in kDevSmallNote, ◀ ▶ (kDevSmallKey)
+ * stepping the row described, BACK in kDevBagClose. A row is three zones: LABEL (its words, from 6 px in), PREV (◀) and
+ * NEXT (the value, centred in DEV_OPT_VALUE_W, and ▶); a row of levels shares PREV and NEXT among its levels. FRAME's
+ * sample under the fifth row, the look's panel under the fourth. */
+#define DEV_OPT_ROW_H     18
+#define DEV_OPT_LABEL_W   120                               /* LABEL: x 16..135 */
+#define DEV_OPT_PREV_X    136                               /* PREV: x 136..159 (◀ at its middle) */
+#define DEV_OPT_NEXT_X    160                               /* NEXT: x 160..259 (the value in 160..243, ▶ at 252) */
+#define DEV_OPT_VALUE_W   84
+#define DEV_OPT_NEXT_ARROW 252
+static const CtrPokeTouchRect kDevOptSample __attribute__((unused)) = {202, 138, 56, 40};
+static const CtrPokeTouchRect kDevOptLook __attribute__((unused)) = {16, 122, 244, 54};
+
+/* Section key s (0-3) of OPTIONS. */
+static inline CtrPokeTouchRect DevOptSection(int s)
+{
+    return DevAcross(4, s, 8, 24);
+}
+
+/* Row i (0 to PT_OPT_MAX - 1) of OPTIONS. */
+static inline CtrPokeTouchRect DevOptRow(int i)
+{
+    return DevListRow(i, 0, DEV_OPT_ROW_H);
+}
+
+/* Level k of a row of `count` levels on row i: PREV and NEXT shared out from x 136, a level taking the columns whose
+ * (x - 136) * count / 124 is k (CtrPokeTouch_OptionSegment's). */
+static inline CtrPokeTouchRect DevOptLevel(int i, int k, int count)
+{
+    CtrPokeTouchRect r = DevOptRow(i);
+    int w = r.x + r.w - DEV_OPT_PREV_X, x0 = DEV_OPT_PREV_X + (w * k + count - 1) / count;
+
+    r.w = (int16_t)(DEV_OPT_PREV_X + (w * (k + 1) + count - 1) / count - x0);
+    r.x = (int16_t)x0;
     return r;
 }
 

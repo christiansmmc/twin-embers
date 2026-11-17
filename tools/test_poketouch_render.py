@@ -41,8 +41,8 @@ class Renderer(unittest.TestCase):
             home=lambda data:b''.join(data[c*320+26:(c+1)*320] for c in range(240))
             self.assertEqual(home(cur[:frame]),home(base[:frame]),'HOME viewport pixels must match the base')
             self.assertEqual(cur[frame:2*frame],base[frame:2*frame],'GBA viewport pixels must match the base')
-            # OPTIONS and SAVE wear the ember look: a new layout on the red backdrop.
-            for n,name in ((2,'OPTIONS'),(3,'SAVE')):
+            # SAVE wears the ember look: a new layout on the red backdrop. (OPTIONS is the red device's: test_device_views.py.)
+            for n,name in ((2,'SAVE'),):
                 a=cur[n*frame:(n+1)*frame]; b=base[n*frame:(n+1)*frame]
                 px=lambda data:[int.from_bytes(data[i:i+2],'little') for i in range(0,len(data),2)]
                 a,b=px(a),px(b)

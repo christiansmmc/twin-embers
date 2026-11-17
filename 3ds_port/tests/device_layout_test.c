@@ -378,6 +378,91 @@ static int BagFaults(void)
     return faults;
 }
 
+/* The shapes the views without a board share (plan 3): DevAcross gives the boarded rows back (the Bag's pockets, the
+ * battle's wild row and its moves' top row) and fits n keys of 1-8 across; DevListRow gives the Bag's rows back and the
+ * tall ones on the same paper; the small note with its two keys and CLOSE beside it, the tall screen over the wide key,
+ * the question's note beside YES / NO in HOME's third and sixth key places. */
+static int SharedFaults(void)
+{
+    const CtrPokeTouchRect paper = {14, 46, 248, 132}, narrowPaper = {14, 46, 172, 132};
+    int faults = 0;
+
+    for (int i = 0; i < 3; ++i)
+        assert(Same(DevAcross(3, i, 8, 24), kDevBagPocket[i]));
+    for (int i = 0; i < 4; ++i)
+        assert(Same(DevAcross(4, i, 170, 60), kDevBatRow4[i]));
+    for (int i = 0; i < 2; ++i)
+        assert(Same(DevAcross(2, i, 72, 62), kDevBatMove[i]));
+    for (int n = 1; n <= 8; ++n) {
+        CtrPokeTouchRect last = DevAcross(n, n - 1, 8, 24);
+
+        assert(DevAcross(n, 0, 8, 24).x == 8);
+        if (last.x + last.w > 312 || last.w < 28) {
+            fprintf(stderr, "DevAcross(%d): the last key {%d,%d,%d,%d} ends past 312 or is under 28 wide\n", n, last.x,
+                    last.y, last.w, last.h);
+            ++faults;
+        }
+        for (int i = 1; i < n; ++i)
+            assert(!Overlap(DevAcross(n, i - 1, 8, 24), DevAcross(n, i, 8, 24)));
+    }
+    for (int i = 0; i < 8; ++i)
+        for (int narrow = 0; narrow < 2; ++narrow)
+            assert(Same(DevBagRow(i, narrow), DevListRow(i, narrow, DEV_BAG_ROW_H)));
+    for (int i = 0; i < 5; ++i) {
+        CtrPokeTouchRect r = DevTallRow(i, 0), n = DevTallRow(i, 1);
+
+        assert(Same(r, (CtrPokeTouchRect){16, (int16_t)(48 + 24 * i), 244, 24}) && Same(n, (CtrPokeTouchRect){16, r.y, 168, 24}));
+        if (!Within(r, paper, 0) || !Within(n, narrowPaper, 0)) {
+            fprintf(stderr, "a tall row %d leaves its paper\n", i);
+            ++faults;
+        }
+    }
+    assert(Same(kDevSmallNote, (CtrPokeTouchRect){8, 190, 152, 42}) && Same(kDevSmallKey[0], (CtrPokeTouchRect){168, 190, 32, 40})
+           && Same(kDevSmallKey[1], (CtrPokeTouchRect){204, 190, 32, 40}));
+    assert(Same(kDevTallScreen, (CtrPokeTouchRect){8, 8, 304, 172}) && Same(kDevWideKey, (CtrPokeTouchRect){8, 188, 304, 42}));
+    assert(Same(kDevAskNote, (CtrPokeTouchRect){8, 156, 200, 76}) && Same(kDevAskYes, kDevHomeKey[2]) && Same(kDevAskNo, kDevHomeKey[5]));
+    if (kDevSmallNote.x + kDevSmallNote.w > kDevSmallKey[0].x || kDevBagList.y + kDevBagList.h + 1 > kDevSmallNote.y
+        || kDevTallScreen.y + kDevTallScreen.h + 1 > kDevWideKey.y || kDevAskNote.x + kDevAskNote.w > kDevAskYes.x) {
+        fprintf(stderr, "the small note meets its keys or the list's screen, the tall screen the wide key, or the "
+                        "question's note YES / NO\n");
+        ++faults;
+    }
+    return faults;
+}
+
+/* OPTIONS: the four section keys across the top, the rows on the Bag's list paper (seven fit), a row's zones (LABEL,
+ * PREV, NEXT: the value and ▶) with room for a 15-byte label and an 11-byte value at 7 px a glyph, so no German row can
+ * cut; FRAME's sample under five rows and the look's panel under four, both on the paper. */
+static int OptionsFaults(void)
+{
+    const CtrPokeTouchRect paper = {14, 46, 248, 132};
+    int faults = 0;
+
+    assert(DEV_OPT_LABEL_W >= (PT_OPT_LABEL_LEN - 1) * 7 && 100 - 14 >= (PT_OPT_VALUE_LEN - 1) * 7);
+    assert(DevOptRow(0).x + DEV_OPT_LABEL_W == DEV_OPT_PREV_X && DEV_OPT_PREV_X == 136 && DEV_OPT_NEXT_X == 160);
+    for (int i = 0; i < PT_OPT_MAX; ++i) {
+        CtrPokeTouchRect r = DevOptRow(i);
+
+        assert(Same(r, (CtrPokeTouchRect){16, (int16_t)(48 + 18 * i), 244, 18}) && Same(r, DevListRow(i, 0, 18)));
+        if (!Within(r, paper, 0)) {
+            fprintf(stderr, "OPTIONS: row %d leaves the list's paper\n", i);
+            ++faults;
+        }
+    }
+    assert(Same(kDevOptSample, (CtrPokeTouchRect){202, 138, 56, 40}) && Same(kDevOptLook, (CtrPokeTouchRect){16, 122, 244, 54}));
+    if (!Within(kDevOptSample, paper, 0) || kDevOptSample.y < DevOptRow(4).y + DevOptRow(4).h
+        || !Within(kDevOptLook, paper, 0) || kDevOptLook.y < DevOptRow(3).y + DevOptRow(3).h) {
+        fprintf(stderr, "OPTIONS: FRAME's sample or the look's panel leaves the paper or meets the rows over it\n");
+        ++faults;
+    }
+    for (int s = 0; s < 4; ++s)
+        if (DevAcross(4, s, 8, 24).y + 24 + DEV_DROP > kDevBagList.y) {
+            fprintf(stderr, "OPTIONS: section key %d reaches the list's screen\n", s);
+            ++faults;
+        }
+    return faults;
+}
+
 int main(void)
 {
     /* Every rectangle the header holds, by name, and the keys of each view state. */
@@ -397,6 +482,10 @@ int main(void)
     const CtrPokeTouchRect bagCase[] = {kDevBagCaseKey, kDevBagUp, kDevBagDown, kDevBagClose};
     const CtrPokeTouchRect bagQty[] = {kDevBagQtyUp, kDevBagQtyDown, kDevBagQtyOk, kDevBagQtyCancel};
     const CtrPokeTouchRect bagYesNo[] = {DevBagMenuKey(2, 0), DevBagMenuKey(2, 1)};
+    const CtrPokeTouchRect optKeys[] = {DevAcross(4, 0, 8, 24), DevAcross(4, 1, 8, 24), DevAcross(4, 2, 8, 24),
+                                        DevAcross(4, 3, 8, 24), kDevBagUp, kDevBagDown, kDevSmallKey[0], kDevSmallKey[1],
+                                        kDevBagClose};
+    const CtrPokeTouchRect askKeys[] = {kDevAskYes, kDevAskNo};
     CtrPokeTouchRect ptyMenu[8][8], bagMenu[6][6];
     DevGroup ptyMenus[8], bagMenus[6];
     static const char *const kBagMenuName[6] = {"Bag menu of 1", "Bag menu of 2", "Bag menu of 3", "Bag menu of 4",
@@ -429,13 +518,19 @@ int main(void)
         {"Bag narrow description", kDevBagDescNarrow}, {"Bag CLOSE", kDevBagClose}, {"Bag how many: up", kDevBagQtyUp},
         {"Bag how many: count", kDevBagQtyScreen}, {"Bag how many: down", kDevBagQtyDown}, {"Bag how many: OK", kDevBagQtyOk},
         {"Bag how many: CANCEL", kDevBagQtyCancel}, {"Bag row 0", DevBagRow(0, 0)}, {"Bag row 7", DevBagRow(7, 0)},
+        {"small note", kDevSmallNote}, {"small key 0", kDevSmallKey[0]}, {"small key 1", kDevSmallKey[1]},
+        {"tall screen", kDevTallScreen}, {"wide key", kDevWideKey}, {"question's note", kDevAskNote},
+        {"question's YES", kDevAskYes}, {"question's NO", kDevAskNo}, {"tall row 4", DevTallRow(4, 0)},
+        {"OPTIONS row 0", DevOptRow(0)}, {"OPTIONS row 6", DevOptRow(PT_OPT_MAX - 1)}, {"OPTIONS FRAME sample", kDevOptSample},
+        {"OPTIONS look panel", kDevOptLook},
     };
     const DevGroup groups[] = {DEV_GROUP("HOME", homeKeys), DEV_GROUP("battle, a trainer", batTrainer),
                                DEV_GROUP("battle, wild", batWild), DEV_GROUP("battle moves", batMoves),
                                DEV_GROUP("Party", ptyBays), DEV_GROUP("Party, several", ptyMulti),
                                DEV_GROUP("Party level up", ptyOk), DEV_GROUP("Summary", sumKeys),
                                DEV_GROUP("Bag list", bagList), DEV_GROUP("a case's list", bagCase),
-                               DEV_GROUP("Bag how many", bagQty), DEV_GROUP("Bag YES / NO", bagYesNo)};
+                               DEV_GROUP("Bag how many", bagQty), DEV_GROUP("Bag YES / NO", bagYesNo),
+                               DEV_GROUP("OPTIONS", optKeys), DEV_GROUP("a question", askKeys)};
     int faults = 0;
 
     RulesCatchFaults();
@@ -466,6 +561,8 @@ int main(void)
     faults += PartyFaults();
     faults += SummaryFaults();
     faults += BagFaults();
+    faults += SharedFaults();
+    faults += OptionsFaults();
     assert(faults == 0);
     puts("PASS device layout");
     return 0;

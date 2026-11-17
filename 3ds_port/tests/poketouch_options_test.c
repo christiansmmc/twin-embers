@@ -204,7 +204,14 @@ int main(void)
     CHECK(strcmp(CtrOptions_PageName(0), "Settings") == 0 && strcmp(CtrOptions_PageName(1), "Graphics") == 0
           && strcmp(CtrOptions_PageName(2), "Looks") == 0 && strcmp(CtrOptions_PageName(3), "Wilds") == 0 && strcmp(CtrOptions_PageName(4), "QoL") == 0
           && strcmp(CtrOptions_PageName(5), "Nuzlocke") == 0 && CtrOptions_PageName(-1)[0] == 0 && CtrOptions_PageName(6)[0] == 0,
-          "each page has its own short name (the PAGE button is 64 px of text), none past the last");
+          "each page has its own short name (a section key's word), none past the last");
+    CHECK(CtrOptions_SectionFirstPage(0) == 0 && CtrOptions_SectionFirstPage(1) == 1 && CtrOptions_SectionFirstPage(2) == 4
+          && CtrOptions_SectionFirstPage(3) == 5, "a section key opens the section's first page");
+    memset(&view, 0, sizeof(view));
+    CtrOptions_Fill(&view, 10);
+    CHECK(strcmp(view.optSectionName[0], "Settings") == 0 && strcmp(view.optSectionName[1], "Looks") == 0
+          && strcmp(view.optSectionName[2], "QoL") == 0 && strcmp(view.optSectionName[3], "Nuzlocke") == 0,
+          "the section shown is named by its page (Looks), the others by their first page");
     {
         int of = 0;
 
@@ -215,9 +222,10 @@ int main(void)
     }
     memset(&view, 0, sizeof(view));
     CtrOptions_Fill(&view, 11);
-    CHECK(strcmp(view.optPageName, "Looks") == 0 && view.optPage == 2 && view.optSection == 1, "the looks page is named Looks and is in the Graphics section");
+    CHECK(strcmp(view.optSectionName[1], "Looks") == 0 && view.optPage == 2 && view.optSection == 1, "the looks page is named Looks and is in the Graphics section");
     CtrOptions_Fill(&view, 23);
-    CHECK(strcmp(view.optPageName, "Nuzlocke") == 0 && view.optPage == 5 && view.optSection == 3, "the Nuzlocke page is named alone");
+    CHECK(strcmp(view.optSectionName[3], "Nuzlocke") == 0 && strcmp(view.optSectionName[1], "Graphics") == 0 && view.optPage == 5
+          && view.optSection == 3, "the Nuzlocke page is named alone; Graphics by its first page");
     CHECK(CtrOptions_PageBase(-1) == 0 && CtrOptions_PageBase(6) == 0 && CtrOptions_PageRows(-1) == 0 && CtrOptions_PageRows(6) == 0,
           "a page that does not exist has no rows");
     {
@@ -348,7 +356,7 @@ int main(void)
     memset(&view, 0, sizeof(view));
     CtrOptions_Fill(&view, 15);
     CHECK(view.optPage == 3 && view.optPageCount == 6 && view.optCount == 3 && view.optSelected == 1 && view.optSection == 1 && view.optSectionCount == 4
-          && strcmp(view.optPageName, "Wilds") == 0 && strcmp(view.optLabel[0], "Wild Pokemon") == 0 && view.optLabel[3][0] == 0,
+          && strcmp(view.optSectionName[1], "Wilds") == 0 && strcmp(view.optLabel[0], "Wild Pokemon") == 0 && view.optLabel[3][0] == 0,
           "the Wilds page: three rows, the third page of Graphics");
     /* REUSABLE TMS: off by default, a switch that is kept in the settings. */
     CHECK(CtrOptions_ReusableTm() == 0 && CtrSettings_TmReuse() == 0 && CtrOptions_Count(21) == 2, "REUSABLE TMS starts off");

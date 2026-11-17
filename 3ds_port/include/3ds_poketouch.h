@@ -59,18 +59,23 @@ enum { PT_MAP_KANTO, PT_MAP_SEVII123, PT_MAP_SEVII45, PT_MAP_SEVII67, PT_MAP_COU
 #define PT_HOME_SRC_Y 28
 bool CtrPokeTouch_MapPrepare(int group, int version);                  /* the window's picture of a map; false: no art */
 bool CtrPokeTouch_HomeRibbonHit(int x, int y);                         /* the region key, when it leads to another map */
-/* The native OPTIONS screen (3ds_poketouch_options.c holds the rows): it fills the viewport with up
- * to PT_OPT_MAX rows, each a label on the left and, on the right, "<" value ">". A row is 228x20 at
- * (PT_VIEW_X + 6, PT_VIEW_Y + 4 + 22 row). On a row, the label selects it (its description goes to
- * the bar), "<" steps the value back and the value or ">" steps it forward. A row of levels (EMBERS'
- * OFF / LOW / HIGH) shows all its values side by side instead, the chosen one lit: a touch on one
- * picks it (zone PT_OPT_ZONE_SEG + its index). */
+/* The native OPTIONS screen (3ds_poketouch_options.c holds the rows; the red device draws it,
+ * 3ds_device_options_impl.h): up to PT_OPT_MAX rows, each a label on the left and, on the right,
+ * ◀ value ▶ (3ds_device_layout.h DevOptRow). On a row, the label selects it (its description goes to
+ * the small note), ◀ steps the value back and the value or ▶ steps it forward; the ◀ ▶ keys under
+ * the rows step the row described. A row of levels (COMPANION's OFF / FOLLOW / BE IT) shows all its
+ * values side by side instead, the chosen one boxed: a touch on one picks it (zone PT_OPT_ZONE_SEG +
+ * its index). The keys (PT_OPT_KEY_*): a section's (its first page) across the top, ▲ ▼ (the page
+ * before, after). */
 #define PT_OPT_MAX 7
 #define PT_OPT_LABEL_LEN 16
 #define PT_OPT_VALUE_LEN 12
 #define PT_OPT_SEGS 3
 #define PT_OPT_SEG_LEN 8
+#define PT_OPT_SECTIONS 4
+#define PT_OPT_SECTION_LEN 12
 enum { PT_OPT_ZONE_NONE, PT_OPT_ZONE_LABEL, PT_OPT_ZONE_PREV, PT_OPT_ZONE_NEXT, PT_OPT_ZONE_SEG };
+enum { PT_OPT_KEY_SECTION = 0x10, PT_OPT_KEY_UP = 0x18, PT_OPT_KEY_DOWN = 0x19 };
 /* FireRed's own options (the game bridge, ctr_poketouch_options.c), in the order of its menu. */
 enum { PT_OPT_TEXT_SPEED, PT_OPT_BATTLE_SCENE, PT_OPT_BATTLE_STYLE, PT_OPT_SOUND, PT_OPT_BUTTON_MODE, PT_OPT_FRAME,
        PT_OPT_FPS, PT_OPT_GAME_COUNT };
@@ -425,8 +430,8 @@ typedef struct {
     uint8_t optPage;            /* 0-based page index in OPTIONS */
     uint8_t optPageCount;       /* total pages in OPTIONS */
     uint8_t optSection, optSectionCount;   /* the section the page is in (Settings, Graphics, QoL, Nuzlocke) and how many there are */
-    char optPageName[20];       /* the section's name, "Graphics 1/2" when it has two pages, for the PAGE button */
-    uint8_t optPagePressed;     /* the PAGE button is under a held touch */
+    char optSectionName[PT_OPT_SECTIONS][PT_OPT_SECTION_LEN];   /* the section keys' words: the shown section's is its page's name */
+    int8_t optKey;              /* the key (PT_OPT_KEY_*) under a held touch, or -1 */
     uint8_t optCount;           /* its rows on the current page */
     uint8_t optSelected;        /* the row the bar describes (within the current page) */
     int8_t optPressed;          /* the row under a held touch, or -1, and where on it: PT_OPT_ZONE_* */
@@ -474,15 +479,23 @@ extern const CtrPokeTouchRect gCtrPokeTouchRects[PT_COUNT];
 /* BACK: a shell control in the bar's bottom-right corner, outside the viewport. It
  * stands for the B button of the open screen (3ds_bottom.c sends the real B). */
 extern const CtrPokeTouchRect gCtrPokeTouchBack;
-extern const CtrPokeTouchRect gCtrPokeTouchOptPage;
-/* Whether a bottom-screen pixel is on BACK's or OPTIONS PAGE's rectangle. */
-bool CtrPokeTouch_HitBack(int x, int y);
-bool CtrPokeTouch_HitOptPage(int x, int y);
+/* Whether the view is drawn as the red device (HOME, the Bag, or a field view of the dispatcher,
+ * 3ds_device_field_impl.h): no START column under it. */
+bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *view);
+/* Whether a bottom-screen pixel is on BACK as the view draws it: a field view of the dispatcher's
+ * BACK key while it is shown (backVisible), an ember view's gCtrPokeTouchBack. */
+bool CtrPokeTouch_BackHit(const CtrPokeTouchView *view, int x, int y);
 
-/* The OPTIONS row and zone (PT_OPT_ZONE_*) under a bottom-screen pixel; false when none. */
-bool CtrPokeTouch_OptionHit(int x, int y, int rows, int *row, int *zone);
+/* The OPTIONS row and zone (PT_OPT_ZONE_*) under a bottom-screen pixel of the view shown (OPTIONS,
+ * no GBA picture); false when none. On a row of levels any zone but LABEL is the level there
+ * (PT_OPT_ZONE_SEG + CtrPokeTouch_OptionSegment); ◀ ▶ under the rows are the row described's
+ * PREV / NEXT. */
+bool CtrPokeTouch_OptionHit(const CtrPokeTouchView *view, int x, int y, int *row, int *zone);
 /* On a row of `count` levels, the one under bottom-screen column `x` (the zone was not LABEL). */
 int CtrPokeTouch_OptionSegment(int x, int count);
+/* The OPTIONS key under a bottom-screen pixel: PT_OPT_KEY_SECTION + a section, PT_OPT_KEY_UP,
+ * PT_OPT_KEY_DOWN (with more than one page), else -1. */
+int CtrPokeTouch_OptionKey(const CtrPokeTouchView *view, int x, int y);
 
 /* SAVE's button under a bottom-screen pixel (PT_SAVE_*) in the bar for the dialogue state: YES and NO
  * while confirming, OK (PT_SAVE_FIRST) after a result, none while writing. */

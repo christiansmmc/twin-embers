@@ -782,7 +782,7 @@ static void DevSumKeys(const CtrSummaryUiView *v)
     }
     sunk = held == SUI_HIT_BACK;
     faceY = DevKey(&kDevSumBack, DEV_LOOK_DARK, sunk, 6);
-    DevKeyWord(&kDevSumBack, faceY, DEV_LOOK_DARK, sunk, CTR_TR("BACK", "ATR\xC3\x81S", "ZUR\xC3\x9C" "CK"));
+    DevKeyWord(&kDevSumBack, faceY, DEV_LOOK_DARK, sunk, DevBackWord());
 }
 
 void CtrSummaryUi_Draw(uint16_t *canvas, const CtrSummaryUiView *v)
