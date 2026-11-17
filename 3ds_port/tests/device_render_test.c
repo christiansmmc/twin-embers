@@ -11,7 +11,8 @@
  *   DEVICE_WIDTHS=file        the normal font's 256 glyph widths; DEVICE_SMALL_WIDTHS=file the small font's
  *   DEVICE_FONT_W=n           the stub glyph width
  *
- * usage: device_render_test <suite>   (kit, home, battle, party, summary, bag, options, or all; prints PASS device <suite>) */
+ * usage: device_render_test <suite>   (kit, home, battle, party, summary, bag, options, save, card, mail, or all; prints
+ *        PASS device <suite>) */
 #include <assert.h>
 #ifndef PT_SOURCE
 #define PT_SOURCE "3ds_poketouch.c"
@@ -173,10 +174,25 @@ int CtrPokeTouch_DexFootprint(unsigned species, unsigned char *bits)
 { (void)species; (void)bits; return 0; }
 int CtrPokeTouch_DexCaughtMarker(unsigned char *tiles, unsigned short *palette)
 { (void)tiles; (void)palette; return 0; }
+/* The Trainer Card's art: none, unless a suite asks for synthetic art (cardArt): the trainer a 48x48 square of index 1
+ * (green) in a clear border of 8, every badge a 16x16 square of index 2 (blue). */
+static int cardArt __attribute__((unused));
+#define CARD_ART_GREEN 0x03e0   /* GBA BGR555 */
+#define CARD_ART_BLUE 0x7c00
 int CtrPokeTouch_CardTrainerPic(unsigned char *tiles, unsigned short *palette)
-{ (void)tiles; (void)palette; return 0; }
+{
+    if (!cardArt) return 0;
+    memset(tiles, 0, 0x800); memset(palette, 0, 32); palette[1] = CARD_ART_GREEN;
+    for (int y = 8; y < 56; ++y)
+        for (int x = 8; x < 56; ++x)
+            tiles[(y / 8 * 8 + x / 8) * 32 + y % 8 * 4 + x % 8 / 2] |= (unsigned char)(1 << (x & 1) * 4);
+    return 1;
+}
 int CtrPokeTouch_CardBadges(unsigned char *tiles, unsigned short *palette)
-{ (void)tiles; (void)palette; return 0; }
+{
+    if (!cardArt) return 0;
+    memset(tiles, 0x22, 0x400); memset(palette, 0, 32); palette[2] = CARD_ART_BLUE; return 1;
+}
 int CtrPokeTouch_MonIcon(unsigned species, unsigned personality, int egg, unsigned char *tiles, unsigned short *palette)
 {
     (void)species; (void)personality; (void)egg; (void)tiles; (void)palette;
@@ -440,6 +456,33 @@ static __attribute__((unused)) void AssertRowHits(DevHitFn hit, const void *view
 static __attribute__((unused)) int BackV(const void *view, int x, int y)
 {
     return CtrPokeTouch_BackHit((const CtrPokeTouchView *)view, x, y);
+}
+
+/* With small letters wider than capitals (7 px in both fonts): `a` and `b` drawn alike, or (`same` 0) not. A suite's
+ * upper-case check: a word drawn through DevUpper looks the same in either case, one drawn as typed does not. */
+static __attribute__((unused)) void TouchSamePixels(const CtrPokeTouchView *a, const CtrPokeTouchView *b, int same,
+                                                    const char *what)
+{
+    static uint16_t first[W * H];
+    static uint8_t keepWidths[256], keepSmall[256];
+
+    memcpy(keepWidths, fontWidths, sizeof(keepWidths));
+    memcpy(keepSmall, smallWidths, sizeof(keepSmall));
+    for (unsigned c = 0xd5; c <= 0xee; ++c)        /* a..z */
+        fontWidths[c] = smallWidths[c] = 7;
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    CtrPokeTouch_Draw(canvas, a);
+    memcpy(first, canvas, sizeof(first));
+    CtrPokeTouch_Draw(canvas, b);
+    if ((memcmp(first, canvas, sizeof(first)) == 0) != same) {
+        fprintf(stderr, "%s: %s drawn %s\n", gSuite, what, same ? "differently" : "alike");
+        assert(0);
+    }
+    memcpy(fontWidths, keepWidths, sizeof(keepWidths));
+    memcpy(smallWidths, keepSmall, sizeof(keepSmall));
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
 }
 
 /* ---- kit: the kit's pieces, then a sheet of all of them on the red shell ----------------------------------------- */
@@ -2226,6 +2269,9 @@ static void SuiteBag(void)
 
 /* The views without a board (plan 3), a suite header each. */
 #include "device_suite_options.h"
+#include "device_suite_save.h"
+#include "device_suite_card.h"
+#include "device_suite_mail.h"
 
 /* ---- main --------------------------------------------------------------------------------------------------------- */
 
@@ -2237,6 +2283,9 @@ static const struct { const char *name; void (*run)(void); } kSuites[] = {
     {"summary", SuiteSummary},
     {"bag", SuiteBag},
     {"options", SuiteOptions},
+    {"save", SuiteSave},
+    {"card", SuiteCard},
+    {"mail", SuiteMail},
 };
 
 int main(int argc, char **argv)
@@ -2245,7 +2294,8 @@ int main(int argc, char **argv)
     int all = argc > 1 && !strcmp(argv[1], "all"), ran = 0;
 
     if (argc != 2) {
-        fprintf(stderr, "usage: device_render_test <suite> (kit, home, battle, party, summary, bag, options, all)\n");
+        fprintf(stderr, "usage: device_render_test <suite> (kit, home, battle, party, summary, bag, options, save, card, "
+                        "mail, all)\n");
         return 2;
     }
     gOut = getenv("DEVICE_OUT");

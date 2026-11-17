@@ -1004,8 +1004,8 @@ int main(void) {
         """On a field frame HOME's keys, its party, FLY, the region key and the map take a touch only while HOME is the
         picture the lower screen shows: the frame after another screen closed still shows that screen's picture (the
         Bag's, a viewport's), and a touch there must not open what HOME has at that place. A native screen (OPTIONS,
-        SAVE) hits the START column only while the picture shown is an ember one: drawn as the red device (OPTIONS) it
-        has no column, so nothing is hit."""
+        SAVE) hits the START column only before its own picture is shown: drawn as the red device it has no column, so
+        nothing is hit."""
         bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
         start = bottom.index('static struct {\n    int valid;')
         state = bottom[start:bottom.index('} sHome;', start) + len('} sHome;')]
@@ -1033,8 +1033,8 @@ static int OptionsActive(void) { return 0; }
 static int SaveActive(void) { return 0; }
 static void ProcessOptionsTouch(const CtrInput *in) { (void)in; }
 static void ProcessSaveInput(const CtrInput *in) { (void)in; }
-/* the views drawn as the red device: HOME, the Bag, OPTIONS (SAVE is still an ember one) */
-bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *v) { return v->home || v->bag.on || v->options; }
+/* the views drawn as the red device: HOME, the Bag, OPTIONS, SAVE */
+bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *v) { return v->home || v->bag.on || v->options || v->save; }
 /* HOME: BAG's key at the bottom right, FLY and the region key in the window's top corners, the map below them */
 int CtrPokeTouch_HitTest(int x, int y) { return x < 60 && y < 60 ? PT_OPTIONS : PT_NONE; }
 int CtrPokeTouch_HomeHit(const CtrPokeTouchView *v, int x, int y) { (void)v; return x >= 200 && y >= 150 ? PT_BAG : PT_NONE; }
@@ -1079,11 +1079,11 @@ int main(void) {
     Tap(250, 200); Tap(100, 80); assert(activated == -1 && !tapped);
     sShown.touch.viewport = 0; sShown.touch.home = 1; sHaveShown = 0;
     Tap(250, 200); Tap(100, 80); assert(activated == -1 && !tapped);
-    /* a native screen with nothing shown yet, or SAVE's ember picture: the column's hits */
+    /* a native screen with nothing shown yet: the column's hits */
     native = 1; sShown.touch.home = 0; Tap(20, 20); assert(activated == PT_OPTIONS);
-    sHaveShown = 1; sShown.touch.save = 1; activated = -1; Tap(20, 20); assert(activated == PT_OPTIONS);
-    /* OPTIONS on the red device (or HOME still shown on its first frame): no column under it, nothing hit */
-    sShown.touch.save = 0; sShown.touch.options = 1; activated = -1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
+    /* SAVE or OPTIONS on the red device (or HOME still shown on its first frame): no column under it, nothing hit */
+    sHaveShown = 1; sShown.touch.save = 1; activated = -1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
+    sShown.touch.save = 0; sShown.touch.options = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.options = 0; sShown.touch.home = 1; Tap(20, 20); assert(activated == -1);
     return 0;
 }

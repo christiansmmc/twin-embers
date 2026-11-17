@@ -2951,8 +2951,8 @@ static void UpdateSave(void)
 
 /* Touch-down presses an enabled element, moving off releases the highlight,
  * release over it acts once. Holding never repeats. HOME's own keys and places
- * are its (CtrPokeTouch_HomeHit); a native screen keeps the START column only
- * while it is drawn on the embers (SAVE; OPTIONS is the red device's). */
+ * are its (CtrPokeTouch_HomeHit); a native screen (OPTIONS, SAVE: the red
+ * device's) has the START column only before it is first shown. */
 
 /* HOME is the picture the lower screen shows: only then do its keys, party, FLY, region key and map take a touch (on the
  * field's first frames the screen that closed may still be the picture shown). */
@@ -4370,9 +4370,8 @@ static int ProcessTouch(int mode)
         ProcessBack(mode, in);
         ProcessRelearnTouch(in);
         /* A letter closes on a touch of the letter itself, as BACK does (the game's A or B, whichever it takes). */
-        if (CtrBottomView_Mail() && in->touchDown && !sBack.down && !(in->held & 0x3ffu) && BackEnabled(mode)
-            && in->touchX >= PT_VIEW_X && in->touchX < PT_VIEW_X + PT_VIEW_W
-            && in->touchY >= PT_VIEW_Y && in->touchY < PT_VIEW_Y + PT_VIEW_H)
+        if (CtrBottomView_Mail() && in->touchDown && !sBack.down && !(in->held & 0x3ffu) && BackEnabled(mode) && sHaveShown
+            && CtrPokeTouch_MailHit(&sShown.touch, (int)in->touchX, (int)in->touchY))
             BackPress(mode);
         return HIT_NONE;
     }

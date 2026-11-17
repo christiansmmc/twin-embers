@@ -38,22 +38,7 @@ static struct {
     uint16_t pal[16];
 } sFDCaught;
 
-static void FDTiles(const unsigned char *tiles, int w, int h, uint8_t *px)
-{
-    for (int y = 0; y < h; ++y)
-        for (int x = 0; x < w; ++x) {
-            unsigned byte = tiles[((y / 8) * (w / 8) + x / 8) * 32 + (y % 8) * 4 + (x % 8) / 2];
-            px[y * w + x] = (uint8_t)((byte >> ((x & 1) * 4)) & 15);
-        }
-}
-
-static void FDPal(const unsigned short *in, uint16_t *out)
-{
-    for (int i = 0; i < 16; ++i) {
-        unsigned c = in[i];
-        out[i] = GbaColor(c);
-    }
-}
+/* FDTiles and FDPal: 3ds_device_card_impl.h, included before. */
 
 static int FDPicSlot(unsigned species)
 {

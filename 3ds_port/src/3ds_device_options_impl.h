@@ -290,19 +290,6 @@ static void DevOptSteps(const CtrPokeTouchView *v)
     }
 }
 
-/* BACK while shown: sunk under a held touch, grey while it cannot be used. */
-static void DevOptBack(const CtrPokeTouchView *v)
-{
-    int sunk = v->backEnabled && v->backPressed, faceY;
-
-    if (!v->backVisible)
-        return;
-    faceY = DevKey(&kDevBagClose, DEV_LOOK_DARK, sunk, 6);
-    DevKeyWord(&kDevBagClose, faceY, DEV_LOOK_DARK, sunk, DevBackWord());
-    if (!v->backEnabled)
-        DevDim(&kDevBagClose);
-}
-
 /* OPTIONS whole (after DevBegin: the dispatcher's). */
 static void DevOptDraw(const CtrPokeTouchView *v)
 {
@@ -320,7 +307,7 @@ static void DevOptDraw(const CtrPokeTouchView *v)
     DevOptPages(v);
     DevOptNote(v);
     DevOptSteps(v);
-    DevOptBack(v);
+    DevFieldBack(v, &kDevBagClose, DevBackWord());          /* BACK while shown */
 }
 
 /* ---- The dispatcher's row: whether two views draw the same, where BACK is ------------------------------------------- */
@@ -349,9 +336,7 @@ static int DevOptSame(const CtrPokeTouchView *a, const CtrPokeTouchView *b)
         || a->optSelected != b->optSelected || a->optPressed != b->optPressed
         || (b->optPressed >= 0 && a->optZone != b->optZone) || a->optFrameShow != b->optFrameShow
         || (b->optFrameShow && a->optFrameType != b->optFrameType) || (a->optLook.on && DevOptRows(a) <= 4) != look
-        || strcmp(a->bar[1], b->bar[1]) || strcmp(a->bar[2], b->bar[2]) || a->backVisible != b->backVisible
-        || (b->backVisible && (a->backEnabled != b->backEnabled
-                               || (a->backEnabled && a->backPressed) != (b->backEnabled && b->backPressed))))
+        || strcmp(a->bar[1], b->bar[1]) || strcmp(a->bar[2], b->bar[2]) || !DevFieldBackSame(a, b))
         return 0;
     for (int s = 0; s < b->optSectionCount && s < PT_OPT_SECTIONS; ++s)
         if (strcmp(a->optSectionName[s], b->optSectionName[s]))

@@ -341,20 +341,12 @@ int main(int argc, char **argv)
     }
     v.running=1; update(&old,&v); v.registeredItem=2; v.bikeItem=1; update(&old,&v);
     strcpy(v.playerName,"Alex"); update(&old,&v);
-    for(int screen=0;screen<3;++screen) {      /* HOME, the GBA picture, SAVE (OPTIONS: device_render_test.c) */
-        v.home=screen==0; v.viewport=screen==1; v.save=screen==2;
-        v.savePressed=PT_SAVE_NONE;
+    for(int screen=0;screen<2;++screen) {      /* HOME, the GBA picture (OPTIONS, SAVE: device_render_test.c) */
+        v.home=screen==0; v.viewport=screen==1;
         update(&old,&v);
         if(viewports) for(int x=4;x<244;++x) for(int y=4;y<164;++y) {
             uint16_t c=at(x,y); fwrite(&c,2,1,viewports);
         }
-    }
-    for(int state=SAVE_CONFIRM;state<=SAVE_ERROR;++state) {
-        v.saveState=state; update(&old,&v);
-        v.saveSel=1; update(&old,&v); v.savePressed=PT_SAVE_FIRST; update(&old,&v);
-        assert(CtrPokeTouch_SaveHit(180,state==SAVE_CONFIRM?180:200,state)==
-               (state==SAVE_WRITING?PT_SAVE_NONE:PT_SAVE_FIRST));
-        v.savePressed=PT_SAVE_NONE; update(&old,&v);
     }
     /* Ascuas 2: the screens the owner's mockup draws, each through the incremental path first (every press, selection and value
      * change must equal a full redraw) and then, with PT_PREVIEW_DIR, written as a PPM (PT_PREVIEW_FONT and PT_PREVIEW_WIDTHS: the
@@ -459,16 +451,6 @@ int main(int argc, char **argv)
             r->panel=PT_RL_PANEL_LIST; r->message[0]=0; update(&old,&s);
             r->on=0; s.backVisible=0;
         }
-        /* The letter being read (Llama): the paper, its name and the writer; a long name and writer end in "...", no writer, no icon; each through the incremental path. */
-        {
-            CtrPokeTouchMail *m=&s.mail;
-            s.options=0; s.backVisible=1; memset(m,0,sizeof(*m)); m->on=1; m->item=121; strcpy(m->name,"Orange Mail"); strcpy(m->from,"ASH");
-            update(&old,&s); SHOT("mail");
-            s.backEnabled=0; update(&old,&s); s.backEnabled=1; s.backPressed=1; update(&old,&s); s.backPressed=0; update(&old,&s);
-            strcpy(m->name,"Glitter Mail Of The Long Name"); strcpy(m->from,"ABCDEFGHIJKLMNOPQRSTUVW"); update(&old,&s); SHOT("mail_long");
-            m->item=0; m->from[0]=0; strcpy(m->name,"Mail"); update(&old,&s); SHOT("mail_bare");
-            m->on=0; s.backVisible=0;
-        }
         /* Easy Chat (Llama): the phrase, the groups, the letters, a list with its rail and strip, and the three questions; every change goes through the
          * incremental path (update compares it with the whole draw), and the hit tests are the mockup's rectangles. */
         {
@@ -550,8 +532,8 @@ int main(int argc, char **argv)
             e->ask=0; update(&old,&s);
             e->on=0; update(&old,&s);          /* the screen closes: what was under it is drawn whole again */
         }
-        /* Llama: the Pokedex (menu, list, habitats, category, page) and the Trainer Card note; each through the incremental path (a cursor
-         * move, a press, a page turn) and then written. */
+        /* Llama: the Pokedex (menu, list, habitats, category, page); each through the incremental path (a cursor move, a press, a page
+         * turn) and then written. */
         s.options=0; s.backVisible=1; s.backEnabled=1; memset(s.bar,0,sizeof(s.bar));
         {
             CtrPokeTouchDex *d=&s.dex; memset(d,0,sizeof(*d)); d->on=1; d->state=PT_DEX_STATE_MENU; d->pressed=-1; d->national=1;
@@ -583,34 +565,16 @@ int main(int argc, char **argv)
             d->pressed=PT_DEX_HIT_CRY; update(&old,&s); d->pressed=PT_DEX_HIT_AREA; update(&old,&s); d->pressed=-1; d->added=1; update(&old,&s); d->added=0;
         }
         s.dex.on=0;
-        {
-            CtrPokeTouchCard *c=&s.card; memset(c,0,sizeof(*c)); c->on=1; strcpy(c->name,"RICK"); strcpy(c->label[0],"NAME: "); strcpy(c->label[1],"IDNo."); strcpy(c->label[2],"MONEY");
-            strcpy(c->label[3],"\xC2\xA5"); strcpy(c->label[4],"POK\xC3\xA9" "DEX"); strcpy(c->label[5],"TIME"); c->id=12345; c->money=128450; c->hasDex=1; c->caught=118; c->hours=47; c->minutes=5; c->stars=2; c->badges=0x1f;
-            strcpy(s.bar[0],"TRAINER CARD"); strcpy(s.bar[1],"Tap the card to turn it.");
-            SHOT("card_front"); c->pressed=1; update(&old,&s); c->pressed=0; c->back=1; c->rows=2; strcpy(c->row[0].label,"HALL OF FAME"); strcpy(c->row[0].value,"3"); strcpy(c->row[1].label,"LINK BATTLES"); strcpy(c->row[1].value,"0/0"); update(&old,&s);
-            c->on=0;
-        }
-        /* SAVE: the four states of the mockup (the incremental path first: each must equal a full redraw). */
-        memset(&old,0,sizeof(old)); old.selected=old.pressed=PT_NONE;
-        s.backVisible=0; s.backEnabled=0;
-        s.save=1; s.saveBadges=5; s.saveDex=87; s.saveHasDex=1; s.saveHours=42; s.saveMinutes=7; s.saveMoney=123456; s.saveSel=1; s.savePressed=PT_SAVE_NONE;
-        s.playerFemale=0; s.saveState=SAVE_CONFIRM; strcpy(s.bar[0],"Save your game?"); s.bar[1][0]=0; s.bar[2][0]=0;
-        SHOT("save_confirm");
-        s.saveSel=0; SHOT("save_confirm_yes"); s.savePressed=PT_SAVE_FIRST; SHOT("save_confirm_yes_pressed"); s.savePressed=PT_SAVE_NONE; s.saveSel=1;
-        s.saveState=SAVE_WRITING; strcpy(s.bar[0],"Saving..."); strcpy(s.bar[1],"Don't turn off the power."); SHOT("save_writing");
-        s.saveState=SAVE_SUCCESS; strcpy(s.bar[0],"Game saved!"); s.bar[1][0]=0; SHOT("save_saved");
-        s.saveState=SAVE_ERROR; strcpy(s.bar[0],"Could not save."); strcpy(s.bar[1],"Try again."); SHOT("save_error");
-        s.saveMinutes=8; s.saveMoney=999999; s.saveBadges=8; s.playerFemale=1; strcpy(s.playerName,"Leaf"); update(&old,&s); SHOT("save_error_changed");
         /* A choice of the field (3ds_field_choice_impl.h): flame row with the ring and cursor, the question in the window; the cursor moves incrementally. */
         memset(&old,0,sizeof(old)); old.selected=old.pressed=PT_NONE;
-        s.save=0; s.saveState=0; s.viewport=0; s.backVisible=0; s.choice.on=1; s.choice.count=2; s.choice.cols=0; s.choice.cursor=0; s.choice.pressed=-1;
+        s.viewport=0; s.backVisible=0; s.choice.on=1; s.choice.count=2; s.choice.cols=0; s.choice.cursor=0; s.choice.pressed=-1;
         strcpy(s.choice.label[0],"YES"); strcpy(s.choice.label[1],"NO"); strcpy(s.choice.prompt,"Would you like to buy this?");
         strcpy(s.bar[0],""); s.bar[1][0]=0;
         update(&old,&s); SHOT("choice_yesno"); s.choice.cursor=1; update(&old,&s); s.choice.pressed=PT_CHOICE_HIT_ROW; update(&old,&s); s.choice.pressed=-1; s.choice.cursor=0; update(&old,&s);
         s.choice.count=6; for(int k=0;k<6;++k) snprintf(s.choice.label[k],sizeof(s.choice.label[k]),"CHOICE %d",k+1);
         s.choice.cursor=3; update(&old,&s); SHOT("choice_six"); s.choice.cursor=5; update(&old,&s); s.choice.on=0;
     }
-    v.save=0; v.home=1; v.backVisible=1; update(&old,&v);
+    v.home=1; v.backVisible=1; update(&old,&v);
     v.backEnabled=1; update(&old,&v); v.backPressed=1; update(&old,&v);
 #ifndef PT_BASELINE
     {
@@ -907,6 +871,6 @@ int main(int argc, char **argv)
     if(viewports) fclose(viewports);
     if(realPack) fclose(realPack);
     free(realIndex);
-    puts("PASS real renderer: decoder, 4bpp, geometry, viewport, incremental states, X/Y/RUN, save/back hit-tests");
+    puts("PASS real renderer: decoder, 4bpp, geometry, viewport, incremental states, X/Y/RUN, back");
     return 0;
 }

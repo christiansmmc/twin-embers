@@ -266,4 +266,58 @@ static inline CtrPokeTouchRect DevOptLevel(int i, int k, int count)
     return r;
 }
 
+/* ---- SAVE, the Trainer Card, the letter (no board; 3ds_device_save_impl.h, _card_impl.h, _mail_impl.h) ---------------
+ * SAVE: HOME's screen holds the save's facts, a row each (DevSaveRow: the label small at its left, the value at its
+ * right) and the player's map icon at 4x (kDevSaveSprite); under it the question's note, YES and NO beside it (a result's
+ * OK alone in YES's place). The Trainer Card: the tall screen, FLIP under it and the Summary's BACK beside FLIP. Its front:
+ * the first line (DevCardRow(0): NAME and the name, IDNo. and the ID), the rows beside the trainer's picture
+ * (DevCardRow(1-3): MONEY, POKeDEX, TIME; kDevCardPic), the stars (DEV_CARD_STAR_*) and the eight badges' places
+ * (DevCardBadge); its back: the name on the first line, the rule under it (kDevCardRule) and the records
+ * (DevCardBackRow). The letter: the tall screen (a touch of it closes the letter) with the paper's icon (kDevMailIcon),
+ * its name (kDevMailName), a rule (kDevMailRule) and who wrote it (kDevMailFrom); CLOSE, the wide key, under it. */
+static const CtrPokeTouchRect kDevSaveSprite __attribute__((unused)) = {224, 46, 64, 64};
+static const CtrPokeTouchRect kDevCardFlip __attribute__((unused)) = {8, 188, 228, 42};
+static const CtrPokeTouchRect kDevCardPic __attribute__((unused)) = {226, 40, 64, 64};
+static const CtrPokeTouchRect kDevCardRule __attribute__((unused)) = {22, 40, 276, 1};
+static const CtrPokeTouchRect kDevMailIcon __attribute__((unused)) = {148, 40, 24, 24};
+static const CtrPokeTouchRect kDevMailName __attribute__((unused)) = {22, 74, 276, 18};
+static const CtrPokeTouchRect kDevMailRule __attribute__((unused)) = {80, 98, 160, 1};
+static const CtrPokeTouchRect kDevMailFrom __attribute__((unused)) = {22, 106, 276, 18};
+#define DEV_CARD_STARS     5    /* the most a card has: the first's top-left at (X, Y), each STEP right of the one before */
+#define DEV_CARD_STAR_X    22
+#define DEV_CARD_STAR_Y    108
+#define DEV_CARD_STAR_STEP 13
+
+/* Row i (0-4: PLAYER, BADGES, POKeDEX, TIME, MONEY) of SAVE's facts. */
+static inline CtrPokeTouchRect DevSaveRow(int i)
+{
+    CtrPokeTouchRect r = {22, (int16_t)(18 + 24 * i), 192, 24};
+
+    return r;
+}
+
+/* The card's front: its first line (i 0, across the screen) and rows 1-3 beside the picture. */
+static inline CtrPokeTouchRect DevCardRow(int i)
+{
+    CtrPokeTouchRect r = {22, (int16_t)(18 + 22 * i), (int16_t)(i ? 196 : 276), 22};
+
+    return r;
+}
+
+/* The card's back: record i (0 to PT_CARD_ROWS - 1) under the rule. */
+static inline CtrPokeTouchRect DevCardBackRow(int i)
+{
+    CtrPokeTouchRect r = {22, (int16_t)(46 + 24 * i), 276, 24};
+
+    return r;
+}
+
+/* The place of badge i (0-7) on the card's front: the badge at 2x, or the place empty. */
+static inline CtrPokeTouchRect DevCardBadge(int i)
+{
+    CtrPokeTouchRect r = {(int16_t)(20 + 34 * i), 132, 32, 32};
+
+    return r;
+}
+
 #endif

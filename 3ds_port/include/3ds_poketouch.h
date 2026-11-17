@@ -92,10 +92,9 @@ typedef struct {
     uint8_t tiles[512];
     uint16_t palette[16];           /* 15-bit colours, 0 clear */
 } CtrPokeTouchLook;
-/* The SAVE screen (the facts come from FireRed's save window, ctr_poketouch.h CtrSave_*): the whole
- * viewport shows the game's save information, and the contextual bar becomes the dialogue: its two or
- * three text lines on the left and, on the right of the same bar, YES / NO (SAVE_CONFIRM), nothing
- * (SAVE_WRITING) or OK (SAVE_SUCCESS, SAVE_ERROR). */
+/* The SAVE screen (the facts come from FireRed's save window, ctr_poketouch.h CtrSave_*), the red device's
+ * (3ds_device_save_impl.h): the game's save information on the screen, the dialogue (bar[]) on the note under
+ * it and beside the note YES / NO (SAVE_CONFIRM), nothing (SAVE_WRITING) or OK (SAVE_SUCCESS, SAVE_ERROR). */
 enum { SAVE_CONFIRM, SAVE_WRITING, SAVE_SUCCESS, SAVE_ERROR };
 enum { PT_SAVE_NONE, PT_SAVE_FIRST, PT_SAVE_SECOND };  /* the button: YES or OK, NO */
 /* Contextual bar text: three lines of FireRed's font inside 228 pixels. */
@@ -225,7 +224,7 @@ typedef struct {
     char desc[160];
 } CtrPokeTouchRelearn;
 
-/* The letter being read (3ds_field_mail_impl.h): the paper's item (its icon), its name and who wrote it. */
+/* The letter being read (3ds_device_mail_impl.h): the paper's item (its icon), its name and who wrote it. */
 typedef struct {
     uint8_t on;
     uint16_t item;                  /* 0: no icon */
@@ -357,9 +356,9 @@ typedef struct {
     uint8_t itemDesc[96];
 } CtrPokeTouchBox;
 
-/* The player's Trainer Card drawn by the port (3ds_field_card_impl.h), a remote for FireRed's own card: its front
+/* The player's Trainer Card drawn by the port (3ds_device_card_impl.h), a remote for FireRed's own card: its front
  * (name, ID, money, Pokedex, time, the trainer's picture, stars and badges) or its back (FireRed's records). A touch
- * on it turns it over with the card's own key. A link card stays FireRed's picture. */
+ * on it or on FLIP turns it over with the card's own key. A link card stays FireRed's picture. */
 #define PT_CARD_ROWS 5
 typedef struct {
     uint8_t on;                     /* the viewport shows this card (no GBA picture) */
@@ -497,8 +496,8 @@ int CtrPokeTouch_OptionSegment(int x, int count);
  * PT_OPT_KEY_DOWN (with more than one page), else -1. */
 int CtrPokeTouch_OptionKey(const CtrPokeTouchView *view, int x, int y);
 
-/* SAVE's button under a bottom-screen pixel (PT_SAVE_*) in the bar for the dialogue state: YES and NO
- * while confirming, OK (PT_SAVE_FIRST) after a result, none while writing. */
+/* SAVE's key under a bottom-screen pixel (PT_SAVE_*) for the dialogue state: YES and NO while
+ * confirming, OK (PT_SAVE_FIRST, in YES's place) after a result, none while writing. */
 int CtrPokeTouch_SaveHit(int x, int y, int state);
 
 /* The START column's PT_* under a bottom-screen pixel, or PT_NONE (every view but HOME). */
@@ -549,8 +548,11 @@ int CtrPokeTouch_Wallpaper(unsigned id, unsigned short *rgb555);
 /* A mark's 8x8 shape (0 circle .. 3 heart) from FireRed's marking sheet: 0 none, 3 the mark, 4 its edge. */
 int CtrPokeTouch_MarkShape(int mark, unsigned char *indexes);
 int CtrBottomStorage_BoxFill(CtrPokeTouchBox *box);
-/* Whether the Trainer Card (view->card.on) is under lower-screen point (x, y). */
+/* Whether the Trainer Card (view->card.on, no GBA picture) is under lower-screen point (x, y): its screen or FLIP. */
 int CtrPokeTouch_CardHit(const CtrPokeTouchView *view, int x, int y);
+/* Whether the letter being read (view->mail.on, no GBA picture) is under lower-screen point (x, y): its screen,
+ * which closes it as CLOSE does. */
+bool CtrPokeTouch_MailHit(const CtrPokeTouchView *view, int x, int y);
 /* The card's pictures, from FireRed's (trainer_card.c): the trainer's front picture (64x64 4bpp, 8x8 tiles in rows of
  * eight) and the badges (128x16 4bpp: badge i at tiles 2i, 2i + 1 and 2i + 16, 2i + 17). 0 when there is none. */
 int CtrPokeTouch_CardTrainerPic(unsigned char *tiles, unsigned short *palette);

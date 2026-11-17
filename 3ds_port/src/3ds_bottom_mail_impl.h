@@ -1,4 +1,4 @@
-/* The letter being read as the lower screen's own view (included by 3ds_bottom.c after RelearnSnapshot; drawn by 3ds_field_mail_impl.h).
+/* The letter being read as the lower screen's own view (included by 3ds_bottom.c after RelearnSnapshot; drawn by 3ds_device_mail_impl.h).
  * Its data is recipe 0243's: the stationery's name and the writer. The item (for the icon) is the one of the mail items whose name that is:
  * FireRed's twelve, ITEM_ORANGE_MAIL..ITEM_RETRO_MAIL, are consecutive. BACK and a touch of the letter close it as before (ProcessTouch). */
 

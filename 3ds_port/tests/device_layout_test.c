@@ -463,6 +463,78 @@ static int OptionsFaults(void)
     return faults;
 }
 
+/* SAVE, the Trainer Card and the letter: SAVE's five rows and the player's icon on HOME's screen's paper, the rows one
+ * under the other and clear of the icon; the card's front (its first line over the picture, its rows beside it, the
+ * five stars under them, the eight badges' places side by side under the stars) and back (the rule under the name, the
+ * five records under it) on the tall screen's paper, FLIP beside BACK; the letter's icon (centred), name, rule and
+ * writer on the tall screen's paper, one under the other. */
+static int ScreensFaults(void)
+{
+    const CtrPokeTouchRect homePaper = {14, 14, 292, 128}, tallPaper = {14, 14, 292, 160};
+    const CtrPokeTouchRect stars = {DEV_CARD_STAR_X, DEV_CARD_STAR_Y, DEV_CARD_STAR_STEP * (DEV_CARD_STARS - 1) + 12, 12};
+    const CtrPokeTouchRect letter[4] = {kDevMailIcon, kDevMailName, kDevMailRule, kDevMailFrom};
+    int faults = 0;
+
+    assert(Same(kDevSaveSprite, (CtrPokeTouchRect){224, 46, 64, 64}) && Same(kDevCardFlip, (CtrPokeTouchRect){8, 188, 228, 42})
+           && Same(kDevCardPic, (CtrPokeTouchRect){226, 40, 64, 64}));
+    for (int i = 0; i < 5; ++i) {
+        CtrPokeTouchRect r = DevSaveRow(i);
+
+        if (!Within(r, homePaper, 0) || r.x + r.w > kDevSaveSprite.x || (i && DevSaveRow(i - 1).y + DevSaveRow(i - 1).h > r.y)) {
+            fprintf(stderr, "SAVE: row %d leaves the paper, meets the icon or the row over it\n", i);
+            ++faults;
+        }
+    }
+    for (int i = 0; i < 4; ++i) {
+        CtrPokeTouchRect r = DevCardRow(i);
+
+        if (!Within(r, tallPaper, 0) || (i ? r.x + r.w > kDevCardPic.x : r.y + r.h > kDevCardPic.y)
+            || (i && DevCardRow(i - 1).y + DevCardRow(i - 1).h > r.y)) {
+            fprintf(stderr, "card: front row %d leaves the paper, meets the picture or the row over it\n", i);
+            ++faults;
+        }
+    }
+    for (int i = 0; i < 8; ++i) {
+        CtrPokeTouchRect b = DevCardBadge(i);
+
+        assert(Same(b, (CtrPokeTouchRect){(int16_t)(20 + 34 * i), 132, 32, 32}));
+        if (!Within(b, tallPaper, 0) || (i && DevCardBadge(i - 1).x + DevCardBadge(i - 1).w > b.x)) {
+            fprintf(stderr, "card: badge %d leaves the paper or meets the one before\n", i);
+            ++faults;
+        }
+    }
+    if (!Within(kDevSaveSprite, homePaper, 0) || !Within(kDevCardPic, tallPaper, 0) || !Within(stars, tallPaper, 0)
+        || stars.y < DevCardRow(3).y + DevCardRow(3).h || stars.y < kDevCardPic.y + kDevCardPic.h
+        || stars.y + stars.h > DevCardBadge(0).y) {
+        fprintf(stderr, "SAVE's icon, the card's picture or its stars leave the paper or meet the rows or badges\n");
+        ++faults;
+    }
+    if (!Within(kDevCardRule, tallPaper, 0) || kDevCardRule.y < DevCardRow(0).y + DevCardRow(0).h) {
+        fprintf(stderr, "card: the back's rule leaves the paper or meets the name\n");
+        ++faults;
+    }
+    for (int i = 0; i < PT_CARD_ROWS; ++i) {
+        CtrPokeTouchRect r = DevCardBackRow(i);
+
+        if (!Within(r, tallPaper, 0) || r.y < (i ? DevCardBackRow(i - 1).y + DevCardBackRow(i - 1).h : kDevCardRule.y + 1)) {
+            fprintf(stderr, "card: record %d leaves the paper or meets what is over it\n", i);
+            ++faults;
+        }
+    }
+    if (kDevCardFlip.x + kDevCardFlip.w > kDevSumBack.x || kDevCardFlip.y != kDevSumBack.y
+        || kDevTallScreen.y + kDevTallScreen.h + 1 > kDevCardFlip.y) {
+        fprintf(stderr, "card: FLIP meets BACK or the screen\n");
+        ++faults;
+    }
+    assert(kDevMailIcon.x + kDevMailIcon.w / 2 == kDevTallScreen.x + kDevTallScreen.w / 2);
+    for (int i = 0; i < 4; ++i)
+        if (!Within(letter[i], tallPaper, 0) || (i && letter[i - 1].y + letter[i - 1].h > letter[i].y)) {
+            fprintf(stderr, "the letter: piece %d leaves the paper or meets the one over it\n", i);
+            ++faults;
+        }
+    return faults;
+}
+
 int main(void)
 {
     /* Every rectangle the header holds, by name, and the keys of each view state. */
@@ -486,6 +558,8 @@ int main(void)
                                         DevAcross(4, 3, 8, 24), kDevBagUp, kDevBagDown, kDevSmallKey[0], kDevSmallKey[1],
                                         kDevBagClose};
     const CtrPokeTouchRect askKeys[] = {kDevAskYes, kDevAskNo};
+    const CtrPokeTouchRect saveAsk[] = {kDevAskYes, kDevAskNo}, saveResult[] = {kDevAskYes};
+    const CtrPokeTouchRect cardKeys[] = {kDevCardFlip, kDevSumBack}, mailKeys[] = {kDevWideKey};
     CtrPokeTouchRect ptyMenu[8][8], bagMenu[6][6];
     DevGroup ptyMenus[8], bagMenus[6];
     static const char *const kBagMenuName[6] = {"Bag menu of 1", "Bag menu of 2", "Bag menu of 3", "Bag menu of 4",
@@ -523,6 +597,12 @@ int main(void)
         {"question's YES", kDevAskYes}, {"question's NO", kDevAskNo}, {"tall row 4", DevTallRow(4, 0)},
         {"OPTIONS row 0", DevOptRow(0)}, {"OPTIONS row 6", DevOptRow(PT_OPT_MAX - 1)}, {"OPTIONS FRAME sample", kDevOptSample},
         {"OPTIONS look panel", kDevOptLook},
+        {"SAVE row 0", DevSaveRow(0)}, {"SAVE row 4", DevSaveRow(4)}, {"SAVE icon", kDevSaveSprite},
+        {"card FLIP", kDevCardFlip}, {"card picture", kDevCardPic}, {"card first line", DevCardRow(0)},
+        {"card row 3", DevCardRow(3)}, {"card badge 0", DevCardBadge(0)}, {"card badge 7", DevCardBadge(7)},
+        {"card rule", kDevCardRule}, {"card record 0", DevCardBackRow(0)}, {"card record 4", DevCardBackRow(PT_CARD_ROWS - 1)},
+        {"letter icon", kDevMailIcon}, {"letter name", kDevMailName}, {"letter rule", kDevMailRule},
+        {"letter writer", kDevMailFrom},
     };
     const DevGroup groups[] = {DEV_GROUP("HOME", homeKeys), DEV_GROUP("battle, a trainer", batTrainer),
                                DEV_GROUP("battle, wild", batWild), DEV_GROUP("battle moves", batMoves),
@@ -530,7 +610,9 @@ int main(void)
                                DEV_GROUP("Party level up", ptyOk), DEV_GROUP("Summary", sumKeys),
                                DEV_GROUP("Bag list", bagList), DEV_GROUP("a case's list", bagCase),
                                DEV_GROUP("Bag how many", bagQty), DEV_GROUP("Bag YES / NO", bagYesNo),
-                               DEV_GROUP("OPTIONS", optKeys), DEV_GROUP("a question", askKeys)};
+                               DEV_GROUP("OPTIONS", optKeys), DEV_GROUP("a question", askKeys),
+                               DEV_GROUP("SAVE asking", saveAsk), DEV_GROUP("SAVE's result", saveResult),
+                               DEV_GROUP("Trainer Card", cardKeys), DEV_GROUP("a letter", mailKeys)};
     int faults = 0;
 
     RulesCatchFaults();
@@ -563,6 +645,7 @@ int main(void)
     faults += BagFaults();
     faults += SharedFaults();
     faults += OptionsFaults();
+    faults += ScreensFaults();
     assert(faults == 0);
     puts("PASS device layout");
     return 0;
