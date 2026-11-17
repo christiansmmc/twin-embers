@@ -42,7 +42,7 @@ static const struct { const char *name, *type, *pp, *power, *accuracy; int8_t t;
 
 /* The move to forget as 3ds_bottom.c gives it (FieldLearnFill): four moves and the new one in row 4 (FireRed's names
  * and types in capitals), the cursor on the new one, the Pokemon called by its species' name (recipe 0251's title
- * case: nameDefault), port-written stand-ins for the question and the description; BACK shown and usable. */
+ * case: nameDefault), its level the number alone (recipe 0222's CtrBottomLearn_Name), port-written stand-ins for the question and the description; BACK shown and usable. */
 static CtrPokeTouchView LearnBoard(void)
 {
     CtrPokeTouchView v;
@@ -57,7 +57,7 @@ static CtrPokeTouchView LearnBoard(void)
     l->species = 6;
     l->nameDefault = 1;
     strcpy(l->nickname, "Charizard");
-    strcpy(l->level, "Lv36");
+    strcpy(l->level, "36");                                     /* the fill gives the number */
     strcpy(l->question, "Port-written question for this test?");
     for (int i = 0; i < PT_LEARN_ROWS; ++i) {
         l->row[i].move = (uint16_t)(i + 1);
@@ -120,11 +120,20 @@ static void SuiteLearn(void)
     lv.learn.row[0].locked ^= 1; lv.mapGroup ^= 1; lv.speed ^= 1; assert(DevCheckTouch(&lo, &lv).count == 0);
 
     /* the title: the question in the paper's ink; the column (the paper's second tone): the name, the level small in the
-     * secondary ink, the picture in the Summary's place, the cursor's move's POWER and ACCURACY at its foot */
+     * secondary ink with the Summary's prefix ("Lv36": the fill gives the number), the picture in the Summary's place, the
+     * cursor's move's POWER and ACCURACY at its foot */
     lv = LearnBoard(); DevCheckTouch(&lo, &lv);
     assert(CountIn(kLearnTitlePaper, DEV_INK) > 0);
     assert(at(15, 47) == DEV_PAPER2 && at(116, 172) == DEV_PAPER2);
     assert(Count(20, 49, 92, 12, DEV_INK) > 0 && Count(20, 63, 92, 10, DEV_INK2) > 0 && Count(20, 63, 92, 10, DEV_INK) == 0);
+    {
+        char level[16];
+        int bare = DevSmallTextWidth(lv.learn.level), full;
+
+        snprintf(level, sizeof(level), CTR_TR("Lv%s", "Nv%s", "Lv%s"), lv.learn.level);
+        full = DevSmallTextWidth(level);
+        assert(full > bare && Count(20 + bare, 63, full - bare, 10, DEV_INK2) > 0 && Count(20 + full, 63, 92 - full, 10, DEV_INK2) == 0);
+    }
     assert(Count(kDevSumPic.x, kDevSumPic.y, kDevSumPic.w, kDevSumPic.h, STUB_PIC) == 48 * 48);
     assert(Count(20, 148, 92, 26, DEV_INK2) > 0 && Count(20, 148, 92, 26, DEV_INK) > 0);
     /* the rows: the cursor's inverted, the others the paper's; each its name, its type's chip and its PP; the rule over

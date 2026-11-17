@@ -42,8 +42,9 @@ static int DevLearnCursor(const CtrPokeTouchLearn *l)
     return l->cursor >= 0 && l->cursor < PT_LEARN_ROWS && l->row[l->cursor].move ? l->cursor : -1;
 }
 
-/* The column (the paper's second tone): the name (the small font when the normal one does not fit), the level small,
- * the picture in the Summary's place, the cursor's move's POWER and ACCURACY at the foot. */
+/* The column (the paper's second tone): the name (the small font when the normal one does not fit), the level small
+ * ("Lv36" as the Summary writes it: the fill gives the number), the picture in the Summary's place, the cursor's move's
+ * POWER and ACCURACY at the foot. */
 static void DevLearnColumn(const CtrPokeTouchLearn *l)
 {
     const CtrPokeTouchRect *col = &kDevSumColumn, *pic = &kDevSumPic;
@@ -56,7 +57,8 @@ static void DevLearnColumn(const CtrPokeTouchLearn *l)
         DevText(shown, col->x + 6, col->y + 6, right);
     else
         DevSmallText(shown, col->x + 6, col->y + 7, DEV_INK, right);
-    DevSmallText(l->level, col->x + 6, col->y + 21, DEV_INK2, right);
+    snprintf(word, sizeof(word), CTR_TR("Lv%s", "Nv%s", "Lv%s"), l->level);
+    DevSmallText(word, col->x + 6, col->y + 21, DEV_INK2, right);
     DevArt(DEV_ART_PICTURE, pic->x, pic->y, pic->w, pic->h);
     FDPicDraw(l->species, pic->x, pic->y, 0);
     if (c < 0)
