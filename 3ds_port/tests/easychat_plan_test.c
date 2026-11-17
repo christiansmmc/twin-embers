@@ -384,6 +384,18 @@ static void test_touch(void)
     memset(&sEcPlan, 0, sizeof(sEcPlan));
     tap(PT_EC_HIT_CELL + PT_EC_CELL_TOGGLE); assert(sRouteKey == K_SELECT); sRouteKey = 0;
     tap(PT_EC_HIT_CELL + PT_EC_CELL_BACK); assert(sRouteKey == K_B); sRouteKey = 0;
+    /* the letters: Y and Z (cells 24 and 25) are letters, walked to as the others, apart from the order's key and BACK */
+    game_open(14, 100, 0); G.state = 2; G.alpha = 1;
+    shown(); assert(sShown.touch.ec.screen == PT_EC_LETTER && sShown.touch.ec.cell == 0);
+    for (int letter = 24; letter < 26; ++letter) {
+        tap(PT_EC_HIT_CELL + letter); assert(sEcPlan.kind == EP_LETTER && sEcPlan.target == letter && !sRouteKey);
+        memset(&sEcPlan, 0, sizeof(sEcPlan));
+    }
+    tap(PT_EC_HIT_CELL + PT_EC_CELL_TOGGLE); assert(sRouteKey == K_SELECT); sRouteKey = 0;
+    tap(PT_EC_HIT_CELL + PT_EC_CELL_BACK); assert(sRouteKey == K_B); sRouteKey = 0;
+    G.gx = 5; G.gy = 3; shown(); assert(sShown.touch.ec.cell == 24 && sShown.touch.ec.cell != PT_EC_CELL_TOGGLE);   /* the cursor on Y */
+    G.gx = 6; shown(); assert(sShown.touch.ec.cell == 25 && sShown.touch.ec.cell != PT_EC_CELL_BACK);
+    G.gx = -1; G.gy = 0; shown(); assert(sShown.touch.ec.cell == PT_EC_CELL_TOGGLE);
     /* a held touch that slides off its control does nothing; a physical key cancels it */
     shown(); gHitCode = PT_EC_HIT_CELL + 3; touch(1, 1); ProcessEasyTouch(&sIn); gHitCode = PT_EC_HIT_CELL + 4; touch(0, 1); ProcessEasyTouch(&sIn);
     touch(0, 0); ProcessEasyTouch(&sIn); assert(!sEcPlan.kind && !sRouteKey);
