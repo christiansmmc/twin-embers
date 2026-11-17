@@ -7675,7 +7675,7 @@
   },
   {
    "path": "3ds_port/src/3ds_device_naming_impl.h",
-   "sha256": "ca722712f74990472bfbdb85eddf386bf3d2dd159b7a839c616d2e822f4ef33c",
+   "sha256": "b7a2fd77e3b39a9ef0abf572b677afc1e2971ab6f14aac8dc6b1deb21ed5caae",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
