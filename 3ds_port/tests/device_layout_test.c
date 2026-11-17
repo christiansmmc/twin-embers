@@ -611,6 +611,30 @@ static int ChoiceFaults(void)
     return faults;
 }
 
+/* The naming keyboard: its screen across the top, the five keys across under it (the three pages, DELETE, OK), and
+ * under them four rows of FireRed's 8 columns (34 wide) or of its symbols' 6 (47 wide). */
+static int NamingFaults(void)
+{
+    int faults = 0;
+
+    assert(Same(kDevNameScreen, (CtrPokeTouchRect){8, 8, 304, 40}));
+    for (int i = 0; i < 5; ++i)
+        assert(Same(DevNameTop(i), DevAcross(5, i, 56, 24)));
+    for (int r = 0; r < 4; ++r)
+        for (int c = 0; c < 8; ++c)
+            assert(Same(DevNameKey(8, r, c), DevAcross(8, c, 88 + 36 * r, 32)) && (c >= 6 || Same(DevNameKey(6, r, c), DevAcross(6, c, 88 + 36 * r, 32))));
+    assert(DevNameKey(8, 0, 0).w == 34 && DevNameKey(6, 0, 0).w == 47);
+    if (kDevNameScreen.y + kDevNameScreen.h + 1 > DevNameTop(0).y) {
+        fprintf(stderr, "naming: the screen meets the keys under it\n");
+        ++faults;
+    }
+    if (DevNameTop(0).y + DevNameTop(0).h + DEV_DROP > DevNameKey(8, 0, 0).y) {
+        fprintf(stderr, "naming: the top keys meet the first row\n");
+        ++faults;
+    }
+    return faults;
+}
+
 int main(void)
 {
     /* Every rectangle the header holds, by name, and the keys of each view state. */
@@ -646,8 +670,9 @@ int main(void)
     const CtrPokeTouchRect learnKeys[] = {kDevSumBack};
     const CtrPokeTouchRect relearnList[] = {kDevBagUp, kDevBagDown, kDevBagClose};
     const CtrPokeTouchRect relearnYesNo[] = {DevBagMenuKey(2, 0), DevBagMenuKey(2, 1)};
-    CtrPokeTouchRect ptyMenu[8][8], bagMenu[6][6], choiceKeys[3][8][9];
-    DevGroup ptyMenus[8], bagMenus[6], choiceGroups[3][8];
+    CtrPokeTouchRect ptyMenu[8][8], bagMenu[6][6], choiceKeys[3][8][9], nameKeys[2][5 + 32];
+    DevGroup ptyMenus[8], bagMenus[6], choiceGroups[3][8], nameGroups[2];
+    static const char *const kNameGroup[2] = {"naming, 8 columns", "naming, 6 columns (symbols)"};
     static char choiceName[3][8][40];
     static const char *const kBagMenuName[6] = {"Bag menu of 1", "Bag menu of 2", "Bag menu of 3", "Bag menu of 4",
                                                 "Bag menu of 5", "Bag menu of 6"};
@@ -696,6 +721,8 @@ int main(void)
         {"Pokedex AREA", kDevDexArea}, {"Pokedex CRY", kDevDexCry},
         {"choice note", kDevChoiceNote}, {"choice BACK", kDevChoiceBack}, {"choice key 7 of 8", DevChoiceKey(8, 0, 7)},
         {"choice grid key 7 of 8", DevChoiceKey(8, 3, 7)},
+        {"naming screen", kDevNameScreen}, {"naming OK", DevNameTop(4)}, {"naming key 3,7", DevNameKey(8, 3, 7)},
+        {"naming symbol 3,5", DevNameKey(6, 3, 5)},
     };
     const DevGroup groups[] = {DEV_GROUP("HOME", homeKeys), DEV_GROUP("battle, a trainer", batTrainer),
                                DEV_GROUP("battle, wild", batWild), DEV_GROUP("battle moves", batMoves),
@@ -737,6 +764,17 @@ int main(void)
             choiceGroups[c][n - 1] = (DevGroup){choiceName[c][n - 1], choiceKeys[c][n - 1], n + 1};
             faults += GroupFaults(&choiceGroups[c][n - 1]);
         }
+    for (int g = 0; g < 2; ++g) {           /* the naming keyboard: the five keys across and a page of 8 columns, or 6 */
+        int cols = g ? 6 : 8, n = 0;
+
+        for (int i = 0; i < 5; ++i)
+            nameKeys[g][n++] = DevNameTop(i);
+        for (int r = 0; r < 4; ++r)
+            for (int c = 0; c < cols; ++c)
+                nameKeys[g][n++] = DevNameKey(cols, r, c);
+        nameGroups[g] = (DevGroup){kNameGroup[g], nameKeys[g], n};
+        faults += GroupFaults(&nameGroups[g]);
+    }
     for (unsigned i = 0; i < sizeof(rects) / sizeof(rects[0]); ++i)
         if (!Inside(rects[i].r)) {
             const CtrPokeTouchRect *r = &rects[i].r;
@@ -756,6 +794,7 @@ int main(void)
     faults += ScreensFaults();
     faults += DexFaults();
     faults += ChoiceFaults();
+    faults += NamingFaults();
     assert(faults == 0);
     puts("PASS device layout");
     return 0;

@@ -620,25 +620,18 @@ static int FrameShown(const CtrPokeTouchView *v)
 /* Easy Chat, over the whole screen (3ds_field_easychat_impl.h, included at the end). */
 static void FEasyDraw(const CtrPokeTouchView *v);
 static void FEasyUpdate(uint16_t *canvas, const CtrPokeTouchView *old, const CtrPokeTouchView *v, CtrDirtyList *dirty);
-/* The naming screen the port draws (3ds_field_naming_impl.h, included at the end). */
-static void FNameFrame(const CtrPokeTouchView *v);
-static void FNameNote(const CtrPokeTouchView *v, int w);
 /* The PC box the port draws (3ds_field_box_impl.h, included at the end). */
 static void FBoxFrame(const CtrPokeTouchView *v);
 static void FBoxNote(const CtrPokeTouchView *v, int w);
 
 /* The frame's area: the window frame round the GBA picture, or an ember view's screen (HOME, the Bag, OPTIONS, SAVE, the
- * Trainer Card, the letter, the Pokedex, the move to forget, the relearner and a choice are the red device's:
- * 3ds_device_home_impl.h, 3ds_device_bag_impl.h and the field dispatcher's views). */
+ * Trainer Card, the letter, the Pokedex, the move to forget, the relearner, a choice and the naming keyboard are the red
+ * device's: 3ds_device_home_impl.h, 3ds_device_bag_impl.h and the field dispatcher's views). */
 static void MenuFrame(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchRect *r = &sMenuFrame;
 
     TsBgRect(r->x, r->y, r->w, r->h);
-    if (v->name.on && !v->viewport) {
-        FNameFrame(v);
-        return;
-    }
     if (v->box.on && !v->viewport) {
         FBoxFrame(v);
         return;
@@ -675,11 +668,9 @@ static void Bar(const CtrPokeTouchView *v)
     for (int i = 0; i < PT_BAR_LINES; ++i)
         if (v->bar[i][0])
             lines = i + 1;
-    if (!v->viewport && (v->name.on || v->box.on))
-        Em2NoteShadow(NOTE_X, NOTE_Y, w, NOTE_H);           /* the screens that draw their own note (each puts the shadow its note throws) */
-    if (v->name.on && !v->viewport)
-        FNameNote(v, w);
-    else if (v->box.on && !v->viewport)
+    if (!v->viewport && v->box.on)
+        Em2NoteShadow(NOTE_X, NOTE_Y, w, NOTE_H);           /* the screen that draws its own note (it puts the shadow its note throws) */
+    if (v->box.on && !v->viewport)
         FBoxNote(v, w);
     else {
         /* The note is FireRed's window (the Llama mockup's): the subject at its top left, a rule under it, then the lines that say more, 14 apart,
@@ -882,8 +873,8 @@ void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const Ct
         FEasyUpdate(canvas, old, v, dirty);
         return;
     }
-    if (memcmp(&old->name, &v->name, sizeof(v->name)) || memcmp(&old->box, &v->box, sizeof(v->box))) {
-        /* The naming screen, the PC box: its whole area and its note (the note follows the selection). */
+    if (memcmp(&old->box, &v->box, sizeof(v->box))) {
+        /* The PC box: its whole area and its note (the note follows the selection). */
         MenuFrame(v);
         Mark(dirty, &sMenuFrame);
         Bar(v);
@@ -955,8 +946,8 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
 #include "3ds_device_learn_impl.h"  /* the move to forget (a view of the field dispatcher; a move's type chip) */
 #include "3ds_device_relearn_impl.h"  /* the relearner (a view of the field dispatcher) */
 #include "3ds_device_choice_impl.h"  /* a choice of the field (a view of the field dispatcher) */
+#include "3ds_device_naming_impl.h"  /* the naming keyboard (a view of the field dispatcher; FireRed's codes as text) */
 #include "3ds_field_bag_impl.h"
-#include "3ds_field_naming_impl.h"
 #include "3ds_field_box_impl.h"
 #include "3ds_field_easychat_impl.h"
 #include "3ds_device_field_impl.h"  /* the field dispatcher: the field's views without a board (last: it names them all) */

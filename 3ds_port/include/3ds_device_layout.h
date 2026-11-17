@@ -378,4 +378,23 @@ static inline CtrPokeTouchRect DevChoiceKey(int n, int cols, int i)
     return DevAcross(c, col, 8 + (h + 4) * row, h);
 }
 
+/* ---- The naming keyboard (no board; 3ds_device_naming_impl.h) --------------------------------------------------------
+ * The name's screen across the top (the Pokemon's icon, FireRed's question, the name's slots and the gender sign); under
+ * it five keys across (DevNameTop: ABC, abc and 123 turning to FireRed's pages, DELETE, OK); under them the page's keys
+ * in four rows (DevNameKey: FireRed's 8 columns, 34 wide, or its symbols' 6, 47 wide). */
+static const CtrPokeTouchRect kDevNameScreen __attribute__((unused)) = {8, 8, 304, 40};
+
+/* Key i (0-4) across under the screen: ABC (FireRed's page 1, the capitals), abc (page 2, the small letters), 123 (page
+ * 0, the symbols), DELETE, OK. */
+static inline CtrPokeTouchRect DevNameTop(int i)
+{
+    return DevAcross(5, i, 56, 24);
+}
+
+/* The key of row r (0-3) and column c of a page of `cols` columns (8, or 6 for the symbols). */
+static inline CtrPokeTouchRect DevNameKey(int cols, int r, int c)
+{
+    return DevAcross(cols, c, 88 + 36 * r, 32);
+}
+
 #endif

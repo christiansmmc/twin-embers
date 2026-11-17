@@ -23,6 +23,7 @@ static const DevFieldView kDevFieldViews[] = {
     {DevRelearnShown, DevRelearnDraw, DevRelearnSame, DevRelearnBackKey},   /* the relearner (_relearn_impl.h) */
     {DevMailShown, DevMailDraw, DevMailSame, DevMailBackKey},       /* the letter (3ds_device_mail_impl.h) */
     {DevChoiceShown, DevChoiceDraw, DevChoiceSame, DevChoiceBackKey},   /* a choice (3ds_device_choice_impl.h) */
+    {DevNameShown, DevNameDraw, DevNameSame, DevNameBackKey},       /* the naming keyboard (3ds_device_naming_impl.h) */
     {DevSaveShown, DevSaveDraw, DevSaveSame, DevSaveBackKey},       /* SAVE (3ds_device_save_impl.h) */
     {DevOptShown, DevOptDraw, DevOptSame, DevOptBackKey},           /* OPTIONS (3ds_device_options_impl.h) */
 };

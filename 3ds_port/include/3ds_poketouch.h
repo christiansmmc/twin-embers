@@ -292,7 +292,7 @@ typedef struct {
     char prompt[160];
 } CtrPokeTouchChoice;
 
-/* FireRed's naming screen drawn by the port (3ds_field_naming_impl.h), a remote for it: the name so far, the keys of
+/* FireRed's naming screen drawn by the port (3ds_device_naming_impl.h), a remote for it: the name so far, the keys of
  * its page (FireRed's own character codes, 0xff for no key), tabs for its three pages, DELETE and OK. A key moves
  * FireRed's cursor there and presses its A; a tab is its SELECT, DELETE its B. */
 #define PT_NAME_ROWS 4

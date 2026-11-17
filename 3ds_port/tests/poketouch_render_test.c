@@ -359,7 +359,8 @@ int main(int argc, char **argv)
         for(int i=0;i<PT_COUNT;++i) s.enabled[i]=1;
         s.registeredItem=1; s.bikeItem=2; strcpy(s.playerName,"Rick"); s.playerX=s.playerY=-1;
         #define SHOT(name) do { update(&old,&s); if(dir) ppm(dir,name); } while(0)
-        /* The PC box and the naming keyboard (Llama, mockup panels 8 and 10): each state through the incremental path. */
+        /* The PC box (Llama's mockup; the naming keyboard is the red device's: device_render_test.c): each state through
+         * the incremental path. */
         {
             CtrPokeTouchView b2=s; memset(&old,0,sizeof(old)); old.selected=old.pressed=PT_NONE;
             CtrPokeTouch_Draw(canvas,&old);             /* the canvas showed HOME, a screen of its own: it now shows `old` */
@@ -376,13 +377,7 @@ int main(int argc, char **argv)
             b2.box.state=PT_BOX_STATE_YESNO; b2.box.menuCursor=1; update(&old,&b2); if(dir) ppm(dir,"box_yesno");
             b2.box.state=PT_BOX_STATE_CHOOSE; b2.box.chooseCount=12; update(&old,&b2); if(dir) ppm(dir,"box_choose");
             b2.box.state=PT_BOX_STATE_MARKS; b2.box.marks=5; b2.box.menuCursor=1; update(&old,&b2); b2.box.menuCursor=5; update(&old,&b2); if(dir) ppm(dir,"box_marks");
-            b2.box.state=PT_BOX_STATE_BOX; b2.box.on=0; b2.name.on=1; b2.name.page=1; b2.name.cols=8; b2.name.maxChars=7; b2.name.len=3; b2.name.curCol=4; b2.name.curRow=1; b2.name.pressed=-1;
-            memset(b2.name.key,0xff,sizeof(b2.name.key)); memset(b2.name.text,0xff,sizeof(b2.name.text));
-            for(int r=0;r<3;++r) for(int c=0;c<8;++c) b2.name.key[r][c]=(uint8_t)(0xbb+r*8+c);
-            b2.name.text[0]=0xbb; b2.name.text[1]=0xc5; b2.name.text[2]=0xbf; memset(b2.name.title,0xff,sizeof(b2.name.title));
-            update(&old,&b2); if(dir) ppm(dir,"naming");
-            b2.name.curCol=8; b2.name.curRow=0; update(&old,&b2); b2.name.curRow=2; update(&old,&b2); b2.name.pressed=PT_NAME_HIT_KEY; update(&old,&b2);
-            b2.name.on=0; update(&old,&b2);
+            b2.box.state=PT_BOX_STATE_BOX; b2.box.on=0; update(&old,&b2);
         }
         memset(&old,0,sizeof(old)); old.selected=old.pressed=PT_NONE;
         /* Easy Chat (Llama): the phrase, the groups, the letters, a list with its rail and strip, and the three questions; every change goes through the

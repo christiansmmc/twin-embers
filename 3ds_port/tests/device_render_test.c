@@ -12,7 +12,7 @@
  *   DEVICE_FONT_W=n           the stub glyph width
  *
  * usage: device_render_test <suite>   (kit, home, battle, party, summary, bag, options, save, card, mail, dex, choice,
- *        learn, relearn, or all; prints PASS device <suite>) */
+ *        learn, relearn, naming, or all; prints PASS device <suite>) */
 #include <assert.h>
 #ifndef PT_SOURCE
 #define PT_SOURCE "3ds_poketouch.c"
@@ -191,11 +191,7 @@ int CtrPokeTouch_CardBadges(unsigned char *tiles, unsigned short *palette)
     if (!cardArt) return 0;
     memset(tiles, 0x22, 0x400); memset(palette, 0, 32); palette[2] = CARD_ART_BLUE; return 1;
 }
-int CtrPokeTouch_MonIcon(unsigned species, unsigned personality, int egg, unsigned char *tiles, unsigned short *palette)
-{
-    (void)species; (void)personality; (void)egg; (void)tiles; (void)palette;
-    return 0;
-}
+/* CtrPokeTouch_MonIcon: device_suite_naming.h's (a Pokemon's icon while a suite sets monArt). */
 int CtrPokeTouch_ItemIcon(unsigned item, unsigned char *tiles, unsigned short *palette)
 {
     memset(tiles, 0x11, 288); memset(palette, 0, 32);
@@ -2283,6 +2279,7 @@ static void SuiteBag(void)
 #include "device_suite_choice.h"
 #include "device_suite_learn.h"
 #include "device_suite_relearn.h"
+#include "device_suite_naming.h"
 
 /* ---- main --------------------------------------------------------------------------------------------------------- */
 
@@ -2301,6 +2298,7 @@ static const struct { const char *name; void (*run)(void); } kSuites[] = {
     {"choice", SuiteChoice},
     {"learn", SuiteLearn},
     {"relearn", SuiteRelearn},
+    {"naming", SuiteNaming},
 };
 
 int main(int argc, char **argv)
@@ -2310,7 +2308,7 @@ int main(int argc, char **argv)
 
     if (argc != 2) {
         fprintf(stderr, "usage: device_render_test <suite> (kit, home, battle, party, summary, bag, options, save, card, "
-                        "mail, dex, choice, learn, relearn, all)\n");
+                        "mail, dex, choice, learn, relearn, naming, all)\n");
         return 2;
     }
     gOut = getenv("DEVICE_OUT");
