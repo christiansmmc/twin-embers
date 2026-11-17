@@ -11,8 +11,8 @@
  *   DEVICE_WIDTHS=file        the normal font's 256 glyph widths; DEVICE_SMALL_WIDTHS=file the small font's
  *   DEVICE_FONT_W=n           the stub glyph width
  *
- * usage: device_render_test <suite>   (kit, home, battle, party, summary, bag, options, save, card, mail, dex, or all;
- *        prints PASS device <suite>) */
+ * usage: device_render_test <suite>   (kit, home, battle, party, summary, bag, options, save, card, mail, dex, choice,
+ *        learn, relearn, or all; prints PASS device <suite>) */
 #include <assert.h>
 #ifndef PT_SOURCE
 #define PT_SOURCE "3ds_poketouch.c"
@@ -164,8 +164,7 @@ void *CtrData_Load(const char *path, uint32_t *len)
     }
     return out;
 }
-int CtrPokeTouch_DexMonPic(unsigned species, unsigned char *tiles, unsigned short *palette)
-{ (void)species; (void)tiles; (void)palette; return 0; }
+/* CtrPokeTouch_DexMonPic: device_suite_lists.h's (a species' picture while a suite sets picArt). */
 int CtrPokeTouch_DexMonPic80(unsigned species, unsigned char *pixels, unsigned short *palette)
 { (void)species; (void)pixels; (void)palette; return 0; }
 int CtrPokeTouch_DexMenuIcon(int id, unsigned char *tiles, unsigned short *palette)
@@ -2272,6 +2271,7 @@ static void SuiteBag(void)
 #include "device_suite_card.h"
 #include "device_suite_mail.h"
 #include "device_suite_dex.h"
+#include "device_suite_lists.h"   /* choice, learn, relearn */
 
 /* ---- main --------------------------------------------------------------------------------------------------------- */
 
@@ -2287,6 +2287,9 @@ static const struct { const char *name; void (*run)(void); } kSuites[] = {
     {"card", SuiteCard},
     {"mail", SuiteMail},
     {"dex", SuiteDex},
+    {"choice", SuiteChoice},
+    {"learn", SuiteLearn},
+    {"relearn", SuiteRelearn},
 };
 
 int main(int argc, char **argv)
@@ -2296,7 +2299,7 @@ int main(int argc, char **argv)
 
     if (argc != 2) {
         fprintf(stderr, "usage: device_render_test <suite> (kit, home, battle, party, summary, bag, options, save, card, "
-                        "mail, dex, all)\n");
+                        "mail, dex, choice, learn, relearn, all)\n");
         return 2;
     }
     gOut = getenv("DEVICE_OUT");

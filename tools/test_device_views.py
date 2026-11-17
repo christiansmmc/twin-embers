@@ -101,6 +101,15 @@ class DeviceViews(unittest.TestCase):
     def test_dex(self):
         self.assertIn('PASS device dex', run(self.harness, 'dex'))
 
+    def test_choice(self):
+        self.assertIn('PASS device choice', run(self.harness, 'choice'))
+
+    def test_learn(self):
+        self.assertIn('PASS device learn', run(self.harness, 'learn'))
+
+    def test_relearn(self):
+        self.assertIn('PASS device relearn', run(self.harness, 'relearn'))
+
     def test_kit_shot(self):
         """DEVICE_OUT writes <suite>_<state>.ppm: the kit's sheet, 320x240."""
         with tempfile.TemporaryDirectory() as out:

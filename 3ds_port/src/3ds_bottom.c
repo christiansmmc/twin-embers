@@ -968,6 +968,7 @@ static void SummaryBar(const CtrSummaryView *v, CtrPokeTouchView *t)
             snprintf(t->bar[2], PT_BAR_LEN, "%s", sNames[i]);
 }
 
+static int BatNameIsSpecies(const char *name, unsigned species);   /* the battle fill's (the move to forget's name) */
 #include "3ds_bottom_field_fill_impl.h"
 }
 

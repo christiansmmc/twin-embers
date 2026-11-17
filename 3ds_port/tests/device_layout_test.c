@@ -583,6 +583,34 @@ static int DexFaults(void)
     return faults;
 }
 
+/* The field's choices: n keys (1-8) in FireRed's one column (two past four, going down first) or a grid of 2 or 3
+ * columns, every key above the question's note and BACK, which stand side by side under them. (The move to forget is
+ * the Summary's page, the relearner the Bag's list page: no rectangle of their own.) */
+static int ChoiceFaults(void)
+{
+    static const int kCols[3] = {0, 2, 3};
+    int faults = 0;
+
+    assert(Same(kDevChoiceNote, (CtrPokeTouchRect){8, 160, 228, 72}) && Same(kDevChoiceBack, (CtrPokeTouchRect){244, 160, 68, 70}));
+    assert(Same(DevChoiceKey(6, 0, 3), (CtrPokeTouchRect){164, 8, 148, 40}) && Same(DevChoiceKey(4, 0, 3), (CtrPokeTouchRect){8, 116, 304, 32}));
+    assert(Same(DevChoiceKey(8, 3, 7), (CtrPokeTouchRect){112, 96, 96, 40}) && Same(DevChoiceKey(8, 2, 7), (CtrPokeTouchRect){164, 116, 148, 32}));
+    for (int c = 0; c < 3; ++c)
+        for (int n = 1; n <= 8; ++n)
+            for (int i = 0; i < n; ++i) {
+                CtrPokeTouchRect k = DevChoiceKey(n, kCols[c], i);
+
+                if (k.y + k.h + DEV_DROP > kDevChoiceNote.y || k.y + k.h + DEV_DROP > kDevChoiceBack.y) {
+                    fprintf(stderr, "choice: key %d of %d (%d columns) reaches the note or BACK\n", i, n, kCols[c]);
+                    ++faults;
+                }
+            }
+    if (kDevChoiceNote.x + kDevChoiceNote.w > kDevChoiceBack.x || kDevChoiceNote.y != kDevChoiceBack.y) {
+        fprintf(stderr, "choice: the note meets BACK, or they are not side by side\n");
+        ++faults;
+    }
+    return faults;
+}
+
 int main(void)
 {
     /* Every rectangle the header holds, by name, and the keys of each view state. */
@@ -615,8 +643,12 @@ int main(void)
     const CtrPokeTouchRect dexCategory[] = {DevDexSlot(0), DevDexSlot(1), DevDexSlot(2), DevDexSlot(3), kDevSmallKey[0],
                                             kDevSmallKey[1], kDevBagClose};
     const CtrPokeTouchRect dexPage[] = {kDevDexArea, kDevDexCry, kDevSumBack}, dexAdded[] = {kDevWideKey};
-    CtrPokeTouchRect ptyMenu[8][8], bagMenu[6][6];
-    DevGroup ptyMenus[8], bagMenus[6];
+    const CtrPokeTouchRect learnKeys[] = {kDevSumBack};
+    const CtrPokeTouchRect relearnList[] = {kDevBagUp, kDevBagDown, kDevBagClose};
+    const CtrPokeTouchRect relearnYesNo[] = {DevBagMenuKey(2, 0), DevBagMenuKey(2, 1)};
+    CtrPokeTouchRect ptyMenu[8][8], bagMenu[6][6], choiceKeys[3][8][9];
+    DevGroup ptyMenus[8], bagMenus[6], choiceGroups[3][8];
+    static char choiceName[3][8][40];
     static const char *const kBagMenuName[6] = {"Bag menu of 1", "Bag menu of 2", "Bag menu of 3", "Bag menu of 4",
                                                 "Bag menu of 5", "Bag menu of 6"};
     static const char *const kMenuName[8] = {"Party menu of 1", "Party menu of 2", "Party menu of 3", "Party menu of 4",
@@ -662,6 +694,8 @@ int main(void)
         {"Pokedex slot 3", DevDexSlot(3)}, {"Pokedex picture", kDevDexPic}, {"Pokedex data", kDevDexData},
         {"Pokedex footprint", kDevDexFoot}, {"Pokedex rule", kDevDexRule}, {"Pokedex entry", kDevDexEntry},
         {"Pokedex AREA", kDevDexArea}, {"Pokedex CRY", kDevDexCry},
+        {"choice note", kDevChoiceNote}, {"choice BACK", kDevChoiceBack}, {"choice key 7 of 8", DevChoiceKey(8, 0, 7)},
+        {"choice grid key 7 of 8", DevChoiceKey(8, 3, 7)},
     };
     const DevGroup groups[] = {DEV_GROUP("HOME", homeKeys), DEV_GROUP("battle, a trainer", batTrainer),
                                DEV_GROUP("battle, wild", batWild), DEV_GROUP("battle moves", batMoves),
@@ -674,7 +708,8 @@ int main(void)
                                DEV_GROUP("Trainer Card", cardKeys), DEV_GROUP("a letter", mailKeys),
                                DEV_GROUP("Pokedex menu", dexMenu), DEV_GROUP("Pokedex list", dexList),
                                DEV_GROUP("Pokedex habitat", dexCategory), DEV_GROUP("Pokedex page", dexPage),
-                               DEV_GROUP("Pokedex page added", dexAdded)};
+                               DEV_GROUP("Pokedex page added", dexAdded), DEV_GROUP("the move to forget", learnKeys),
+                               DEV_GROUP("relearner list", relearnList), DEV_GROUP("relearner YES / NO", relearnYesNo)};
     int faults = 0;
 
     RulesCatchFaults();
@@ -691,6 +726,17 @@ int main(void)
         bagMenus[n - 1] = (DevGroup){kBagMenuName[n - 1], bagMenu[n - 1], n};
         faults += GroupFaults(&bagMenus[n - 1]);
     }
+    for (int c = 0; c < 3; ++c)             /* a choice of each size, in one column and as grids of 2 and 3, with BACK */
+        for (int n = 1; n <= 8; ++n) {
+            int cols = c ? c + 1 : 0;
+
+            for (int i = 0; i < n; ++i)
+                choiceKeys[c][n - 1][i] = DevChoiceKey(n, cols, i);
+            choiceKeys[c][n - 1][n] = kDevChoiceBack;
+            snprintf(choiceName[c][n - 1], sizeof(choiceName[c][n - 1]), "choice of %d (%d columns)", n, cols);
+            choiceGroups[c][n - 1] = (DevGroup){choiceName[c][n - 1], choiceKeys[c][n - 1], n + 1};
+            faults += GroupFaults(&choiceGroups[c][n - 1]);
+        }
     for (unsigned i = 0; i < sizeof(rects) / sizeof(rects[0]); ++i)
         if (!Inside(rects[i].r)) {
             const CtrPokeTouchRect *r = &rects[i].r;
@@ -709,6 +755,7 @@ int main(void)
     faults += OptionsFaults();
     faults += ScreensFaults();
     faults += DexFaults();
+    faults += ChoiceFaults();
     assert(faults == 0);
     puts("PASS device layout");
     return 0;

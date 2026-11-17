@@ -286,6 +286,7 @@ static void FieldLearnFill(CtrPokeTouchView *v, int pressed)
     l->cursor = (int8_t)CtrBottomLearn_Cursor();
     l->species = (uint16_t)CtrBottomLearn_Species();
     CtrBottomLearn_Name(l->nickname, sizeof(l->nickname), l->level, sizeof(l->level));
+    l->nameDefault = (uint8_t)(l->species && BatNameIsSpecies(l->nickname, l->species));
     CtrBottomLearn_Question(l->question, sizeof(l->question));
     for (int i = 0; i < PT_LEARN_ROWS; ++i) {
         int type = -1;

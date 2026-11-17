@@ -19,7 +19,10 @@ typedef struct {
 static const DevFieldView kDevFieldViews[] = {
     {DevDexShown, DevDexDraw, DevDexSame, DevDexBackKey},           /* the Pokedex (3ds_device_dex_impl.h) */
     {DevCardShown, DevCardDraw, DevCardSame, DevCardBackKey},       /* the Trainer Card (3ds_device_card_impl.h) */
+    {DevLearnShown, DevLearnDraw, DevLearnSame, DevLearnBackKey},   /* the move to forget (3ds_device_learn_impl.h) */
+    {DevRelearnShown, DevRelearnDraw, DevRelearnSame, DevRelearnBackKey},   /* the relearner (_relearn_impl.h) */
     {DevMailShown, DevMailDraw, DevMailSame, DevMailBackKey},       /* the letter (3ds_device_mail_impl.h) */
+    {DevChoiceShown, DevChoiceDraw, DevChoiceSame, DevChoiceBackKey},   /* a choice (3ds_device_choice_impl.h) */
     {DevSaveShown, DevSaveDraw, DevSaveSame, DevSaveBackKey},       /* SAVE (3ds_device_save_impl.h) */
     {DevOptShown, DevOptDraw, DevOptSame, DevOptBackKey},           /* OPTIONS (3ds_device_options_impl.h) */
 };

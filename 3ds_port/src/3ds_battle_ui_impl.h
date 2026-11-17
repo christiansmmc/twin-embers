@@ -8,18 +8,6 @@
 #include "3ds_text_case.h"
 #include "3ds_ui_strings.h"
 
-/* Running text wrapped to `width` pixels, `maxLines` at most (FireRed's line breaks are spaces here): the last line ends in "..." when
- * there is more (Em2Wrap). */
-static void BDescribeSh(const char *text, int x, int y, int width, int maxLines, uint16_t color, uint16_t shadow)
-{
-    Em2Wrap(text, x, y, width, maxLines, UI_LINE_H, color, shadow);
-}
-
-static void BDescribeN(const char *text, int x, int y, int width, int maxLines, uint16_t color)
-{
-    BDescribeSh(text, x, y, width, maxLines, color, UIS_TEXT_SH);
-}
-
 /* The Party's icons (the red device's Party, the battle's lead and HOME draw them). */
 extern int CtrBottomParty_Icon(int slot, unsigned char *tilesOut, unsigned short *palOut);
 /* Party icons: FireRed's 32x32 icon of a slot with both its frames (the second under the first), decoded once per

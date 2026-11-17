@@ -352,4 +352,30 @@ static inline CtrPokeTouchRect DevDexSlot(int i)
     return r;
 }
 
+/* ---- The field's choices, the move to forget, the relearner (no board; 3ds_device_choice_impl.h, _learn_impl.h,
+ * _relearn_impl.h) ---------------------------------------------------------------------------------------------------
+ * A choice: FireRed's rows as keys across the screen (DevChoiceKey), the message box's question on the note under them
+ * (kDevChoiceNote) and BACK beside it. The move to forget is the Summary's page: FireRed's question on the Bag's title,
+ * the Summary's screen (the Pokemon in its column, the four moves and the new one in DevSumRow(0..4)), the note (the
+ * description) and BACK. The relearner is the Bag's list page: the question on the title, five tall rows with ▲ ▼, the
+ * description's screen and CANCEL (FireRed's CANCEL row) in CLOSE's place; YES / NO the Bag's (the narrow screens and
+ * DevBagMenuKey(2, i)). */
+static const CtrPokeTouchRect kDevChoiceNote __attribute__((unused)) = {8, 160, 228, 72};
+static const CtrPokeTouchRect kDevChoiceBack __attribute__((unused)) = {244, 160, 68, 70};
+
+/* Key i of a choice of n (1-8): FireRed's one column (cols 0) in one column up to four keys and in two beyond, going
+ * down first as FireRed's list does; a grid of `cols` columns across, as FireRed's grid goes. Up to three rows 40 tall,
+ * four 32, 4 px apart from the top. */
+static inline CtrPokeTouchRect DevChoiceKey(int n, int cols, int i)
+{
+    int c = cols > 0 ? cols : n > 4 ? 2 : 1, rows = (n + c - 1) / c, h, col, row;
+
+    if (rows < 1)
+        rows = 1;
+    col = cols > 0 ? i % c : i / rows;
+    row = cols > 0 ? i / c : i % rows;
+    h = rows <= 3 ? 40 : 32;
+    return DevAcross(c, col, 8 + (h + 4) * row, h);
+}
+
 #endif

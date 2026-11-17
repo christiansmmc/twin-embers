@@ -1,4 +1,4 @@
-/* The move relearner as the lower screen's remote (included by 3ds_bottom.c after LearnSnapshot; drawn by 3ds_field_relearn_impl.h).
+/* The move relearner as the lower screen's remote (included by 3ds_bottom.c after LearnSnapshot; drawn by 3ds_device_relearn_impl.h).
  * MODE_GBAVIEW keeps the session and the held upper screen it always had; the picture is always drawn here, never FireRed's own screen in the
  * viewport: the list, a question with YES / NO or a message over it, or the bare backdrop while the screen is set up (the Summary's choice
  * of a move to forget is MODE_PARTY_CHILD's own screen). A row is walked to with the list's own UP / DOWN (one a frame, the game plays its
@@ -77,8 +77,9 @@ static void RelearnFill(CtrPokeTouchRelearn *l, int pressed)
     }
 }
 
-/* Always the port's own picture (the caller is in the relearner). BACK is its B where FireRed takes one: the list's (give up) and a
- * question's (NO); a message waits for A, and a fade for nothing. */
+/* Always the port's own picture (the caller is in the relearner). Its B where FireRed takes one (the list's give up, a question's NO) is
+ * enabled here, though the red device draws no BACK key for it: CANCEL and NO are on the screen (owner decision 4); a message waits for
+ * A, and a fade for nothing. */
 static int RelearnSnapshot(Snapshot *s, int mode)
 {
     int input = CtrBottomRelearn_Input();
@@ -91,8 +92,9 @@ static int RelearnSnapshot(Snapshot *s, int mode)
     return 1;
 }
 
-/* A row: the list's cursor walks to it (RunRelearnPlan), a tap on the selected row is its A; the two arrows are its UP and DOWN. YES and NO:
- * the menu's cursor goes to the one tapped and A takes it; a message that waits for A goes on with a tap. */
+/* A row: the list's cursor walks to it (RunRelearnPlan), a tap on the selected row is its A; CANCEL is FireRed's CANCEL row, the list's last
+ * (index `count`), taken as a row is; the two arrows are its UP and DOWN. YES and NO: the menu's cursor goes to the one tapped and A takes
+ * it; a message that waits for A goes on with a tap. */
 static void ProcessRelearnTouch(const CtrInput *in)
 {
     int hit = -1, input = CtrBottomRelearn_Input(), shown = sHaveShown && sShown.mode == MODE_GBAVIEW && sShown.touch.relearn.on,
@@ -119,7 +121,8 @@ static void ProcessRelearnTouch(const CtrInput *in)
         return;
     }
     if (sRelearnTap.inside && !sRelearnPlan.active) {
-        int row = sShown.touch.relearn.first + sRelearnTap.code - PT_RL_HIT_ROW;
+        int row = sRelearnTap.code == PT_RL_HIT_CANCEL ? sShown.touch.relearn.count
+                                                       : sShown.touch.relearn.first + sRelearnTap.code - PT_RL_HIT_ROW;
 
         if (sRelearnTap.code == PT_RL_HIT_MESSAGE)
             sRouteKey = K_A;

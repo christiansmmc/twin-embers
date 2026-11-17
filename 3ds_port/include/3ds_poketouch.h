@@ -174,9 +174,9 @@ typedef struct {
     uint8_t flags;                  /* seen (1) and caught (2) */
     char name[12];
 } CtrPokeTouchDexMon;
-/* The choice of the move to forget for a new one, drawn by the port (3ds_field_learn_impl.h), a remote for FireRed's
- * Summary in that mode: the Pokemon, its four moves and the new one (row 4), the selected move's numbers and
- * description. A row is walked to with the Summary's UP / DOWN and taken with its A; BACK is its B. */
+/* The choice of the move to forget for a new one, drawn by the port as the red device (3ds_device_learn_impl.h), a
+ * remote for FireRed's Summary in that mode: the Pokemon, its four moves and the new one (row 4), the selected move's
+ * numbers and description. A row is walked to with the Summary's UP / DOWN and taken with its A; BACK is its B. */
 #define PT_LEARN_ROWS 5
 enum { PT_LEARN_HIT_ROW = 100 };
 typedef struct {
@@ -184,6 +184,7 @@ typedef struct {
     int8_t cursor;
     int16_t pressed;                /* the hit code under a held touch, or -1 */
     uint16_t species;
+    uint8_t nameDefault;            /* the nickname is its species' own name (drawn in capitals), not one the player gave */
     char nickname[13], level[8];   /* nickname: six kana, two bytes each */
     char question[48];
     struct {
@@ -195,12 +196,14 @@ typedef struct {
     char desc[160];
 } CtrPokeTouchLearn;
 
-/* The move relearner (REMEMBER, the Two Island man), drawn by the port (3ds_field_relearn_impl.h), a remote for FireRed's
- * screen: the list (the Pokemon, a window of PT_RL_ROWS rows of the list: the moves it can remember, then CANCEL, the cursor and the
- * selected move's numbers and description), and over the dimmed list what FireRed has up besides it, in the Bag's look: a question with
- * YES and NO, or a message. A row is walked to with the list's own UP / DOWN and taken with its A; BACK is its B. */
+/* The move relearner (REMEMBER, the Two Island man), drawn by the port as the red device (3ds_device_relearn_impl.h), a
+ * remote for FireRed's screen: the list (a window of PT_RL_ROWS rows of the list: the moves it can remember, then
+ * FireRed's CANCEL row, the cursor and the selected move's numbers and description), a question with YES and NO, or a
+ * message. A row is walked to with the list's own UP / DOWN and taken with its A; FireRed's CANCEL row is the CANCEL key
+ * (PT_RL_HIT_CANCEL), taken as that row is. */
 #define PT_RL_ROWS 5
-enum { PT_RL_HIT_ROW = 200, PT_RL_HIT_UP = 230, PT_RL_HIT_DOWN = 231, PT_RL_HIT_YES = 232, PT_RL_HIT_NO = 233, PT_RL_HIT_MESSAGE = 234 };
+enum { PT_RL_HIT_ROW = 200, PT_RL_HIT_UP = 230, PT_RL_HIT_DOWN = 231, PT_RL_HIT_YES = 232, PT_RL_HIT_NO = 233,
+       PT_RL_HIT_MESSAGE = 234, PT_RL_HIT_CANCEL = 235 };
 /* What the screen shows: the list; a message over it; a question with YES / NO over it; nothing but the backdrop (being set up). */
 enum { PT_RL_PANEL_LIST = 0, PT_RL_PANEL_MESSAGE, PT_RL_PANEL_YESNO, PT_RL_PANEL_BLANK };
 typedef struct {
@@ -275,8 +278,8 @@ typedef struct {
     char list[2 * PT_EC_ROWS][PT_EC_WORD_LEN];
 } CtrPokeTouchEasy;
 
-/* A choice of the field (a script's multichoice, YES/NO or grid, the PC's menus) drawn by the port
- * (3ds_field_choice_impl.h), a remote for FireRed's menu: its rows as buttons (cols > 0: a grid of that many columns),
+/* A choice of the field (a script's multichoice, YES/NO or grid, the PC's menus) drawn by the port as the red device
+ * (3ds_device_choice_impl.h), a remote for FireRed's menu: its rows as keys (cols > 0: a grid of that many columns),
  * the cursor's, and the question of the message box. A row is asked of the menu and taken with its A; BACK is its B. */
 #define PT_CHOICE_MAX 8
 enum { PT_CHOICE_HIT_ROW = 100 };
@@ -525,7 +528,8 @@ int CtrPokeTouch_DexGridPageRow(const CtrPokeTouchView *view, int dir);
  * tiles) and the caught marker (one 4bpp tile). 0 when there is none. */
 /* The row of the move to forget (view->learn.on) under lower-screen point (x, y): PT_LEARN_HIT_ROW + row, or -1. */
 int CtrPokeTouch_LearnHit(const CtrPokeTouchView *view, int x, int y);
-/* The row (or scroll arrow) of the relearner's list (view->relearn.on) under (x, y): PT_RL_HIT_*, or -1. */
+/* The row, scroll arrow or CANCEL of the relearner's list, YES / NO, or the message (view->relearn.on) under (x, y):
+ * PT_RL_HIT_*, or -1. */
 int CtrPokeTouch_RelearnHit(const CtrPokeTouchView *view, int x, int y);
 /* What Easy Chat (view->ec.on) shows under lower-screen point (x, y): a PT_EC_HIT_* code (a chip's is PT_EC_HIT_CHIP + slot, a cell's
  * PT_EC_HIT_CELL + cell, a list row's PT_EC_HIT_ROW + its place among the rows shown), or -1. */
