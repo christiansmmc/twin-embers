@@ -98,6 +98,9 @@ class DeviceViews(unittest.TestCase):
     def test_mail(self):
         self.assertIn('PASS device mail', run(self.harness, 'mail'))
 
+    def test_dex(self):
+        self.assertIn('PASS device dex', run(self.harness, 'dex'))
+
     def test_kit_shot(self):
         """DEVICE_OUT writes <suite>_<state>.ppm: the kit's sheet, 320x240."""
         with tempfile.TemporaryDirectory() as out:

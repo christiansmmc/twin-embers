@@ -154,9 +154,9 @@ typedef struct {
     int16_t pressed;                /* the hit code under a held touch, or -1 */
 } CtrPokeTouchBag;
 
-/* The Pokedex drawn by the port (3ds_field_dex_impl.h), a remote for FireRed's own Pokedex like the Bag: its top menu
- * (lists, habitats, search) as tabs of cards, an ordered list as rows, a habitat page as its Pokemon, and a Pokemon's
- * page. Its AREA page stays FireRed's picture in the viewport. */
+/* The Pokedex drawn by the port (3ds_device_dex_impl.h), a remote for FireRed's own Pokedex like the Bag: its top menu
+ * (lists, habitats, search) as tabs over its rows' keys, an ordered list as rows, a habitat page as its Pokemon, and a
+ * Pokemon's page. Its AREA page stays FireRed's picture in the viewport. */
 #define PT_DEX_MENU_MAX 24
 #define PT_DEX_ROWS 5
 enum { PT_DEX_STATE_BUSY = 0, PT_DEX_STATE_MENU, PT_DEX_STATE_LIST, PT_DEX_STATE_CATEGORY, PT_DEX_STATE_PAGE };

@@ -532,39 +532,7 @@ int main(int argc, char **argv)
             e->ask=0; update(&old,&s);
             e->on=0; update(&old,&s);          /* the screen closes: what was under it is drawn whole again */
         }
-        /* Llama: the Pokedex (menu, list, habitats, category, page); each through the incremental path (a cursor move, a press, a page
-         * turn) and then written. */
         s.options=0; s.backVisible=1; s.backEnabled=1; memset(s.bar,0,sizeof(s.bar));
-        {
-            CtrPokeTouchDex *d=&s.dex; memset(d,0,sizeof(*d)); d->on=1; d->state=PT_DEX_STATE_MENU; d->pressed=-1; d->national=1;
-            d->seen[0]=142; d->owned[0]=118; d->seen[1]=251; d->owned[1]=203;
-            d->menuCount=8; d->menuCursor=1;
-            d->menu[0].id=PT_DEX_ID_HEADER; d->menu[1].id=PT_DEX_ID_KANTO; strcpy(d->menu[1].name,"Kanto");
-            d->menu[2].id=PT_DEX_ID_NATIONAL; strcpy(d->menu[2].name,"National"); d->menu[3].id=PT_DEX_ID_CANCEL; strcpy(d->menu[3].name,"CLOSE POKEDEX");
-            d->menu[4].id=PT_DEX_ID_HEADER; d->menu[5].id=0; strcpy(d->menu[5].name,"GRASSLAND POK\xC3\xA9MON"); d->menu[6].id=1; strcpy(d->menu[6].name,"FOREST POK\xC3\xA9MON");
-            d->menu[7].id=2; d->menu[7].locked=1; strcpy(d->menu[7].name,"WATER'S EDGE POK\xC3\xA9MON");
-            strcpy(s.bar[0],"Kanto"); strcpy(s.bar[1],"Your Pokemon by number");
-            SHOT("dex_menu");
-            d->menuCursor=2; update(&old,&s); d->pressed=PT_DEX_HIT_ITEM+2; update(&old,&s); d->pressed=-1; d->menuCursor=3; update(&old,&s); SHOT("dex_menu_close");
-            d->menuCursor=5; SHOT("dex_habitats"); d->menuCursor=7; update(&old,&s); d->menuCursor=6; update(&old,&s);
-            d->state=PT_DEX_STATE_LIST; d->listCount=151; d->listFirst=1; d->listCursor=3; d->order=0;
-            static const char *const nm[PT_DEX_ROWS]={"IVYSAUR","VENUSAUR","CHARMANDER","CHARMELEON","CHARIZARD"};
-            for(int i=0;i<PT_DEX_ROWS;++i) { d->row[i].number=(uint16_t)(2+i); d->row[i].species=(uint16_t)(2+i); d->row[i].flags=(uint8_t)(i==4?1:3); strcpy(d->row[i].name,nm[i]); }
-            d->sel=d->row[2]; d->type[0]=9; d->type[1]=-1; strcpy(d->typeName[0],"FIRE");
-            SHOT("dex_list");
-            d->listCursor=4; d->type[1]=2; strcpy(d->typeName[1],"FLYING"); d->sel=d->row[3]; update(&old,&s);
-            d->pressed=PT_DEX_HIT_ROW+1; update(&old,&s); d->pressed=-1; d->listFirst=0; update(&old,&s);
-            d->state=PT_DEX_STATE_CATEGORY; d->slots=4; d->slot=1; d->canPrev=0; d->canNext=1; d->page=1; d->pages=2;
-            for(int i=0;i<4;++i) { d->mon[i]=d->row[i]; }
-            SHOT("dex_category"); d->slot=2; update(&old,&s); d->pressed=PT_DEX_HIT_SLOT+3; update(&old,&s); d->pressed=-1;
-            d->state=PT_DEX_STATE_PAGE; d->sel=d->row[4]; d->sel.flags=3; d->height=17; d->weight=905; strcpy(d->kind,"FLAME POK\xC3\xA9MON");
-            strcpy(d->desc,"Spits fire that is hot enough to melt boulders. Known to cause forest fires unintentionally.");
-            SHOT("dex_page");
-            assert(CtrPokeTouch_DexHit(&s,170,132)==PT_DEX_HIT_AREA && CtrPokeTouch_DexHit(&s,215,132)==PT_DEX_HIT_CRY);
-            assert(CtrPokeTouch_DexHit(&s,170,150)==-1 && CtrPokeTouch_DexHit(&s,100,132)==-1 && CtrPokeTouch_DexHit(&s,170,176)==-1);
-            d->pressed=PT_DEX_HIT_CRY; update(&old,&s); d->pressed=PT_DEX_HIT_AREA; update(&old,&s); d->pressed=-1; d->added=1; update(&old,&s); d->added=0;
-        }
-        s.dex.on=0;
         /* A choice of the field (3ds_field_choice_impl.h): flame row with the ring and cursor, the question in the window; the cursor moves incrementally. */
         memset(&old,0,sizeof(old)); old.selected=old.pressed=PT_NONE;
         s.viewport=0; s.backVisible=0; s.choice.on=1; s.choice.count=2; s.choice.cols=0; s.choice.cursor=0; s.choice.pressed=-1;

@@ -617,9 +617,6 @@ static int FrameShown(const CtrPokeTouchView *v)
     return v->viewport;
 }
 
-/* The Pokedex the port draws (3ds_field_dex_impl.h, included at the end). */
-static void FDexFrame(const CtrPokeTouchView *v);
-static void FDexNote(const CtrPokeTouchView *v, int w);
 /* The move to forget the port draws (3ds_field_learn_impl.h, included at the end). */
 static void FLearnFrame(const CtrPokeTouchView *v);
 static void FLearnNote(const CtrPokeTouchView *v, int w);
@@ -640,17 +637,13 @@ static void FBoxFrame(const CtrPokeTouchView *v);
 static void FBoxNote(const CtrPokeTouchView *v, int w);
 
 /* The frame's area: the window frame round the GBA picture, or an ember view's screen (HOME, the Bag, OPTIONS, SAVE, the
- * Trainer Card and the letter are the red device's: 3ds_device_home_impl.h, 3ds_device_bag_impl.h and the field
- * dispatcher's views). */
+ * Trainer Card, the letter and the Pokedex are the red device's: 3ds_device_home_impl.h, 3ds_device_bag_impl.h and the
+ * field dispatcher's views). */
 static void MenuFrame(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchRect *r = &sMenuFrame;
 
     TsBgRect(r->x, r->y, r->w, r->h);
-    if (v->dex.on && !v->viewport) {
-        FDexFrame(v);
-        return;
-    }
     if (v->learn.on && !v->viewport) {
         FLearnFrame(v);
         return;
@@ -703,11 +696,9 @@ static void Bar(const CtrPokeTouchView *v)
     for (int i = 0; i < PT_BAR_LINES; ++i)
         if (v->bar[i][0])
             lines = i + 1;
-    if (!v->viewport && (v->dex.on || v->learn.on || v->relearn.on || v->choice.on || v->name.on || v->box.on))
+    if (!v->viewport && (v->learn.on || v->relearn.on || v->choice.on || v->name.on || v->box.on))
         Em2NoteShadow(NOTE_X, NOTE_Y, w, NOTE_H);           /* the screens that draw their own note (each puts the shadow its note throws) */
-    if (v->dex.on && !v->viewport)
-        FDexNote(v, w);
-    else if (v->learn.on && !v->viewport)
+    if (v->learn.on && !v->viewport)
         FLearnNote(v, w);
     else if (v->relearn.on && !v->viewport)
         FRelearnNote(v, w);
@@ -918,10 +909,10 @@ void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const Ct
         FEasyUpdate(canvas, old, v, dirty);
         return;
     }
-    if (memcmp(&old->dex, &v->dex, sizeof(v->dex)) || memcmp(&old->learn, &v->learn, sizeof(v->learn))
-        || memcmp(&old->relearn, &v->relearn, sizeof(v->relearn)) || memcmp(&old->name, &v->name, sizeof(v->name))
-        || memcmp(&old->box, &v->box, sizeof(v->box)) || memcmp(&old->choice, &v->choice, sizeof(v->choice))) {
-        /* The Pokedex, the move to forget, ...: its whole area and its note (the description follows the selection). */
+    if (memcmp(&old->learn, &v->learn, sizeof(v->learn)) || memcmp(&old->relearn, &v->relearn, sizeof(v->relearn))
+        || memcmp(&old->name, &v->name, sizeof(v->name)) || memcmp(&old->box, &v->box, sizeof(v->box))
+        || memcmp(&old->choice, &v->choice, sizeof(v->choice))) {
+        /* The move to forget, the relearner, ...: its whole area and its note (the description follows the selection). */
         MenuFrame(v);
         Mark(dirty, &sMenuFrame);
         Bar(v);
@@ -989,8 +980,8 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
 #include "3ds_device_save_impl.h"  /* SAVE (a view of the field dispatcher) */
 #include "3ds_device_card_impl.h"  /* the Trainer Card (a view of the field dispatcher; FireRed's tiles and palettes) */
 #include "3ds_device_mail_impl.h"  /* the letter being read (a view of the field dispatcher) */
+#include "3ds_device_dex_impl.h"  /* the Pokedex (a view of the field dispatcher; the species' pictures) */
 #include "3ds_field_bag_impl.h"
-#include "3ds_field_dex_impl.h"
 #include "3ds_field_learn_impl.h"
 #include "3ds_field_relearn_impl.h"
 #include "3ds_field_choice_impl.h"

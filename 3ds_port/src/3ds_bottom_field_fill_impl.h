@@ -421,7 +421,7 @@ static void FieldDexMon(CtrPokeTouchDexMon *m, unsigned species)
         CtrBottomDex_Name(species, m->name, sizeof(m->name));
 }
 
-/* The selected Pokemon's types; on its page, its category, size, weight and entry too (FireRed tells them only for a
+/* The selected Pokemon's types and category; on its page, its size, weight and entry too (FireRed tells them only for a
  * caught one). */
 static void FieldDexDetail(CtrPokeTouchDex *d, int page)
 {
@@ -433,9 +433,9 @@ static void FieldDexDetail(CtrPokeTouchDex *d, int page)
         d->type[0] = (int8_t)types[0];
         d->type[1] = (int8_t)types[1];
     }
+    CtrBottomDex_Category(species, d->kind, sizeof(d->kind));
     if (!page)
         return;
-    CtrBottomDex_Category(species, d->kind, sizeof(d->kind));
     d->height = (uint16_t)CtrBottomDex_Height(species);
     d->weight = (uint16_t)CtrBottomDex_Weight(species);
     CtrBottomDex_Description(species, d->desc, sizeof(d->desc));
@@ -478,7 +478,8 @@ static int FieldDexFill(CtrPokeTouchView *v, int pressed)
     d->seen[1] = (uint16_t)counts[2];
     d->owned[1] = (uint16_t)counts[3];
     d->type[0] = d->type[1] = -1;
-    if (state == DEX_MENU) {
+    if (state == DEX_MENU || state == DEX_CATEGORY) {
+        /* The top menu's rows: the menu, and on a habitat's page the habitat's name for its title. */
         int n = CtrBottomDex_MenuCount();
 
         d->menuCount = (uint8_t)(n > PT_DEX_MENU_MAX ? PT_DEX_MENU_MAX : n);
@@ -488,6 +489,8 @@ static int FieldDexFill(CtrPokeTouchView *v, int pressed)
             d->menu[i].id = (int8_t)id;
             d->menu[i].locked = (uint8_t)(!CtrBottomDex_MenuUnlocked(id));
         }
+    }
+    if (state == DEX_MENU) {
         d->menuCursor = (int8_t)CtrBottomDex_Cursor();
     } else if (state == DEX_LIST) {
         int count = CtrBottomDex_ListCount();

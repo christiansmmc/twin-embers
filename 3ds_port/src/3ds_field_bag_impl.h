@@ -1,10 +1,9 @@
 /* The ember pieces the field's views still in the Llama look share (llama2_mockup.html), included at the end of
- * 3ds_poketouch.c before them: the Pokedex, the move to forget, the relearner, the choice, the naming screen, the PC box
- * and Easy Chat use these until plan 3 draws them as the red device. The field's Bag itself is the red device's
- * (3ds_device_bag_impl.h). */
+ * 3ds_poketouch.c before them: the move to forget, the relearner, the choice, the naming screen, the PC box and Easy Chat
+ * use these until plan 3 draws them as the red device. The field's Bag and the Pokedex are the red device's
+ * (3ds_device_bag_impl.h, 3ds_device_dex_impl.h). */
 #include "3ds_ui_strings.h"
 
-static const CtrPokeTouchRect sFBArea = {PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H};
 #define FB_DEPTH 2
 #define FB_IDLE_ARROW UI_RGB(200, 192, 176)             /* a scroll arrow with nothing to scroll to */
 

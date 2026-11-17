@@ -763,6 +763,15 @@ static void BagPlanStart(const ListScreen *list, int kind, int target, int activ
 { (void)list; sBagPlan.kind = kind; sBagPlan.target = target; sBagPlan.activate = activate; sBagPlan.keys = keys; }
 ''' + drag + '\n' + state + '\n' + code + main)
 
+    def test_dex_list_drags_a_row_per_tall_row(self):
+        """The Pokedex's list on the red device has tall rows (DevTallRow, 3ds_device_layout.h): a finger dragged on it
+        moves the cursor one Pokemon per LIST_DRAG_ROW pixels, the rows' own pitch, so the list follows the finger."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        layout = (ROOT / '3ds_port/include/3ds_device_layout.h').read_text(encoding='utf-8')
+        pitch = int(re.search(r'DevTallRow\(int i, int narrow\)\s*\{\s*return DevListRow\(i, narrow, (\d+)\);', layout).group(1))
+        self.assertEqual(int(re.search(r'#define LIST_DRAG_ROW (\d+)', bottom).group(1)), pitch)
+        self.assertIn('/ LIST_DRAG_ROW', function(bottom, 'ProcessFieldDexTouch'))
+
     def test_battle_bag_drags_its_rows(self):
         """The battle Bag's rows drag as the field Bag's do (v0.6.0's battle Bag scrolled by touch, its rail): a finger
         on a row that moves LIST_DRAG_SLOP pixels up or down scrolls instead of tapping, the cursor following it one item
@@ -1033,8 +1042,8 @@ static int OptionsActive(void) { return 0; }
 static int SaveActive(void) { return 0; }
 static void ProcessOptionsTouch(const CtrInput *in) { (void)in; }
 static void ProcessSaveInput(const CtrInput *in) { (void)in; }
-/* the views drawn as the red device: HOME, the Bag, OPTIONS, SAVE */
-bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *v) { return v->home || v->bag.on || v->options || v->save; }
+/* the views drawn as the red device: HOME, the Bag, OPTIONS, SAVE, the Pokedex */
+bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *v) { return v->home || v->bag.on || v->options || v->save || v->dex.on; }
 /* HOME: BAG's key at the bottom right, FLY and the region key in the window's top corners, the map below them */
 int CtrPokeTouch_HitTest(int x, int y) { return x < 60 && y < 60 ? PT_OPTIONS : PT_NONE; }
 int CtrPokeTouch_HomeHit(const CtrPokeTouchView *v, int x, int y) { (void)v; return x >= 200 && y >= 150 ? PT_BAG : PT_NONE; }
@@ -1081,9 +1090,12 @@ int main(void) {
     Tap(250, 200); Tap(100, 80); assert(activated == -1 && !tapped);
     /* a native screen with nothing shown yet: the column's hits */
     native = 1; sShown.touch.home = 0; Tap(20, 20); assert(activated == PT_OPTIONS);
-    /* SAVE or OPTIONS on the red device (or HOME still shown on its first frame): no column under it, nothing hit */
+    /* SAVE, OPTIONS or the Pokedex on the red device (or HOME still shown on its first frame): no column under it, nothing
+     * hit */
     sHaveShown = 1; sShown.touch.save = 1; activated = -1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.save = 0; sShown.touch.options = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
+    sShown.touch.options = 0; sShown.touch.dex.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
+    sShown.touch.dex.on = 0;
     sShown.touch.options = 0; sShown.touch.home = 1; Tap(20, 20); assert(activated == -1);
     return 0;
 }

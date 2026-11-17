@@ -7,9 +7,9 @@
 /*
  * The names FireRed's text gives the lower screen's views still in the ember look, in proper case (3ds_text_case.h).
  * Nicknames, the player's and the rival's names and the box names are what the player typed and stay as they are. The
- * red device's views (HOME, the battle, the Party, the Summary, the Bag, OPTIONS, SAVE, the Trainer Card, the letter)
- * are not cased: they draw FireRed's names in capitals (decision 5; bar[] stays cased for the ember views, and the red
- * device's draw it through DevUpper). The Bag's item names (and a case's moves) are cased where they are read
+ * red device's views (HOME, the battle, the Party, the Summary, the Bag, OPTIONS, SAVE, the Trainer Card, the letter, the
+ * Pokedex) are not cased: they draw FireRed's names in capitals (decision 5; bar[] stays cased for the ember views, and
+ * the red device's draw it through DevUpper). The Bag's item names (and a case's moves) are cased where they are read
  * (3ds_bottom.c, CtrBottomBag_ItemName) for the bars of the ember views; the Bag's page upper-cases them again.
  */
 #define CTR_CASE(f) CtrTextCase(f)
@@ -18,18 +18,7 @@
 /* The field's views in the ember look. */
 static inline void CtrTextCase_Touch(CtrPokeTouchView *v)
 {
-    CtrPokeTouchDex *d = &v->dex;
-
     CTR_CASE_ALL(v->bar);
-    for (int i = 0; i < PT_DEX_MENU_MAX; ++i)
-        CTR_CASE(d->menu[i].name);
-    for (int i = 0; i < PT_DEX_ROWS; ++i)
-        CTR_CASE(d->row[i].name);
-    for (int i = 0; i < 4; ++i)
-        CTR_CASE(d->mon[i].name);
-    CTR_CASE(d->sel.name);
-    CTR_CASE(d->kind);
-    CTR_CASE_ALL(d->typeName);
     for (int i = 0; i < PT_LEARN_ROWS; ++i) {
         CTR_CASE(v->learn.row[i].name);
         CTR_CASE(v->learn.row[i].typeName);

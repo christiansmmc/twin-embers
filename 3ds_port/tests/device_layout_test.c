@@ -535,6 +535,54 @@ static int ScreensFaults(void)
     return faults;
 }
 
+/* The Pokedex: the top menu's six keys a page (three across, two rows) under the tabs and over the small note; a
+ * habitat's four slots under the title and over the small note; a Pokemon's page on the tall screen's paper: the
+ * picture, the data beside it and short of the footprint, the rule under them and the entry under the rule. */
+static int DexFaults(void)
+{
+    const CtrPokeTouchRect tallPaper = {14, 14, 292, 160};
+    const CtrPokeTouchRect page[5] = {kDevDexPic, kDevDexData, kDevDexFoot, kDevDexRule, kDevDexEntry};
+    int faults = 0;
+
+    for (int i = 0; i < 6; ++i) {
+        CtrPokeTouchRect r = DevDexItem(i);
+
+        assert(Same(r, DevAcross(3, i % 3, 40 + 72 * (i / 3), 68)));
+        if (r.y < kDevBagPocket[0].y + kDevBagPocket[0].h + DEV_DROP || r.y + r.h + DEV_DROP > kDevSmallNote.y) {
+            fprintf(stderr, "Pokedex: menu key %d meets the tabs or the small note\n", i);
+            ++faults;
+        }
+    }
+    for (int i = 0; i < 4; ++i) {
+        CtrPokeTouchRect r = DevDexSlot(i);
+
+        assert(Same(r, (CtrPokeTouchRect){(int16_t)(8 + 156 * (i % 2)), (int16_t)(40 + 74 * (i / 2)), 148, 70}));
+        if (r.y < kDevBagTitle.y + kDevBagTitle.h + 1 || r.y + r.h + DEV_DROP > kDevSmallNote.y) {
+            fprintf(stderr, "Pokedex: slot %d meets the title or the small note\n", i);
+            ++faults;
+        }
+    }
+    assert(Same(kDevDexPic, (CtrPokeTouchRect){20, 20, 80, 80}) && kDevDexFoot.x == 282 && kDevDexFoot.y == 20
+           && kDevDexEntry.w == 280 && kDevDexEntry.h >= 5 * 13);
+    assert(Same(kDevDexArea, (CtrPokeTouchRect){8, 188, 110, 42}) && Same(kDevDexCry, (CtrPokeTouchRect){126, 188, 110, 42}));
+    for (int i = 0; i < 5; ++i)
+        if (!Within(page[i], tallPaper, 0)) {
+            fprintf(stderr, "Pokedex: piece %d of a Pokemon's page leaves the paper\n", i);
+            ++faults;
+        }
+    if (kDevDexData.x < kDevDexPic.x + kDevDexPic.w || kDevDexData.x + kDevDexData.w > kDevDexFoot.x
+        || kDevDexRule.y < kDevDexPic.y + kDevDexPic.h || kDevDexRule.y < kDevDexData.y + kDevDexData.h
+        || kDevDexEntry.y < kDevDexRule.y + kDevDexRule.h) {
+        fprintf(stderr, "Pokedex: a Pokemon's page's pieces meet each other\n");
+        ++faults;
+    }
+    if (kDevTallScreen.y + kDevTallScreen.h + 1 > kDevDexArea.y) {
+        fprintf(stderr, "Pokedex: AREA and CRY meet the screen\n");
+        ++faults;
+    }
+    return faults;
+}
+
 int main(void)
 {
     /* Every rectangle the header holds, by name, and the keys of each view state. */
@@ -560,6 +608,13 @@ int main(void)
     const CtrPokeTouchRect askKeys[] = {kDevAskYes, kDevAskNo};
     const CtrPokeTouchRect saveAsk[] = {kDevAskYes, kDevAskNo}, saveResult[] = {kDevAskYes};
     const CtrPokeTouchRect cardKeys[] = {kDevCardFlip, kDevSumBack}, mailKeys[] = {kDevWideKey};
+    const CtrPokeTouchRect dexMenu[] = {kDevBagPocket[0], kDevBagPocket[1], kDevBagPocket[2], DevDexItem(0), DevDexItem(1),
+                                        DevDexItem(2), DevDexItem(3), DevDexItem(4), DevDexItem(5), kDevSmallKey[0],
+                                        kDevSmallKey[1], kDevBagClose};
+    const CtrPokeTouchRect dexList[] = {kDevBagUp, kDevBagDown, kDevBagClose};
+    const CtrPokeTouchRect dexCategory[] = {DevDexSlot(0), DevDexSlot(1), DevDexSlot(2), DevDexSlot(3), kDevSmallKey[0],
+                                            kDevSmallKey[1], kDevBagClose};
+    const CtrPokeTouchRect dexPage[] = {kDevDexArea, kDevDexCry, kDevSumBack}, dexAdded[] = {kDevWideKey};
     CtrPokeTouchRect ptyMenu[8][8], bagMenu[6][6];
     DevGroup ptyMenus[8], bagMenus[6];
     static const char *const kBagMenuName[6] = {"Bag menu of 1", "Bag menu of 2", "Bag menu of 3", "Bag menu of 4",
@@ -603,6 +658,10 @@ int main(void)
         {"card rule", kDevCardRule}, {"card record 0", DevCardBackRow(0)}, {"card record 4", DevCardBackRow(PT_CARD_ROWS - 1)},
         {"letter icon", kDevMailIcon}, {"letter name", kDevMailName}, {"letter rule", kDevMailRule},
         {"letter writer", kDevMailFrom},
+        {"Pokedex menu key 0", DevDexItem(0)}, {"Pokedex menu key 5", DevDexItem(5)}, {"Pokedex slot 0", DevDexSlot(0)},
+        {"Pokedex slot 3", DevDexSlot(3)}, {"Pokedex picture", kDevDexPic}, {"Pokedex data", kDevDexData},
+        {"Pokedex footprint", kDevDexFoot}, {"Pokedex rule", kDevDexRule}, {"Pokedex entry", kDevDexEntry},
+        {"Pokedex AREA", kDevDexArea}, {"Pokedex CRY", kDevDexCry},
     };
     const DevGroup groups[] = {DEV_GROUP("HOME", homeKeys), DEV_GROUP("battle, a trainer", batTrainer),
                                DEV_GROUP("battle, wild", batWild), DEV_GROUP("battle moves", batMoves),
@@ -612,7 +671,10 @@ int main(void)
                                DEV_GROUP("Bag how many", bagQty), DEV_GROUP("Bag YES / NO", bagYesNo),
                                DEV_GROUP("OPTIONS", optKeys), DEV_GROUP("a question", askKeys),
                                DEV_GROUP("SAVE asking", saveAsk), DEV_GROUP("SAVE's result", saveResult),
-                               DEV_GROUP("Trainer Card", cardKeys), DEV_GROUP("a letter", mailKeys)};
+                               DEV_GROUP("Trainer Card", cardKeys), DEV_GROUP("a letter", mailKeys),
+                               DEV_GROUP("Pokedex menu", dexMenu), DEV_GROUP("Pokedex list", dexList),
+                               DEV_GROUP("Pokedex habitat", dexCategory), DEV_GROUP("Pokedex page", dexPage),
+                               DEV_GROUP("Pokedex page added", dexAdded)};
     int faults = 0;
 
     RulesCatchFaults();
@@ -646,6 +708,7 @@ int main(void)
     faults += SharedFaults();
     faults += OptionsFaults();
     faults += ScreensFaults();
+    faults += DexFaults();
     assert(faults == 0);
     puts("PASS device layout");
     return 0;

@@ -320,4 +320,36 @@ static inline CtrPokeTouchRect DevCardBadge(int i)
     return r;
 }
 
+/* ---- The Pokedex (no board; 3ds_device_dex_impl.h) ------------------------------------------------------------------
+ * The top menu: its three sections in the Bag's pockets' places, the shown section's rows as keys six to a page
+ * (DevDexItem: FireRed's menu icon over the row's name), the counts in the small note with ▲ ▼ (kDevSmallKey) turning
+ * the pages, CLOSE (FireRed's CLOSE POKeDEX row) in the Bag's CLOSE. An ordered list: its order on the Bag's title, the
+ * Bag's list screen with five tall rows (DevTallRow) and ▲ ▼, the selected Pokemon's types and kind on the description's
+ * screen, BACK in CLOSE's place. A habitat's page: the habitat and the page on the title, its Pokemon in four slots
+ * (DevDexSlot: the picture beside the number and the name), the selected one in the small note, ◀ ▶ (the small keys)
+ * and BACK. A Pokemon's page: the tall screen (the picture in kDevDexPic, the number, name, kind, types, height and
+ * weight in kDevDexData, the footprint in kDevDexFoot, the entry in kDevDexEntry under kDevDexRule), AREA, CRY and the
+ * Summary's BACK under it; the page a catch has just added: OK, the wide key, instead. */
+static const CtrPokeTouchRect kDevDexPic __attribute__((unused)) = {20, 20, 80, 80};
+static const CtrPokeTouchRect kDevDexData __attribute__((unused)) = {110, 20, 168, 80};
+static const CtrPokeTouchRect kDevDexFoot __attribute__((unused)) = {282, 20, 16, 16};
+static const CtrPokeTouchRect kDevDexRule __attribute__((unused)) = {20, 104, 280, 1};
+static const CtrPokeTouchRect kDevDexEntry __attribute__((unused)) = {20, 108, 280, 65};
+static const CtrPokeTouchRect kDevDexArea __attribute__((unused)) = {8, 188, 110, 42};
+static const CtrPokeTouchRect kDevDexCry __attribute__((unused)) = {126, 188, 110, 42};
+
+/* Key i (0-5) of the top menu's page: three across, two rows. */
+static inline CtrPokeTouchRect DevDexItem(int i)
+{
+    return DevAcross(3, i % 3, 40 + 72 * (i / 3), 68);
+}
+
+/* Slot i (0-3) of a habitat's page: two across, two rows. */
+static inline CtrPokeTouchRect DevDexSlot(int i)
+{
+    CtrPokeTouchRect r = {(int16_t)(8 + 156 * (i % 2)), (int16_t)(40 + 74 * (i / 2)), 148, 70};
+
+    return r;
+}
+
 #endif

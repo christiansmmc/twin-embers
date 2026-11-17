@@ -11,8 +11,8 @@
  *   DEVICE_WIDTHS=file        the normal font's 256 glyph widths; DEVICE_SMALL_WIDTHS=file the small font's
  *   DEVICE_FONT_W=n           the stub glyph width
  *
- * usage: device_render_test <suite>   (kit, home, battle, party, summary, bag, options, save, card, mail, or all; prints
- *        PASS device <suite>) */
+ * usage: device_render_test <suite>   (kit, home, battle, party, summary, bag, options, save, card, mail, dex, or all;
+ *        prints PASS device <suite>) */
 #include <assert.h>
 #ifndef PT_SOURCE
 #define PT_SOURCE "3ds_poketouch.c"
@@ -172,8 +172,7 @@ int CtrPokeTouch_DexMenuIcon(int id, unsigned char *tiles, unsigned short *palet
 { (void)id; (void)tiles; (void)palette; return 0; }
 int CtrPokeTouch_DexFootprint(unsigned species, unsigned char *bits)
 { (void)species; (void)bits; return 0; }
-int CtrPokeTouch_DexCaughtMarker(unsigned char *tiles, unsigned short *palette)
-{ (void)tiles; (void)palette; return 0; }
+/* CtrPokeTouch_DexCaughtMarker: device_suite_dex.h's (its caught mark while a suite sets dexArt). */
 /* The Trainer Card's art: none, unless a suite asks for synthetic art (cardArt): the trainer a 48x48 square of index 1
  * (green) in a clear border of 8, every badge a 16x16 square of index 2 (blue). */
 static int cardArt __attribute__((unused));
@@ -2272,6 +2271,7 @@ static void SuiteBag(void)
 #include "device_suite_save.h"
 #include "device_suite_card.h"
 #include "device_suite_mail.h"
+#include "device_suite_dex.h"
 
 /* ---- main --------------------------------------------------------------------------------------------------------- */
 
@@ -2286,6 +2286,7 @@ static const struct { const char *name; void (*run)(void); } kSuites[] = {
     {"save", SuiteSave},
     {"card", SuiteCard},
     {"mail", SuiteMail},
+    {"dex", SuiteDex},
 };
 
 int main(int argc, char **argv)
@@ -2295,7 +2296,7 @@ int main(int argc, char **argv)
 
     if (argc != 2) {
         fprintf(stderr, "usage: device_render_test <suite> (kit, home, battle, party, summary, bag, options, save, card, "
-                        "mail, all)\n");
+                        "mail, dex, all)\n");
         return 2;
     }
     gOut = getenv("DEVICE_OUT");
