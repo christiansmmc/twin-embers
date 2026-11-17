@@ -8,7 +8,7 @@
 #include "3ds_text_case.h"
 #include "3ds_ui_strings.h"
 
-/* The Party's icons (the red device's Party, the battle's lead and HOME draw them). */
+/* The Party's icons (the red device's Party, the battle's lead and HOME draw them): both frames, PT_MON_ICON_BYTES. */
 extern int CtrBottomParty_Icon(int slot, unsigned char *tilesOut, unsigned short *palOut);
 /* Party icons: FireRed's 32x32 icon of a slot with both its frames (the second under the first), decoded once per
  * species and slot. */
@@ -21,7 +21,7 @@ static struct {
 
 static int BPartyIcon(int slot, unsigned icon)
 {
-    static unsigned char tiles[1024];
+    static unsigned char tiles[PT_MON_ICON_BYTES];
     static unsigned short pal[16];
 
     if (sBPIcon[slot].icon == icon + 1)

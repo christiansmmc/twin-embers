@@ -544,8 +544,10 @@ int CtrPokeTouch_NameHit(const CtrPokeTouchView *view, int x, int y);
 /* What of the PC box (view->box.on) is under lower-screen point (x, y): a 3ds_storage_touch.h ST_HIT_* code, or
  * PT_BOX_HIT_MESSAGE, or ST_HIT_NONE. */
 int CtrPokeTouch_BoxHit(const CtrPokeTouchView *view, int x, int y);
-/* The game's side: a Pokemon's icon (its first frame, 4bpp 32x32) and palette; and the box as it is now (0 while the
- * port should show FireRed's own picture). */
+/* The game's side: a Pokemon's icon and palette, and the box as it is now (0 while the port should show FireRed's own
+ * picture). The icon is FireRed's two frames (4bpp 32x32 each, the first drawn): the bridge writes PT_MON_ICON_BYTES,
+ * so every buffer given it (or CtrBottomSummary_Icon, CtrBottomParty_Icon) holds that many, the first frame alone too. */
+#define PT_MON_ICON_BYTES 1024
 int CtrPokeTouch_MonIcon(unsigned species, unsigned personality, int egg, unsigned char *tiles, unsigned short *palette);
 /* A box wallpaper's 160x144 picture, as FireRed draws it: BGR555, 0 when there is none. */
 int CtrPokeTouch_Wallpaper(unsigned id, unsigned short *rgb555);

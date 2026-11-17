@@ -66,9 +66,12 @@ int CtrPokeTouch_CardTrainerPic(unsigned char *tiles, unsigned short *palette)
 { (void)tiles; (void)palette; return 0; }
 int CtrPokeTouch_CardBadges(unsigned char *tiles, unsigned short *palette)
 { (void)tiles; (void)palette; return 0; }
+/* The icon bridges: no icon, but every call writes the PT_MON_ICON_BYTES the game's bridge writes (both frames), so a
+ * smaller buffer is overrun here too. */
 int CtrPokeTouch_MonIcon(unsigned species, unsigned personality, int egg, unsigned char *tiles, unsigned short *palette)
 {
-    (void)species; (void)personality; (void)egg; (void)tiles; (void)palette;
+    (void)species; (void)personality; (void)egg;
+    memset(tiles, 0, PT_MON_ICON_BYTES); memset(palette, 0, 32);
     return 0;
 }
 int CtrPokeTouch_ItemIcon(unsigned item, unsigned char *tiles, unsigned short *palette)
@@ -122,11 +125,11 @@ int CtrPokeTouch_MapCursorIcon(uint8_t *tiles, uint16_t *pal)
     memset(tiles,0x22,4*32); memset(tiles+4*32,0x20,4*32); memset(pal,0,32); pal[2]=0x7c00; return 1;
 }
 int CtrBottomParty_Icon(int slot, unsigned char *tiles, unsigned short *pal)
-{ (void)slot; (void)tiles; (void)pal; return 0; }
+{ (void)slot; memset(tiles, 0, PT_MON_ICON_BYTES); memset(pal, 0, 32); return 0; }
 
 unsigned CtrBottomSummary_IconSpecies(void) { return 0; }
 int CtrBottomSummary_Icon(unsigned char *tiles, unsigned short *pal)
-{ (void)tiles; (void)pal; return 0; }
+{ memset(tiles, 0, PT_MON_ICON_BYTES); memset(pal, 0, 32); return 0; }
 int CtrBottomSummary_Pic(unsigned char *tiles, unsigned short *pal, int *flip)
 { (void)tiles; (void)pal; (void)flip; return 0; }
 int CtrBottomSummary_Pic80(unsigned char *pixels, unsigned short *pal, int *flip)

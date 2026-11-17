@@ -238,7 +238,7 @@ static int DevBoxWallpaper(unsigned id)
  * half size (DevIconPixels). */
 static void DevBoxIcon(const CtrPokeTouchBoxMon *m, int x, int y, const CtrPokeTouchRect *clip, int half)
 {
-    static unsigned char tiles[1024];
+    static unsigned char tiles[PT_MON_ICON_BYTES];  /* the bridge writes both frames; the first is drawn */
     static unsigned short pal[16];
     static uint8_t px[32 * 32];
     static uint16_t pal565[16];

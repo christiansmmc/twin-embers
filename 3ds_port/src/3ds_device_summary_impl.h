@@ -162,7 +162,7 @@ static void SIcon(const CtrSummaryUiView *v, int x, int y, int scale)
     if (v->loading || !v->icon)
         return;
     if (shown != v->icon + 1u) {
-        static unsigned char tiles[512];
+        static unsigned char tiles[PT_MON_ICON_BYTES];  /* the bridge writes both frames; the first is drawn */
         static unsigned short raw[16];
 
         shown = v->icon + 1u;

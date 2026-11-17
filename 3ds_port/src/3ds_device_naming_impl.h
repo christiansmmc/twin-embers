@@ -152,7 +152,7 @@ static void FNSpaceMark(int cx, int y, uint16_t c)
 /* A Pokemon's icon (FireRed's, its first frame) at half size, its top-left at (x, y). */
 static void DevNameIcon(unsigned species, int x, int y)
 {
-    static unsigned char tiles[1024];               /* the bridge writes the icon's two frames */
+    static unsigned char tiles[PT_MON_ICON_BYTES];  /* the bridge writes the icon's two frames */
     static unsigned short pal[16];
     static uint8_t px[32 * 32];
     static uint16_t pal565[16];

@@ -8,6 +8,7 @@ key label has to be cut. Also checks the PNG writer and the width parser of tool
 """
 import importlib
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -182,6 +183,42 @@ class RenderTool(unittest.TestCase):
             self.assertNotEqual(done.returncode, 0)
             self.assertIn('build', done.stderr)
             self.assertEqual(list(Path(tmp).iterdir()), [])
+
+
+class IconBuffers(unittest.TestCase):
+    """The game's icon bridge (CtrPokeTouch_MonIcon, and CtrBottomSummary_Icon, which ends in it, and
+    CtrBottomParty_Icon, which copies as it does) writes an icon's two frames, PT_MON_ICON_BYTES (1024), even where
+    only the first is drawn: every buffer the port gives them holds that many, and every harness stub writes that many,
+    so a smaller buffer cannot hide behind a stub."""
+
+    BRIDGES = {'CtrPokeTouch_MonIcon': 3, 'CtrBottomSummary_Icon': 0, 'CtrBottomParty_Icon': 1}   # the tiles argument
+
+    def test_every_buffer_holds_both_frames(self):
+        header = (PORT / 'include/3ds_poketouch.h').read_text(encoding='utf-8')
+        self.assertIn('#define PT_MON_ICON_BYTES 1024', header)
+        checked = []
+        for path in sorted((PORT / 'src').iterdir()):
+            text = path.read_text(encoding='utf-8', errors='replace')
+            for name, arg in self.BRIDGES.items():
+                for call in re.finditer(r'\b' + name + r'\(([^()]*(?:\([^()]*\)[^()]*)*)\)', text):
+                    if 'char' in call.group(1):
+                        continue                                    # a declaration
+                    buffer = [a.strip() for a in call.group(1).split(',')][arg]
+                    sizes = re.findall(r'unsigned char\s+' + re.escape(buffer) + r'\[([^\]]+)\]', text[:call.start()])
+                    self.assertTrue(sizes, f'{path.name}: no buffer {buffer} before its {name} call')
+                    self.assertEqual(sizes[-1], 'PT_MON_ICON_BYTES', f'{path.name}: {buffer} given to {name}')
+                    checked.append(path.name)
+        self.assertEqual(sorted(checked), ['3ds_battle_ui_impl.h', '3ds_device_box_impl.h', '3ds_device_naming_impl.h',
+                                           '3ds_device_summary_impl.h'])
+
+    def test_every_stub_writes_both_frames(self):
+        for test in ('device_render_test.c', 'poketouch_render_test.c'):
+            text = (PORT / 'tests' / test).read_text(encoding='utf-8')
+            for name in self.BRIDGES:
+                body = re.search(r'\nint ' + name + r'\([^)]*\)\s*\{(.*?)\n?\}\n', text, re.S)
+                self.assertTrue(body, f'{test}: {name}')
+                first = body.group(1).split('return')[0]
+                self.assertIn('memset(tiles, 0, PT_MON_ICON_BYTES)', first, f'{test}: {name} writes both frames first')
 
 
 if __name__ == '__main__':

@@ -192,8 +192,9 @@ int CtrPokeTouch_CardBadges(unsigned char *tiles, unsigned short *palette)
     memset(tiles, 0x22, 0x400); memset(palette, 0, 32); palette[2] = CARD_ART_BLUE; return 1;
 }
 /* A Pokemon's icon (the naming keyboard's, the PC box's): none, unless a suite asks for synthetic art (monArt 1: a 24x24
- * square of index 1 in STUB_ICON in a clear border of 4; 2: the whole 32x32 square), both frames written as the game's
- * bridge writes them (1024 bytes). */
+ * square of index 1 in STUB_ICON in a clear border of 4; 2: the whole 32x32 square). Every call writes both frames, the
+ * PT_MON_ICON_BYTES the game's bridge writes, so a smaller buffer is overrun here too; so do the Party's and the
+ * Summary's icon stubs below. */
 #define MON_ART_ORANGE 0x021f                   /* GBA BGR555 */
 #define STUB_ICON GbaColor(MON_ART_ORANGE)
 static int monArt;
@@ -202,8 +203,9 @@ int CtrPokeTouch_MonIcon(unsigned species, unsigned personality, int egg, unsign
     int border = monArt == 2 ? 0 : 4;
 
     (void)species; (void)personality; (void)egg;
+    memset(tiles, 0, PT_MON_ICON_BYTES); memset(palette, 0, 32);
     if (!monArt) return 0;
-    memset(tiles, 0, 1024); memset(palette, 0, 32); palette[1] = MON_ART_ORANGE;
+    palette[1] = MON_ART_ORANGE;
     for (int y = border; y < 32 - border; ++y)
         for (int x = border; x < 32 - border; ++x)
             tiles[(y / 8 * 4 + x / 8) * 32 + y % 8 * 4 + x % 8 / 2] |= (unsigned char)(1 << (x & 1) * 4);
@@ -277,7 +279,7 @@ int CtrPokeTouch_MarkShape(int mark, unsigned char *indexes)
 int CtrBottomParty_Icon(int slot, unsigned char *tiles, unsigned short *pal)
 {
     /* A flat 32x32 icon in the slot's own colour, a clear border and a hole in the middle, so the 2:1 sample shows. */
-    memset(tiles, 0, 1024); memset(pal, 0, 32);
+    memset(tiles, 0, PT_MON_ICON_BYTES); memset(pal, 0, 32);
     for (int y = 2; y < 30; ++y)
         for (int x = 2; x < 30; ++x)
             if (!(x >= 12 && x < 20 && y >= 12 && y < 20)) {
@@ -302,8 +304,9 @@ static int SumArtIndex(int x, int y, int size)
 unsigned CtrBottomSummary_IconSpecies(void) { return 0; }
 int CtrBottomSummary_Icon(unsigned char *tiles, unsigned short *pal)
 {
+    memset(tiles, 0, PT_MON_ICON_BYTES); memset(pal, 0, 32);
     if (!sumArt) return 0;
-    memset(tiles, 0x11, 512); memset(pal, 0, 32); pal[1] = SUM_ART_RED; return 1;
+    memset(tiles, 0x11, PT_MON_ICON_BYTES); pal[1] = SUM_ART_RED; return 1;
 }
 int CtrBottomSummary_Pic(unsigned char *tiles, unsigned short *pal, int *flip)
 {
