@@ -763,6 +763,34 @@ static void BagPlanStart(const ListScreen *list, int kind, int target, int activ
 { (void)list; sBagPlan.kind = kind; sBagPlan.target = target; sBagPlan.activate = activate; sBagPlan.keys = keys; }
 ''' + drag + '\n' + state + '\n' + code + main)
 
+    def test_dex_list_drags_a_row_per_tall_row(self):
+        """The Pokedex's list on the red device has tall rows (DevTallRow, 3ds_device_layout.h): a finger dragged on it
+        moves the cursor one Pokemon per LIST_DRAG_ROW pixels, the rows' own pitch, so the list follows the finger."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        layout = (ROOT / '3ds_port/include/3ds_device_layout.h').read_text(encoding='utf-8')
+        pitch = int(re.search(r'DevTallRow\(int i, int narrow\)\s*\{\s*return DevListRow\(i, narrow, (\d+)\);', layout).group(1))
+        self.assertEqual(int(re.search(r'#define LIST_DRAG_ROW (\d+)', bottom).group(1)), pitch)
+        self.assertIn('/ LIST_DRAG_ROW', function(bottom, 'ProcessFieldDexTouch'))
+
+    def test_relearn_cancel_key(self):
+        """The relearner's CANCEL is a key of its own on the red device (owner decision 4: PT_RL_HIT_CANCEL, 235, in the
+        Bag's CLOSE place), FireRed's CANCEL row no longer drawn as a row. A tap on it is taken as v0.6.0 took a tap on
+        that row, the list's last entry (index `count`): the cursor on it, A; else the walk to it. It has no branch of
+        its own. (The relearn suite of device_render_test.c pins where it is hit.)"""
+        relearn = (ROOT / '3ds_port/src/3ds_bottom_relearn_impl.h').read_text(encoding='utf-8')
+        header = (ROOT / '3ds_port/include/3ds_poketouch.h').read_text(encoding='utf-8')
+        touch = function(relearn, 'ProcessRelearnTouch')
+        self.assertRegex(header, r'PT_RL_HIT_MESSAGE = 234, PT_RL_HIT_CANCEL = 235 \}')
+        target = re.search(r'int row = sRelearnTap\.code == PT_RL_HIT_CANCEL \? sShown\.touch\.relearn\.count\s*:\s*'
+                           r'sShown\.touch\.relearn\.first \+ sRelearnTap\.code - PT_RL_HIT_ROW;', touch)
+        self.assertIsNotNone(target)
+        self.assertEqual(touch.count('PT_RL_HIT_CANCEL'), 1)
+        rest = touch[target.end():]
+        self.assertLess(rest.index('else if (row == CtrBottomRelearn_Cursor())\n            sRouteKey = K_A;'),
+                        rest.index('sRelearnPlan.target = row;'))
+        for code in ('PT_RL_HIT_MESSAGE', 'PT_RL_HIT_YES', 'PT_RL_HIT_UP', 'PT_RL_HIT_DOWN'):
+            self.assertLess(rest.index(code), rest.index('else if (row == CtrBottomRelearn_Cursor())'))
+
     def test_battle_bag_drags_its_rows(self):
         """The battle Bag's rows drag as the field Bag's do (v0.6.0's battle Bag scrolled by touch, its rail): a finger
         on a row that moves LIST_DRAG_SLOP pixels up or down scrolls instead of tapping, the cursor following it one item
@@ -1003,8 +1031,9 @@ int main(void) {
     def test_home_touch_only_on_home_shown(self):
         """On a field frame HOME's keys, its party, FLY, the region key and the map take a touch only while HOME is the
         picture the lower screen shows: the frame after another screen closed still shows that screen's picture (the
-        Bag's, a viewport's), and a touch there must not open what HOME has at that place. OPTIONS and SAVE (native) keep
-        their own hits."""
+        Bag's, a viewport's), and a touch there must not open what HOME has at that place. A native screen (OPTIONS,
+        SAVE) hits the START column only before its own picture is shown: drawn as the red device it has no column, so
+        nothing is hit."""
         bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
         start = bottom.index('static struct {\n    int valid;')
         state = bottom[start:bottom.index('} sHome;', start) + len('} sHome;')]
@@ -1032,6 +1061,10 @@ static int OptionsActive(void) { return 0; }
 static int SaveActive(void) { return 0; }
 static void ProcessOptionsTouch(const CtrInput *in) { (void)in; }
 static void ProcessSaveInput(const CtrInput *in) { (void)in; }
+/* the views drawn as the red device: HOME, the Bag, OPTIONS, SAVE, the Pokedex, a choice, the move to forget, the
+ * relearner */
+bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *v)
+{ return v->home || v->bag.on || v->options || v->save || v->dex.on || v->choice.on || v->learn.on || v->relearn.on; }
 /* HOME: BAG's key at the bottom right, FLY and the region key in the window's top corners, the map below them */
 int CtrPokeTouch_HitTest(int x, int y) { return x < 60 && y < 60 ? PT_OPTIONS : PT_NONE; }
 int CtrPokeTouch_HomeHit(const CtrPokeTouchView *v, int x, int y) { (void)v; return x >= 200 && y >= 150 ? PT_BAG : PT_NONE; }
@@ -1076,11 +1109,92 @@ int main(void) {
     Tap(250, 200); Tap(100, 80); assert(activated == -1 && !tapped);
     sShown.touch.viewport = 0; sShown.touch.home = 1; sHaveShown = 0;
     Tap(250, 200); Tap(100, 80); assert(activated == -1 && !tapped);
-    /* OPTIONS and SAVE: their own hits, whatever was shown */
+    /* a native screen with nothing shown yet: the column's hits */
     native = 1; sShown.touch.home = 0; Tap(20, 20); assert(activated == PT_OPTIONS);
+    /* SAVE, OPTIONS, the Pokedex, a choice, the move to forget or the relearner on the red device (or HOME still shown on
+     * its first frame): no column under it, nothing hit */
+    sHaveShown = 1; sShown.touch.save = 1; activated = -1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
+    sShown.touch.save = 0; sShown.touch.options = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
+    sShown.touch.options = 0; sShown.touch.dex.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
+    sShown.touch.dex.on = 0; sShown.touch.choice.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
+    sShown.touch.choice.on = 0; sShown.touch.learn.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
+    sShown.touch.learn.on = 0; sShown.touch.relearn.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
+    sShown.touch.relearn.on = 0;
+    sShown.touch.options = 0; sShown.touch.home = 1; Tap(20, 20); assert(activated == -1);
     return 0;
 }
 ''')
+
+    def test_options_keys_and_rows(self):
+        """OPTIONS on the red device: a key acts once on release over it (▲ ▼ the page before and after, round; a
+        section's key its first page), the selection going to that page's first row; moved off, nothing. A row is the
+        shown page's: selected on touch-down, its zone stepped (or its level set) once on release over the same zone.
+        A held physical button cancels either."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        start = bottom.index('static struct {\n    int sel;')
+        state = bottom[start:bottom.index('} sOpt;', start) + len('} sOpt;')]
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include <string.h>
+#include "3ds_input.h"
+#include "3ds_poketouch.h"
+static struct { int mode; CtrPokeTouchView touch; } sShown;
+static int sHaveShown = 1;
+/* six pages of five rows; the sections start at pages 0, 1, 4 and 5 */
+static int CtrOptions_PageOf(int row) { return row / 5; }
+static int CtrOptions_PageCount(void) { return 6; }
+static int CtrOptions_PageBase(int page) { return page * 5; }
+static int CtrOptions_SectionFirstPage(int s) { static const int k[4] = {0, 1, 4, 5}; return k[s]; }
+static int stepRow = -1, stepDir, setRow = -1, setValue = -1;
+static void CtrOptions_Step(int row, int dir) { stepRow = row; stepDir = dir; }
+static void CtrOptions_Set(int row, int value) { setRow = row; setValue = value; }
+/* the screen: a key's code at x (y < 50), row y - 100 below (y >= 100) in zone x / 100 */
+int CtrPokeTouch_OptionKey(const CtrPokeTouchView *v, int x, int y) { (void)v; return y < 50 ? x : -1; }
+bool CtrPokeTouch_OptionHit(const CtrPokeTouchView *v, int x, int y, int *row, int *zone)
+{ (void)v; if (y < 100) return false; *row = y - 100; *zone = x / 100; return true; }
+''' + state + '\n' + function(bottom, 'ProcessOptionsTouch') + '''
+/* down at (x, y), held over (mx, my), released there; `held` a physical button the while */
+static void Touch(int x, int y, int mx, int my, unsigned held)
+{
+    CtrInput in;
+
+    memset(&in, 0, sizeof(in));
+    in.touchActive = in.touchDown = 1; in.touchX = (uint16_t)x; in.touchY = (uint16_t)y;
+    ProcessOptionsTouch(&in);
+    in.touchDown = 0; in.touchX = (uint16_t)mx; in.touchY = (uint16_t)my; in.held = held;
+    ProcessOptionsTouch(&in);
+    in.touchActive = 0; ProcessOptionsTouch(&in);
+}
+int main(void) {
+    sOpt.sel = 7;                                                   /* page 1 */
+    Touch(PT_OPT_KEY_UP, 10, PT_OPT_KEY_UP, 10, 0); assert(sOpt.sel == 0 && !sOpt.key);
+    Touch(PT_OPT_KEY_UP, 10, PT_OPT_KEY_UP, 10, 0); assert(sOpt.sel == 25);      /* round, to the last page */
+    Touch(PT_OPT_KEY_DOWN, 10, PT_OPT_KEY_DOWN, 10, 0); assert(sOpt.sel == 0);   /* and back to the first */
+    Touch(PT_OPT_KEY_SECTION + 2, 10, PT_OPT_KEY_SECTION + 2, 10, 0); assert(sOpt.sel == 20);
+    Touch(PT_OPT_KEY_SECTION + 1, 10, PT_OPT_KEY_SECTION + 1, 10, 0); assert(sOpt.sel == 5);
+    Touch(PT_OPT_KEY_DOWN, 10, 300, 200, 0); assert(sOpt.sel == 5 && !sOpt.key); /* moved off: nothing */
+    Touch(PT_OPT_KEY_DOWN, 10, PT_OPT_KEY_DOWN, 10, 1); assert(sOpt.sel == 5); /* a button held: nothing */
+    /* the shown page's rows: page 4's third row, its NEXT zone, then a level */
+    sShown.touch.optPage = 4;
+    Touch(300, 102, 300, 102, 0); assert(sOpt.sel == 22 && stepRow == 22 && stepDir == 1);
+    Touch(250, 103, 250, 103, 0); assert(sOpt.sel == 23 && stepRow == 23 && stepDir == -1);
+    stepRow = -1; Touch(100, 103, 100, 103, 0); assert(sOpt.sel == 23 && stepRow == -1);     /* the label selects only */
+    Touch(PT_OPT_ZONE_SEG * 100 + 50, 104, PT_OPT_ZONE_SEG * 100 + 50, 104, 0); assert(setRow == 24 && setValue == 0);
+    stepRow = -1; Touch(300, 102, 150, 102, 0); assert(sOpt.sel == 22 && stepRow == -1); /* moved to another zone */
+    sHaveShown = 0; Touch(300, 102, 300, 102, 0); assert(stepRow == -1);                 /* nothing shown yet */
+    return 0;
+}
+''')
+
+    def test_column_only_under_ember_views(self):
+        """While the START column still exists in code (PR C), no tap on a view drawn as the red device reaches it or the
+        route: the column's rectangles lie under the B views' ▲▼ and BACK. BACK is the one the view draws."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        self.assertIn('if (!sHaveShown || !CtrPokeTouch_DeviceShown(&sShown.touch))\n        ProcessRouteTouch(mode, in);', function(bottom, 'ProcessTouch'))
+        self.assertIn('CtrPokeTouch_DeviceShown(&sShown.touch)', function(bottom, 'PokeTouchHit'))
+        self.assertIn('CtrPokeTouch_BackHit(&sShown.touch,', function(bottom, 'ProcessBack'))
+        self.assertNotIn('CtrPokeTouch_HitOptPage', bottom)
 
     def test_field_lists_route_once(self):
         """The red device's Bag page takes its touch through one branch of ProcessTouch, FieldListFor's: the field's

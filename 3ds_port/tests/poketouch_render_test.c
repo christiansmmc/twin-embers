@@ -9,23 +9,6 @@
 #include PT_SOURCE
 #include "3ds_text_case_views.h"   /* the game names in proper case, as 3ds_bottom.c gives them */
 #include "3ds_pak.h"
-#ifdef PT_WITH_OPTIONS
-#include "3ds_poketouch_options.h"
-#include "3ds_looks.h"
-/* A stub game bridge for the real OPTIONS rows (a viewing aid, with -DPT_WITH_OPTIONS): the defaults, and three looks. */
-int CtrPokeTouch_OptionCount(int option) { static const int c[PT_OPT_GAME_COUNT] = {3, 2, 2, 2, 3, 10, 2}; return option >= 0 && option < PT_OPT_GAME_COUNT ? c[option] : 0; }
-static int sOptStub[PT_OPT_GAME_COUNT];
-int CtrPokeTouch_OptionGet(int option) { return option >= 0 && option < PT_OPT_GAME_COUNT ? sOptStub[option] : 0; }
-void CtrPokeTouch_OptionSet(int option, int value) { if (option >= 0 && option < PT_OPT_GAME_COUNT) sOptStub[option] = value; }
-static int sLookChoiceStub[3] = {-1, -1, -1};
-int CtrLooks_Count(void) { return 3; }
-const char *CtrLooks_Id(int i) { static const char *const k[3] = {"ash", "gary_kanto", "green"}; return i >= 0 && i < 3 ? k[i] : NULL; }
-const char *CtrLooks_Name(int i) { static const char *const k[3] = {"ASH", "GARY", "GREEN"}; return i >= 0 && i < 3 ? k[i] : NULL; }
-int CtrLooks_Chosen(int slot) { return sLookChoiceStub[slot]; }
-void CtrLooks_Choose(int slot, int index) { sLookChoiceStub[slot] = index; }
-const char *CtrLooks_Credit(int i) { static const char *const k[3] = {"By Kalarie", "By Alan_Flygon", "By Poltergeist"}; return i >= 0 && i < 3 ? k[i] : NULL; }
-int CtrLooks_Walk(int i, uint8_t tiles[CTR_LOOK_WALK_BYTES], uint16_t palette[16]) { memset(tiles, 0x11 * (i + 1), CTR_LOOK_WALK_BYTES); for (int c = 0; c < 16; ++c) palette[c] = (uint16_t)c; return 1; }
-#endif
 
 static uint8_t fixtureTiles[512], fixtureColors[32];
 static int fixtureSize = 288, fixtureFail;
@@ -358,72 +341,13 @@ int main(int argc, char **argv)
     }
     v.running=1; update(&old,&v); v.registeredItem=2; v.bikeItem=1; update(&old,&v);
     strcpy(v.playerName,"Alex"); update(&old,&v);
-    for(int screen=0;screen<4;++screen) {
-        v.home=screen==0; v.viewport=screen==1; v.options=screen==2; v.save=screen==3;
-        v.optCount=2; strcpy(v.optLabel[0],"Sound"); strcpy(v.optValue[0],"Mono");
-        v.savePressed=PT_SAVE_NONE;
+    for(int screen=0;screen<2;++screen) {      /* HOME, the GBA picture (OPTIONS, SAVE: device_render_test.c) */
+        v.home=screen==0; v.viewport=screen==1;
         update(&old,&v);
         if(viewports) for(int x=4;x<244;++x) for(int y=4;y<164;++y) {
             uint16_t c=at(x,y); fwrite(&c,2,1,viewports);
         }
     }
-    for(int state=SAVE_CONFIRM;state<=SAVE_ERROR;++state) {
-        v.saveState=state; update(&old,&v);
-        v.saveSel=1; update(&old,&v); v.savePressed=PT_SAVE_FIRST; update(&old,&v);
-        assert(CtrPokeTouch_SaveHit(180,state==SAVE_CONFIRM?180:200,state)==
-               (state==SAVE_WRITING?PT_SAVE_NONE:PT_SAVE_FIRST));
-        v.savePressed=PT_SAVE_NONE; update(&old,&v);
-    }
-#ifndef PT_BASELINE
-    /* The preview under OPTIONS' look rows: a note card in the rows the page does not use, with the look's walking picture
-     * (here a pattern and a palette), its name and its artists; it follows the look chosen, and goes with the row. */
-    {
-        v.home=0; v.viewport=0; v.options=1; v.save=0; v.optCount=4; v.optSelected=1;
-        v.optLook.on=1; v.optLook.has=1;
-        v.optPageCount=4; v.optPage=3; strcpy(v.optPageName,"Looks"); v.optSwitch[0]=2; v.optSwitch[1]=1;   /* the PAGE button's dots, the switches */
-        strcpy(v.optLook.name,"ASH HGSS"); strcpy(v.optLook.credit,"Made by PKMNTrainerRick");
-        for(int i=0;i<512;++i) v.optLook.tiles[i]=(uint8_t)(i*7);
-        for(int i=1;i<16;++i) v.optLook.palette[i]=(uint16_t)(i*0x0421);
-        update(&old,&v);
-        {   /* For a look at the screen: PT_PREVIEW_PPM names the file to write, PT_PREVIEW_WALK a walk.bin to show, with its
-             * name and artists in PT_PREVIEW_NAME and PT_PREVIEW_CREDIT. */
-            const char *out=getenv("PT_PREVIEW_PPM"), *walk=getenv("PT_PREVIEW_WALK");
-            if(out && walk) {
-                const char *fp=getenv("PT_PREVIEW_FONT");   /* a 256x64-byte glyph file, a local viewing aid */
-                if(fp) { FILE *ff=fopen(fp,"rb"); assert(ff); assert(fread(font,1,sizeof(font),ff)==sizeof(font)); fclose(ff); }
-                FILE *w=fopen(walk,"rb"); assert(w);
-                uint8_t entry[40+512]; assert(fread(entry,1,sizeof(entry),w)==sizeof(entry)); fclose(w);
-                memcpy(v.optLook.tiles,entry+40,512);
-                for(int i=0;i<16;++i) v.optLook.palette[i]=(uint16_t)(entry[8+i*2]|entry[9+i*2]<<8);
-                snprintf(v.optLook.name,sizeof(v.optLook.name),"%s",getenv("PT_PREVIEW_NAME")?getenv("PT_PREVIEW_NAME"):"LOOK");
-                snprintf(v.optLook.credit,sizeof(v.optLook.credit),"%s",getenv("PT_PREVIEW_CREDIT")?getenv("PT_PREVIEW_CREDIT"):"");
-                int first=getenv("PT_PREVIEW_ROWS") && atoi(getenv("PT_PREVIEW_ROWS"))==5;   /* the page with REUSABLE TMS: five rows */
-                v.optCount=first?5:4; v.optSelected=first?2:1;
-                strcpy(v.optLabel[0],"EXP share"); strcpy(v.optValue[0],"Off");
-                if(first) { strcpy(v.optLabel[1],"Reusable TMs"); strcpy(v.optValue[1],"Off"); }
-                strcpy(v.optLabel[first+1],"Red look"); strcpy(v.optValue[first+1],v.optLook.name);
-                strcpy(v.optLabel[first+2],"Leaf look"); strcpy(v.optValue[first+2],"Default");
-                strcpy(v.optLabel[first+3],"Rival look"); strcpy(v.optValue[first+3],"Default");
-                update(&old,&v);
-                FILE *f=fopen(out,"wb"); assert(f);
-                fprintf(f,"P6\n320 240\n255\n");
-                for(int y=0;y<H;++y) for(int x=0;x<W;++x) {
-                    uint16_t c=at(x,y); uint8_t p[3]={(uint8_t)((c>>11)*255/31),(uint8_t)(((c>>5)&63)*255/63),(uint8_t)((c&31)*255/31)};
-                    fwrite(p,1,3,f);
-                }
-                fclose(f);
-            }
-        }
-        strcpy(v.optLook.name,"GARY"); strcpy(v.optLook.credit,"Made by Alan_Flygon, a credit long enough to need a second and a third line of the note card");
-        update(&old,&v);
-        v.optLook.has=0; strcpy(v.optLook.name,"Default"); update(&old,&v);       /* the default: no picture */
-        v.optCount=5; v.optLook.has=1; strcpy(v.optLook.name,"ASH HGSS"); update(&old,&v);   /* five rows: the card is 42 high, the picture at its own size */
-        v.optCount=6; update(&old,&v);                                            /* six: no room for the card at all */
-        v.optCount=7; update(&old,&v);                                            /* a page of seven rows has no room: no panel */
-        v.optCount=4; v.optLook.on=0; update(&old,&v);                           /* another row selected: the panel goes */
-        memset(&v.optLook,0,sizeof(v.optLook)); v.optCount=2; v.optSelected=0; v.options=0; v.home=1; update(&old,&v);
-    }
-#endif
     /* Ascuas 2: the screens the owner's mockup draws, each through the incremental path first (every press, selection and value
      * change must equal a full redraw) and then, with PT_PREVIEW_DIR, written as a PPM (PT_PREVIEW_FONT and PT_PREVIEW_WIDTHS: the
      * game's glyphs and widths, local viewing aids). */
@@ -431,7 +355,7 @@ int main(int argc, char **argv)
         const char *dir=getenv("PT_PREVIEW_DIR"), *fp=getenv("PT_PREVIEW_FONT"), *wp=getenv("PT_PREVIEW_WIDTHS");
         if(dir && fp) { FILE *ff=fopen(fp,"rb"); assert(ff); assert(fread(font,1,sizeof(font),ff)==sizeof(font)); fclose(ff); memset(sPtFontReady,0,sizeof(sPtFontReady)); }
         if(dir && wp) { FILE *ff=fopen(wp,"rb"); assert(ff); assert(fread(fontWidths,1,sizeof(fontWidths),ff)==sizeof(fontWidths)); fclose(ff); memset(sPtFontReady,0,sizeof(sPtFontReady)); }
-        CtrPokeTouchView s={0}; CtrPokeTouchView before; s.selected=s.pressed=PT_NONE; s.optPressed=-1;
+        CtrPokeTouchView s={0}; s.selected=s.pressed=PT_NONE; s.optPressed=-1;
         for(int i=0;i<PT_COUNT;++i) s.enabled[i]=1;
         s.registeredItem=1; s.bikeItem=2; strcpy(s.playerName,"Rick"); s.playerX=s.playerY=-1;
         #define SHOT(name) do { update(&old,&s); if(dir) ppm(dir,name); } while(0)
@@ -461,133 +385,6 @@ int main(int argc, char **argv)
             b2.name.on=0; update(&old,&b2);
         }
         memset(&old,0,sizeof(old)); old.selected=old.pressed=PT_NONE;
-        /* OPTIONS, page 2: switches, values, levels; then each press and selection moves. */
-        s.home=0; s.options=1; s.optCount=7; s.optPage=1; s.optPageCount=4; strcpy(s.optPageName,"Extras");
-        static const char *const labels[7]={"Type matchup","Move details","Day/Night","Hour","Shell colour","Repel again","Companion"};
-        for(int i=0;i<7;++i) strcpy(s.optLabel[i],labels[i]);
-        s.optSwitch[0]=2; s.optSwitch[1]=2; strcpy(s.optValue[2],"Clock"); strcpy(s.optValue[3],"12:00");
-        s.optSegCount[4]=3; s.optSegValue[4]=2; strcpy(s.optSegName[4][0],"Off"); strcpy(s.optSegName[4][1],"Low"); strcpy(s.optSegName[4][2],"High");
-        s.optSwitch[5]=1; s.optSegCount[6]=3; s.optSegValue[6]=2; strcpy(s.optSegName[6][0],"Off"); strcpy(s.optSegName[6][1],"Follow"); strcpy(s.optSegName[6][2],"Be it");
-        s.optSelected=6; strcpy(s.bar[0],"Companion"); strcpy(s.bar[1],"A Pokemon follows you,"); strcpy(s.bar[2],"or you are that Pokemon.");
-        s.backVisible=1; s.backEnabled=1;
-        SHOT("options2");
-#ifdef PT_WITH_OPTIONS
-        /* The real OPTIONS pages (3ds_poketouch_options.c), for a look at the sections: each through the incremental path first. */
-        for(int page=0;page<CtrOptions_PageCount();++page) {
-            CtrPokeTouchView t=s; char name[32];
-            CtrOptions_Fill(&t,CtrOptions_PageBase(page)+(page==1?1:0)); t.optPressed=-1; t.optPagePressed=0;
-            update(&old,&t); snprintf(name,sizeof(name),"opt_page%d",page+1); if(dir) ppm(dir,name);
-        }
-        update(&old,&s);
-        if(wp) {
-            /* Every text of OPTIONS against the room it has, with the game's real widths (PT_PREVIEW_WIDTHS): the label (the chosen row starts
-             * 7 px further right), every value of every row (in the well between its nubs, 84 px; the levels of a row share the well), the
-             * two note lines (the frame sample takes 60 px of them on its row) and the PAGE button's name. */
-            int bad=0, selX=OPT_X+19, plainX=OPT_X+12, labelRight=OPT_X+OPT_W-OPT_BOX_W-2, noteW=NOTE_W_SIDE-12-13, frameNoteW=noteW-(FRAME_W+4);
-            for(int row=0;row<CtrOptions_RowCount();++row) {
-                const CtrOptionRow *r=CtrOptions_Row(row); char val[PT_OPT_VALUE_LEN];
-                int lw=UiTextWidth(r->label,1), n=CtrOptions_Count(row);
-                if(lw>labelRight-selX) { printf("FIT label '%s' %dpx > %d (chosen row)\n",r->label,lw,labelRight-selX); ++bad; }
-                for(int k=0;k<(n>0?n:0)&&k<64;++k) {
-                    int w;
-                    CtrOptions_Set(row,k); CtrOptions_ValueText(row,val,(int)sizeof(val)); w=UiTextWidth(val,1);
-                    if(CtrOptions_IsLevels(row)) { int seg=(OPT_BOX_W-9)/(n>PT_OPT_SEGS?PT_OPT_SEGS:n)-2; if(w>seg) { printf("FIT level '%s' of '%s' %dpx > %d\n",val,r->label,w,seg); ++bad; } }
-                    else if(w>84) { printf("FIT value '%s' of '%s' %dpx > 84\n",val,r->label,w); ++bad; }
-                }
-                for(int d=0;d<2;++d) { int w=UiTextWidth(r->description[d],1), lim=(r->game==PT_OPT_FRAME&&!r->get)?frameNoteW:noteW;
-                    if(w>lim) { printf("FIT note '%s' of '%s' %dpx > %d\n",r->description[d],r->label,w,lim); ++bad; } }
-            }
-            for(int page=0;page<CtrOptions_PageCount();++page) {
-                CtrPokeTouchView t=s; int w; CtrOptions_Fill(&t,CtrOptions_PageBase(page)); w=UiTextWidth(t.optPageName,1);
-                if(w>gCtrPokeTouchOptPage.w-8) { printf("FIT page button '%s' %dpx > %d\n",t.optPageName,w,gCtrPokeTouchOptPage.w-8); ++bad; }
-            }
-            (void)plainX; printf("FIT total %d\n",bad); assert(bad==0);
-        }
-#endif
-        before=s;
-        for(int row=0;row<7;++row) for(int zone=PT_OPT_ZONE_LABEL;zone<=PT_OPT_ZONE_NEXT;++zone) { s.optSelected=(uint8_t)row; s.optPressed=(int8_t)row; s.optZone=(uint8_t)zone; update(&old,&s); s.optPressed=-1; update(&old,&s); }
-        for(int k=0;k<3;++k) { s.optPressed=4; s.optZone=(uint8_t)(PT_OPT_ZONE_SEG+k); update(&old,&s); s.optPressed=-1; s.optSegValue[4]=(uint8_t)k; update(&old,&s); }
-        s.optPagePressed=1; update(&old,&s); s.optPagePressed=0; s.optPage=2; update(&old,&s); s.optPage=1;
-        strcpy(s.optValue[3],"13:45"); update(&old,&s);
-        s=before; SHOT("options2_again");
-        s.optPage=0; strcpy(s.optPageName,"Game"); s.optSelected=0; strcpy(s.bar[0],"Type matchup"); strcpy(s.bar[1],"Shows how effective a move"); strcpy(s.bar[2],"will be on the foe.");
-        SHOT("options1");
-        /* The move to forget for a new one (Llama look): its rows, the cursor and a press move nothing but themselves. */
-        {
-            static const char *const mv[5]={"FLAMETHROWER","WING ATTACK","DRAGON CLAW","SLASH","HYPER BEAM"};
-            static const char *const ty[5]={"FIRE","FLYING","DRAGON","NORMAL","NORMAL"};
-            static const int8_t tn[5]={10,2,16,0,0};
-            s.options=0; s.backVisible=0; memset(&s.learn,0,sizeof(s.learn)); s.learn.on=1; s.learn.pressed=-1; s.learn.species=6;
-            strcpy(s.learn.nickname,"CHARIZARD"); strcpy(s.learn.level,"Lv50"); strcpy(s.learn.question,"Make it forget which move?");
-            for(int i=0;i<PT_LEARN_ROWS;++i) { s.learn.row[i].move=(uint16_t)(i+1); s.learn.row[i].type=tn[i]; strcpy(s.learn.row[i].name,mv[i]); strcpy(s.learn.row[i].typeName,ty[i]); strcpy(s.learn.row[i].pp,"15/15"); strcpy(s.learn.row[i].power,"90"); strcpy(s.learn.row[i].accuracy,"100"); }
-            strcpy(s.learn.desc,"A powerful fire attack that may burn the target.");
-            s.learn.cursor=1; SHOT("learn");
-            for(int i=0;i<PT_LEARN_ROWS;++i) { s.learn.cursor=(int8_t)i; update(&old,&s); s.learn.pressed=(int16_t)(PT_LEARN_HIT_ROW+i); update(&old,&s); s.learn.pressed=-1; update(&old,&s); }
-            s.learn.cursor=4; SHOT("learn_new"); s.learn.on=0;
-        }
-        /* The move relearner's list (Llama): eight moves and CANCEL, five rows shown; the cursor, the scroll and a press go through the incremental path. */
-        {
-            static const char *const mv[8]={"Ember","Flamethrower","Slash","Dragon Claw","Fire Spin","Wing Attack","Scary Face","Hyper Beam"};
-            static const char *const ty[8]={"Fire","Fire","Normal","Dragon","Fire","Flying","Normal","Normal"};
-            static const int8_t tn[8]={10,10,0,16,10,2,0,0};
-            CtrPokeTouchRelearn *r=&s.relearn;
-            s.options=0; s.backVisible=1; memset(&s.learn,0,sizeof(s.learn)); memset(r,0,sizeof(*r)); r->on=1; r->pressed=-1; r->species=6; r->count=8;
-            strcpy(r->nickname,"Charizard"); strcpy(r->level,"50"); strcpy(r->question,"Teach which move to Charizard?");
-            strcpy(r->desc,"A powerful fire attack that may burn the target.");
-            for(int first=0; first<=4; first+=2) for(int cur=first; cur<first+PT_RL_ROWS && cur<=8; ++cur) {
-                r->first=(uint8_t)first; r->cursor=(int8_t)cur;
-                for(int i=0;i<PT_RL_ROWS;++i) {
-                    int k=first+i; memset(&r->row[i],0,sizeof(r->row[i])); r->row[i].type=-1;
-                    if(k<8) { r->row[i].move=(uint16_t)(k+1); r->row[i].type=tn[k]; strcpy(r->row[i].name,mv[k]); strcpy(r->row[i].typeName,ty[k]); strcpy(r->row[i].pp,"15"); strcpy(r->row[i].power,k==6?"---":"95"); strcpy(r->row[i].accuracy,"100"); }
-                    else if(k==8) strcpy(r->row[i].name,"Cancel");
-                }
-                update(&old,&s); r->pressed=(int16_t)(PT_RL_HIT_ROW+(cur-first)); update(&old,&s); r->pressed=PT_RL_HIT_DOWN; update(&old,&s); r->pressed=-1; update(&old,&s);
-                if(first==0&&cur==1) SHOT("relearn");
-                if(first==2&&cur==4) SHOT("relearn_scroll");
-                if(first==4&&cur==8) SHOT("relearn_cancel");
-            }
-            assert(CtrPokeTouch_RelearnHit(&s,110,35)==PT_RL_HIT_ROW && CtrPokeTouch_RelearnHit(&s,110,62)==PT_RL_HIT_ROW+1);
-            assert(CtrPokeTouch_RelearnHit(&s,210,10)==PT_RL_HIT_UP && CtrPokeTouch_RelearnHit(&s,230,10)==PT_RL_HIT_DOWN && CtrPokeTouch_RelearnHit(&s,10,60)==-1);
-            assert(CtrPokeTouch_RelearnHit(&s,110,30+27*4+3)==PT_RL_HIT_ROW+4);   /* first 4: rows 4..8 are listed, so row 4 (CANCEL) exists */
-            r->first=7; r->cursor=7; update(&old,&s); assert(CtrPokeTouch_RelearnHit(&s,110,30+27*2+3)==-1);   /* no list row past CANCEL */
-            /* Everything else FireRed shows in the relearner is the port's own picture over the dimmed list, never its viewport: the questions
-             * (the cursor on YES or NO, a press), a long one, a message that waits for A, one that does not, and the bare backdrop while it is set up. */
-            r->first=0; r->cursor=1;
-            for(int i=0;i<PT_RL_ROWS;++i) {
-                int k=i; memset(&r->row[i],0,sizeof(r->row[i])); r->row[i].type=-1;
-                r->row[i].move=(uint16_t)(k+1); r->row[i].type=tn[k]; strcpy(r->row[i].name,mv[k]); strcpy(r->row[i].typeName,ty[k]); strcpy(r->row[i].pp,"15"); strcpy(r->row[i].power,"95"); strcpy(r->row[i].accuracy,"100");
-            }
-            r->pressed=-1; update(&old,&s);
-            r->panel=PT_RL_PANEL_YESNO; strcpy(r->message,"Teach Flamethrower?"); r->menuCursor=0; update(&old,&s); SHOT("relearn_teach");
-            assert(CtrPokeTouch_RelearnHit(&s,75,108)==PT_RL_HIT_YES && CtrPokeTouch_RelearnHit(&s,173,108)==PT_RL_HIT_NO);   /* one line of question: the buttons just under its window */
-            assert(CtrPokeTouch_RelearnHit(&s,75,60)==-1 && CtrPokeTouch_RelearnHit(&s,75,126)==-1);
-            assert(CtrPokeTouch_RelearnHit(&s,110,35)==-1 && CtrPokeTouch_RelearnHit(&s,210,10)==-1 && CtrPokeTouch_RelearnHit(&s,75,60)==-1);   /* the list behind answers nothing */
-            r->menuCursor=1; update(&old,&s); SHOT("relearn_teach_no");
-            r->pressed=PT_RL_HIT_NO; update(&old,&s); r->pressed=PT_RL_HIT_YES; update(&old,&s); r->pressed=-1; update(&old,&s);
-            strcpy(r->message,"Charizard is trying to learn Flamethrower. But Charizard can't learn more than four moves. Delete an older move to make room for Flamethrower?");
-            r->menuCursor=0; update(&old,&s); SHOT("relearn_make_room");
-            assert(CtrPokeTouch_RelearnHit(&s,75,135)==PT_RL_HIT_YES && CtrPokeTouch_RelearnHit(&s,173,135)==PT_RL_HIT_NO && CtrPokeTouch_RelearnHit(&s,75,108)==-1);   /* five lines: lower */
-            strcpy(r->message,"Stop learning Flamethrower?"); r->menuCursor=1; update(&old,&s); SHOT("relearn_stop");
-            r->panel=PT_RL_PANEL_MESSAGE; r->tap=1; strcpy(r->message,"Charizard forgot Slash. And... Charizard learned Flamethrower."); update(&old,&s); SHOT("relearn_learned");
-            assert(CtrPokeTouch_RelearnHit(&s,100,100)==PT_RL_HIT_MESSAGE && CtrPokeTouch_RelearnHit(&s,247,0)==PT_RL_HIT_MESSAGE && CtrPokeTouch_RelearnHit(&s,100,170)==-1);
-            r->pressed=PT_RL_HIT_MESSAGE; update(&old,&s); r->pressed=-1; update(&old,&s);
-            r->tap=0; strcpy(r->message,"Which move should be forgotten?"); update(&old,&s); SHOT("relearn_which");
-            assert(CtrPokeTouch_RelearnHit(&s,100,100)==-1);                    /* nothing to answer while it prints or fades */
-            r->panel=PT_RL_PANEL_BLANK; r->message[0]=0; update(&old,&s); SHOT("relearn_blank");
-            assert(CtrPokeTouch_RelearnHit(&s,110,35)==-1 && CtrPokeTouch_RelearnHit(&s,75,108)==-1);
-            r->panel=PT_RL_PANEL_LIST; r->message[0]=0; update(&old,&s);
-            r->on=0; s.backVisible=0;
-        }
-        /* The letter being read (Llama): the paper, its name and the writer; a long name and writer end in "...", no writer, no icon; each through the incremental path. */
-        {
-            CtrPokeTouchMail *m=&s.mail;
-            s.options=0; s.backVisible=1; memset(m,0,sizeof(*m)); m->on=1; m->item=121; strcpy(m->name,"Orange Mail"); strcpy(m->from,"ASH");
-            update(&old,&s); SHOT("mail");
-            s.backEnabled=0; update(&old,&s); s.backEnabled=1; s.backPressed=1; update(&old,&s); s.backPressed=0; update(&old,&s);
-            strcpy(m->name,"Glitter Mail Of The Long Name"); strcpy(m->from,"ABCDEFGHIJKLMNOPQRSTUVW"); update(&old,&s); SHOT("mail_long");
-            m->item=0; m->from[0]=0; strcpy(m->name,"Mail"); update(&old,&s); SHOT("mail_bare");
-            m->on=0; s.backVisible=0;
-        }
         /* Easy Chat (Llama): the phrase, the groups, the letters, a list with its rail and strip, and the three questions; every change goes through the
          * incremental path (update compares it with the whole draw), and the hit tests are the mockup's rectangles. */
         {
@@ -669,88 +466,9 @@ int main(int argc, char **argv)
             e->ask=0; update(&old,&s);
             e->on=0; update(&old,&s);          /* the screen closes: what was under it is drawn whole again */
         }
-        CtrPokeTouchView keepOpt=s;
-        /* Llama: the Pokedex (menu, list, habitats, category, page) and the Trainer Card note; each through the incremental path (a cursor
-         * move, a press, a page turn) and then written. */
         s.options=0; s.backVisible=1; s.backEnabled=1; memset(s.bar,0,sizeof(s.bar));
-        {
-            CtrPokeTouchDex *d=&s.dex; memset(d,0,sizeof(*d)); d->on=1; d->state=PT_DEX_STATE_MENU; d->pressed=-1; d->national=1;
-            d->seen[0]=142; d->owned[0]=118; d->seen[1]=251; d->owned[1]=203;
-            d->menuCount=8; d->menuCursor=1;
-            d->menu[0].id=PT_DEX_ID_HEADER; d->menu[1].id=PT_DEX_ID_KANTO; strcpy(d->menu[1].name,"Kanto");
-            d->menu[2].id=PT_DEX_ID_NATIONAL; strcpy(d->menu[2].name,"National"); d->menu[3].id=PT_DEX_ID_CANCEL; strcpy(d->menu[3].name,"CLOSE POKEDEX");
-            d->menu[4].id=PT_DEX_ID_HEADER; d->menu[5].id=0; strcpy(d->menu[5].name,"GRASSLAND POK\xC3\xA9MON"); d->menu[6].id=1; strcpy(d->menu[6].name,"FOREST POK\xC3\xA9MON");
-            d->menu[7].id=2; d->menu[7].locked=1; strcpy(d->menu[7].name,"WATER'S EDGE POK\xC3\xA9MON");
-            strcpy(s.bar[0],"Kanto"); strcpy(s.bar[1],"Your Pokemon by number");
-            SHOT("dex_menu");
-            d->menuCursor=2; update(&old,&s); d->pressed=PT_DEX_HIT_ITEM+2; update(&old,&s); d->pressed=-1; d->menuCursor=3; update(&old,&s); SHOT("dex_menu_close");
-            d->menuCursor=5; SHOT("dex_habitats"); d->menuCursor=7; update(&old,&s); d->menuCursor=6; update(&old,&s);
-            d->state=PT_DEX_STATE_LIST; d->listCount=151; d->listFirst=1; d->listCursor=3; d->order=0;
-            static const char *const nm[PT_DEX_ROWS]={"IVYSAUR","VENUSAUR","CHARMANDER","CHARMELEON","CHARIZARD"};
-            for(int i=0;i<PT_DEX_ROWS;++i) { d->row[i].number=(uint16_t)(2+i); d->row[i].species=(uint16_t)(2+i); d->row[i].flags=(uint8_t)(i==4?1:3); strcpy(d->row[i].name,nm[i]); }
-            d->sel=d->row[2]; d->type[0]=9; d->type[1]=-1; strcpy(d->typeName[0],"FIRE");
-            SHOT("dex_list");
-            d->listCursor=4; d->type[1]=2; strcpy(d->typeName[1],"FLYING"); d->sel=d->row[3]; update(&old,&s);
-            d->pressed=PT_DEX_HIT_ROW+1; update(&old,&s); d->pressed=-1; d->listFirst=0; update(&old,&s);
-            d->state=PT_DEX_STATE_CATEGORY; d->slots=4; d->slot=1; d->canPrev=0; d->canNext=1; d->page=1; d->pages=2;
-            for(int i=0;i<4;++i) { d->mon[i]=d->row[i]; }
-            SHOT("dex_category"); d->slot=2; update(&old,&s); d->pressed=PT_DEX_HIT_SLOT+3; update(&old,&s); d->pressed=-1;
-            d->state=PT_DEX_STATE_PAGE; d->sel=d->row[4]; d->sel.flags=3; d->height=17; d->weight=905; strcpy(d->kind,"FLAME POK\xC3\xA9MON");
-            strcpy(d->desc,"Spits fire that is hot enough to melt boulders. Known to cause forest fires unintentionally.");
-            SHOT("dex_page");
-            assert(CtrPokeTouch_DexHit(&s,170,132)==PT_DEX_HIT_AREA && CtrPokeTouch_DexHit(&s,215,132)==PT_DEX_HIT_CRY);
-            assert(CtrPokeTouch_DexHit(&s,170,150)==-1 && CtrPokeTouch_DexHit(&s,100,132)==-1 && CtrPokeTouch_DexHit(&s,170,176)==-1);
-            d->pressed=PT_DEX_HIT_CRY; update(&old,&s); d->pressed=PT_DEX_HIT_AREA; update(&old,&s); d->pressed=-1; d->added=1; update(&old,&s); d->added=0;
-        }
-        s.dex.on=0;
-        {
-            CtrPokeTouchCard *c=&s.card; memset(c,0,sizeof(*c)); c->on=1; strcpy(c->name,"RICK"); strcpy(c->label[0],"NAME: "); strcpy(c->label[1],"IDNo."); strcpy(c->label[2],"MONEY");
-            strcpy(c->label[3],"\xC2\xA5"); strcpy(c->label[4],"POK\xC3\xA9" "DEX"); strcpy(c->label[5],"TIME"); c->id=12345; c->money=128450; c->hasDex=1; c->caught=118; c->hours=47; c->minutes=5; c->stars=2; c->badges=0x1f;
-            strcpy(s.bar[0],"TRAINER CARD"); strcpy(s.bar[1],"Tap the card to turn it.");
-            SHOT("card_front"); c->pressed=1; update(&old,&s); c->pressed=0; c->back=1; c->rows=2; strcpy(c->row[0].label,"HALL OF FAME"); strcpy(c->row[0].value,"3"); strcpy(c->row[1].label,"LINK BATTLES"); strcpy(c->row[1].value,"0/0"); update(&old,&s);
-            c->on=0;
-        }
-        s=keepOpt;
-        /* The look page: three look rows and the preview card. */
-        s.optPage=3; strcpy(s.optPageName,"LOOKS"); s.optCount=4; memset(s.optSwitch,0,sizeof(s.optSwitch)); memset(s.optSegCount,0,sizeof(s.optSegCount));
-        strcpy(s.optLabel[0],"EXP SHARE"); s.optSegCount[0]=3; s.optSegValue[0]=1; strcpy(s.optSegName[0][0],"OFF"); strcpy(s.optSegName[0][1],"HALF"); strcpy(s.optSegName[0][2],"ALL");
-        strcpy(s.optLabel[1],"Red look"); strcpy(s.optValue[1],"GOLD HGSS"); strcpy(s.optLabel[2],"Leaf look"); strcpy(s.optValue[2],"MAY HGSS"); strcpy(s.optLabel[3],"Rival look"); strcpy(s.optValue[3],"SILVER");
-        s.optSelected=2; s.optLook.on=1; s.optLook.has=1; strcpy(s.optLook.name,"MAY HGSS"); strcpy(s.optLook.credit,"Made by DiegoWT");
-        for(int i=0;i<512;++i) s.optLook.tiles[i]=(uint8_t)(i*7);
-        for(int i=1;i<16;++i) s.optLook.palette[i]=(uint16_t)(i*0x0421);
-        strcpy(s.bar[0],"Leaf look"); strcpy(s.bar[1],"How Leaf looks."); strcpy(s.bar[2],"Looks from the Builder.");
-        SHOT("options_look");
-        /* The Nuzlocke page (the three optional rules, sentence case). */
-        { CtrPokeTouchView keep=s; s.home=0; s.options=1; s.optPageCount=5; s.optPage=4; strcpy(s.optPageName,"Nuzlocke"); s.optCount=3; s.optLook.on=0; s.optLook.has=0; memset(s.optSwitch,0,sizeof(s.optSwitch)); memset(s.optSegCount,0,sizeof(s.optSegCount));
-          strcpy(s.optLabel[0],"Duplicates"); strcpy(s.optLabel[1],"Shiny clause"); strcpy(s.optLabel[2],"Level caps"); s.optSwitch[0]=2; s.optSwitch[1]=1; s.optSwitch[2]=2; s.optSelected=1;
-          strcpy(s.bar[0],"Shiny clause"); strcpy(s.bar[1],"A shiny Pokemon does not"); strcpy(s.bar[2],"use up the area.");
-          SHOT("options_nuzlocke"); s=keep; }
-        /* The chosen row moves over the rows above the window (its ring lies on its neighbours, and on the 2 px gap above the window). */
-        for(int row=0;row<4;++row) { s.optSelected=(uint8_t)row; update(&old,&s); s.optPressed=(int8_t)row; s.optZone=PT_OPT_ZONE_NEXT; update(&old,&s); s.optPressed=-1; update(&old,&s); }
-        s.optSelected=3; update(&old,&s); s.optSelected=0; update(&old,&s); s.optSelected=2; update(&old,&s);
-        /* SAVE: the four states of the mockup (the incremental path first: each must equal a full redraw). */
-        memset(&old,0,sizeof(old)); old.selected=old.pressed=PT_NONE;
-        s.options=0; s.optCount=0; s.optPage=0; s.optPageCount=0; s.optSelected=0; s.optLook.on=0; s.backVisible=0; s.backEnabled=0;
-        memset(s.optSwitch,0,sizeof(s.optSwitch)); memset(s.optSegCount,0,sizeof(s.optSegCount)); memset(s.optLabel,0,sizeof(s.optLabel)); memset(s.optValue,0,sizeof(s.optValue));
-        s.save=1; s.saveBadges=5; s.saveDex=87; s.saveHasDex=1; s.saveHours=42; s.saveMinutes=7; s.saveMoney=123456; s.saveSel=1; s.savePressed=PT_SAVE_NONE;
-        s.playerFemale=0; s.saveState=SAVE_CONFIRM; strcpy(s.bar[0],"Save your game?"); s.bar[1][0]=0; s.bar[2][0]=0;
-        SHOT("save_confirm");
-        s.saveSel=0; SHOT("save_confirm_yes"); s.savePressed=PT_SAVE_FIRST; SHOT("save_confirm_yes_pressed"); s.savePressed=PT_SAVE_NONE; s.saveSel=1;
-        s.saveState=SAVE_WRITING; strcpy(s.bar[0],"Saving..."); strcpy(s.bar[1],"Don't turn off the power."); SHOT("save_writing");
-        s.saveState=SAVE_SUCCESS; strcpy(s.bar[0],"Game saved!"); s.bar[1][0]=0; SHOT("save_saved");
-        s.saveState=SAVE_ERROR; strcpy(s.bar[0],"Could not save."); strcpy(s.bar[1],"Try again."); SHOT("save_error");
-        s.saveMinutes=8; s.saveMoney=999999; s.saveBadges=8; s.playerFemale=1; strcpy(s.playerName,"Leaf"); update(&old,&s); SHOT("save_error_changed");
-        /* A choice of the field (3ds_field_choice_impl.h): flame row with the ring and cursor, the question in the window; the cursor moves incrementally. */
-        memset(&old,0,sizeof(old)); old.selected=old.pressed=PT_NONE;
-        s.save=0; s.saveState=0; s.viewport=0; s.backVisible=0; s.choice.on=1; s.choice.count=2; s.choice.cols=0; s.choice.cursor=0; s.choice.pressed=-1;
-        strcpy(s.choice.label[0],"YES"); strcpy(s.choice.label[1],"NO"); strcpy(s.choice.prompt,"Would you like to buy this?");
-        strcpy(s.bar[0],""); s.bar[1][0]=0;
-        update(&old,&s); SHOT("choice_yesno"); s.choice.cursor=1; update(&old,&s); s.choice.pressed=PT_CHOICE_HIT_ROW; update(&old,&s); s.choice.pressed=-1; s.choice.cursor=0; update(&old,&s);
-        s.choice.count=6; for(int k=0;k<6;++k) snprintf(s.choice.label[k],sizeof(s.choice.label[k]),"CHOICE %d",k+1);
-        s.choice.cursor=3; update(&old,&s); SHOT("choice_six"); s.choice.cursor=5; update(&old,&s); s.choice.on=0;
-        (void)before;
     }
-    v.save=0; v.home=1; v.backVisible=1; update(&old,&v);
+    v.home=1; v.backVisible=1; update(&old,&v);
     v.backEnabled=1; update(&old,&v); v.backPressed=1; update(&old,&v);
 #ifndef PT_BASELINE
     {
@@ -810,15 +528,13 @@ int main(int argc, char **argv)
         STILL(150,150,40,14,0,"LlFlameFace",LlFlameFace(150,150,40,14,3,0));
         STILL(150,150,10,68,0,"LlScrollRail",LlScrollRail(150,150,10,68,3,28));
         { static const char *const names[3]={"OFF","LOW","HIGH"}; STILL(150,150,118,14,0,"LlSegments",LlSegments(150,150,118,14,names,3,2,1)); }
-        /* HOME / OPTIONS' own pieces (3ds_poketouch.c): the mockup's switch, 30 x 15 with the knob at the right when on and at the left when off; the value box. */
+        /* The column's own pieces (3ds_poketouch.c): the mockup's switch (RUN's), 30 x 15 with the knob at the right when on and at the left when off. */
         STILL(150,150,30,15,0,"LhSwitch on",LhSwitch(150,150,1));
         { uint16_t k=0, g; SENTINEL(); LhSwitch(150,150,1); g=at(150+6,150+11); k=at(150+22,150+7);
           assert(((g>>5)&63)*4>(g>>11)*8+40 && (k>>11)>26 && (k&31)>26);   /* green track on the left, the pale knob on the right */
           SENTINEL(); LhSwitch(150,150,0); g=at(150+22,150+11); k=at(150+7,150+7);
           assert(abs((int)(g>>11)*8-(int)(g&31)*8)<24 && (k>>11)>26 && (k&31)>26); }   /* grey track on the right, the knob on the left */
         STILL(150,150,30,15,0,"LhSwitch off",LhSwitch(150,150,0));
-        PIECE(150,150,120,17,0,"LhValue",LhValue(150,150,120,16,"RELOJ",0));
-        PIECE(150,150,120,17,0,"LhValue long",LhValue(150,150,120,16,"A VALUE FAR TOO LONG TO FIT BETWEEN THE NUBS",2));
         PIECE(150,150,150,26,0,"LhPill",LhPill(150,150,150,26,(uint16_t[26]){0}));
         STILL(150,150,30,30,1,"LlPlate",LlPlate(150,150,30,UI_RGB(64,72,104),0,0));
         PIECE(146,146,38,38,0,"LlPlate ring",LlPlate(150,150,30,UI_RGB(24,74,134),UI_RGB(232,248,255),1));   /* a px of edge, one of band, a px of edge: 3 px out */
@@ -1049,6 +765,6 @@ int main(int argc, char **argv)
     if(viewports) fclose(viewports);
     if(realPack) fclose(realPack);
     free(realIndex);
-    puts("PASS real renderer: decoder, 4bpp, geometry, viewport, incremental states, X/Y/RUN, save/back hit-tests");
+    puts("PASS real renderer: decoder, 4bpp, geometry, viewport, incremental states, X/Y/RUN, back");
     return 0;
 }

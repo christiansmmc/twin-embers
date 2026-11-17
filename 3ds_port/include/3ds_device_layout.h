@@ -12,7 +12,7 @@
  * same area, so DevKeyArea is both where a key paints and where it is hit.
  *
  * Every rectangle here is `static const CtrPokeTouchRect kDev... __attribute__((unused))` or a static inline function
- * (a list's n-th row, a grid's cell).
+ * (a list's n-th row, a grid's cell, a key of a row across).
  */
 
 #define DEV_DROP 3      /* rows of a key's drop shadow under its face */
@@ -174,12 +174,24 @@ static const CtrPokeTouchRect kDevBagQtyDown __attribute__((unused)) = {200, 122
 static const CtrPokeTouchRect kDevBagQtyOk __attribute__((unused)) = {200, 158, 112, 30};
 static const CtrPokeTouchRect kDevBagQtyCancel __attribute__((unused)) = {200, 194, 112, 36};
 
+/* Row i of a list h tall a row on kDevBagList's paper, the wide one or (`narrow`) kDevBagListNarrow's. */
+static inline CtrPokeTouchRect DevListRow(int i, int narrow, int h)
+{
+    CtrPokeTouchRect r = {16, (int16_t)(48 + h * i), (int16_t)(narrow ? 168 : 244), (int16_t)h};
+
+    return r;
+}
+
 /* Row i (0-7) of the list, on the wide screen or (`narrow`) the narrow one. */
 static inline CtrPokeTouchRect DevBagRow(int i, int narrow)
 {
-    CtrPokeTouchRect r = {16, (int16_t)(48 + DEV_BAG_ROW_H * i), (int16_t)(narrow ? 168 : 244), DEV_BAG_ROW_H};
+    return DevListRow(i, narrow, DEV_BAG_ROW_H);
+}
 
-    return r;
+/* Row i (0-4) of a list of tall rows (24 px) on the same papers. */
+static inline CtrPokeTouchRect DevTallRow(int i, int narrow)
+{
+    return DevListRow(i, narrow, 24);
 }
 
 /* Key i of a menu of n (1-6): one column, 38 apart up to five keys (the last, a dark one, 38 tall, the others 30), 32
@@ -190,6 +202,180 @@ static inline CtrPokeTouchRect DevBagMenuKey(int n, int i)
     CtrPokeTouchRect r = {200, (int16_t)(40 + p * i), 112, (int16_t)h};
 
     return r;
+}
+
+/* ---- The shapes the views without a board share (plan 3) ------------------------------------------------------------
+ * No board draws these views: they reuse the boarded pages' shapes by name (the Bag's list page, the Summary's screen
+ * and note, HOME's key places) and these few. Keys across the screen (DevAcross: the Bag's pockets, the battle's rows);
+ * the small note (a screen) with two small keys and the Bag's CLOSE beside it; a tall screen over a wide key; a
+ * question's note beside YES and NO in HOME's third and sixth key places. */
+static const CtrPokeTouchRect kDevSmallNote __attribute__((unused)) = {8, 190, 152, 42};
+static const CtrPokeTouchRect kDevSmallKey[2] __attribute__((unused)) = {{168, 190, 32, 40}, {204, 190, 32, 40}};
+static const CtrPokeTouchRect kDevTallScreen __attribute__((unused)) = {8, 8, 304, 172};
+static const CtrPokeTouchRect kDevWideKey __attribute__((unused)) = {8, 188, 304, 42};
+static const CtrPokeTouchRect kDevAskNote __attribute__((unused)) = {8, 156, 200, 76};
+static const CtrPokeTouchRect kDevAskYes __attribute__((unused)) = {216, 156, 96, 36};
+static const CtrPokeTouchRect kDevAskNo __attribute__((unused)) = {216, 198, 96, 34};
+
+/* Key i of n (1-8) across x 8..312, at y and h tall: 8 px apart up to three keys, 4 beyond. (n 3 at y 8 are the Bag's
+ * pockets, n 4 at y 170 the battle's wild row, n 2 at y 72 its moves' top row.) */
+static inline CtrPokeTouchRect DevAcross(int n, int i, int y, int h)
+{
+    int g = n <= 3 ? 8 : 4, w = (304 - g * (n - 1)) / n;
+    CtrPokeTouchRect r = {(int16_t)(8 + (w + g) * i), (int16_t)y, (int16_t)w, (int16_t)h};
+
+    return r;
+}
+
+/* ---- OPTIONS (no board; 3ds_device_options_impl.h) --------------------------------------------------------------------
+ * The Bag's list page: the four sections across the top (DevAcross(4, s, 8, 24)), the rows on kDevBagList's paper
+ * (DevOptRow) with ▲ ▼ (kDevBagUp, kDevBagDown) paging beside them, the description in kDevSmallNote, ◀ ▶ (kDevSmallKey)
+ * stepping the row described, BACK in kDevBagClose. A row is three zones: LABEL (its words, from 6 px in), PREV (◀) and
+ * NEXT (the value, centred in DEV_OPT_VALUE_W, and ▶); a row of levels shares PREV and NEXT among its levels. FRAME's
+ * sample under the fifth row, the look's panel under the fourth. */
+#define DEV_OPT_ROW_H     18
+#define DEV_OPT_LABEL_W   120                               /* LABEL: x 16..135 */
+#define DEV_OPT_PREV_X    136                               /* PREV: x 136..159 (◀ at its middle) */
+#define DEV_OPT_NEXT_X    160                               /* NEXT: x 160..259 (the value in 160..243, ▶ at 252) */
+#define DEV_OPT_VALUE_W   84
+#define DEV_OPT_NEXT_ARROW 252
+static const CtrPokeTouchRect kDevOptSample __attribute__((unused)) = {202, 138, 56, 40};
+static const CtrPokeTouchRect kDevOptLook __attribute__((unused)) = {16, 122, 244, 54};
+
+/* Section key s (0-3) of OPTIONS. */
+static inline CtrPokeTouchRect DevOptSection(int s)
+{
+    return DevAcross(4, s, 8, 24);
+}
+
+/* Row i (0 to PT_OPT_MAX - 1) of OPTIONS. */
+static inline CtrPokeTouchRect DevOptRow(int i)
+{
+    return DevListRow(i, 0, DEV_OPT_ROW_H);
+}
+
+/* Level k of a row of `count` levels on row i: PREV and NEXT shared out from x 136, a level taking the columns whose
+ * (x - 136) * count / 124 is k (CtrPokeTouch_OptionSegment's). */
+static inline CtrPokeTouchRect DevOptLevel(int i, int k, int count)
+{
+    CtrPokeTouchRect r = DevOptRow(i);
+    int w = r.x + r.w - DEV_OPT_PREV_X, x0 = DEV_OPT_PREV_X + (w * k + count - 1) / count;
+
+    r.w = (int16_t)(DEV_OPT_PREV_X + (w * (k + 1) + count - 1) / count - x0);
+    r.x = (int16_t)x0;
+    return r;
+}
+
+/* ---- SAVE, the Trainer Card, the letter (no board; 3ds_device_save_impl.h, _card_impl.h, _mail_impl.h) ---------------
+ * SAVE: HOME's screen holds the save's facts, a row each (DevSaveRow: the label small at its left, the value at its
+ * right) and the player's map icon at 4x (kDevSaveSprite); under it the question's note, YES and NO beside it (a result's
+ * OK alone in YES's place). The Trainer Card: the tall screen, FLIP under it and the Summary's BACK beside FLIP. Its front:
+ * the first line (DevCardRow(0): NAME and the name, IDNo. and the ID), the rows beside the trainer's picture
+ * (DevCardRow(1-3): MONEY, POKeDEX, TIME; kDevCardPic), the stars (DEV_CARD_STAR_*) and the eight badges' places
+ * (DevCardBadge); its back: the name on the first line, the rule under it (kDevCardRule) and the records
+ * (DevCardBackRow). The letter: the tall screen (a touch of it closes the letter) with the paper's icon (kDevMailIcon),
+ * its name (kDevMailName), a rule (kDevMailRule) and who wrote it (kDevMailFrom); CLOSE, the wide key, under it. */
+static const CtrPokeTouchRect kDevSaveSprite __attribute__((unused)) = {224, 46, 64, 64};
+static const CtrPokeTouchRect kDevCardFlip __attribute__((unused)) = {8, 188, 228, 42};
+static const CtrPokeTouchRect kDevCardPic __attribute__((unused)) = {226, 40, 64, 64};
+static const CtrPokeTouchRect kDevCardRule __attribute__((unused)) = {22, 40, 276, 1};
+static const CtrPokeTouchRect kDevMailIcon __attribute__((unused)) = {148, 40, 24, 24};
+static const CtrPokeTouchRect kDevMailName __attribute__((unused)) = {22, 74, 276, 18};
+static const CtrPokeTouchRect kDevMailRule __attribute__((unused)) = {80, 98, 160, 1};
+static const CtrPokeTouchRect kDevMailFrom __attribute__((unused)) = {22, 106, 276, 18};
+#define DEV_CARD_STARS     5    /* the most a card has: the first's top-left at (X, Y), each STEP right of the one before */
+#define DEV_CARD_STAR_X    22
+#define DEV_CARD_STAR_Y    108
+#define DEV_CARD_STAR_STEP 13
+
+/* Row i (0-4: PLAYER, BADGES, POKeDEX, TIME, MONEY) of SAVE's facts. */
+static inline CtrPokeTouchRect DevSaveRow(int i)
+{
+    CtrPokeTouchRect r = {22, (int16_t)(18 + 24 * i), 192, 24};
+
+    return r;
+}
+
+/* The card's front: its first line (i 0, across the screen) and rows 1-3 beside the picture. */
+static inline CtrPokeTouchRect DevCardRow(int i)
+{
+    CtrPokeTouchRect r = {22, (int16_t)(18 + 22 * i), (int16_t)(i ? 196 : 276), 22};
+
+    return r;
+}
+
+/* The card's back: record i (0 to PT_CARD_ROWS - 1) under the rule. */
+static inline CtrPokeTouchRect DevCardBackRow(int i)
+{
+    CtrPokeTouchRect r = {22, (int16_t)(46 + 24 * i), 276, 24};
+
+    return r;
+}
+
+/* The place of badge i (0-7) on the card's front: the badge at 2x, or the place empty. */
+static inline CtrPokeTouchRect DevCardBadge(int i)
+{
+    CtrPokeTouchRect r = {(int16_t)(20 + 34 * i), 132, 32, 32};
+
+    return r;
+}
+
+/* ---- The Pokedex (no board; 3ds_device_dex_impl.h) ------------------------------------------------------------------
+ * The top menu: its three sections in the Bag's pockets' places, the shown section's rows as keys six to a page
+ * (DevDexItem: FireRed's menu icon over the row's name), the counts in the small note with ▲ ▼ (kDevSmallKey) turning
+ * the pages, CLOSE (FireRed's CLOSE POKeDEX row) in the Bag's CLOSE. An ordered list: its order on the Bag's title, the
+ * Bag's list screen with five tall rows (DevTallRow) and ▲ ▼, the selected Pokemon's types and kind on the description's
+ * screen, BACK in CLOSE's place. A habitat's page: the habitat and the page on the title, its Pokemon in four slots
+ * (DevDexSlot: the picture beside the number and the name), the selected one in the small note, ◀ ▶ (the small keys)
+ * and BACK. A Pokemon's page: the tall screen (the picture in kDevDexPic, the number, name, kind, types, height and
+ * weight in kDevDexData, the footprint in kDevDexFoot, the entry in kDevDexEntry under kDevDexRule), AREA, CRY and the
+ * Summary's BACK under it; the page a catch has just added: OK, the wide key, instead. */
+static const CtrPokeTouchRect kDevDexPic __attribute__((unused)) = {20, 20, 80, 80};
+static const CtrPokeTouchRect kDevDexData __attribute__((unused)) = {110, 20, 168, 80};
+static const CtrPokeTouchRect kDevDexFoot __attribute__((unused)) = {282, 20, 16, 16};
+static const CtrPokeTouchRect kDevDexRule __attribute__((unused)) = {20, 104, 280, 1};
+static const CtrPokeTouchRect kDevDexEntry __attribute__((unused)) = {20, 108, 280, 65};
+static const CtrPokeTouchRect kDevDexArea __attribute__((unused)) = {8, 188, 110, 42};
+static const CtrPokeTouchRect kDevDexCry __attribute__((unused)) = {126, 188, 110, 42};
+
+/* Key i (0-5) of the top menu's page: three across, two rows. */
+static inline CtrPokeTouchRect DevDexItem(int i)
+{
+    return DevAcross(3, i % 3, 40 + 72 * (i / 3), 68);
+}
+
+/* Slot i (0-3) of a habitat's page: two across, two rows. */
+static inline CtrPokeTouchRect DevDexSlot(int i)
+{
+    CtrPokeTouchRect r = {(int16_t)(8 + 156 * (i % 2)), (int16_t)(40 + 74 * (i / 2)), 148, 70};
+
+    return r;
+}
+
+/* ---- The field's choices, the move to forget, the relearner (no board; 3ds_device_choice_impl.h, _learn_impl.h,
+ * _relearn_impl.h) ---------------------------------------------------------------------------------------------------
+ * A choice: FireRed's rows as keys across the screen (DevChoiceKey), the message box's question on the note under them
+ * (kDevChoiceNote) and BACK beside it. The move to forget is the Summary's page: FireRed's question on the Bag's title,
+ * the Summary's screen (the Pokemon in its column, the four moves and the new one in DevSumRow(0..4)), the note (the
+ * description) and BACK. The relearner is the Bag's list page: the question on the title, five tall rows with ▲ ▼, the
+ * description's screen and CANCEL (FireRed's CANCEL row) in CLOSE's place; YES / NO the Bag's (the narrow screens and
+ * DevBagMenuKey(2, i)). */
+static const CtrPokeTouchRect kDevChoiceNote __attribute__((unused)) = {8, 160, 228, 72};
+static const CtrPokeTouchRect kDevChoiceBack __attribute__((unused)) = {244, 160, 68, 70};
+
+/* Key i of a choice of n (1-8): FireRed's one column (cols 0) in one column up to four keys and in two beyond, going
+ * down first as FireRed's list does; a grid of `cols` columns across, as FireRed's grid goes. Up to three rows 40 tall,
+ * four 32, 4 px apart from the top. */
+static inline CtrPokeTouchRect DevChoiceKey(int n, int cols, int i)
+{
+    int c = cols > 0 ? cols : n > 4 ? 2 : 1, rows = (n + c - 1) / c, h, col, row;
+
+    if (rows < 1)
+        rows = 1;
+    col = cols > 0 ? i % c : i / rows;
+    row = cols > 0 ? i / c : i % rows;
+    h = rows <= 3 ? 40 : 32;
+    return DevAcross(c, col, 8 + (h + 4) * row, h);
 }
 
 #endif

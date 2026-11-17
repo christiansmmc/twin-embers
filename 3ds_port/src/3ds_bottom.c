@@ -616,13 +616,14 @@ static int sSaveAfterMenu;         /* SAVE asked for with START open: frames lef
 /* Native OPTIONS (3ds_poketouch_options.c): a PokeTouch screen of its own over
  * the live field, with no hidden FireRed menu behind it, so no session. sScreen
  * is PT_OPTIONS while it is up (a route that unwinds a real menu to the field
- * sets it there, and the session's end leaves it). `sel` is the row the bar
+ * sets it there, and the session's end leaves it). `sel` is the row the note
  * describes; `down` a touch that began on a row (`row`, `zone`), `inside` while
- * it is still on it. */
+ * it is still on it; `key` a touch that began on a key (PT_OPT_KEY_*, 0 for
+ * none), `keyInside` while it is still on it. */
 static struct {
     int sel;
     int down, row, zone, inside;
-    int pageDown, pageInside;
+    int key, keyInside;
 } sOpt;
 /* The native roots: PokeTouch screens over the live field with no real menu
  * behind them. (The TRAINER CARD and the POKeDEX are real FireRed screens, sessions
@@ -750,11 +751,11 @@ static void PartyEchoMode(int mode)
 }
 
 /* Dragging a list: a finger on a row that moves this far up or down scrolls instead of tapping, one row per
- * LIST_DRAG_ROW pixels (the Pokedex's row pitch; the red device's Bag's rows are BAG_DRAG_ROW apart), the content
+ * LIST_DRAG_ROW pixels (the Pokedex's tall rows, DevTallRow; the Bag's rows are BAG_DRAG_ROW apart), the content
  * following the finger. */
 #define LIST_DRAG_SLOP 8
 #define BALL_SWIPE_STEP 18      /* pixels across the quick ball for one ball */
-#define LIST_DRAG_ROW 26
+#define LIST_DRAG_ROW 24
 #define BAG_DRAG_ROW 16
 
 /* The field's choice's touch (ProcessChoiceTouch), as the Bag's. */
@@ -967,6 +968,7 @@ static void SummaryBar(const CtrSummaryView *v, CtrPokeTouchView *t)
             snprintf(t->bar[2], PT_BAR_LEN, "%s", sNames[i]);
 }
 
+static int BatNameIsSpecies(const char *name, unsigned species);   /* the battle fill's (the move to forget's name) */
 #include "3ds_bottom_field_fill_impl.h"
 }
 
@@ -1422,7 +1424,7 @@ static void SnapshotState(Snapshot *s, int mode, int pressed)
             CtrOptions_Fill(&s->touch, sOpt.sel);
             s->touch.optPressed = (int8_t)(sOpt.down && sOpt.inside ? (sOpt.row - CtrOptions_PageBase(CtrOptions_PageOf(sOpt.row))) : -1);
             s->touch.optZone = (uint8_t)(sOpt.down && sOpt.inside ? sOpt.zone : PT_OPT_ZONE_NONE);
-            s->touch.optPagePressed = (uint8_t)(sOpt.pageDown && sOpt.pageInside);
+            s->touch.optKey = (int8_t)(sOpt.key && sOpt.keyInside ? sOpt.key : -1);
             return;
         }
         HomeMapState(s);
@@ -2227,7 +2229,7 @@ static void CloseNative(void)
     if (sScreen == PT_SAVE && !sSession.active)
         CtrSave_End();                  /* the field was frozen and locked for it */
     sScreen = PT_NONE;
-    sOpt.down = sOpt.inside = sOpt.pageDown = sOpt.pageInside = 0;
+    sOpt.down = sOpt.inside = sOpt.key = sOpt.keyInside = 0;
     sSave.down = sSave.inside = 0;
 }
 
@@ -2287,7 +2289,7 @@ static void BackPress(int mode)
  * if still enabled and no physical button is held (physical input wins). */
 static void ProcessBack(int mode, const CtrInput *in)
 {
-    int on = in->touchActive && CtrPokeTouch_HitBack((int)in->touchX, (int)in->touchY);
+    int on = in->touchActive && CtrPokeTouch_BackHit(&sShown.touch, (int)in->touchX, (int)in->touchY);
 
     if (!BackVisible(mode) || (sHaveShown && mode != sShown.mode) || (in->held & 0x3ffu)) {
         sBack.down = sBack.inside = 0;
@@ -2411,7 +2413,7 @@ static void OpenDestination(int target)
         sPendingScreen = PT_NONE;
         sScreen = target;
         sOpt.sel = 0;
-        sOpt.down = sOpt.inside = sOpt.pageDown = sOpt.pageInside = 0;
+        sOpt.down = sOpt.inside = sOpt.key = sOpt.keyInside = 0;
         CtrLog_Write(CTR_LOG_VIDEO, "bottom: route reached the field: %s", RootName(target));
         return;
     }
@@ -2698,7 +2700,7 @@ static void PokeTouchActivate(int id)
         if (!menu && sScreen != id) {
             sScreen = id;
             sOpt.sel = 0;
-            sOpt.down = sOpt.inside = sOpt.pageDown = sOpt.pageInside = 0;
+            sOpt.down = sOpt.inside = sOpt.key = sOpt.keyInside = 0;
             CtrLog_Write(CTR_LOG_VIDEO, "bottom: %s opened", RootName(id));
         }
         break;
@@ -2784,31 +2786,29 @@ static int FieldEnabled(int id)
     return 1;
 }
 
-/* A touch on an OPTIONS row or the PAGE switcher button (the viewport shows no map then): selected on
- * touch-down, one step on release over the same zone ("<" back, the value or
- * ">" forward; the label only selects; on a row of levels, the level touched). Moving off cancels it; a held
- * physical button cancels it too. */
+/* A touch on OPTIONS as shown (sShown): a row is selected on touch-down and steps once on release over the same
+ * zone ("<" back, the value or ">" forward; the label only selects; on a row of levels, the level touched), as ◀ ▶
+ * step the row described; a key acts on release over it (its section's first page, ▲ ▼ the page before or after).
+ * Moving off cancels it; a held physical button cancels it too. */
 static void ProcessOptionsTouch(const CtrInput *in)
 {
+    const CtrPokeTouchView *v = &sShown.touch;
     int page = CtrOptions_PageOf(sOpt.sel);
-    int base = CtrOptions_PageBase(page);
     int pageCount = CtrOptions_PageCount();
-    int pageRows = CtrOptions_PageRows(page);
-    int hitPage = in->touchActive && pageCount > 1 && CtrPokeTouch_HitOptPage((int)in->touchX, (int)in->touchY);
+    int x = (int)in->touchX, y = (int)in->touchY;
+    int key = in->touchActive && sHaveShown ? CtrPokeTouch_OptionKey(v, x, y) : -1;
     int relRow = 0, zone = PT_OPT_ZONE_NONE;
-    int on = in->touchActive && CtrPokeTouch_OptionHit((int)in->touchX, (int)in->touchY,
-                                                       pageRows, &relRow, &zone);
-    int globalRow = base + relRow;
+    int on = in->touchActive && sHaveShown && CtrPokeTouch_OptionHit(v, x, y, &relRow, &zone);
+    int globalRow = CtrOptions_PageBase(v->optPage) + relRow;
 
-    if (on && CtrOptions_IsLevels(globalRow) && zone != PT_OPT_ZONE_LABEL)
-        zone = PT_OPT_ZONE_SEG + CtrPokeTouch_OptionSegment((int)in->touchX, CtrOptions_Count(globalRow));
     if (in->held & 0x3ffu) {
         sOpt.down = sOpt.inside = 0;
-        sOpt.pageDown = sOpt.pageInside = 0;
+        sOpt.key = sOpt.keyInside = 0;
         return;
     }
     if (in->touchDown) {
-        sOpt.pageDown = sOpt.pageInside = hitPage;
+        sOpt.key = key >= 0 ? key : 0;
+        sOpt.keyInside = key >= 0;
         sOpt.down = sOpt.inside = on;
         if (on) {
             sOpt.row = globalRow;
@@ -2817,16 +2817,20 @@ static void ProcessOptionsTouch(const CtrInput *in)
         }
         return;
     }
-    if (sOpt.pageDown) {
+    if (sOpt.key) {
+        int was = sOpt.key, inside = sOpt.keyInside;
+
         if (in->touchActive) {
-            sOpt.pageInside = hitPage;
+            sOpt.keyInside = key == sOpt.key;
             return;
         }
-        int pageInside = sOpt.pageInside;
-        sOpt.pageDown = sOpt.pageInside = 0;
-        if (pageInside) {
-            int next = CtrOptions_PageBase((page + 1) % pageCount);
-            sOpt.sel = next;
+        sOpt.key = sOpt.keyInside = 0;
+        if (inside) {
+            int next = was == PT_OPT_KEY_UP ? (page - 1 + pageCount) % pageCount
+                     : was == PT_OPT_KEY_DOWN ? (page + 1) % pageCount
+                     : CtrOptions_SectionFirstPage(was - PT_OPT_KEY_SECTION);
+
+            sOpt.sel = CtrOptions_PageBase(next);
         }
         return;
     }
@@ -2948,7 +2952,8 @@ static void UpdateSave(void)
 
 /* Touch-down presses an enabled element, moving off releases the highlight,
  * release over it acts once. Holding never repeats. HOME's own keys and places
- * are its (CtrPokeTouch_HomeHit); OPTIONS and SAVE keep the START column. */
+ * are its (CtrPokeTouch_HomeHit); a native screen (OPTIONS, SAVE: the red
+ * device's) has the START column only before it is first shown. */
 
 /* HOME is the picture the lower screen shows: only then do its keys, party, FLY, region key and map take a touch (on the
  * field's first frames the screen that closed may still be the picture shown). */
@@ -2960,7 +2965,7 @@ static int HomeShownNow(void)
 static int PokeTouchHit(int x, int y)
 {
     if (NativeActive())
-        return CtrPokeTouch_HitTest(x, y);
+        return sHaveShown && CtrPokeTouch_DeviceShown(&sShown.touch) ? PT_NONE : CtrPokeTouch_HitTest(x, y);
     return HomeShownNow() ? CtrPokeTouch_HomeHit(&sShown.touch, x, y) : PT_NONE;
 }
 
@@ -4366,9 +4371,8 @@ static int ProcessTouch(int mode)
         ProcessBack(mode, in);
         ProcessRelearnTouch(in);
         /* A letter closes on a touch of the letter itself, as BACK does (the game's A or B, whichever it takes). */
-        if (CtrBottomView_Mail() && in->touchDown && !sBack.down && !(in->held & 0x3ffu) && BackEnabled(mode)
-            && in->touchX >= PT_VIEW_X && in->touchX < PT_VIEW_X + PT_VIEW_W
-            && in->touchY >= PT_VIEW_Y && in->touchY < PT_VIEW_Y + PT_VIEW_H)
+        if (CtrBottomView_Mail() && in->touchDown && !sBack.down && !(in->held & 0x3ffu) && BackEnabled(mode) && sHaveShown
+            && CtrPokeTouch_MailHit(&sShown.touch, (int)in->touchX, (int)in->touchY))
             BackPress(mode);
         return HIT_NONE;
     }
@@ -4415,7 +4419,14 @@ static int ProcessTouch(int mode)
         ProcessFieldBagTouch(FieldListFor(mode), in);
         return HIT_NONE;
     }
-    ProcessRouteTouch(mode, in);
+    /* The column's route only under an ember view: under the red device its rectangles lie under the view's keys. */
+    if (!sHaveShown || !CtrPokeTouch_DeviceShown(&sShown.touch))
+        ProcessRouteTouch(mode, in);
+    else {
+        sPoke.id = PT_NONE;
+        sPoke.inside = 0;
+        sTouch.active = 0;
+    }
     ProcessBack(mode, in);
     if (mode == MODE_CARD) {
         ProcessCardTouch(in);

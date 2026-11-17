@@ -59,18 +59,23 @@ enum { PT_MAP_KANTO, PT_MAP_SEVII123, PT_MAP_SEVII45, PT_MAP_SEVII67, PT_MAP_COU
 #define PT_HOME_SRC_Y 28
 bool CtrPokeTouch_MapPrepare(int group, int version);                  /* the window's picture of a map; false: no art */
 bool CtrPokeTouch_HomeRibbonHit(int x, int y);                         /* the region key, when it leads to another map */
-/* The native OPTIONS screen (3ds_poketouch_options.c holds the rows): it fills the viewport with up
- * to PT_OPT_MAX rows, each a label on the left and, on the right, "<" value ">". A row is 228x20 at
- * (PT_VIEW_X + 6, PT_VIEW_Y + 4 + 22 row). On a row, the label selects it (its description goes to
- * the bar), "<" steps the value back and the value or ">" steps it forward. A row of levels (EMBERS'
- * OFF / LOW / HIGH) shows all its values side by side instead, the chosen one lit: a touch on one
- * picks it (zone PT_OPT_ZONE_SEG + its index). */
+/* The native OPTIONS screen (3ds_poketouch_options.c holds the rows; the red device draws it,
+ * 3ds_device_options_impl.h): up to PT_OPT_MAX rows, each a label on the left and, on the right,
+ * ◀ value ▶ (3ds_device_layout.h DevOptRow). On a row, the label selects it (its description goes to
+ * the small note), ◀ steps the value back and the value or ▶ steps it forward; the ◀ ▶ keys under
+ * the rows step the row described. A row of levels (COMPANION's OFF / FOLLOW / BE IT) shows all its
+ * values side by side instead, the chosen one boxed: a touch on one picks it (zone PT_OPT_ZONE_SEG +
+ * its index). The keys (PT_OPT_KEY_*): a section's (its first page) across the top, ▲ ▼ (the page
+ * before, after). */
 #define PT_OPT_MAX 7
 #define PT_OPT_LABEL_LEN 16
 #define PT_OPT_VALUE_LEN 12
 #define PT_OPT_SEGS 3
 #define PT_OPT_SEG_LEN 8
+#define PT_OPT_SECTIONS 4
+#define PT_OPT_SECTION_LEN 12
 enum { PT_OPT_ZONE_NONE, PT_OPT_ZONE_LABEL, PT_OPT_ZONE_PREV, PT_OPT_ZONE_NEXT, PT_OPT_ZONE_SEG };
+enum { PT_OPT_KEY_SECTION = 0x10, PT_OPT_KEY_UP = 0x18, PT_OPT_KEY_DOWN = 0x19 };
 /* FireRed's own options (the game bridge, ctr_poketouch_options.c), in the order of its menu. */
 enum { PT_OPT_TEXT_SPEED, PT_OPT_BATTLE_SCENE, PT_OPT_BATTLE_STYLE, PT_OPT_SOUND, PT_OPT_BUTTON_MODE, PT_OPT_FRAME,
        PT_OPT_FPS, PT_OPT_GAME_COUNT };
@@ -87,10 +92,9 @@ typedef struct {
     uint8_t tiles[512];
     uint16_t palette[16];           /* 15-bit colours, 0 clear */
 } CtrPokeTouchLook;
-/* The SAVE screen (the facts come from FireRed's save window, ctr_poketouch.h CtrSave_*): the whole
- * viewport shows the game's save information, and the contextual bar becomes the dialogue: its two or
- * three text lines on the left and, on the right of the same bar, YES / NO (SAVE_CONFIRM), nothing
- * (SAVE_WRITING) or OK (SAVE_SUCCESS, SAVE_ERROR). */
+/* The SAVE screen (the facts come from FireRed's save window, ctr_poketouch.h CtrSave_*), the red device's
+ * (3ds_device_save_impl.h): the game's save information on the screen, the dialogue (bar[]) on the note under
+ * it and beside the note YES / NO (SAVE_CONFIRM), nothing (SAVE_WRITING) or OK (SAVE_SUCCESS, SAVE_ERROR). */
 enum { SAVE_CONFIRM, SAVE_WRITING, SAVE_SUCCESS, SAVE_ERROR };
 enum { PT_SAVE_NONE, PT_SAVE_FIRST, PT_SAVE_SECOND };  /* the button: YES or OK, NO */
 /* Contextual bar text: three lines of FireRed's font inside 228 pixels. */
@@ -150,9 +154,9 @@ typedef struct {
     int16_t pressed;                /* the hit code under a held touch, or -1 */
 } CtrPokeTouchBag;
 
-/* The Pokedex drawn by the port (3ds_field_dex_impl.h), a remote for FireRed's own Pokedex like the Bag: its top menu
- * (lists, habitats, search) as tabs of cards, an ordered list as rows, a habitat page as its Pokemon, and a Pokemon's
- * page. Its AREA page stays FireRed's picture in the viewport. */
+/* The Pokedex drawn by the port (3ds_device_dex_impl.h), a remote for FireRed's own Pokedex like the Bag: its top menu
+ * (lists, habitats, search) as tabs over its rows' keys, an ordered list as rows, a habitat page as its Pokemon, and a
+ * Pokemon's page. Its AREA page stays FireRed's picture in the viewport. */
 #define PT_DEX_MENU_MAX 24
 #define PT_DEX_ROWS 5
 enum { PT_DEX_STATE_BUSY = 0, PT_DEX_STATE_MENU, PT_DEX_STATE_LIST, PT_DEX_STATE_CATEGORY, PT_DEX_STATE_PAGE };
@@ -170,9 +174,9 @@ typedef struct {
     uint8_t flags;                  /* seen (1) and caught (2) */
     char name[12];
 } CtrPokeTouchDexMon;
-/* The choice of the move to forget for a new one, drawn by the port (3ds_field_learn_impl.h), a remote for FireRed's
- * Summary in that mode: the Pokemon, its four moves and the new one (row 4), the selected move's numbers and
- * description. A row is walked to with the Summary's UP / DOWN and taken with its A; BACK is its B. */
+/* The choice of the move to forget for a new one, drawn by the port as the red device (3ds_device_learn_impl.h), a
+ * remote for FireRed's Summary in that mode: the Pokemon, its four moves and the new one (row 4), the selected move's
+ * numbers and description. A row is walked to with the Summary's UP / DOWN and taken with its A; BACK is its B. */
 #define PT_LEARN_ROWS 5
 enum { PT_LEARN_HIT_ROW = 100 };
 typedef struct {
@@ -180,6 +184,7 @@ typedef struct {
     int8_t cursor;
     int16_t pressed;                /* the hit code under a held touch, or -1 */
     uint16_t species;
+    uint8_t nameDefault;            /* the nickname is its species' own name (drawn in capitals), not one the player gave */
     char nickname[13], level[8];   /* nickname: six kana, two bytes each */
     char question[48];
     struct {
@@ -191,12 +196,14 @@ typedef struct {
     char desc[160];
 } CtrPokeTouchLearn;
 
-/* The move relearner (REMEMBER, the Two Island man), drawn by the port (3ds_field_relearn_impl.h), a remote for FireRed's
- * screen: the list (the Pokemon, a window of PT_RL_ROWS rows of the list: the moves it can remember, then CANCEL, the cursor and the
- * selected move's numbers and description), and over the dimmed list what FireRed has up besides it, in the Bag's look: a question with
- * YES and NO, or a message. A row is walked to with the list's own UP / DOWN and taken with its A; BACK is its B. */
+/* The move relearner (REMEMBER, the Two Island man), drawn by the port as the red device (3ds_device_relearn_impl.h), a
+ * remote for FireRed's screen: the list (a window of PT_RL_ROWS rows of the list: the moves it can remember, then
+ * FireRed's CANCEL row, the cursor and the selected move's numbers and description), a question with YES and NO, or a
+ * message. A row is walked to with the list's own UP / DOWN and taken with its A; FireRed's CANCEL row is the CANCEL key
+ * (PT_RL_HIT_CANCEL), taken as that row is. */
 #define PT_RL_ROWS 5
-enum { PT_RL_HIT_ROW = 200, PT_RL_HIT_UP = 230, PT_RL_HIT_DOWN = 231, PT_RL_HIT_YES = 232, PT_RL_HIT_NO = 233, PT_RL_HIT_MESSAGE = 234 };
+enum { PT_RL_HIT_ROW = 200, PT_RL_HIT_UP = 230, PT_RL_HIT_DOWN = 231, PT_RL_HIT_YES = 232, PT_RL_HIT_NO = 233,
+       PT_RL_HIT_MESSAGE = 234, PT_RL_HIT_CANCEL = 235 };
 /* What the screen shows: the list; a message over it; a question with YES / NO over it; nothing but the backdrop (being set up). */
 enum { PT_RL_PANEL_LIST = 0, PT_RL_PANEL_MESSAGE, PT_RL_PANEL_YESNO, PT_RL_PANEL_BLANK };
 typedef struct {
@@ -220,7 +227,7 @@ typedef struct {
     char desc[160];
 } CtrPokeTouchRelearn;
 
-/* The letter being read (3ds_field_mail_impl.h): the paper's item (its icon), its name and who wrote it. */
+/* The letter being read (3ds_device_mail_impl.h): the paper's item (its icon), its name and who wrote it. */
 typedef struct {
     uint8_t on;
     uint16_t item;                  /* 0: no icon */
@@ -271,8 +278,8 @@ typedef struct {
     char list[2 * PT_EC_ROWS][PT_EC_WORD_LEN];
 } CtrPokeTouchEasy;
 
-/* A choice of the field (a script's multichoice, YES/NO or grid, the PC's menus) drawn by the port
- * (3ds_field_choice_impl.h), a remote for FireRed's menu: its rows as buttons (cols > 0: a grid of that many columns),
+/* A choice of the field (a script's multichoice, YES/NO or grid, the PC's menus) drawn by the port as the red device
+ * (3ds_device_choice_impl.h), a remote for FireRed's menu: its rows as keys (cols > 0: a grid of that many columns),
  * the cursor's, and the question of the message box. A row is asked of the menu and taken with its A; BACK is its B. */
 #define PT_CHOICE_MAX 8
 enum { PT_CHOICE_HIT_ROW = 100 };
@@ -352,9 +359,9 @@ typedef struct {
     uint8_t itemDesc[96];
 } CtrPokeTouchBox;
 
-/* The player's Trainer Card drawn by the port (3ds_field_card_impl.h), a remote for FireRed's own card: its front
+/* The player's Trainer Card drawn by the port (3ds_device_card_impl.h), a remote for FireRed's own card: its front
  * (name, ID, money, Pokedex, time, the trainer's picture, stars and badges) or its back (FireRed's records). A touch
- * on it turns it over with the card's own key. A link card stays FireRed's picture. */
+ * on it or on FLIP turns it over with the card's own key. A link card stays FireRed's picture. */
 #define PT_CARD_ROWS 5
 typedef struct {
     uint8_t on;                     /* the viewport shows this card (no GBA picture) */
@@ -425,8 +432,8 @@ typedef struct {
     uint8_t optPage;            /* 0-based page index in OPTIONS */
     uint8_t optPageCount;       /* total pages in OPTIONS */
     uint8_t optSection, optSectionCount;   /* the section the page is in (Settings, Graphics, QoL, Nuzlocke) and how many there are */
-    char optPageName[20];       /* the section's name, "Graphics 1/2" when it has two pages, for the PAGE button */
-    uint8_t optPagePressed;     /* the PAGE button is under a held touch */
+    char optSectionName[PT_OPT_SECTIONS][PT_OPT_SECTION_LEN];   /* the section keys' words: the shown section's is its page's name */
+    int8_t optKey;              /* the key (PT_OPT_KEY_*) under a held touch, or -1 */
     uint8_t optCount;           /* its rows on the current page */
     uint8_t optSelected;        /* the row the bar describes (within the current page) */
     int8_t optPressed;          /* the row under a held touch, or -1, and where on it: PT_OPT_ZONE_* */
@@ -474,18 +481,26 @@ extern const CtrPokeTouchRect gCtrPokeTouchRects[PT_COUNT];
 /* BACK: a shell control in the bar's bottom-right corner, outside the viewport. It
  * stands for the B button of the open screen (3ds_bottom.c sends the real B). */
 extern const CtrPokeTouchRect gCtrPokeTouchBack;
-extern const CtrPokeTouchRect gCtrPokeTouchOptPage;
-/* Whether a bottom-screen pixel is on BACK's or OPTIONS PAGE's rectangle. */
-bool CtrPokeTouch_HitBack(int x, int y);
-bool CtrPokeTouch_HitOptPage(int x, int y);
+/* Whether the view is drawn as the red device (HOME, the Bag, or a field view of the dispatcher,
+ * 3ds_device_field_impl.h): no START column under it. */
+bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *view);
+/* Whether a bottom-screen pixel is on BACK as the view draws it: a field view of the dispatcher's
+ * BACK key while it is shown (backVisible), an ember view's gCtrPokeTouchBack. */
+bool CtrPokeTouch_BackHit(const CtrPokeTouchView *view, int x, int y);
 
-/* The OPTIONS row and zone (PT_OPT_ZONE_*) under a bottom-screen pixel; false when none. */
-bool CtrPokeTouch_OptionHit(int x, int y, int rows, int *row, int *zone);
+/* The OPTIONS row and zone (PT_OPT_ZONE_*) under a bottom-screen pixel of the view shown (OPTIONS,
+ * no GBA picture); false when none. On a row of levels any zone but LABEL is the level there
+ * (PT_OPT_ZONE_SEG + CtrPokeTouch_OptionSegment); ◀ ▶ under the rows are the row described's
+ * PREV / NEXT. */
+bool CtrPokeTouch_OptionHit(const CtrPokeTouchView *view, int x, int y, int *row, int *zone);
 /* On a row of `count` levels, the one under bottom-screen column `x` (the zone was not LABEL). */
 int CtrPokeTouch_OptionSegment(int x, int count);
+/* The OPTIONS key under a bottom-screen pixel: PT_OPT_KEY_SECTION + a section, PT_OPT_KEY_UP,
+ * PT_OPT_KEY_DOWN (with more than one page), else -1. */
+int CtrPokeTouch_OptionKey(const CtrPokeTouchView *view, int x, int y);
 
-/* SAVE's button under a bottom-screen pixel (PT_SAVE_*) in the bar for the dialogue state: YES and NO
- * while confirming, OK (PT_SAVE_FIRST) after a result, none while writing. */
+/* SAVE's key under a bottom-screen pixel (PT_SAVE_*) for the dialogue state: YES and NO while
+ * confirming, OK (PT_SAVE_FIRST, in YES's place) after a result, none while writing. */
 int CtrPokeTouch_SaveHit(int x, int y, int state);
 
 /* The START column's PT_* under a bottom-screen pixel, or PT_NONE (every view but HOME). */
@@ -513,7 +528,8 @@ int CtrPokeTouch_DexGridPageRow(const CtrPokeTouchView *view, int dir);
  * tiles) and the caught marker (one 4bpp tile). 0 when there is none. */
 /* The row of the move to forget (view->learn.on) under lower-screen point (x, y): PT_LEARN_HIT_ROW + row, or -1. */
 int CtrPokeTouch_LearnHit(const CtrPokeTouchView *view, int x, int y);
-/* The row (or scroll arrow) of the relearner's list (view->relearn.on) under (x, y): PT_RL_HIT_*, or -1. */
+/* The row, scroll arrow or CANCEL of the relearner's list, YES / NO, or the message (view->relearn.on) under (x, y):
+ * PT_RL_HIT_*, or -1. */
 int CtrPokeTouch_RelearnHit(const CtrPokeTouchView *view, int x, int y);
 /* What Easy Chat (view->ec.on) shows under lower-screen point (x, y): a PT_EC_HIT_* code (a chip's is PT_EC_HIT_CHIP + slot, a cell's
  * PT_EC_HIT_CELL + cell, a list row's PT_EC_HIT_ROW + its place among the rows shown), or -1. */
@@ -536,8 +552,11 @@ int CtrPokeTouch_Wallpaper(unsigned id, unsigned short *rgb555);
 /* A mark's 8x8 shape (0 circle .. 3 heart) from FireRed's marking sheet: 0 none, 3 the mark, 4 its edge. */
 int CtrPokeTouch_MarkShape(int mark, unsigned char *indexes);
 int CtrBottomStorage_BoxFill(CtrPokeTouchBox *box);
-/* Whether the Trainer Card (view->card.on) is under lower-screen point (x, y). */
+/* Whether the Trainer Card (view->card.on, no GBA picture) is under lower-screen point (x, y): its screen or FLIP. */
 int CtrPokeTouch_CardHit(const CtrPokeTouchView *view, int x, int y);
+/* Whether the letter being read (view->mail.on, no GBA picture) is under lower-screen point (x, y): its screen,
+ * which closes it as CLOSE does. */
+bool CtrPokeTouch_MailHit(const CtrPokeTouchView *view, int x, int y);
 /* The card's pictures, from FireRed's (trainer_card.c): the trainer's front picture (64x64 4bpp, 8x8 tiles in rows of
  * eight) and the badges (128x16 4bpp: badge i at tiles 2i, 2i + 1 and 2i + 16, 2i + 17). 0 when there is none. */
 int CtrPokeTouch_CardTrainerPic(unsigned char *tiles, unsigned short *palette);

@@ -220,6 +220,7 @@ static const uint8_t sPageStart[] = {PAGE1, PAGE2, PAGE3, PAGE4, PAGE5, PAGE6, R
 static const uint8_t sPageSection[] = {0, 1, 1, 1, 2, 3};
 #define PAGES ((int)(sizeof(sPageStart) / sizeof(sPageStart[0])) - 1)
 #define SECTIONS 4
+_Static_assert(SECTIONS == PT_OPT_SECTIONS, "a section key for each section");
 _Static_assert(PAGE6 < ROWS, "the last page has rows");
 _Static_assert(sizeof(sPageSection) == PAGES, "a section for each page");
 _Static_assert(PAGE2 - PAGE1 <= PT_OPT_MAX && PAGE3 - PAGE2 <= PT_OPT_MAX && PAGE4 - PAGE3 <= PT_OPT_MAX && PAGE5 - PAGE4 <= PT_OPT_MAX
@@ -230,7 +231,8 @@ int CtrOptions_PageCount(void) { return PAGES; }
 
 const char *CtrOptions_PageName(int page)
 {
-    /* A page's own short name (it has to fit the PAGE button's 64 px): the looks page is a page of the Graphics section, and says so with its dot. */
+    /* A page's own short name (a section key's word while the page is shown: it has to fit the key): the looks page is a page of the
+     * Graphics section, whose key says LOOKS while it is shown. */
     static const char *const names[] = {CTR_TR("Settings", "Ajustes", "Optionen"), CTR_TR("Graphics", "Gr\xC3\xA1" "ficos", "Grafik"),
                                         CTR_TR("Looks", "Aspectos", "Looks"), CTR_TR("Wilds", "Salvajes", "Wilde"), CTR_TR("QoL", "QoL", "QoL"),
                                         CTR_TR("Nuzlocke", "Nuzlocke", "Nuzlocke")};
@@ -244,6 +246,14 @@ int CtrOptions_SectionCount(void) { return SECTIONS; }
 int CtrOptions_SectionOf(int page)
 {
     return page < 0 || page >= PAGES ? 0 : sPageSection[page];
+}
+
+int CtrOptions_SectionFirstPage(int section)
+{
+    for (int i = 0; i < PAGES; ++i)
+        if (sPageSection[i] == section)
+            return i;
+    return 0;
 }
 
 /* A section's page `page` is in (1 based) and how many pages the section has: "Graphics 1/2". */
@@ -410,11 +420,11 @@ void CtrOptions_Fill(CtrPokeTouchView *v, int selected)
     v->options = 1;
     v->optPage = (uint8_t)page;
     v->optPageCount = (uint8_t)PAGES;
-    {
-        v->optSection = (uint8_t)CtrOptions_SectionOf(page);
-        v->optSectionCount = SECTIONS;
-        snprintf(v->optPageName, sizeof(v->optPageName), "%.19s", CtrOptions_PageName(page));
-    }
+    v->optSection = (uint8_t)CtrOptions_SectionOf(page);
+    v->optSectionCount = SECTIONS;
+    for (int s = 0; s < SECTIONS; ++s)                  /* the section shown by its page's name, the others by their first */
+        snprintf(v->optSectionName[s], sizeof(v->optSectionName[s]), "%.11s",
+                 CtrOptions_PageName(s == v->optSection ? page : CtrOptions_SectionFirstPage(s)));
     v->optCount = (uint8_t)count;
     v->optSelected = (uint8_t)(selected - base);
     for (int i = 0; i < PT_OPT_MAX; ++i) {

@@ -105,6 +105,18 @@ static uint16_t sDevShell __attribute__((unused)) = DEV_SHELL_RED;
 /* Key labels cut to fit since the counter was last cleared: the host harness requires none. */
 static int sDevKeyCut __attribute__((unused));
 
+/* What a view draws, told to a board maker: DEV_TRACE(op, x, y, w, h, a, b, s) is called with each piece a view
+ * announces (art: DevArt). The game defines nothing and it does nothing; a host harness may define it before including
+ * the renderer to collect the pieces. */
+#ifndef DEV_TRACE
+#define DEV_TRACE(op, x, y, w, h, a, b, s) \
+    ((void)(op), (void)(x), (void)(y), (void)(w), (void)(h), (void)(a), (void)(b), (void)(s))
+#endif
+/* The kinds of art a view draws (a board shows a stand-in for each), and the pieces DEV_TRACE is told of. */
+enum { DEV_ART_ICON, DEV_ART_PICTURE, DEV_ART_ITEM, DEV_ART_BADGE, DEV_ART_WALLPAPER, DEV_ART_MARK, DEV_ART_SPRITE,
+       DEV_ART_FRAME, DEV_ART_LOGO, DEV_ART_GBA };
+enum { DEV_TRACE_ART = 1 };
+
 /* ---- Pixels -------------------------------------------------------------------------------------------------------- */
 
 /* `over` on `under` at alpha/256, channel by channel, rounded. */
@@ -133,6 +145,19 @@ UI_FN uint16_t DevGet(int x, int y)
     if ((unsigned)x >= W || (unsigned)y >= H)
         return 0;
     return sCanvas[(size_t)x * H + (H - 1 - (size_t)y)];
+}
+
+/* A plain fill that draws something (a rule, a cursor's frame, an underline, a panel): c over {x, y, w, h}. */
+UI_FN void DevRect(int x, int y, int w, int h, uint16_t c)
+{
+    Fill(x, y, w, h, c);
+}
+
+/* Art a view draws (a picture, an icon, a sprite, a frame's sample...) of `kind` (DEV_ART_*) in {x, y, w, h}, announced
+ * (the art itself is the view's to draw): where a board puts its stand-in. */
+UI_FN void DevArt(int kind, int x, int y, int w, int h)
+{
+    DEV_TRACE(DEV_TRACE_ART, x, y, w, h, kind, 0, NULL);
 }
 
 /* ---- Rounded shapes and their CSS shadows ------------------------------------------------------------------------- */
@@ -924,10 +949,56 @@ UI_FN uint16_t DevPpInk(unsigned pp, unsigned max, uint16_t normal)
     return pp > max / 2 ? normal : DEV_PP_HALF;
 }
 
+/* BACK's word, on every view's BACK key. */
+UI_FN const char *DevBackWord(void)
+{
+    return CTR_TR("BACK", "ATR\xC3\x81S", "ZUR\xC3\x9C" "CK");
+}
+
 /* The key shown sunk: the one under a held touch, else the game's cursor. */
 UI_FN int DevChosen(int id, int cursor, int pressed)
 {
     return pressed >= 0 ? id == pressed : id == cursor;
+}
+
+/* A label and its value across row r: the label small in the secondary ink at its left, the value in the paper's ink
+ * ending at its right, cut with "..." to the room the label leaves (a label that does not fit is counted in sDevKeyCut).
+ * Both centred down the row. (SAVE's facts, the Trainer Card's rows and records.) */
+UI_FN void DevLabelValue(const CtrPokeTouchRect *r, const char *label, const char *value)
+{
+    char cut[64];
+    int labelW = DevSmallTextWidth(label), right = r->x + r->w, room = r->w - labelW - 6;
+
+    if (labelW > r->w)
+        ++sDevKeyCut;
+    DevSmallText(label, r->x, r->y + (r->h - 7) / 2, DEV_INK2, right);
+    if (DevTextWidth(value) > room) {
+        DevCutText(value, room, cut, sizeof(cut));
+        value = cut;
+    }
+    DevText(value, right - DevTextWidth(value), r->y + (r->h - UI_TEXT_H) / 2, right);
+}
+
+/* A field view's BACK (or CLOSE) in key r with `word`, while the view shows it (backVisible): a dark key, sunk under a
+ * held touch, grey while it cannot be used. */
+UI_FN void DevFieldBack(const CtrPokeTouchView *v, const CtrPokeTouchRect *r, const char *word)
+{
+    int sunk = v->backEnabled && v->backPressed, faceY;
+
+    if (!v->backVisible)
+        return;
+    faceY = DevKey(r, DEV_LOOK_DARK, sunk, 6);
+    DevKeyWord(r, faceY, DEV_LOOK_DARK, sunk, word);
+    if (!v->backEnabled)
+        DevDim(r);
+}
+
+/* DevFieldBack draws the same for `a` and `b`. */
+UI_FN int DevFieldBackSame(const CtrPokeTouchView *a, const CtrPokeTouchView *b)
+{
+    return a->backVisible == b->backVisible
+        && (!b->backVisible || (a->backEnabled == b->backEnabled
+                                && (a->backEnabled && a->backPressed) == (b->backEnabled && b->backPressed)));
 }
 
 /* A gender mark, 7x9 (v0.6.0's shapes) with the paper's text shadow 1 px right and down, so it paints 8x10: 0 male,

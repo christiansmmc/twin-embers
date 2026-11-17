@@ -21,7 +21,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PORT = ROOT / '3ds_port'
-VIEWS = ['kit', 'home', 'battle', 'party', 'summary', 'bag']     # the harness's suites, in its order
+# the harness's suites, in its order
+VIEWS = ['kit', 'home', 'battle', 'party', 'summary', 'bag', 'options', 'save', 'card', 'mail', 'dex', 'choice', 'learn',
+         'relearn']
 
 
 def glyph_widths(text, name):
@@ -82,7 +84,7 @@ def main():
     small.write_bytes(glyph_widths(text, 'sFontSmallLatinGlyphWidths'))
     harness = out / ('device_render_test.exe' if os.name == 'nt' else 'device_render_test')
     subprocess.run([os.environ.get('CC') or shutil.which('gcc') or 'gcc', '-std=c11', '-O1', '-Wall', '-Wextra',
-                    '-Werror', '-I', str(PORT / 'include'), '-I', str(PORT / 'src'),
+                    '-Werror', '-I', str(PORT / 'include'), '-I', str(PORT / 'src'), '-I', str(PORT / 'tests'),
                     str(PORT / 'tests/device_render_test.c'), str(PORT / 'src/3ds_pak.c'), '-o', str(harness), '-lm'],
                    check=True)
     env = {**os.environ, 'FIRERED_TEST_PAK': str(args.pak.resolve()), 'DEVICE_WIDTHS': str(widths),
