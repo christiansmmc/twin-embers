@@ -43,13 +43,6 @@ static int BPartyIcon(int slot, unsigned icon)
     return 1;
 }
 
-/* Text wrapped into `maxLines` lines of `width`, in `ink` over `shadow`, 16 apart; the last ends in "..." when there is more
- * (the field's ember views' prompts). */
-static void BPWrap(const char *text, int x, int y, int width, int maxLines, uint16_t ink, uint16_t shadow)
-{
-    Em2Wrap(text, x, y, width, maxLines, 16, ink, shadow);
-}
-
 /* Item icons: FireRed's 24x24 icon of an item, decoded once into a collision-free 12-slot FIFO cache (the Bag's rows, its
  * description and the battle's quick ball draw them). */
 #define BICONS 12

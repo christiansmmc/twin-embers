@@ -1,22 +1,6 @@
 /* ---- naming: the naming keyboard as the red device, through the field dispatcher (no board; plan 3 Task 5) ---------
- * Included by device_render_test.c before its kSuites. Also the harness's Pokemon icon: CtrPokeTouch_MonIcon gives a
- * 24x24 square of index 1 in STUB_ICON (a clear border of 4) while a suite sets monArt (none otherwise, as the other art
- * stubs). */
-
-#define MON_ART_ORANGE 0x021f                   /* GBA BGR555 */
-#define STUB_ICON GbaColor(MON_ART_ORANGE)
-static int monArt;
-
-int CtrPokeTouch_MonIcon(unsigned species, unsigned personality, int egg, unsigned char *tiles, unsigned short *palette)
-{
-    (void)species; (void)personality; (void)egg;
-    if (!monArt) return 0;
-    memset(tiles, 0, 512); memset(palette, 0, 32); palette[1] = MON_ART_ORANGE;
-    for (int y = 4; y < 28; ++y)
-        for (int x = 4; x < 28; ++x)
-            tiles[(y / 8 * 4 + x / 8) * 32 + y % 8 * 4 + x % 8 / 2] |= (unsigned char)(1 << (x & 1) * 4);
-    return 1;
-}
+ * Included by device_render_test.c before its kSuites. (The Pokemon's icon is the harness's CtrPokeTouch_MonIcon, in
+ * STUB_ICON while a suite sets monArt.) */
 
 /* The name's screen's paper (kDevNameScreen 6 px in) and, on it, the rows of the characters' capitals (from NAME_TOP,
  * UI_TEXT_H) and of the underlines (NAME_LINE); the slots from x 20, or 38 beside a Pokemon's icon at (18, 20), each 14

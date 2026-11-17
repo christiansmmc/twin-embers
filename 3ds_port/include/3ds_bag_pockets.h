@@ -5,7 +5,7 @@
  *
  * FireRed's Bag has three pockets, walked in this order by LEFT / RIGHT and by the shoulder buttons L / R (when the button mode is
  * L/R): ITEMS (0), KEY ITEMS (1), POKE BALLS (2). The ends do not wrap: LEFT on ITEMS and RIGHT on POKE BALLS do nothing. The field
- * Bag's tabs (3ds_field_bag_impl.h) are drawn in that same order and a tap on one walks to it with the D-pad.
+ * Bag's pocket keys (3ds_device_bag_impl.h) are drawn in that same order and a tap on one walks to it with the D-pad.
  *
  * The battle Bag is the ITEMS pocket only: the balls have their own button on the action screen, the Berry Pouch its BERRIES, and the
  * port's router walks to the KEY ITEMS pocket by itself with the D-pad when BERRIES is used (3ds_bottom.c). The lower screen shows no

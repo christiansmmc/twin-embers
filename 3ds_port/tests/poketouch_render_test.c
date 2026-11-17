@@ -359,26 +359,6 @@ int main(int argc, char **argv)
         for(int i=0;i<PT_COUNT;++i) s.enabled[i]=1;
         s.registeredItem=1; s.bikeItem=2; strcpy(s.playerName,"Rick"); s.playerX=s.playerY=-1;
         #define SHOT(name) do { update(&old,&s); if(dir) ppm(dir,name); } while(0)
-        /* The PC box (Llama's mockup; the naming keyboard is the red device's: device_render_test.c): each state through
-         * the incremental path. */
-        {
-            CtrPokeTouchView b2=s; memset(&old,0,sizeof(old)); old.selected=old.pressed=PT_NONE;
-            CtrPokeTouch_Draw(canvas,&old);             /* the canvas showed HOME, a screen of its own: it now shows `old` */
-            b2.home=0; b2.box.on=1; b2.box.state=PT_BOX_STATE_BOX; b2.box.area=ST_AREA_BOX; b2.box.pos=7; b2.box.pressed=-1; b2.box.message[0]=0xff;
-            for(int i=0;i<PT_BOX_SLOTS;i+=3) b2.box.slot[i].species=1+i;
-            memset(b2.box.boxName,0xff,sizeof(b2.box.boxName)); memcpy(b2.box.boxName,"»¼½",3);
-            update(&old,&b2); if(dir) ppm(dir,"box_cursor");
-            b2.box.pos=8; update(&old,&b2); b2.box.area=ST_AREA_TITLE; update(&old,&b2);
-            b2.box.area=ST_AREA_BUTTONS; b2.box.pos=1; update(&old,&b2); b2.box.pos=0; b2.box.pressed=ST_HIT_BUTTON_PARTY; update(&old,&b2); b2.box.pressed=-1;
-            b2.box.area=ST_AREA_PARTY; b2.box.pos=2; for(int i=0;i<6;++i) b2.box.party[i].species=1+i; update(&old,&b2); if(dir) ppm(dir,"box_party");
-            b2.box.pos=6; update(&old,&b2); b2.box.area=ST_AREA_BOX; b2.box.pos=3;
-            b2.box.state=PT_BOX_STATE_MENU; b2.box.menuCount=4; b2.box.menuCursor=1; update(&old,&b2); if(dir) ppm(dir,"box_menu");
-            b2.box.menuCursor=3; update(&old,&b2);
-            b2.box.state=PT_BOX_STATE_YESNO; b2.box.menuCursor=1; update(&old,&b2); if(dir) ppm(dir,"box_yesno");
-            b2.box.state=PT_BOX_STATE_CHOOSE; b2.box.chooseCount=12; update(&old,&b2); if(dir) ppm(dir,"box_choose");
-            b2.box.state=PT_BOX_STATE_MARKS; b2.box.marks=5; b2.box.menuCursor=1; update(&old,&b2); b2.box.menuCursor=5; update(&old,&b2); if(dir) ppm(dir,"box_marks");
-            b2.box.state=PT_BOX_STATE_BOX; b2.box.on=0; update(&old,&b2);
-        }
         memset(&old,0,sizeof(old)); old.selected=old.pressed=PT_NONE;
         /* Easy Chat (Llama): the phrase, the groups, the letters, a list with its rail and strip, and the three questions; every change goes through the
          * incremental path (update compares it with the whole draw), and the hit tests are the mockup's rectangles. */

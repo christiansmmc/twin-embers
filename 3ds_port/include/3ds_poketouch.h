@@ -312,9 +312,9 @@ typedef struct {
     uint8_t title[32];              /* FireRed's question, its codes, 0xff ended */
 } CtrPokeTouchName;
 
-/* A PC box drawn by the port (3ds_field_box_impl.h), a remote for FireRed's own box: its name between the arrows, its
- * thirty places with their icons, PARTY and CLOSE BOX, the Pokemon in hand, the Party when the cursor is in it, and
- * over them the box's menu, its YES/NO, its box chooser or its message. Texts are FireRed's own codes, 0xff ended.
+/* A PC box drawn by the port (3ds_device_box_impl.h), a remote for FireRed's own box: its name on the wallpaper's band,
+ * its thirty places with their icons, PARTY and CLOSE BOX, the Pokemon in hand, the Party when the cursor is in it, the
+ * box's menu, its YES/NO, its box chooser, its marks or its message. Texts are FireRed's own codes, 0xff ended.
  * A touch is the PC's own controller (3ds_storage_touch.h hit codes): the cursor walked there and A. */
 #define PT_BOX_SLOTS 30
 #define PT_BOX_MENU_MAX 7

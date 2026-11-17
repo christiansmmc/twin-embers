@@ -1,11 +1,12 @@
-/* Easy Chat over the whole lower screen (3ds_poketouch.h CtrPokeTouchEasy), included at the end of 3ds_poketouch.c after the PC box, whose
- * pieces (the raised cards FB_DEPTH, the dark slot) it shares. A remote for the game's own screen, in the Llama look (the approved mockup): the
+/* Easy Chat over the whole lower screen (3ds_poketouch.h CtrPokeTouchEasy), included at the end of 3ds_poketouch.c after the PC box. A remote for the game's own screen, in the Llama look (the approved mockup): the
  * phrase as chips in two rows with the mode buttons and DELETE ALL / QUIT / OK; the group menu (a grid of the groups, A-Z and BACK) or, in the
  * A-Z order, the letters; a group's words in two columns with a rail (a slider) and a letter strip (one slider); and the game's Yes/No
  * questions in a window over the dimmed phrase. A word or group that does not fit its card ends in "..." (Em2Fit).
  * The screen is drawn in regions (each a rectangle, with the 2 px its select ring may use); a region is drawn again only when what it shows
  * changed (FEasySig), so the incremental redraw is the whole one. A change of screen or of question redraws everything. */
 
+#define FB_DEPTH 2                                      /* the lip of a raised card */
+#define FB_IDLE_ARROW UI_RGB(200, 192, 176)             /* a scroll arrow with nothing to scroll to */
 #define FE_SLOT_TOP UI_RGB(62, 14, 14)
 #define FE_SLOT_BOT UI_RGB(42, 8, 9)
 #define FE_SLOT_EDGE UI_RGB(20, 3, 4)

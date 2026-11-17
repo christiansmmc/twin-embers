@@ -1062,10 +1062,10 @@ static int SaveActive(void) { return 0; }
 static void ProcessOptionsTouch(const CtrInput *in) { (void)in; }
 static void ProcessSaveInput(const CtrInput *in) { (void)in; }
 /* the views drawn as the red device: HOME, the Bag, OPTIONS, SAVE, the Pokedex, a choice, the move to forget, the
- * relearner, the naming keyboard */
+ * relearner, the naming keyboard, the PC box */
 bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *v)
 { return v->home || v->bag.on || v->options || v->save || v->dex.on || v->choice.on || v->learn.on || v->relearn.on
-         || v->name.on; }
+         || v->name.on || v->box.on; }
 /* HOME: BAG's key at the bottom right, FLY and the region key in the window's top corners, the map below them */
 int CtrPokeTouch_HitTest(int x, int y) { return x < 60 && y < 60 ? PT_OPTIONS : PT_NONE; }
 int CtrPokeTouch_HomeHit(const CtrPokeTouchView *v, int x, int y) { (void)v; return x >= 200 && y >= 150 ? PT_BAG : PT_NONE; }
@@ -1112,8 +1112,8 @@ int main(void) {
     Tap(250, 200); Tap(100, 80); assert(activated == -1 && !tapped);
     /* a native screen with nothing shown yet: the column's hits */
     native = 1; sShown.touch.home = 0; Tap(20, 20); assert(activated == PT_OPTIONS);
-    /* SAVE, OPTIONS, the Pokedex, a choice, the move to forget, the relearner or the naming keyboard on the red device
-     * (or HOME still shown on its first frame): no column under it, nothing hit */
+    /* SAVE, OPTIONS, the Pokedex, a choice, the move to forget, the relearner, the naming keyboard or the PC box on the
+     * red device (or HOME still shown on its first frame): no column under it, nothing hit */
     sHaveShown = 1; sShown.touch.save = 1; activated = -1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.save = 0; sShown.touch.options = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.options = 0; sShown.touch.dex.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
@@ -1121,7 +1121,8 @@ int main(void) {
     sShown.touch.choice.on = 0; sShown.touch.learn.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.learn.on = 0; sShown.touch.relearn.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.relearn.on = 0; sShown.touch.name.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
-    sShown.touch.name.on = 0;
+    sShown.touch.name.on = 0; sShown.touch.box.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
+    sShown.touch.box.on = 0;
     sShown.touch.options = 0; sShown.touch.home = 1; Tap(20, 20); assert(activated == -1);
     return 0;
 }
