@@ -14,12 +14,15 @@
  *    it); else the box's name;
  *  - a menu, YES / NO or the marks: the box's screen grey, the note narrow, the keys in the right column (the menu's rows,
  *    the last dark; YES and NO; the four marks at 2x, OK and CANCEL dark), FireRed's cursor sunk;
- *  - the box chooser: ◀ ▶ and the chosen box's key (its name and how many it holds), always sunk; the box grey.
+ *  - the box chooser: ◀ ▶ and the chosen box's key (its name and how many it holds), always sunk; the box grey; the note
+ *    narrow and CANCEL beside it, a dark key: the view's BACK (FireRed's chooser has no CANCEL of its own; BACK sends
+ *    its B, as v0.6.0's BACK did there), sunk while held, grey while the chooser takes no B.
  * Under a held touch the key or row it holds is chosen instead of the cursor's (DevChosen, among the box's places, band
  * and keys, the Party's rows, a menu's keys). While FireRed is busy the box is drawn without the cursor's marks and
- * nothing is hit. No BACK: CLOSE BOX is FireRed's exit and every menu has its CANCEL. A touch is the PC's own
- * controller (3ds_bottom.c ProcessStorageTouch, the 3ds_storage_touch.h codes: the cursor walked there and A). Every
- * rectangle is 3ds_device_layout.h's, so what is drawn is what a touch takes.
+ * nothing is hit. No BACK but the chooser's CANCEL: CLOSE BOX is FireRed's exit and every menu has its CANCEL. A touch
+ * on the box is the PC's own controller (3ds_bottom.c ProcessStorageTouch, the 3ds_storage_touch.h codes: the cursor
+ * walked there and A); on CANCEL it is BACK's (ProcessBack). Every rectangle is 3ds_device_layout.h's, so what is drawn
+ * is what a touch takes.
  *
  * Words (decision 5): FireRed's menu rows, species line and items in capitals (DevUpper); a nickname, the box's name and
  * the chosen box's name as typed, a nickname that is its species' own name in capitals; FireRed's messages and
@@ -562,11 +565,17 @@ static void DevBoxDraw(const CtrPokeTouchView *v)
         DevBoxMenu(b, press);
         return;
     }
-    DevBoxNote(b, &kDevBoxNote);
-    if (b->state == PT_BOX_STATE_CHOOSE)
+    if (b->state == PT_BOX_STATE_CHOOSE) {
+        char word[32];
+
+        DevBoxNote(b, &kDevBoxNoteNarrow);
         DevBoxChooser(b, press);
-    else
+        DevUpper(word, CtrUiText(UIS_CANCEL), sizeof(word));
+        DevFieldBack(v, &kDevBoxCancel, word);
+    } else {
+        DevBoxNote(b, &kDevBoxNote);
         DevBoxSide(cursor, boxPress, message || (b->state == PT_BOX_STATE_BOX && b->area == ST_AREA_PARTY));
+    }
     DevBoxHand(b);
 }
 
@@ -605,19 +614,20 @@ static void DevBoxDrawn(const CtrPokeTouchBox *b, CtrPokeTouchBox *out)
     }
 }
 
-/* Nothing the box draws differs between `a` and `b` (the shell is the dispatcher's; it draws no BACK). */
+/* Nothing the box draws differs between `a` and `b` (the shell is the dispatcher's): the box as drawn, and the chooser's
+ * CANCEL (BACK) as drawn while it shows. */
 static int DevBoxSame(const CtrPokeTouchView *a, const CtrPokeTouchView *b)
 {
     CtrPokeTouchBox p, q;
 
     DevBoxDrawn(&a->box, &p);
     DevBoxDrawn(&b->box, &q);
-    return !memcmp(&p, &q, sizeof(p));
+    return !memcmp(&p, &q, sizeof(p)) && (b->box.state != PT_BOX_STATE_CHOOSE || DevFieldBackSame(a, b));
 }
 
-/* No BACK: CLOSE BOX is FireRed's exit, and every menu has its CANCEL. */
+/* BACK is the chooser's CANCEL (FireRed's chooser has none; its B leaves it); elsewhere none: CLOSE BOX is FireRed's
+ * exit, and every menu has its CANCEL. */
 static const CtrPokeTouchRect *DevBoxBackKey(const CtrPokeTouchView *v)
 {
-    (void)v;
-    return NULL;
+    return v->box.state == PT_BOX_STATE_CHOOSE ? &kDevBoxCancel : NULL;
 }

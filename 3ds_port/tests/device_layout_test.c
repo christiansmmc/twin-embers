@@ -636,8 +636,8 @@ static int NamingFaults(void)
 }
 
 /* The PC box: its screen's paper is FireRed's 160x144 wallpaper at 1:1, the band and the thirty places (or the Party's
- * seven rows) on it; the right column (◀ ▶, PARTY, CLOSE BOX and the hand's screen; a menu's keys; the chooser's) beside
- * it; the note under them all, narrow beside a menu's keys. */
+ * seven rows) on it; the right column (◀ ▶, PARTY, CLOSE BOX and the hand's screen; a menu's keys; the chooser's, its
+ * CANCEL under the hand) beside it; the note under them all, narrow beside a menu's keys and the chooser's CANCEL. */
 static int BoxFaults(void)
 {
     const CtrPokeTouchRect paper = {(int16_t)(kDevBoxScreen.x + 6), (int16_t)(kDevBoxScreen.y + 6),
@@ -649,6 +649,7 @@ static int BoxFaults(void)
     assert(Same(DevBoxCell(0), (CtrPokeTouchRect){22, 38, 24, 24}) && Same(DevBoxCell(29), (CtrPokeTouchRect){142, 134, 24, 24}));
     assert(Same(DevBoxPartyRow(0), (CtrPokeTouchRect){16, 16, 156, 20}) && Same(DevBoxPartyRow(6), (CtrPokeTouchRect){16, 136, 156, 20}));
     assert(Same(DevBoxMenuKey(5, 4), (CtrPokeTouchRect){188, 184, 124, 40}) && Same(DevBoxMenuKey(7, 6), (CtrPokeTouchRect){188, 200, 124, 28}));
+    assert(Same(kDevBoxCancel, (CtrPokeTouchRect){188, 172, 124, 56}));
     for (int i = 0; i < 30; ++i) {
         CtrPokeTouchRect c = DevBoxCell(i);
 
@@ -662,8 +663,10 @@ static int BoxFaults(void)
             fprintf(stderr, "box: Party row %d leaves the paper\n", i);
             ++faults;
         }
-    if (!Within(kDevBoxTitle, paper, 0) || !Within(kDevBoxHand, column, 0) || !Within(kDevBoxChoose, column, 1)) {
-        fprintf(stderr, "box: the band, the hand's screen or the chooser's key out of place\n");
+    if (!Within(kDevBoxTitle, paper, 0) || !Within(kDevBoxHand, column, 0) || !Within(kDevBoxChoose, column, 1)
+        || !Within(kDevBoxCancel, column, 1) || kDevBoxHand.y + kDevBoxHand.h + 1 > kDevBoxCancel.y
+        || kDevBoxCancel.y != kDevBoxNoteNarrow.y) {
+        fprintf(stderr, "box: the band, the hand's screen or the chooser's keys out of place\n");
         ++faults;
     }
     for (int n = 1; n <= 7; ++n)
@@ -719,7 +722,7 @@ int main(void)
     const CtrPokeTouchRect relearnYesNo[] = {DevBagMenuKey(2, 0), DevBagMenuKey(2, 1)};
     const CtrPokeTouchRect boxKeys[] = {kDevBoxPrev, kDevBoxNext, kDevBoxParty, kDevBoxClose};
     const CtrPokeTouchRect boxYesNo[] = {DevBoxMenuKey(2, 0), DevBoxMenuKey(2, 1)};
-    const CtrPokeTouchRect boxChooser[] = {kDevBoxPrev, kDevBoxNext, kDevBoxChoose};
+    const CtrPokeTouchRect boxChooser[] = {kDevBoxPrev, kDevBoxNext, kDevBoxChoose, kDevBoxCancel};
     const CtrPokeTouchRect boxMarks[] = {DevBoxMenuKey(6, 0), DevBoxMenuKey(6, 1), DevBoxMenuKey(6, 2), DevBoxMenuKey(6, 3),
                                          DevBoxMenuKey(6, 4), DevBoxMenuKey(6, 5)};
     CtrPokeTouchRect ptyMenu[8][8], bagMenu[6][6], choiceKeys[3][8][9], nameKeys[2][5 + 32], boxMenu[7][7];
@@ -781,7 +784,7 @@ int main(void)
         {"box place 29", DevBoxCell(29)}, {"box Party row 0", DevBoxPartyRow(0)}, {"box CANCEL row", DevBoxPartyRow(6)},
         {"box previous", kDevBoxPrev}, {"box next", kDevBoxNext}, {"box PARTY", kDevBoxParty}, {"box CLOSE BOX", kDevBoxClose},
         {"box hand", kDevBoxHand}, {"box note", kDevBoxNote}, {"box narrow note", kDevBoxNoteNarrow},
-        {"box chooser", kDevBoxChoose}, {"box menu key 7 of 7", DevBoxMenuKey(7, 6)}, {"box menu key 5 of 5", DevBoxMenuKey(5, 4)},
+        {"box chooser", kDevBoxChoose}, {"box chooser's CANCEL", kDevBoxCancel}, {"box menu key 7 of 7", DevBoxMenuKey(7, 6)}, {"box menu key 5 of 5", DevBoxMenuKey(5, 4)},
     };
     const DevGroup groups[] = {DEV_GROUP("HOME", homeKeys), DEV_GROUP("battle, a trainer", batTrainer),
                                DEV_GROUP("battle, wild", batWild), DEV_GROUP("battle moves", batMoves),

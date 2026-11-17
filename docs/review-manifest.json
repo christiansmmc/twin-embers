@@ -6817,7 +6817,7 @@
   },
   {
    "path": "tools/test_field_presentation.py",
-   "sha256": "4f4bf68763e57c745f7c7bec620d1e88a876bd007bbfa10383f341897a554401",
+   "sha256": "a9ffe9324830d35590540b0452dbef9ae0b60944e56062401aab85f608715cae",
    "review_status": "reviewed",
    "credit": "alex61194; Twin Embers Port contributors; inherited/adapted upstream portions as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; external game/dependency rights excluded",
@@ -7403,7 +7403,7 @@
   },
   {
    "path": "3ds_port/include/3ds_device_layout.h",
-   "sha256": "a3a683d203a7e561a75ebceebc115cc4162040ea1166c70ee42306604ab41eb6",
+   "sha256": "ba76cb651973c5cb29195571246685a8c3a466a9020db961a37ded5b3f417fd3",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7419,7 +7419,7 @@
   },
   {
    "path": "3ds_port/tests/device_layout_test.c",
-   "sha256": "9f174125d395604d0420f50c5117cbcd57722339c32822c1ff7b0f2f5092dde4",
+   "sha256": "a90b10737e52179dcec54a6c2481357b03b470393aed95ed00ba7a957d5fff79",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7675,7 +7675,7 @@
   },
   {
    "path": "3ds_port/src/3ds_device_box_impl.h",
-   "sha256": "c855377a05d037336e68468cbcddb673ec07ad4cb26931a26e320ff68831f540",
+   "sha256": "0c09f288616ddf048e27345e8c154c82ab34b8e21a2ce43e0cae68515bb847d0",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7683,7 +7683,7 @@
   },
   {
    "path": "3ds_port/tests/device_suite_box.h",
-   "sha256": "200cd88d8386c55c245a61fab10a1b17fae3f5d5b2e8b0dc4358191261c2776f",
+   "sha256": "9fbec5671c202ca10a398a88ad0ef836b88d9c46b3fc576ba452c781b4cad56a",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

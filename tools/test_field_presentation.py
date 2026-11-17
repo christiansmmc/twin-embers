@@ -1199,6 +1199,66 @@ int main(void) {
         self.assertIn('CtrPokeTouch_BackHit(&sShown.touch,', function(bottom, 'ProcessBack'))
         self.assertNotIn('CtrPokeTouch_HitOptPage', bottom)
 
+    def test_box_chooser_cancel_sends_b(self):
+        """The PC box's chooser (DEPOSIT's, JUMP's) has no CANCEL of FireRed's: its CANCEL key is the view's BACK while
+        the chooser is up (3ds_device_box_impl.h DevBoxBackKey; the box suite of device_render_test.c pins where it is
+        drawn and hit). BACK is shown in the box and enabled while the chooser is up, and a tap held and released on it
+        sends FireRed's B once, as v0.6.0's BACK did there; moved off it, with a button held, or not enabled, nothing."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        self.assertIn('mode == MODE_STORAGE_BOX', function(bottom, 'BackVisible'))
+        self.assertRegex(function(bottom, 'BackEnabled'),
+                         r'if \(mode == MODE_STORAGE_BOX\)\s+return [^;]*CtrBottomStorage_BoxChoose\(\)')
+        code = function(bottom, 'BackPress') + '\n' + function(bottom, 'ProcessBack')
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+#include "3ds_input.h"
+#include "3ds_poketouch.h"
+enum { MODE_FIELD = 1, MODE_STORAGE_PC, MODE_STORAGE_BOX, MODE_CARD, MODE_DEX, MODE_CHOICE, MODE_GBAVIEW,
+       MODE_PARTY_CHILD, MODE_SUMMARY };
+enum { BAGPLAN_PRESS = 1, SUMPLAN_PRESS = 1 };
+#define K_B (1u << 1)
+typedef struct ListScreen ListScreen;
+static uint16_t sRouteKey;
+static int sHaveShown = 1, choosing = 1;
+static struct { int mode; CtrPokeTouchView touch; } sShown;
+static struct { int down; int inside; } sBack;
+static int BackVisible(int mode) { return mode == MODE_STORAGE_BOX; }
+static int BackEnabled(int mode) { return mode == MODE_STORAGE_BOX && choosing; }
+/* the chooser's CANCEL, the view's BACK, at the bottom right */
+bool CtrPokeTouch_BackHit(const CtrPokeTouchView *v, int x, int y) { (void)v; return x >= 188 && y >= 172; }
+static void CloseNative(void) { assert(0); }
+static uint16_t CardLeaveKey(void) { assert(0); return 0; }
+static const ListScreen *ListFor(int mode) { (void)mode; return NULL; }
+static void BagPlanStart(const ListScreen *l, int kind, int target, int activate, uint16_t keys)
+{ (void)l; (void)kind; (void)target; (void)activate; (void)keys; assert(0); }
+static void SumPlanStart(int kind, int target, int activate, uint16_t keys)
+{ (void)kind; (void)target; (void)activate; (void)keys; assert(0); }
+''' + code + '''
+static void Touch(int x, int y, int down, int active, uint16_t held)
+{
+    CtrInput in;
+
+    memset(&in, 0, sizeof(in));
+    in.touchActive = active; in.touchDown = down; in.touchX = (uint16_t)x; in.touchY = (uint16_t)y; in.held = held;
+    ProcessBack(MODE_STORAGE_BOX, &in);
+}
+int main(void)
+{
+    sShown.mode = MODE_STORAGE_BOX;
+    Touch(250, 200, 1, 1, 0); Touch(250, 200, 0, 1, 0); assert(!sRouteKey);
+    Touch(250, 200, 0, 0, 0); assert(sRouteKey == K_B);                        /* released on it: B, once */
+    sRouteKey = 0; Touch(250, 200, 0, 0, 0); assert(!sRouteKey);
+    Touch(250, 200, 1, 1, 0); Touch(100, 100, 0, 1, 0); Touch(100, 100, 0, 0, 0); assert(!sRouteKey);   /* moved off */
+    Touch(250, 200, 1, 1, 0); Touch(250, 200, 0, 1, 2); Touch(250, 200, 0, 0, 0); assert(!sRouteKey);   /* B held */
+    choosing = 0; Touch(250, 200, 1, 1, 0); Touch(250, 200, 0, 0, 0); assert(!sRouteKey);             /* not taken */
+    return 0;
+}
+''')
+
     def test_field_lists_route_once(self):
         """The red device's Bag page takes its touch through one branch of ProcessTouch, FieldListFor's: the field's
         Bag, its cases, a mart's BUY list, the item PC and the mailbox. FieldListFor gives the last three in any session

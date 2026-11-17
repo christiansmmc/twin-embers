@@ -349,7 +349,8 @@ static void SuiteBox(void)
     v.box.pressed = ST_HIT_MENU_BASE + 2; DevCheckTouch(&old, &v); BoxKeysSunk(2, 1, 0);
 
     /* the chooser: ◀ ▶ (sunk while held) and the chosen box's key, always sunk: its name and how many it holds; the box's
-     * screen grey and not hit */
+     * screen grey and not hit; the note narrow and CANCEL beside it, the view's BACK (FireRed's B), a dark key hit where
+     * it is drawn, sunk while held, grey while the chooser takes no B */
     v = BoxBoard(); v.box.state = PT_BOX_STATE_CHOOSE; BoxCodes(v.box.chooseName, (int)sizeof(v.box.chooseName), "Box two", 0);
     v.box.chooseCount = 12; DevCheckTouch(&old, &v);
     AssertHits(BoxHitV, &v, kDevBoxPrev, ST_HIT_PREV); AssertHits(BoxHitV, &v, kDevBoxNext, ST_HIT_NEXT); AssertHits(BoxHitV, &v, kDevBoxChoose, ST_HIT_TITLE);
@@ -359,6 +360,23 @@ static void SuiteBox(void)
     v.box.pressed = ST_HIT_PREV; DevCheckTouch(&old, &v); AssertKey(kDevBoxPrev, DEV_LOOK_KEY, 1); AssertKey(kDevBoxChoose, DEV_LOOK_KEY, 1);
     v.box.pressed = ST_HIT_TITLE; DevCheckTouch(&old, &v); AssertKey(kDevBoxPrev, DEV_LOOK_KEY, 0); AssertKey(kDevBoxChoose, DEV_LOOK_KEY, 1);
     other = v; other.box.chooseCount = 5; TouchSamePixels(&other, &v, 0, "how many the chosen box holds");   /* "5/30" */
+    v.box.pressed = -1; NameCodes(v.box.message, (int)sizeof(v.box.message), "Port words: which box?"); DevCheckTouch(&old, &v);
+    AssertHits(BackV, &v, kDevBoxCancel, 1); AssertKey(kDevBoxCancel, DEV_LOOK_DARK, 0);
+    assert(CtrPokeTouch_BoxHit(&v, kDevBoxCancel.x + 5, kDevBoxCancel.y + 5) == ST_HIT_NONE && !CtrPokeTouch_BackHit(&v, 183, 200));
+    assert(at(183, 200) == DEV_SHELL_RED && CountIn(kBoxNarrowPaper, DEV_INK) > 0 && CountIn(kBoxHandPaper, STUB_ICON) > 0);
+    v.backPressed = 1; assert(DevWhole(DevCheckTouch(&old, &v))); AssertKey(kDevBoxCancel, DEV_LOOK_DARK, 1); AssertKey(kDevBoxChoose, DEV_LOOK_KEY, 1);
+    v.backEnabled = 0; DevCheckTouch(&old, &v); assert(at(kDevBoxCancel.x + 3, kDevBoxCancel.y + kDevBoxCancel.h / 2) == DIM_DARK);
+    v.backPressed = 0; v.backEnabled = 1; DevCheckTouch(&old, &v); AssertKey(kDevBoxCancel, DEV_LOOK_DARK, 0);
+    BoxKeyInCapitals(&v, kDevBoxCancel, DEV_LOOK_DARK, 0, CtrUiText(UIS_CANCEL));
+    CtrPokeTouch_Draw(canvas, &old);
+    v.backVisible = 0; DevCheckTouch(&old, &v); assert(!CtrPokeTouch_BackHit(&v, kDevBoxCancel.x + 5, kDevBoxCancel.y + 5));
+    assert(at(kDevBoxCancel.x + 3, kDevBoxCancel.y + kDevBoxCancel.h / 2) == DEV_SHELL_RED);
+    v.backVisible = 1; DevCheckTouch(&old, &v);
+    for (i = PT_BOX_STATE_BUSY; i <= PT_BOX_STATE_MARKS; ++i) {   /* CANCEL is the chooser's alone */
+        v.box.state = (uint8_t)i; v.box.menuCount = 2; v.backPressed = 0; DevCheckTouch(&old, &v);
+        assert(CtrPokeTouch_BackHit(&v, kDevBoxCancel.x + 5, kDevBoxCancel.y + 5) == (i == PT_BOX_STATE_CHOOSE));
+        if (i != PT_BOX_STATE_CHOOSE) { v.backPressed = 1; assert(DevCheckTouch(&old, &v).count == 0); }
+    }
 
     /* the marks: the four marks at 2x (on in the key's ink, off dim), OK, CANCEL dark; FireRed's cursor sunk */
     markArt = 1; v = BoxBoard(); v.box.state = PT_BOX_STATE_MARKS; v.box.menuCount = 6; v.box.marks = 5; v.box.menuCursor = 4;
@@ -372,7 +390,8 @@ static void SuiteBox(void)
     v.box.pressed = ST_HIT_MENU_BASE + 5; DevCheckTouch(&old, &v); BoxKeysSunk(6, 5, 1);
     markArt = 0;
 
-    /* no BACK (CLOSE BOX is FireRed's exit, every menu has its CANCEL): nothing hit where a view's BACK is */
+    /* no BACK but the chooser's (CLOSE BOX is FireRed's exit, every menu has its CANCEL): nothing hit where a view's BACK
+     * is */
     v = BoxBoard(); DevCheckTouch(&old, &v);
     assert(!CtrPokeTouch_BackHit(&v, 278, 210) && !CtrPokeTouch_BackHit(&v, 50, 220) && !CtrPokeTouch_BackHit(&v, 20, 20));
 

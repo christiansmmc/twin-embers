@@ -403,7 +403,7 @@ static inline CtrPokeTouchRect DevNameKey(int cols, int r, int c)
  * or with the cursor in the Party the Party's rows on the same paper (DevBoxPartyRow, 6 its CANCEL). The right column:
  * ◀ ▶, PARTY, CLOSE BOX (dark) and the hand's screen; the note across under them all. A menu, YES / NO or the marks:
  * the keys stand in the right column (DevBoxMenuKey) and the note is narrow (kDevBoxNoteNarrow). The box chooser: ◀ ▶
- * and the chosen box's key (kDevBoxChoose) under them. */
+ * and the chosen box's key (kDevBoxChoose) under them, the note narrow and CANCEL (kDevBoxCancel, dark) beside it. */
 static const CtrPokeTouchRect kDevBoxScreen __attribute__((unused)) = {8, 8, 172, 156};
 static const CtrPokeTouchRect kDevBoxTitle __attribute__((unused)) = {14, 14, 160, 24};
 static const CtrPokeTouchRect kDevBoxPrev __attribute__((unused)) = {188, 8, 58, 24};
@@ -414,6 +414,7 @@ static const CtrPokeTouchRect kDevBoxHand __attribute__((unused)) = {188, 120, 1
 static const CtrPokeTouchRect kDevBoxNote __attribute__((unused)) = {8, 172, 304, 60};
 static const CtrPokeTouchRect kDevBoxNoteNarrow __attribute__((unused)) = {8, 172, 172, 60};
 static const CtrPokeTouchRect kDevBoxChoose __attribute__((unused)) = {188, 40, 124, 72};
+static const CtrPokeTouchRect kDevBoxCancel __attribute__((unused)) = {188, 172, 124, 56};
 
 /* Place i (0-29) of the box: six across, five down, on the wallpaper where FireRed puts its icons. */
 static inline CtrPokeTouchRect DevBoxCell(int i)
