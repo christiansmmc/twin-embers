@@ -3,10 +3,12 @@
  * bar's. */
 
 /* The papers of the note (the Summary's beside BACK, and across without it), where the title's capitals start and
- * where the hints' two lines (the small font) start. */
+ * where the hints' two lines (the small font, DEV_BAG_SMALL_LINE apart) start; the room of a line beside BACK. */
 static const CtrPokeTouchRect kFrameNotePaper = {14, 194, 216, 32}, kFrameWidePaper = {14, 194, 292, 32};
-#define FRAME_TITLE_Y 197
-#define FRAME_HINT_Y 209
+#define FRAME_TITLE_Y 196
+#define FRAME_HINT_Y 208
+#define FRAME_HINT_X (14 + 6)
+#define FRAME_HINT_ROOM (216 - 12)
 #define FRAME_SCREW DevBlend(DEV_SHELL_RED, 0x0000, DEV_A_SCREW)
 
 /* FireRed's own screen in the viewport as 3ds_bottom.c gives it (SnapshotState's MODE_GBAVIEW: the screen's title and
@@ -40,6 +42,26 @@ static void FrameBack(int sunk)
     assert((Count(r.x, r.y, r.w, r.h + DEV_DROP, DEV_LED) > 0) == sunk);
 }
 
+/* The small font's ink of hint line `line` (0, 1) from x to the room's end. */
+static int FrameHintInk(int line, int x)
+{
+    return Count(x, FRAME_HINT_Y + DEV_BAG_SMALL_LINE * line, FRAME_HINT_X + FRAME_HINT_ROOM - x, 7, DEV_INK2);
+}
+
+/* Each hint on a line of its own while each fits the room: hint i's ink on line i, from its start to its width and none
+ * after it. */
+static void FrameHintsALine(const CtrPokeTouchView *v)
+{
+    for (int i = 0; i < 2; ++i) {
+        char hint[PT_BAR_LEN];
+        int w;
+
+        DevUpper(hint, v->bar[1 + i], sizeof(hint));
+        w = DevSmallTextWidth(hint);
+        assert(w <= FRAME_HINT_ROOM && FrameHintInk(i, FRAME_HINT_X) > 0 && FrameHintInk(i, FRAME_HINT_X + w) == 0);
+    }
+}
+
 /* Upper case (owner decision 5): the bar, which v0.6.0 title-cased, drawn in capitals. */
 static void FrameUpperCase(CtrPokeTouchView v)
 {
@@ -59,6 +81,7 @@ static void SuiteFrame(void)
 {
     static const uint16_t kScrew[4][2] = {{4, 4}, {315, 4}, {4, 234}, {315, 234}};
     CtrPokeTouchView v = FrameBoard(), old = v, other;
+    uint8_t keepSmall[256];
     int x, y;
 
     CtrPokeTouch_Draw(canvas, &old);
@@ -86,9 +109,9 @@ static void SuiteFrame(void)
     assert(at(PT_VIEW_X - 1, PT_VIEW_Y - 1) == DEV_BEZEL && at(PT_VIEW_X + PT_VIEW_W, PT_VIEW_Y + PT_VIEW_H) == DEV_BEZEL);
     v.viewport = 0; assert(DevWhole(DevCheckTouch(&old, &v)));
     assert(Count(PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H, DEV_PAPER) == PT_VIEW_W * PT_VIEW_H);
-    /* the note beside BACK: the title in the paper's ink, the two hints as one text in the small font and the secondary
-     * ink, wrapped into two lines under it; nothing between the note and BACK */
-    v = FrameBoard(); DevCheckTouch(&old, &v);
+    /* the note beside BACK: the title in the paper's ink, the two hints in the small font and the secondary ink under
+     * it, one a line (each fits); nothing between the note and BACK */
+    v = FrameBoard(); DevCheckTouch(&old, &v); FrameHintsALine(&v);
     assert(Count(kFrameNotePaper.x, FRAME_TITLE_Y, kFrameNotePaper.w, UI_TEXT_H, DEV_INK) > 0);
     assert(Count(kFrameNotePaper.x, FRAME_HINT_Y, kFrameNotePaper.w, 7, DEV_INK2) > 0
            && Count(kFrameNotePaper.x, FRAME_HINT_Y + 9, kFrameNotePaper.w, 7, DEV_INK2) > 0);
@@ -110,6 +133,23 @@ static void SuiteFrame(void)
     strcpy(v.bar[2], "Back is the B button."); DevCheckTouch(&old, &v);
     assert(Count(kFrameNotePaper.x, FRAME_HINT_Y, kFrameNotePaper.w, 7, DEV_INK2) > 0
            && Count(kFrameNotePaper.x, FRAME_HINT_Y + 9, kFrameNotePaper.w, 7, DEV_INK2) == 0);
+    /* with capitals 8 px wide in the small font, a hint wider than the room: the two as one text, wrapped into the two
+     * lines (the second holds the first hint's end, not "BACK." alone); a text the two lines cannot hold: what is left
+     * dropped and counted as a cut */
+    memcpy(keepSmall, smallWidths, sizeof(keepSmall));
+    for (unsigned c = 0xbb; c <= 0xd4; ++c)        /* A..Z */
+        smallWidths[c] = 8;
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    strcpy(v.bar[1], "Port words that run on too long"); strcpy(v.bar[2], "Back.");
+    DevCheckTouch(&old, &v); assert(sDevKeyCut == 0);
+    assert(FrameHintInk(0, FRAME_HINT_X + 100) > 0 && FrameHintInk(1, FRAME_HINT_X + 60) > 0);
+    strcpy(v.bar[1], "Port words for this test, and on and on"); strcpy(v.bar[2], "More port words that two lines drop");
+    DevCheckTouch(&old, &v); sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &v);         /* one draw: one cut */
+    assert(sDevKeyCut == 1 && FrameHintInk(1, FRAME_HINT_X + FRAME_HINT_ROOM - 40) > 0);
+    sDevKeyCut = 0;
+    memcpy(smallWidths, keepSmall, sizeof(keepSmall));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    CtrPokeTouch_Draw(canvas, &old);
     /* without BACK the note goes across, its paper where BACK was */
     v = FrameBoard(); v.backVisible = 0; DevCheckTouch(&old, &v);
     assert(at(300, 199) == DEV_PAPER && at(kFrameWidePaper.x + kFrameWidePaper.w - 1, 200) == DEV_PAPER && at(312, 209) == DEV_SHELL_RED);
