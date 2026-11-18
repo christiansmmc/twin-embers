@@ -186,75 +186,47 @@ static int BattleFaults(void)
     return faults;
 }
 
-/* The Party's action menu: the keys DevPtyMenuKey draws and the D-pad rule the game's input follows (3ds_party_grid.h,
- * recipe 0257) must agree. Judged from the drawn rectangles alone: UP / DOWN go to the neighbour above or below in the same
- * drawn column and wrap at its ends, LEFT / RIGHT to the other column at the same height, or at the lowest row of the right
- * column when it is shorter. (The ember drawer's harness's check, on the red device's keys: 28 px a row, 24 tall, one
- * column at x 206 or two at 132 and 226.) */
+/* The Party's action menu (def_party_menu; owner O2): one column at x 204 of DEV_PTY_MENU_ROWS keys, the board's 24 tall
+ * and 28 apart, beside the slim bays and clear of them, the sixth's drop ending by y 175; the cue (▲ over the first key,
+ * ▼ under the sixth: Call 10) clear of the keys, the screws and the grid's note and exit. The column is one for every
+ * count, so the D-pad is FireRed's own list input (3ds_party_grid.h, recipe 0257: its grid answers -1). */
 static void PartyMenuGrid(void)
 {
+    const CtrPokeTouchRect up = {DEV_PTY_CUE_X - 4, DEV_PTY_CUE_UP_Y - 2, 9, 5};
+    const CtrPokeTouchRect down = {DEV_PTY_CUE_X - 4, DEV_PTY_CUE_DOWN_Y - 2, 9, 5};
+    const CtrPokeTouchRect last = DevPtyMenuKey(DEV_PTY_MENU_ROWS - 1);
+
+    assert(DEV_PTY_MENU_ROWS == 6 && Same(DevPtyMenuKey(5), (CtrPokeTouchRect){204, 148, 108, 24}));
+    for (int k = 0; k < DEV_PTY_MENU_ROWS; ++k) {
+        CtrPokeTouchRect r = DevPtyMenuKey(k);
+
+        assert(Same(r, (CtrPokeTouchRect){204, (int16_t)(8 + 28 * k), 108, 24}) && Inside(r));
+        for (int i = 0; i < 6; ++i)
+            assert(!Overlap(r, DevPtySlim(i)));
+        for (int j = 0; j < k; ++j)
+            assert(!Overlap(r, DevPtyMenuKey(j)));
+    }
+    assert(last.y + last.h + DEV_DROP <= 175);
+    assert(up.x == 254 && up.y == 2 && down.y == 180);                  /* Call 10: centred (258, 4) and (258, 182) */
+    assert(up.y + up.h <= DevPtyMenuKey(0).y && down.y >= last.y + last.h + DEV_DROP);
+    assert(down.y + down.h <= kDevGridNote.y && down.y + down.h <= kDevGridExit.y);
+    assert(up.x > 2 + 5 && up.x + up.w < 313 && up.x >= DevPtyMenuKey(0).x && up.x + up.w <= DevPtyMenuKey(0).x + DevPtyMenuKey(0).w);
     for (int n = 1; n <= 8; ++n) {
-        CtrPokeTouchRect r[8];
-        int xs[2], nx = 0;
-
-        for (int i = 0; i < n; ++i) {
-            r[i] = DevPtyMenuKey(n, i);
-            assert(Inside(r[i]) && r[i].h == 24 && r[i].w == (n > 4 ? 86 : 106));
-            assert(r[i].x == (n <= 4 ? 206 : CtrPartyGrid_Col(n, i) ? 226 : 132));
-            if (!nx || r[i].x != xs[nx - 1]) {
-                assert(nx < 2 && (nx == 0 || r[i].x > xs[0]));
-                xs[nx++] = r[i].x;
-            }
-            for (int j = 0; j < i; ++j)
-                assert(!Overlap(r[i], r[j]));
-        }
-        assert(nx == (n > 4 ? 2 : 1));
-        for (int i = 0; i < n; ++i) {
-            int top = 1 << 30, bottom = -1, otherBottom = -1, sameRow = -1;
-
-            if (i > 0 && r[i].x == r[i - 1].x)
-                assert(r[i].y == r[i - 1].y + 28);                       /* a column fills from the top, 28 px a row */
-            if (i > 0 && r[i].x != r[i - 1].x)
-                assert(r[i].y == r[0].y);                                /* the right column starts level with the left */
-            for (int j = 0; j < n; ++j) {
-                if (r[j].x == r[i].x) {
-                    if (r[j].y < top) top = r[j].y;
-                    if (r[j].y > bottom) bottom = r[j].y;
-                } else {
-                    if (r[j].y > otherBottom) otherBottom = r[j].y;
-                    if (r[j].y == r[i].y) sameRow = j;
-                }
-            }
-            for (int d = CTR_PGRID_UP; d <= CTR_PGRID_RIGHT; ++d) {
-                int to = CtrPartyGrid_Move(n, i, d);
-
-                if (n <= 4) {
-                    assert(to == -1);                                    /* one column: the game's own list input */
-                    continue;
-                }
-                assert(to >= 0 && to < n);
-                if (d == CTR_PGRID_UP) {
-                    assert(r[to].x == r[i].x && r[to].y == (r[i].y > top ? r[i].y - 28 : bottom));
-                } else if (d == CTR_PGRID_DOWN) {
-                    assert(r[to].x == r[i].x && r[to].y == (r[i].y < bottom ? r[i].y + 28 : top));
-                } else {
-                    assert(r[to].x != r[i].x && r[to].y == (sameRow >= 0 ? r[i].y : otherBottom));
-                    assert(sameRow < 0 || to == sameRow);
-                }
-            }
-        }
+        assert(CtrPartyGrid_Cols(n) == 1);
+        for (int i = 0; i < n; ++i)
+            for (int d = CTR_PGRID_UP; d <= CTR_PGRID_RIGHT; ++d)
+                assert(CtrPartyGrid_Move(n, i, d) == -1);                /* one column: the game's own list input */
     }
 }
 
-/* The Party (boards B · POKeMON and its menu): the brief's numbers; the bays two to a row over the grid's note and exit
- * (picking several: the small note, CONFIRM and the exit, 8 px apart); with a menu the slim bays left of its keys, none
- * of them reaching the menu's screen; each screen above nothing it would cover. */
+/* The Party (boards def_party and def_party_menu): the brief's numbers; the bays two to a row over the grid's note and
+ * exit (picking several: the small note, CONFIRM and the exit, 8 px apart); with a menu the slim bays (the board's, 188
+ * wide) none reaching the grid's note (the keys beside them: PartyMenuGrid); each screen above nothing it would cover. */
 static int PartyFaults(void)
 {
     int faults = 0;
 
     assert(Same(kDevPtyConfirm, (CtrPokeTouchRect){168, 190, 68, 40}) && Same(kDevPtyLevelScreen, (CtrPokeTouchRect){8, 8, 304, 176}));
-    assert(Same(kDevPtyMenuNote, (CtrPokeTouchRect){8, 182, 304, 50}));
     assert(kDevSmallNote.x + kDevSmallNote.w + 8 == kDevPtyConfirm.x && kDevPtyConfirm.x + kDevPtyConfirm.w + 8 == kDevGridExit.x);
     for (int i = 0; i < 6; ++i) {
         int foot = DevPtyBay(i).y + DevPtyBay(i).h + DEV_DROP;
@@ -265,21 +237,15 @@ static int PartyFaults(void)
             ++faults;
         }
     }
-    for (int n = 0; n <= 8; ++n)
-        for (int i = 0; i < 6; ++i) {
-            CtrPokeTouchRect s = DevPtySlim(n, i);
+    for (int i = 0; i < 6; ++i) {
+        CtrPokeTouchRect s = DevPtySlim(i);
 
-            assert(Same(s, (CtrPokeTouchRect){8, (int16_t)(8 + 28 * i), (int16_t)(n <= 4 ? 188 : 116), 24}));
-            if (!Inside(s) || s.y + s.h + DEV_DROP > kDevPtyMenuNote.y) {
-                fprintf(stderr, "Party: slim bay %d (menu of %d) reaches the menu's screen\n", i, n);
-                ++faults;
-            }
-            for (int k = 0; k < n; ++k)
-                if (Overlap(s, DevPtyMenuKey(n, k)) || DevPtyMenuKey(n, k).y + DevPtyMenuKey(n, k).h + DEV_DROP > kDevPtyMenuNote.y) {
-                    fprintf(stderr, "Party: menu key %d of %d meets slim bay %d or the menu's screen\n", k, n, i);
-                    ++faults;
-                }
+        assert(Same(s, (CtrPokeTouchRect){8, (int16_t)(8 + 28 * i), 188, 24}));
+        if (!Inside(s) || s.y + s.h + DEV_DROP > kDevGridNote.y) {
+            fprintf(stderr, "Party: slim bay %d reaches the grid's note\n", i);
+            ++faults;
         }
+    }
     if (kDevPtyLevelScreen.y + kDevPtyLevelScreen.h + 1 > kDevGridNote.y) {
         fprintf(stderr, "Party: the level-up screen (with its light row) reaches the note\n");
         ++faults;
@@ -884,6 +850,8 @@ int main(void)
     const CtrPokeTouchRect ptyMulti[] = {DevPtyBay(0), DevPtyBay(1), DevPtyBay(2), DevPtyBay(3), DevPtyBay(4), DevPtyBay(5),
                                          kDevPtyConfirm, kDevGridExit};
     const CtrPokeTouchRect ptyOk[] = {kDevGridExit};
+    const CtrPokeTouchRect ptyMenu[] = {DevPtyMenuKey(0), DevPtyMenuKey(1), DevPtyMenuKey(2), DevPtyMenuKey(3),
+                                        DevPtyMenuKey(4), DevPtyMenuKey(5), kDevGridExit};
     const CtrPokeTouchRect sumKeys[] = {DevGridTab(4, 0), DevGridTab(4, 1), DevGridTab(4, 2), DevGridTab(4, 3), kDevGridUp,
                                         kDevGridDown, kDevGridExit};
     const CtrPokeTouchRect bagList[] = {DevGridTab(3, 0), DevGridTab(3, 1), DevGridTab(3, 2), kDevGridUp, kDevGridDown, kDevGridExit};
@@ -914,9 +882,9 @@ int main(void)
     const CtrPokeTouchRect ecList[] = {kDevEcUp, kDevEcDown, DevEcListKey(0), DevEcListKey(1), DevEcListKey(2)};
     const CtrPokeTouchRect ecAsk[] = {kDevAskYes, kDevAskNo};
     const CtrPokeTouchRect frameKeys[] = {kDevTallBack};
-    CtrPokeTouchRect ptyMenu[8][8], bagMenu[PT_BAG_MENU_MAX + 1][PT_BAG_MENU_MAX], choiceKeys[3][8][9], nameKeys[2][5 + 32];
+    CtrPokeTouchRect bagMenu[PT_BAG_MENU_MAX + 1][PT_BAG_MENU_MAX], choiceKeys[3][8][9], nameKeys[2][5 + 32];
     CtrPokeTouchRect boxMenu[7][7], ecEdit[9][9 + 5], ecGrid[2][26 + 2];
-    DevGroup ptyMenus[8], bagMenus[PT_BAG_MENU_MAX + 1], choiceGroups[3][8], nameGroups[2], boxMenus[7], ecEdits[9], ecGrids[2];
+    DevGroup bagMenus[PT_BAG_MENU_MAX + 1], choiceGroups[3][8], nameGroups[2], boxMenus[7], ecEdits[9], ecGrids[2];
     static const char *const kEcEditName[9] = {"Easy Chat phrase of 1", "Easy Chat phrase of 2", "Easy Chat phrase of 3",
                                                "Easy Chat phrase of 4", "Easy Chat phrase of 5", "Easy Chat phrase of 6",
                                                "Easy Chat phrase of 7", "Easy Chat phrase of 8", "Easy Chat phrase of 9"};
@@ -926,8 +894,6 @@ int main(void)
     static char choiceName[3][8][40];
     static const char *const kBagMenuName[PT_BAG_MENU_MAX + 1] = {NULL, NULL, "Bag menu of 2", "Bag menu of 3",
                                                                   "Bag menu of 4", "Bag menu of 5", "Bag menu of 6"};
-    static const char *const kMenuName[8] = {"Party menu of 1", "Party menu of 2", "Party menu of 3", "Party menu of 4",
-                                             "Party menu of 5", "Party menu of 6", "Party menu of 7", "Party menu of 8"};
     const DevNamedRect rects[] = {
         {"HOME screen", kDevHomeScreen}, {"HOME POKeDEX", kDevHomeKey[0]}, {"HOME POKeMON", kDevHomeKey[1]},
         {"HOME BAG", kDevHomeKey[2]}, {"HOME card", kDevHomeKey[3]}, {"HOME SAVE", kDevHomeKey[4]},
@@ -940,7 +906,7 @@ int main(void)
         {"battle BAG (4)", kDevBatRow4[0]}, {"battle BALL", kDevBatRow4[1]}, {"battle POKeMON (4)", kDevBatRow4[2]},
         {"battle RUN (4)", kDevBatRow4[3]}, {"battle move 0", kDevBatMove[0]}, {"battle move 1", kDevBatMove[1]},
         {"battle move 2", kDevBatMove[2]}, {"battle move 3", kDevBatMove[3]}, {"battle CANCEL", kDevBatCancel},
-        {"Party CONFIRM", kDevPtyConfirm}, {"Party menu's screen", kDevPtyMenuNote},
+        {"Party CONFIRM", kDevPtyConfirm}, {"Party slim bay 5", DevPtySlim(5)}, {"Party menu key 5", DevPtyMenuKey(5)},
         {"Party level-up screen", kDevPtyLevelScreen}, {"Party bay 0", DevPtyBay(0)}, {"Party bay 5", DevPtyBay(5)},
         {"Summary column", kDevSumColumn}, {"Summary picture", kDevSumPic}, {"Summary switch", kDevSumIvSwitch},
         {"Summary switch's touch", kDevSumIvSwitchHit}, {"Summary row 0", DevSumRow(0)}, {"Summary CANCEL row", DevSumRow(4)},
@@ -994,7 +960,8 @@ int main(void)
     const DevGroup groups[] = {DEV_GROUP("HOME", homeKeys), DEV_GROUP("battle, a trainer", batTrainer),
                                DEV_GROUP("battle, wild", batWild), DEV_GROUP("battle moves", batMoves),
                                DEV_GROUP("Party", ptyBays), DEV_GROUP("Party, several", ptyMulti),
-                               DEV_GROUP("Party level up", ptyOk), DEV_GROUP("Summary", sumKeys),
+                               DEV_GROUP("Party level up", ptyOk), DEV_GROUP("Party menu", ptyMenu),
+                               DEV_GROUP("Summary", sumKeys),
                                DEV_GROUP("Bag list", bagList), DEV_GROUP("a case's list", bagCase),
                                DEV_GROUP("Bag how many", bagQty), DEV_GROUP("Bag YES / NO", bagYesNo),
                                DEV_GROUP("OPTIONS", optKeys), DEV_GROUP("a question", askKeys),
@@ -1012,12 +979,6 @@ int main(void)
 
     RulesCatchFaults();
     PartyMenuGrid();
-    for (int n = 1; n <= 8; ++n) {          /* the menu's keys of each size: a group each */
-        for (int i = 0; i < n; ++i)
-            ptyMenu[n - 1][i] = DevPtyMenuKey(n, i);
-        ptyMenus[n - 1] = (DevGroup){kMenuName[n - 1], ptyMenu[n - 1], n};
-        faults += GroupFaults(&ptyMenus[n - 1]);
-    }
     for (int n = 2; n <= PT_BAG_MENU_MAX; ++n) {    /* the Bag's item menu of each size: its keys and the exit */
         for (int i = 0; i < n - 1; ++i)
             bagMenu[n][i] = DevBagMenuKey(n, i);

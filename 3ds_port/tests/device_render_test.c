@@ -1937,7 +1937,7 @@ static void PtyUpperCase(CtrBattleView v)
 static void SuiteParty(void)
 {
     CtrBattleView v = PtyBoard(), old = v;
-    int i;
+    int i, k;
     uint16_t dim = DevBlend(DEV_SHELL_RED, DEV_KEY, 128);
 
     CtrBattleUi_Draw(canvas, &old);
@@ -2035,44 +2035,83 @@ static void SuiteParty(void)
     assert(at(144, 222) == DEV_INK2 && at(140, 218) == DEV_INK2 && Count(154, 190, 90, 43, DEV_INK) == 0);
     v.pty.panel = BUI_PTY_NONE; v.pty.message[0] = 0; DevCheckBattle(&old, &v);
     v.pty.button = 1; v.pty.cursor = 0; memset(v.pty.entry, 0, sizeof(v.pty.entry)); DevCheckBattle(&old, &v);
+    /* the action menu (def_party_menu; owner O2): the slim bays, the actions in the column at x 204 (words from x + 10),
+     * FireRed's CANCEL the dark key in the exit corner, the Party's words on the grid's note. menu3 (a battle's SHIFT
+     * SUMMARY CANCEL): two keys and the exit; no cue */
     v.pty.mode = BUI_PTY_SWITCH; v.pty.panel = BUI_PTY_ACTIONS; v.pty.menuCount = 3; v.pty.menuCursor = 0; v.pty.menuDark = 0x04; DevCheckBattle(&old, &v);
-    for (i = 0; i < 3; ++i) AssertHits(BatHitV, &v, DevPtyMenuKey(3, i), BUI_PTY_MENU + i);
-    AssertKey(DevPtyMenuKey(3, 2), DEV_LOOK_DARK, 0); assert(CtrBattleUi_Hit(&v, 100, 20) == -1);           /* bays: not while a menu is open */
-    /* the slim bays: the chosen one sunk, the hole; the menu's screen with the Party's words; the first row chosen */
-    AssertKey(DevPtySlim(3, 0), DEV_LOOK_KEY, 1); AssertKey(DevPtySlim(3, 1), DEV_LOOK_KEY, 0); AssertKey(DevPtySlim(3, 3), DEV_LOOK_FAINT, 0);
-    assert(at(100, 8 + 28 * 5 + 12) == DevBlend(DEV_SHELL_RED, 0, 72) && Count(14, 188, 292, 38, DEV_INK) > 0);
-    AssertKey(DevPtyMenuKey(3, 0), DEV_LOOK_KEY, 1); AssertKey(DevPtyMenuKey(3, 1), DEV_LOOK_KEY, 0);
-    v.pty.gender[1] ^= 1; assert(DevCheckBattle(&old, &v).count == 0);                                  /* no sign on a slim bay */
-    v.pty.gender[1] ^= 1; assert(DevCheckBattle(&old, &v).count == 0);
-    v.pressed = BUI_PTY_MENU + 1; DevCheckBattle(&old, &v); AssertKey(DevPtyMenuKey(3, 1), DEV_LOOK_KEY, 1); AssertKey(DevPtyMenuKey(3, 0), DEV_LOOK_KEY, 0);
+    for (k = 0; k < 2; ++k) AssertHits(BatHitV, &v, DevPtyMenuKey(k), BUI_PTY_MENU + k);
+    AssertHits(BatHitV, &v, kDevGridExit, BUI_PTY_MENU + 2); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0);
+    assert(CtrBattleUi_Hit(&v, 100, 20) == -1 && CtrBattleUi_Hit(&v, 258, 76) == -1);                  /* bays: not while a menu is open; no third key */
+    assert(at(258, 76) == DEV_SHELL_RED && Count(254, 180, 9, 5, DEV_DARK_INK) == 0 && Count(254, 2, 9, 5, DEV_ARROW_OFF) == 0);
+    /* the slim bays (188 wide): the chosen one sunk, the hole; a level small in DEV_KEY_INK2 (#6A6A6A, the board's) and
+     * the numbers under it; the Party's words on the grid's note, nothing over it; the first row chosen */
+    AssertKey(DevPtySlim(0), DEV_LOOK_KEY, 1); AssertKey(DevPtySlim(1), DEV_LOOK_KEY, 0); AssertKey(DevPtySlim(3), DEV_LOOK_FAINT, 0);
+    assert(at(100, 8 + 28 * 5 + 12) == DevBlend(DEV_SHELL_RED, 0, 72) && Count(14, 196, 216, 30, DEV_INK) > 0 && Count(8, 176, 304, 14, DEV_INK) == 0);
+    assert(Count(150, 36, 33, 12, DEV_KEY_INK2) > 0 && Count(150, 46, 33, 14, DEV_KEY_INK) > 0 && Count(183, 36, 13, 24, DEV_KEY_INK2) == 0);
+    AssertKey(DevPtyMenuKey(0), DEV_LOOK_KEY, 1); AssertKey(DevPtyMenuKey(1), DEV_LOOK_KEY, 0);
+    v.pty.gender[1] ^= 1; v.pty.button ^= 1; assert(DevCheckBattle(&old, &v).count == 0);              /* no sign on a slim bay; the bays' CANCEL not drawn */
+    v.pty.gender[1] ^= 1; v.pty.button ^= 1; assert(DevCheckBattle(&old, &v).count == 0);
+    v.pressed = BUI_PTY_MENU + 1; DevCheckBattle(&old, &v); AssertKey(DevPtyMenuKey(1), DEV_LOOK_KEY, 1); AssertKey(DevPtyMenuKey(0), DEV_LOOK_KEY, 0);
+    v.pressed = BUI_PTY_MENU + 2; DevCheckBattle(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1); AssertKey(DevPtyMenuKey(0), DEV_LOOK_KEY, 0);
     v.pressed = -1; DevCheckBattle(&old, &v);
     strcpy(v.pty.menuName[0], "SHIFT"); strcpy(v.pty.menuName[1], "SUMMARY"); strcpy(v.pty.menuName[2], "CANCEL"); DevCheckBattle(&old, &v);
+    assert(Count(204, 36, 10, 27, DEV_KEY_INK) == 0 && Count(214, 36, 8, 27, DEV_KEY_INK) > 0);        /* SUMMARY from x + 10 */
+    assert(Count(244, 190, 68, 43, DEV_DARK_INK) > 0);                                                  /* CANCEL's word */
     shot("menu3");
+    /* menu6 (the board's SUMMARY SWITCH ITEM CUT FLY CANCEL): five keys, field moves in blue, CANCEL in the exit corner;
+     * no cue */
     strcpy(v.pty.menuName[0], "SUMMARY"); strcpy(v.pty.menuName[1], "SWITCH"); strcpy(v.pty.menuName[2], "ITEM");
     v.pty.menuCount = 6; v.pty.menuBlue = 0x18; v.pty.menuDark = 0x20; DevCheckBattle(&old, &v);
-    assert(CtrBattleUi_Hit(&v, 175, 20) == BUI_PTY_MENU && CtrBattleUi_Hit(&v, 175, 76) == BUI_PTY_MENU + 2 && CtrBattleUi_Hit(&v, 269, 20) == BUI_PTY_MENU + 3 && CtrBattleUi_Hit(&v, 269, 76) == BUI_PTY_MENU + 5);
-    /* field moves in blue, CANCEL dark; the slim bays narrowed */
-    assert(Count(226, 8, 86, 24, DEV_BLUE_INK) > 0 && Count(226, 36, 86, 24, DEV_BLUE_INK) > 0 && Count(132, 8, 86, 54, DEV_BLUE_INK) == 0);
-    AssertKey(DevPtyMenuKey(6, 5), DEV_LOOK_DARK, 0); assert(at(128, 20) == DEV_SHELL_RED);
+    for (k = 0; k < 5; ++k) AssertHits(BatHitV, &v, DevPtyMenuKey(k), BUI_PTY_MENU + k);
+    AssertHits(BatHitV, &v, kDevGridExit, BUI_PTY_MENU + 5); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0);
+    assert(CtrBattleUi_Hit(&v, 258, 160) == -1 && at(258, 160) == DEV_SHELL_RED);                       /* no sixth key */
+    assert(Count(204, 92, 108, 27, DEV_BLUE_INK) > 0 && Count(204, 120, 108, 27, DEV_BLUE_INK) > 0 && Count(204, 8, 108, 83, DEV_BLUE_INK) == 0);
+    assert(Count(254, 180, 9, 5, DEV_DARK_INK) == 0 && Count(254, 2, 9, 5, DEV_ARROW_OFF) == 0 && at(200, 20) == DEV_SHELL_RED);
     v.pty.caption[0] = 0; strcpy(v.pty.caption, "Do what with this POK\xC3\xA9MON?"); DevCheckBattle(&old, &v);
     shot("menu6");
-    v.pty.menuCount = 8; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 269, 104) == BUI_PTY_MENU + 7);
+    /* menu8 (Review Focus 2: SUMMARY SWITCH ITEM CUT FLY HEAL REMEMBER CANCEL, HEAL and REMEMBER with CTR_PARTY_EXTRAS,
+     * blue as the fill marks them): six keys shown, the window following FireRed's cursor (the seventh action, CANCEL,
+     * and round to SUMMARY again), CANCEL in the exit corner hitting the dark row; the cue cream where actions are
+     * hidden, grey where none are, never hit */
     {
-        static const char *const kEight[8] = {"SUMMARY", "CUT", "FLY", "SURF", "STRENGTH", "SWITCH", "ITEM", "CANCEL"};
+        static const char *const kEight[8] = {"SUMMARY", "SWITCH", "ITEM", "CUT", "FLY", "HEAL", "REMEMBER", "CANCEL"};
 
         for (i = 0; i < 8; ++i) strcpy(v.pty.menuName[i], kEight[i]);
-        v.pty.menuBlue = 0x1E; v.pty.menuDark = 0x80; v.pty.menuCursor = 3; DevCheckBattle(&old, &v);
-        AssertKey(DevPtyMenuKey(8, 3), DEV_LOOK_KEY, 1); AssertKey(DevPtyMenuKey(8, 7), DEV_LOOK_DARK, 0);
+        v.pty.menuCount = 8; v.pty.menuBlue = 0x78; v.pty.menuDark = 0x80;
+        v.pty.menuCursor = 0; DevCheckBattle(&old, &v);
+        for (k = 0; k < 6; ++k) AssertHits(BatHitV, &v, DevPtyMenuKey(k), BUI_PTY_MENU + k);
+        AssertHits(BatHitV, &v, kDevGridExit, BUI_PTY_MENU + 7); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0);
+        assert(Count(254, 180, 9, 5, DEV_DARK_INK) > 0 && Count(254, 2, 9, 5, DEV_ARROW_OFF) > 0);               /* more below */
+        assert(Count(254, 2, 9, 5, DEV_DARK_INK) == 0 && Count(254, 180, 9, 5, DEV_ARROW_OFF) == 0);
+        assert(CtrBattleUi_Hit(&v, 258, 4) == -1 && CtrBattleUi_Hit(&v, 258, 182) == -1);                       /* the cue: not hit */
+        AssertKey(DevPtyMenuKey(0), DEV_LOOK_KEY, 1); assert(Count(204, 148, 108, 27, DEV_BLUE_INK) > 0);       /* HEAL on the sixth */
         shot("menu8");
+        v.pty.menuCursor = 6; DevCheckBattle(&old, &v); AssertHits(BatHitV, &v, DevPtyMenuKey(5), BUI_PTY_MENU + 6); AssertKey(DevPtyMenuKey(5), DEV_LOOK_KEY, 1);
+        AssertHits(BatHitV, &v, DevPtyMenuKey(0), BUI_PTY_MENU + 1); AssertHits(BatHitV, &v, kDevGridExit, BUI_PTY_MENU + 7);
+        assert(Count(254, 2, 9, 5, DEV_DARK_INK) > 0 && Count(254, 180, 9, 5, DEV_ARROW_OFF) > 0);               /* more above */
+        assert(Count(204, 148, 108, 27, DEV_BLUE_INK) > 0 && Count(204, 8, 108, 55, DEV_BLUE_INK) == 0);        /* REMEMBER in blue; SUMMARY gone */
+        shot("menu8_seventh");
+        v.pty.menuCursor = 7; DevCheckBattle(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1); AssertHits(BatHitV, &v, DevPtyMenuKey(0), BUI_PTY_MENU + 1);
+        for (k = 0; k < 6; ++k) AssertKey(DevPtyMenuKey(k), DEV_LOOK_KEY, 0);
+        AssertHits(BatHitV, &v, DevPtyMenuKey(5), BUI_PTY_MENU + 6); assert(Count(254, 2, 9, 5, DEV_DARK_INK) > 0);
+        shot("menu8_cancel");
+        v.pty.menuCursor = 0; DevCheckBattle(&old, &v); AssertHits(BatHitV, &v, DevPtyMenuKey(0), BUI_PTY_MENU);   /* DOWN wraps to SUMMARY */
+        AssertKey(DevPtyMenuKey(0), DEV_LOOK_KEY, 1); assert(Count(254, 180, 9, 5, DEV_DARK_INK) > 0);
+        v.pressed = BUI_PTY_MENU + 7; DevCheckBattle(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);   /* a touch on CANCEL sinks it */
+        v.pressed = -1; DevCheckBattle(&old, &v);
         /* a long word on a chosen key clears its LED (a German field move) */
-        strcpy(v.pty.menuName[1], "ZERTRUEMMERER"); v.pty.menuCursor = 1; DevCheckBattle(&old, &v);
-        assert(LedAt(DevPtyMenuKey(8, 1)) && Count(205, 40, 12, 10, DEV_BLUE_INK) == 0 && Count(140, 40, 64, 10, DEV_BLUE_INK) > 0);
-        strcpy(v.pty.menuName[1], "CUT");
+        strcpy(v.pty.menuName[3], "ZERTRUEMMERER"); v.pty.menuCursor = 3; DevCheckBattle(&old, &v);
+        assert(LedAt(DevPtyMenuKey(3)) && Count(296, 92, 16, 14, DEV_BLUE_INK) == 0 && Count(206, 92, 90, 14, DEV_BLUE_INK) > 0);
+        strcpy(v.pty.menuName[3], "CUT");
         v.pty.menuCursor = 0;
     }
-    v.pty.panel = BUI_PTY_YESNO; v.pty.menuCount = 2; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 259, 20) == BUI_PTY_MENU && CtrBattleUi_Hit(&v, 259, 48) == BUI_PTY_MENU + 1);
-    strcpy(v.pty.menuName[0], "YES"); strcpy(v.pty.menuName[1], "NO"); v.pty.menuBlue = v.pty.menuDark = 0;
-    strcpy(v.pty.caption, "Switch places?"); DevCheckBattle(&old, &v); AssertKey(DevPtyMenuKey(2, 1), DEV_LOOK_KEY, 0);
+    /* YES / NO: two keys in the column, no exit key (the corner empty, not taken) */
+    v.pty.panel = BUI_PTY_YESNO; v.pty.menuCount = 2; strcpy(v.pty.menuName[0], "YES"); strcpy(v.pty.menuName[1], "NO");
+    v.pty.menuBlue = v.pty.menuDark = 0; strcpy(v.pty.caption, "Switch places?"); DevCheckBattle(&old, &v);
+    AssertHits(BatHitV, &v, DevPtyMenuKey(0), BUI_PTY_MENU); AssertHits(BatHitV, &v, DevPtyMenuKey(1), BUI_PTY_MENU + 1);
+    assert(CtrBattleUi_Hit(&v, 278, 210) == -1 && at(278, 210) == DEV_SHELL_RED && Count(244, 190, 68, 43, DEV_BEZEL) == 0);
+    AssertKey(DevPtyMenuKey(0), DEV_LOOK_KEY, 1); AssertKey(DevPtyMenuKey(1), DEV_LOOK_KEY, 0);
+    assert(Count(14, 196, 216, 30, DEV_INK) > 0 && Count(254, 180, 9, 5, DEV_DARK_INK) == 0);
     shot("yesno");
     v.pty.menuName[5][0] = 'X'; v.pty.menuBlue = 0x20; assert(DevCheckBattle(&old, &v).count == 0);      /* rows past the menu: not drawn */
     v.pty.panel = BUI_PTY_TEXT; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 10, 10) == BUI_PTY_MESSAGE && CtrBattleUi_Hit(&v, 300, 230) == BUI_PTY_MESSAGE);

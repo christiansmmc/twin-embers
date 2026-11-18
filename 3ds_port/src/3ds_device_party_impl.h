@@ -9,9 +9,10 @@
  * the Party says (its own prompt, or the mode's words) and CANCEL, the dark key in the exit corner, leaves (grey and not
  * taken when a Pokemon must be sent out); picking several (the Decisions) the words on the small note, CONFIRM beside it,
  * CANCEL in the exit corner. A message is on the note with FireRed's arrow, the keys grey: a tap anywhere goes on.
- * The action menu (and YES / NO): the bays become a column of slim ones and the actions keys beside them, one column of
- * up to four, two beyond with the slim bays narrowed (the game's D-pad walks the same grid, 3ds_party_grid.h); a field
- * move's name in blue, CANCEL dark; the menu's screen under them with the Party's prompt. A Rare Candy's level up: the
+ * The action menu (and YES / NO; def_party_menu, the owner's O2): the bays become a column of slim ones and the actions
+ * keys in one column beside them, six shown in a window that follows FireRed's cursor (the D-pad is the game's own list
+ * input, 3ds_party_grid.h), ▲▼ over and under it when actions are hidden; a field move's name in blue; FireRed's CANCEL
+ * the dark key in the exit corner (YES / NO has none); the Party's prompt on the grid's note. A Rare Candy's level up: the
  * new level and the six stats with their gains on a tall screen, the message on the grid's note, OK cream in the exit
  * corner (up; sunk under a held touch, which goes on).
  *
@@ -39,10 +40,29 @@ static const char *const kDevPtyTag[5] = {
     CTR_TR("NO USE", "NO SIRVE", "NUTZLOS"),
 };
 
-/* The menu's rows shown (at most the grid's eight). */
+/* The menu's rows (at most FireRed's eight). */
 static int DevPtyMenuCount(const CtrBattleParty *p)
 {
     return CtrPartyGrid_Count(p->menuCount);
+}
+
+/* The rows the column holds: the menu's, less the last when it is FireRed's CANCEL (dark: the exit corner's key). */
+static int DevPtyMenuKeys(const CtrBattleParty *p)
+{
+    int n = DevPtyMenuCount(p);
+
+    return n > 0 && ((p->menuDark >> (n - 1)) & 1) ? n - 1 : n;
+}
+
+/* The row the column's first key shows: 0 while the column shows every action; beyond, the window FireRed's cursor
+ * gives, the cursor on the last key once it is past it (on CANCEL, in the exit corner: the window at its end). */
+static int DevPtyMenuFirst(const CtrBattleParty *p)
+{
+    int keys = DevPtyMenuKeys(p), first = p->menuCursor - (DEV_PTY_MENU_ROWS - 1);
+
+    if (keys <= DEV_PTY_MENU_ROWS || first < 0)
+        return 0;
+    return first > keys - DEV_PTY_MENU_ROWS ? keys - DEV_PTY_MENU_ROWS : first;
 }
 
 static int DevPtyMenuOpen(const CtrBattleParty *p)
@@ -66,21 +86,21 @@ static int DevPtyCursor(const CtrBattleParty *p)
 static int DevPartyHit(const CtrBattleView *v, int x, int y)
 {
     const CtrBattleParty *p = &v->pty;
-    CtrPokeTouchRect a;
 
     if (p->panel == BUI_PTY_TEXT || p->panel == BUI_PTY_LEVELUP)
         return BUI_PTY_MESSAGE;                             /* anywhere: the message waits for A */
     if (DevPtyMenuOpen(p)) {
-        int n = DevPtyMenuCount(p);
+        int n = DevPtyMenuCount(p), keys = DevPtyMenuKeys(p), first = DevPtyMenuFirst(p);
 
-        for (int i = 0; i < n; ++i) {
-            CtrPokeTouchRect r = DevPtyMenuKey(n, i);
+        for (int k = 0; k < DEV_PTY_MENU_ROWS && first + k < keys; ++k) {
+            CtrPokeTouchRect r = DevPtyMenuKey(k);
 
-            a = DevKeyArea(&r);
-            if (UiIn(&a, x, y))
-                return BUI_PTY_MENU + i;
+            if (DevOnKey(&r, x, y))
+                return BUI_PTY_MENU + first + k;
         }
-        return -1;                                          /* the bays: not while a menu is open */
+        if (keys < n && DevOnKey(&kDevGridExit, x, y))
+            return BUI_PTY_MENU + n - 1;                    /* FireRed's CANCEL (RunPlan answers it with B) */
+        return -1;                                          /* the bays, the cue: not while a menu is open */
     }
     if (p->mode == BUI_PTY_MULTI && DevOnKey(&kDevPtyConfirm, x, y))
         return BUI_PTY_CONFIRM;
@@ -194,13 +214,13 @@ static void DevPtyBayKey(const CtrBattleParty *p, int i, int sunk)
     DevPtyRight(p, i, right, faceY + 38, 10, faceY + 39);
 }
 
-/* Slot i's slim bay beside a menu of n rows (sunk when it is the Party's selection; not a key a touch takes): the icon
- * at half size, the name, a 72 px bar; the level (or its chip) and the numbers only beside one column, 188 wide, ending
+/* Slot i's slim bay beside the menu (def_party_menu; sunk when it is the Party's selection; not a key a touch takes):
+ * the icon at half size, the name, a 72 px bar; at the right the level (or its chip) and under it the numbers, ending
  * 14 px in (the board's 8 would put the level under the LED of the sunk one). */
-static void DevPtySlimKey(const CtrBattleParty *p, int n, int i)
+static void DevPtySlimKey(const CtrBattleParty *p, int i)
 {
-    CtrPokeTouchRect r = DevPtySlim(n, i);
-    int look, grey, sunk = p->cursor == i, faceY, wide = r.w >= 188;
+    CtrPokeTouchRect r = DevPtySlim(i);
+    int look, grey, sunk = p->cursor == i, faceY, right = r.x + r.w - 14;
     uint16_t ink, shadow;
     char name[24];
 
@@ -214,30 +234,15 @@ static void DevPtySlimKey(const CtrBattleParty *p, int n, int i)
     shadow = DevKeyInkShadow(look, sunk);
     faceY = DevKey(&r, look, sunk, 5);
     DevMonIcon(i, p->icon[i], r.x + 6, faceY + 4, 1, grey);
-    DevTextInk(DevPtyName(p, i, name, sizeof(name)), r.x + 29, faceY + 4, wide ? r.x + 140 : r.x + r.w - 14, ink, shadow);
+    DevTextInk(DevPtyName(p, i, name, sizeof(name)), r.x + 29, faceY + 4, r.x + 140, ink, shadow);
     if (p->egg[i])
         return;
     DevHpBar(r.x + 29, faceY + 15, DEV_PTY_SLIM_BAR, 4, p->hp[i], p->maxHp[i]);
-    if (!wide)
-        return;
-    DevPtyRight(p, i, r.x + r.w - 14, faceY + 2, 9, faceY + 3);
-    DevPtyNumbers(p, i, r.x + r.w - 14, faceY + 13, grey, ink, shadow);
+    DevPtyRight(p, i, right, faceY + 2, 9, faceY + 3);
+    DevPtyNumbers(p, i, right, faceY + 13, grey, ink, shadow);
 }
 
 /* ---- The screens ------------------------------------------------------------------------------------------------------ */
-
-/* `text` on the screen in `outer` (the menu's, kDevPtyMenuNote): from 8 px into the paper, wrapped in three lines at
- * most, the lines centred down the paper; `more`: FireRed's arrow at its foot (a tap goes on). */
-static void DevPtyScreen(const CtrPokeTouchRect *outer, const char *text, int more)
-{
-    CtrPokeTouchRect paper = DevScreen(outer);
-    int width = paper.w - 16 - (more ? 12 : 0), lines = DevWrapLines(text, width, 3);
-
-    if (lines > 0)
-        DevWrap(text, paper.x + 8, paper.y + (paper.h - (8 + DEV_LINE_H * (lines - 1))) / 2, width, 3, DEV_INK, DEV_INK_SH);
-    if (more)
-        DevTriangle(paper.x + paper.w - 10, paper.y + paper.h - 8, 1, DEV_INK2);
-}
 
 /* What the Party says under its bays, on the note `outer` (the grid's; picking several the small one): `text` read from
  * 8 px into the paper (DevReadText: two normal lines centred down it, or three small ones from its top); `more`:
@@ -305,30 +310,42 @@ static void DevPtyBays(const CtrBattleView *v)
     DevPtyLeaveKeys(p, cursor, pressed, message);
 }
 
-/* The action menu or YES / NO: the slim bays, the rows' keys (a field move's name in blue, CANCEL dark), the menu's
- * screen with the Party's prompt (a battle's has none: FireRed's question). */
+/* The action menu or YES / NO (def_party_menu; O2): the slim bays; the actions cream in the column, DEV_PTY_MENU_ROWS
+ * of them from DevPtyMenuFirst, their words from x + 10 (a field move's in blue); FireRed's CANCEL (its name in
+ * capitals) the dark key in the exit corner, YES / NO none; with more actions than the column shows the cue over and
+ * under it (not keys), cream towards hidden actions, grey (DEV_ARROW_OFF) at an end; the Party's prompt on the grid's
+ * note (a battle's has none: FireRed's question). FireRed's cursor sunk, or the key under a held touch. */
 static void DevPtyMenu(const CtrBattleView *v)
 {
     const CtrBattleParty *p = &v->pty;
-    int n = DevPtyMenuCount(p);
+    int n = DevPtyMenuCount(p), keys = DevPtyMenuKeys(p), first = DevPtyMenuFirst(p), press = v->pressed - BUI_PTY_MENU;
     char word[32];
 
     for (int i = 0; i < 6; ++i)
-        DevPtySlimKey(p, n, i);
-    for (int i = 0; i < n; ++i) {
-        CtrPokeTouchRect r = DevPtyMenuKey(n, i);
-        int dark = (p->menuDark >> i) & 1, look = dark ? DEV_LOOK_DARK : DEV_LOOK_KEY;
-        int sunk = DevChosen(i, p->menuCursor, v->pressed - BUI_PTY_MENU), faceY = DevKey(&r, look, sunk, 5);
+        DevPtySlimKey(p, i);
+    for (int k = 0; k < DEV_PTY_MENU_ROWS && first + k < keys; ++k) {
+        CtrPokeTouchRect r = DevPtyMenuKey(k);
+        int row = first + k, sunk = DevChosen(row, p->menuCursor, press), faceY = DevKey(&r, DEV_LOOK_KEY, sunk, 5);
 
-        DevUpper(word, p->menuName[i], sizeof(word));
-        if (!dark && ((p->menuBlue >> i) & 1))
-            DevKeyWordInk(&r, faceY, sunk, word, DEV_BLUE_INK, DevKeyInkShadow(look, sunk));
+        DevUpper(word, p->menuName[row], sizeof(word));
+        if ((p->menuBlue >> row) & 1)
+            DevKeyWordAtInk(&r, faceY, sunk, word, 10, DEV_BLUE_INK, DevKeyInkShadow(DEV_LOOK_KEY, sunk));
         else
-            DevKeyWord(&r, faceY, look, sunk, word);
+            DevKeyWordAt(&r, faceY, DEV_LOOK_KEY, sunk, word, 10);
     }
-    DevPtyScreen(&kDevPtyMenuNote, p->caption[0] || p->panel == BUI_PTY_YESNO ? p->caption
-                 : CTR_TR("Do what with this POK\xC3\xA9MON?", "\xC2\xBF" "Qu\xC3\xA9 hacer con este POK\xC3\xA9MON?",
-                          "Was tun mit diesem POK\xC3\xA9MON?"), 0);
+    if (keys < n) {
+        int sunk = DevChosen(n - 1, p->menuCursor, press), faceY = DevKey(&kDevGridExit, DEV_LOOK_DARK, sunk, 6);
+
+        DevUpper(word, p->menuName[n - 1], sizeof(word));
+        DevKeyWord(&kDevGridExit, faceY, DEV_LOOK_DARK, sunk, word);
+    }
+    if (keys > DEV_PTY_MENU_ROWS) {
+        DevTriangle(DEV_PTY_CUE_X, DEV_PTY_CUE_UP_Y, 0, first > 0 ? DEV_DARK_INK : DEV_ARROW_OFF);
+        DevTriangle(DEV_PTY_CUE_X, DEV_PTY_CUE_DOWN_Y, 1, first + DEV_PTY_MENU_ROWS < keys ? DEV_DARK_INK : DEV_ARROW_OFF);
+    }
+    DevPtyNote(&kDevGridNote, p->caption[0] || p->panel == BUI_PTY_YESNO ? p->caption
+               : CTR_TR("Do what with this POK\xC3\xA9MON?", "\xC2\xBF" "Qu\xC3\xA9 hacer con este POK\xC3\xA9MON?",
+                        "Was tun mit diesem POK\xC3\xA9MON?"), 0);
 }
 
 /* A Rare Candy's level up (no board: the plan's Call 8): on the tall screen the Pokemon's name and new level, the six
@@ -381,9 +398,9 @@ static void DevPartyDraw(const CtrBattleView *v)
  * draws redraws (the plan's rule): the battle's own fields; the icons' frames and the column layout; the level up's
  * fields but in it, and in it nothing else of the Party but the Pokemon's name, and of the touch only whether one is
  * held (OK sinks under it); the menu's fields but with a menu open, and its rows past the open menu's; the gender signs
- * with a menu open (the slim bays have none); the message but with one; a touch and the cursor with a message (none is
- * chosen); the prompt under a message; the order picking several, the verdicts otherwise. The state, the shell and the
- * touch otherwise are compared. */
+ * and the cursor on the bays' CANCEL with a menu open (the slim bays have no sign, the exit corner is the menu's); the
+ * message but with one; a touch and the cursor with a message (none is chosen); the prompt under a message; the order
+ * picking several, the verdicts otherwise. The state, the shell and the touch otherwise are compared. */
 static void DevPartyUndrawn(CtrBattleView *still, const CtrBattleView *v)
 {
     const CtrBattleParty *p = &v->pty;
@@ -421,6 +438,7 @@ static void DevPartyUndrawn(CtrBattleView *still, const CtrBattleView *v)
     memcpy(s->lvStat, p->lvStat, sizeof(s->lvStat));
     memcpy(s->lvGain, p->lvGain, sizeof(s->lvGain));
     if (DevPtyMenuOpen(p)) {
+        s->button = p->button;                              /* the bays' CANCEL: the exit corner is the menu's */
         memcpy(s->gender, p->gender, sizeof(s->gender));
         for (int i = n; i < 8; ++i)
             memcpy(s->menuName[i], p->menuName[i], sizeof(s->menuName[i]));

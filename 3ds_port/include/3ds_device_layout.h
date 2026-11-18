@@ -2,7 +2,7 @@
 #define CTR_DEVICE_LAYOUT_H
 
 #include "3ds_poketouch.h"
-#include "3ds_party_grid.h"     /* the Party's menu: its grid */
+#include "3ds_party_grid.h"     /* the Party's menu: its count, one column */
 
 /*
  * The red device (style B): the rectangles of the lower screen's B views, in screen pixels, taken from the owner's
@@ -129,13 +129,18 @@ static inline CtrPokeTouchRect DevBatBallArrow(const CtrPokeTouchRect *r, int ne
  * The field's and the battle's alike. The six bays two to a row in the game's order; under them the grid's note with
  * what the Party says and CANCEL, the dark key in the exit corner (kDevGridNote, kDevGridExit); picking several (the
  * Decisions) the small note (kDevSmallNote), CONFIRM 8 px after it and CANCEL in the exit corner. With the action menu or
- * YES / NO open (n rows) the bays become a column of slim ones and the rows keys beside them: one column of up to four as
- * on the board, two columns beyond with the slim bays narrowed, as the game's D-pad walks them (3ds_party_grid.h, recipe
- * 0257); the menu's screen takes the whole width under them. A Rare Candy's level up: a tall screen over the grid's
- * note, OK in the exit corner. */
+ * YES / NO open the bays become a column of slim ones (DevPtySlim) and the actions keys in ONE column beside them
+ * (DevPtyMenuKey; the owner's O2), DEV_PTY_MENU_ROWS shown, a window that follows FireRed's cursor, the game's D-pad its
+ * own list input (3ds_party_grid.h); FireRed's CANCEL is the dark key in the exit corner (kDevGridExit), YES / NO two
+ * keys in the column and no exit key; with more actions than the column shows, ▲▼ over and under it say where more are
+ * (DEV_PTY_CUE_*: drawn, never hit); the Party's words on the grid's note. A Rare Candy's level up: a tall screen over
+ * the grid's note, OK in the exit corner. */
 static const CtrPokeTouchRect kDevPtyConfirm __attribute__((unused)) = {168, 190, 68, 40};
-static const CtrPokeTouchRect kDevPtyMenuNote __attribute__((unused)) = {8, 182, 304, 50};
 static const CtrPokeTouchRect kDevPtyLevelScreen __attribute__((unused)) = {8, 8, 304, 176};
+#define DEV_PTY_MENU_ROWS  6    /* the action keys the column shows */
+#define DEV_PTY_CUE_X      258  /* the cue's ▲ and ▼ centred over and under the column (Call 10) */
+#define DEV_PTY_CUE_UP_Y   4
+#define DEV_PTY_CUE_DOWN_Y 182
 
 /* Slot i's bay (0-5): left to right, then down. */
 static inline CtrPokeTouchRect DevPtyBay(int i)
@@ -145,20 +150,18 @@ static inline CtrPokeTouchRect DevPtyBay(int i)
     return r;
 }
 
-/* Slot i's slim bay while a menu of n rows is open: the board's 188 wide beside one column, 116 beside two. */
-static inline CtrPokeTouchRect DevPtySlim(int n, int i)
+/* Slot i's slim bay (0-5) while a menu is open: the board's, 188 wide, 28 apart. */
+static inline CtrPokeTouchRect DevPtySlim(int i)
 {
-    CtrPokeTouchRect r = {8, (int16_t)(8 + 28 * i), (int16_t)(n <= 4 ? 188 : 116), 24};
+    CtrPokeTouchRect r = {8, (int16_t)(8 + 28 * i), 188, 24};
 
     return r;
 }
 
-/* Row i's key of a menu of n rows: its column and row are the game's grid's (CtrPartyGrid_Col / _Row). */
-static inline CtrPokeTouchRect DevPtyMenuKey(int n, int i)
+/* Key k (0 to DEV_PTY_MENU_ROWS - 1) of the menu's column: the board's, 108 wide at x 204, 28 apart. */
+static inline CtrPokeTouchRect DevPtyMenuKey(int k)
 {
-    int col = CtrPartyGrid_Col(n, i), row = CtrPartyGrid_Row(n, i);
-    CtrPokeTouchRect r = {(int16_t)(CtrPartyGrid_Cols(n) == 2 ? 132 + 94 * col : 206), (int16_t)(8 + 28 * row),
-                          (int16_t)(CtrPartyGrid_Cols(n) == 2 ? 86 : 106), 24};
+    CtrPokeTouchRect r = {204, (int16_t)(8 + 28 * k), 108, 24};
 
     return r;
 }
