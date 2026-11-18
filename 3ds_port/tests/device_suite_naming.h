@@ -252,7 +252,7 @@ static void SuiteNaming(void)
     assert(!CtrPokeTouch_BackHit(&v, 278, 210) && !CtrPokeTouch_BackHit(&v, 50, 220) && !CtrPokeTouch_BackHit(&v, 20, 20));
 
     /* what the keyboard does not draw presents nothing; the shell's colour whole; the ways in and out (HOME; FireRed's
-     * picture: not the device's, nothing hit) */
+     * picture: in the frame's screen, nothing of the keyboard hit) */
     strcpy(v.bar[0], "Anything"); v.registeredItem = 7; v.enabled[PT_BAG] = 1; v.playerX = 3; v.backVisible = 0;
     assert(DevCheckTouch(&gNameOld, &v).count == 0);
     v.shell = 2; assert(DevWhole(DevCheckTouch(&gNameOld, &v)) && at(1, 100) == DEV_SHELL_GREEN);
@@ -260,7 +260,7 @@ static void SuiteNaming(void)
     other = v; other.name.on = 0; other.home = 1; other.playerX = other.playerY = other.cursorX = other.cursorY = -1;
     assert(DevWhole(DevCheckTouch(&gNameOld, &other)));
     v = NameBoard(); assert(DevWhole(DevCheckTouch(&gNameOld, &v)));
-    v.viewport = 1; assert(DevWhole(DevCheckTouch(&gNameOld, &v)) && !CtrPokeTouch_DeviceShown(&v) && CtrPokeTouch_NameHit(&v, 30, 100) == -1);
+    v.viewport = 1; assert(DevWhole(DevCheckTouch(&gNameOld, &v)) && CtrPokeTouch_DeviceShown(&v) && CtrPokeTouch_NameHit(&v, 30, 100) == -1);
     v = NameBoard(); DevCheckTouch(&gNameOld, &v);
     NameWords(NameBoard());
     CtrPokeTouch_Draw(canvas, &gNameOld);

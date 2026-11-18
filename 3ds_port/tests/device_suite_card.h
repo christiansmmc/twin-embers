@@ -153,9 +153,10 @@ static void SuiteCard(void)
     cv.shell = 3; assert(DevWhole(DevCheckTouch(&co, &cv)) && at(1, 100) == DEV_SHELL_GREY);
     cv.shell = 0; DevCheckTouch(&co, &cv);
     strcpy(cv.card.name, "Leaf"); assert(DevWhole(DevCheckTouch(&co, &cv)));
-    /* the ways in and out: the GBA picture (a link card: an ember view, nothing of the card hit, BACK's own rectangle) */
-    cv.viewport = 1; assert(DevWhole(DevCheckTouch(&co, &cv)) && !CtrPokeTouch_DeviceShown(&cv));
-    assert(!CardHitV(&cv, 160, 90) && !CardHitV(&cv, 100, 200) && CtrPokeTouch_BackHit(&cv, 180, 210));
+    /* the ways in and out: the GBA picture (a link card: in the frame's screen, nothing of the card hit, the frame's
+     * BACK) */
+    cv.viewport = 1; assert(DevWhole(DevCheckTouch(&co, &cv)) && CtrPokeTouch_DeviceShown(&cv));
+    assert(!CardHitV(&cv, 160, 90) && !CardHitV(&cv, 100, 200) && CtrPokeTouch_BackHit(&cv, 278, 209) && !CtrPokeTouch_BackHit(&cv, 180, 210));
     cv = CardBoard(); cv.card.on = 0; assert(!CardHitV(&cv, 160, 90));
     cv = CardBoard(); assert(DevWhole(DevCheckTouch(&co, &cv)));
     CardUpperCase(CardBoard());

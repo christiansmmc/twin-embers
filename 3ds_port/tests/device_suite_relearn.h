@@ -193,7 +193,7 @@ static void SuiteRelearn(void)
 
     /* what the relearner does not draw presents nothing: BACK's fields, the Pokemon (no column), the YES / NO cursor and
      * the wait for A outside their panels, the bar; the shell's colour whole; the ways in and out (HOME; FireRed's
-     * picture: not the device's, nothing hit) */
+     * picture: in the frame's screen, nothing of the relearner hit) */
     rv = RelearnBoard(); DevCheckTouch(&ro, &rv);
     rv.backPressed = 1; rv.backEnabled = 0; rv.relearn.species = 7; strcpy(rv.relearn.nickname, "Blaze"); strcpy(rv.relearn.level, "37");
     rv.relearn.menuCursor = 1; rv.relearn.tap = 1; strcpy(rv.bar[0], "Anything"); rv.registeredItem = 7; rv.playerX = 3;
@@ -206,8 +206,8 @@ static void SuiteRelearn(void)
     assert(DevWhole(DevCheckTouch(&ro, &other)));
     rv = RelearnBoard(); assert(DevWhole(DevCheckTouch(&ro, &rv)));
     other = rv; memset(&other.relearn, 0, sizeof(other.relearn)); other.viewport = 1;
-    assert(DevWhole(DevCheckTouch(&ro, &other)) && !CtrPokeTouch_DeviceShown(&other) && CtrPokeTouch_RelearnHit(&other, 130, 60) == -1);
-    rv.viewport = 1; assert(!CtrPokeTouch_DeviceShown(&rv) && CtrPokeTouch_RelearnHit(&rv, 130, 60) == -1);
+    assert(DevWhole(DevCheckTouch(&ro, &other)) && CtrPokeTouch_DeviceShown(&other) && CtrPokeTouch_RelearnHit(&other, 130, 60) == -1);
+    rv.viewport = 1; assert(CtrPokeTouch_DeviceShown(&rv) && CtrPokeTouch_RelearnHit(&rv, 130, 60) == -1);
     rv = RelearnBoard(); assert(DevWhole(DevCheckTouch(&ro, &rv)));
     RelearnUpperCase(RelearnBoard());
     CtrPokeTouch_Draw(canvas, &ro);

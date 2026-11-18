@@ -77,9 +77,9 @@ static void SuiteMail(void)
     mv.shell = 1; assert(DevWhole(DevCheckTouch(&mo, &mv)) && at(1, 100) == DEV_SHELL_BLUE);
     mv.shell = 0; DevCheckTouch(&mo, &mv);
     strcpy(mv.mail.name, "RETRO MAIL"); assert(DevWhole(DevCheckTouch(&mo, &mv)));
-    /* the ways in and out: the GBA picture (an ember view: nothing of the letter hit, BACK's own rectangle) */
-    mv.viewport = 1; assert(DevWhole(DevCheckTouch(&mo, &mv)) && !CtrPokeTouch_DeviceShown(&mv));
-    assert(!CtrPokeTouch_MailHit(&mv, 160, 90) && CtrPokeTouch_BackHit(&mv, 180, 210));
+    /* the ways in and out: the GBA picture (in the frame's screen: nothing of the letter hit, the frame's BACK) */
+    mv.viewport = 1; assert(DevWhole(DevCheckTouch(&mo, &mv)) && CtrPokeTouch_DeviceShown(&mv));
+    assert(!CtrPokeTouch_MailHit(&mv, 160, 90) && CtrPokeTouch_BackHit(&mv, 278, 209) && !CtrPokeTouch_BackHit(&mv, 180, 210));
     mv = MailBoard(); mv.mail.on = 0; assert(!CtrPokeTouch_MailHit(&mv, 160, 90));
     mv = MailBoard(); assert(DevWhole(DevCheckTouch(&mo, &mv)));
     /* upper case (owner decision 5): the paper's name, which v0.6.0 title-cased, in capitals; the writer as typed */

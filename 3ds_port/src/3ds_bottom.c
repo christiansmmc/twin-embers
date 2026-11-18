@@ -1587,7 +1587,7 @@ static void Render(const Snapshot *s)
     else if (s->mode != MODE_OFF || sSession.active)
         CtrPokeTouch_Draw(sCanvas, &s->touch);
     else
-        CtrPokeTouch_DrawIdle(sCanvas, s->idleLogo);
+        CtrPokeTouch_DrawIdle(sCanvas, s->idleLogo, s->touch.shell);
 }
 
 /* Plan helpers. */

@@ -273,7 +273,7 @@ static void SuiteDex(void)
     v.dex.added = 0; DevCheckTouch(&old, &v);
 
     /* BUSY with nothing kept: the shell, nothing hit; what the Pokedex does not draw presents nothing; the shell's
-     * colour whole; the ways in and out (HOME; the AREA page: FireRed's picture, no Pokedex) */
+     * colour whole; the ways in and out (HOME; the AREA page: FireRed's picture in the frame's screen, no Pokedex) */
     v = DexBoard(); v.dex.state = PT_DEX_STATE_BUSY; assert(DevWhole(DevCheckTouch(&old, &v)));
     assert(CtrPokeTouch_DexHit(&v, 160, 100) == -1 && CtrPokeTouch_DexHit(&v, 20, 20) == -1 && at(160, 100) == DEV_SHELL_RED);
     v = DexBoard(); DevCheckTouch(&old, &v);
@@ -285,8 +285,8 @@ static void SuiteDex(void)
     assert(DevWhole(DevCheckTouch(&old, &other)));
     v = DexBoard(); assert(DevWhole(DevCheckTouch(&old, &v)));
     other = v; memset(&other.dex, 0, sizeof(other.dex)); other.viewport = 1;
-    assert(DevWhole(DevCheckTouch(&old, &other)) && !CtrPokeTouch_DeviceShown(&other) && CtrPokeTouch_DexHit(&other, 160, 90) == -1);
-    v = DexBoard(); v.viewport = 1; assert(!CtrPokeTouch_DeviceShown(&v) && CtrPokeTouch_DexHit(&v, 160, 20) == -1);
+    assert(DevWhole(DevCheckTouch(&old, &other)) && CtrPokeTouch_DeviceShown(&other) && CtrPokeTouch_DexHit(&other, 160, 90) == -1);
+    v = DexBoard(); v.viewport = 1; assert(CtrPokeTouch_DeviceShown(&v) && CtrPokeTouch_DexHit(&v, 160, 20) == -1);
     v = DexBoard(); assert(DevWhole(DevCheckTouch(&old, &v)));
     DexUpperCase(DexBoard());
     CtrPokeTouch_Draw(canvas, &old);

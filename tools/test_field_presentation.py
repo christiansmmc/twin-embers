@@ -1061,11 +1061,10 @@ static int OptionsActive(void) { return 0; }
 static int SaveActive(void) { return 0; }
 static void ProcessOptionsTouch(const CtrInput *in) { (void)in; }
 static void ProcessSaveInput(const CtrInput *in) { (void)in; }
-/* the views drawn as the red device: HOME, the Bag, OPTIONS, SAVE, the Pokedex, a choice, the move to forget, the
- * relearner, the naming keyboard, the PC box, Easy Chat */
-bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *v)
-{ return v->home || v->bag.on || v->options || v->save || v->dex.on || v->choice.on || v->learn.on || v->relearn.on
-         || v->name.on || v->box.on || v->ec.on; }
+/* every view is drawn as the red device: HOME, the Bag, a field view's own row (OPTIONS, SAVE, the Pokedex, a choice,
+ * the move to forget, the relearner, the naming keyboard, the PC box, Easy Chat...) and the frame, the dispatcher's
+ * last row, for any other (FireRed's picture in its screen, or an empty screen) */
+bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *v) { (void)v; return true; }
 /* HOME: BAG's key at the bottom right, FLY and the region key in the window's top corners, the map below them */
 int CtrPokeTouch_HitTest(int x, int y) { return x < 60 && y < 60 ? PT_OPTIONS : PT_NONE; }
 int CtrPokeTouch_HomeHit(const CtrPokeTouchView *v, int x, int y) { (void)v; return x >= 200 && y >= 150 ? PT_BAG : PT_NONE; }
@@ -1112,8 +1111,9 @@ int main(void) {
     Tap(250, 200); Tap(100, 80); assert(activated == -1 && !tapped);
     /* a native screen with nothing shown yet: the column's hits */
     native = 1; sShown.touch.home = 0; Tap(20, 20); assert(activated == PT_OPTIONS);
-    /* SAVE, OPTIONS, the Pokedex, a choice, the move to forget, the relearner, the naming keyboard, the PC box or Easy
-     * Chat on the red device (or HOME still shown on its first frame): no column under it, nothing hit */
+    /* SAVE, OPTIONS, the Pokedex, a choice, the move to forget, the relearner, the naming keyboard, the PC box, Easy
+     * Chat or FireRed's picture on the red device (or HOME still shown on its first frame): no column under it, nothing
+     * hit */
     sHaveShown = 1; sShown.touch.save = 1; activated = -1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.save = 0; sShown.touch.options = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.options = 0; sShown.touch.dex.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
@@ -1123,7 +1123,8 @@ int main(void) {
     sShown.touch.relearn.on = 0; sShown.touch.name.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.name.on = 0; sShown.touch.box.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.box.on = 0; sShown.touch.ec.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
-    sShown.touch.ec.on = 0;
+    sShown.touch.ec.on = 0; sShown.touch.viewport = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
+    sShown.touch.viewport = 0; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);     /* the frame's, empty */
     sShown.touch.options = 0; sShown.touch.home = 1; Tap(20, 20); assert(activated == -1);
     return 0;
 }
@@ -1199,6 +1200,18 @@ int main(void) {
         self.assertIn('CtrPokeTouch_DeviceShown(&sShown.touch)', function(bottom, 'PokeTouchHit'))
         self.assertIn('CtrPokeTouch_BackHit(&sShown.touch,', function(bottom, 'ProcessBack'))
         self.assertNotIn('CtrPokeTouch_HitOptPage', bottom)
+
+    def test_idle_screen_in_the_shell_colour(self):
+        """The idle screen (nothing for FireRed's screen above: MODE_OFF) is the red device's in the shell colour OPTIONS
+        chose: Render gives it the snapshot's shell, which every frame fills whatever the mode (MODE_OFF too), so a
+        change of the shell changes the snapshot and the idle screen is drawn again."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        self.assertIn('CtrPokeTouch_DrawIdle(sCanvas, s->idleLogo, s->touch.shell);', function(bottom, 'Render'))
+        frame = function(bottom, 'CtrBottom_Frame')
+        fill = frame.index('    if (!nav) {\n        state.touch.shell = state.battle.shell = state.sum.shell = '
+                           '(uint8_t)CtrOptions_Shell();\n')
+        self.assertLess(frame.index('SnapshotState(&state,'), fill)
+        self.assertLess(fill, frame.index('memcmp(&state, &sShown, sizeof(state))'))
 
     def test_box_chooser_cancel_sends_b(self):
         """The PC box's chooser (DEPOSIT's, JUMP's) has no CANCEL of FireRed's: its CANCEL key is the view's BACK while

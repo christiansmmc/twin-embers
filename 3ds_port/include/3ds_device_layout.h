@@ -524,4 +524,14 @@ static inline CtrPokeTouchRect DevEcStripCell(int i)
     return r;
 }
 
+/* ---- FireRed's picture and the idle screen (no board; 3ds_device_frame_impl.h) ----------------------------------------
+ * FireRed's picture: an embedded screen centred across the top (kDevViewScreen), its paper (6 px in) the picture's
+ * 240x160 at 1:1 where the GPU draws it (PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H, 3ds_poketouch.h); under it the
+ * Summary's note (kDevSumNote) beside BACK in the Summary's place (kDevSumBack), or without BACK the note across both
+ * (kDevViewNoteWide). The idle screen: an embedded screen centred on the shell (kDevIdleScreen), the project's logo
+ * centred on its paper. */
+static const CtrPokeTouchRect kDevViewScreen __attribute__((unused)) = {34, 8, 252, 172};
+static const CtrPokeTouchRect kDevViewNoteWide __attribute__((unused)) = {8, 188, 304, 44};
+static const CtrPokeTouchRect kDevIdleScreen __attribute__((unused)) = {40, 45, 240, 150};
+
 #endif

@@ -118,7 +118,7 @@ static void SuiteChoice(void)
     v.backVisible = 1; DevCheckTouch(&old, &v);
 
     /* what the choice does not draw presents nothing; the shell's colour whole; the ways in and out (HOME; FireRed's
-     * picture: not the device's, nothing hit) */
+     * picture: in the frame's screen, nothing of the choice hit) */
     strcpy(v.bar[0], "Anything"); v.registeredItem = 7; v.enabled[PT_BAG] = 1; v.playerX = 3;
     assert(DevCheckTouch(&old, &v).count == 0);
     v.shell = 2; assert(DevWhole(DevCheckTouch(&old, &v)) && at(1, 100) == DEV_SHELL_GREEN);
@@ -126,7 +126,7 @@ static void SuiteChoice(void)
     other = v; other.choice.on = 0; other.home = 1; other.playerX = other.playerY = other.cursorX = other.cursorY = -1;
     assert(DevWhole(DevCheckTouch(&old, &other)));
     v = ChoiceBoard(2, 0); assert(DevWhole(DevCheckTouch(&old, &v)));
-    v.viewport = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && !CtrPokeTouch_DeviceShown(&v) && CtrPokeTouch_ChoiceHit(&v, 20, 20) == -1);
+    v.viewport = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && CtrPokeTouch_DeviceShown(&v) && CtrPokeTouch_ChoiceHit(&v, 20, 20) == -1);
     v = ChoiceBoard(2, 0); DevCheckTouch(&old, &v);
     ChoiceUpperCase(ChoiceBoard(8, 0));
     CtrPokeTouch_Draw(canvas, &old);

@@ -211,12 +211,13 @@ static void SuiteOptions(void)
     /* every level and section answers by v's own rows: a page with fewer rows hits none past them; no description */
     v.optCount = 2; DevCheckTouch(&old, &v); assert(OptHitV(&v, 100, DevOptRow(2).y + 9) == -1 && at(20, DevOptRow(2).y + 9) == DEV_PAPER);
     v.bar[1][0] = v.bar[2][0] = 0; DevCheckTouch(&old, &v); assert(Count(14, 196, 140, 30, DEV_INK) == 0);
-    /* the ways in and out: HOME, OPTIONS, the GBA picture (an ember view: BACK's own rectangle, nothing of OPTIONS hit) */
+    /* the ways in and out: HOME, OPTIONS, the GBA picture (in the frame's screen: the frame's BACK, nothing of OPTIONS
+     * hit) */
     other = v; other.options = 0; other.home = 1; other.playerX = other.playerY = other.cursorX = other.cursorY = -1;
     assert(DevWhole(DevCheckTouch(&old, &other)));
     v = OptBoard(); assert(DevWhole(DevCheckTouch(&old, &v)));
-    v.viewport = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && !CtrPokeTouch_DeviceShown(&v));
-    assert(OptHitV(&v, 100, DevOptRow(1).y + 9) == -1 && CtrPokeTouch_BackHit(&v, 180, 210) && !CtrPokeTouch_BackHit(&v, 278, 220));
+    v.viewport = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && CtrPokeTouch_DeviceShown(&v));
+    assert(OptHitV(&v, 100, DevOptRow(1).y + 9) == -1 && CtrPokeTouch_BackHit(&v, 278, 209) && !CtrPokeTouch_BackHit(&v, 180, 210));
     v = OptBoard(); DevCheckTouch(&old, &v);
     OptUpperCase(OptBoard());
     CtrPokeTouch_Draw(canvas, &old);

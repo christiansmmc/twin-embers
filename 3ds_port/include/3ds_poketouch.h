@@ -10,7 +10,7 @@
  * PokeTouch: the bottom screen (320x240). A view over FireRed's own menu
  * and shortcuts: every button maps to the game's START menu entry or key
  * item use (3ds_bottom.c issues them); this module only lays out, draws and
- * hit-tests. The frame on the left holds the viewport, where the GBA picture
+ * hit-tests. The frame (an embedded screen) holds the viewport, where the GBA picture
  * of the open menu is shown 1:1 (240x160) by the GPU, and the contextual bar
  * under it. Drawing goes into the bottom canvas (RGB565,
  * column-major, each column bottom-to-top) when the view changes.
@@ -38,9 +38,11 @@ enum { PT_FLY_NONE, PT_FLY_UNVISITED, PT_FLY_NO_MON, PT_FLY_NO_BADGE, PT_FLY_NO_
 
 typedef struct { int16_t x, y, w, h; } CtrPokeTouchRect;
 
-/* The viewport: the GBA picture's 240x160, pixel for pixel. */
-#define PT_VIEW_X 4
-#define PT_VIEW_Y 4
+/* The viewport: the GBA picture's 240x160, pixel for pixel, on the paper of its embedded screen (3ds_device_layout.h
+ * kDevViewScreen). The one place of FireRed's picture: the GPU draws it here (3ds_video.c) and a touch in it is a GBA
+ * point (CtrPokeTouch_ViewportToGba). */
+#define PT_VIEW_X 40
+#define PT_VIEW_Y 14
 #define PT_VIEW_W 240
 #define PT_VIEW_H 160
 /* The HOME map: FireRed's own Region Map art, drawn passively over the field's
@@ -482,10 +484,12 @@ extern const CtrPokeTouchRect gCtrPokeTouchRects[PT_COUNT];
  * stands for the B button of the open screen (3ds_bottom.c sends the real B). */
 extern const CtrPokeTouchRect gCtrPokeTouchBack;
 /* Whether the view is drawn as the red device (HOME, the Bag, or a field view of the dispatcher,
- * 3ds_device_field_impl.h): no START column under it. */
+ * 3ds_device_field_impl.h, whose last row, FireRed's picture in its screen, takes any other): no START column under
+ * it. Every view is. */
 bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *view);
 /* Whether a bottom-screen pixel is on BACK as the view draws it: a field view of the dispatcher's
- * BACK key while it is shown (backVisible), an ember view's gCtrPokeTouchBack. */
+ * BACK key while it is shown (backVisible); for HOME and the Bag (no row of the dispatcher's),
+ * gCtrPokeTouchBack. */
 bool CtrPokeTouch_BackHit(const CtrPokeTouchView *view, int x, int y);
 
 /* The OPTIONS row and zone (PT_OPT_ZONE_*) under a bottom-screen pixel of the view shown (OPTIONS,
@@ -581,8 +585,9 @@ void CtrPokeTouch_Draw(uint16_t *canvas, const CtrPokeTouchView *view);
 void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const CtrPokeTouchView *view,
                          CtrDirtyList *dirty);
 /* The lower screen with nothing to show for FireRed's screen above (its title, naming, a shop, an evolution, a trade):
- * the ember backdrop, and the project's logo when `logo`. */
-void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo);
+ * the red device in the shell colour `shell` (0 red, 1 blue, 2 green, 3 grey) with an embedded screen asleep, and the
+ * project's logo on it when `logo` (3ds_device_frame_impl.h). */
+void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo, uint8_t shell);
 
 /*
  * The battle screen (3ds_device_battle_impl.h, CtrBattleUi_*): the whole lower screen while FireRed's battle is on

@@ -743,6 +743,37 @@ static int EasyChatFaults(void)
     return faults;
 }
 
+/* FireRed's picture: its screen centred across the top, the paper (6 px in) exactly where the GPU draws the picture
+ * (PT_VIEW_*); under it the Summary's note beside BACK, or the note across in their place without BACK. The idle
+ * screen: centred on the shell, its paper holding the 224x126 logo centred at (48, 57). */
+static int FrameFaults(void)
+{
+    const CtrPokeTouchRect view = {PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H}, logo = {48, 57, 224, 126};
+    const CtrPokeTouchRect paper = {(int16_t)(kDevViewScreen.x + 6), (int16_t)(kDevViewScreen.y + 6),
+                                    (int16_t)(kDevViewScreen.w - 12), (int16_t)(kDevViewScreen.h - 12)};
+    const CtrPokeTouchRect idlePaper = {(int16_t)(kDevIdleScreen.x + 6), (int16_t)(kDevIdleScreen.y + 6),
+                                        (int16_t)(kDevIdleScreen.w - 12), (int16_t)(kDevIdleScreen.h - 12)};
+    int faults = 0;
+
+    assert(Same(kDevViewScreen, (CtrPokeTouchRect){34, 8, 252, 172}) && Same(kDevViewNoteWide, (CtrPokeTouchRect){8, 188, 304, 44})
+           && Same(kDevIdleScreen, (CtrPokeTouchRect){40, 45, 240, 150}));
+    assert(Same(paper, view) && Same(view, (CtrPokeTouchRect){40, 14, 240, 160}) && Same(idlePaper, (CtrPokeTouchRect){46, 51, 228, 138}));
+    if (kDevViewScreen.x + kDevViewScreen.w / 2 != 160 || kDevViewScreen.y + kDevViewScreen.h + 1 > kDevSumNote.y
+        || kDevSumNote.x + kDevSumNote.w > kDevSumBack.x || kDevViewNoteWide.x != kDevSumNote.x || kDevViewNoteWide.y != kDevSumNote.y
+        || kDevViewNoteWide.h != kDevSumNote.h || kDevViewNoteWide.x + kDevViewNoteWide.w != kDevSumBack.x + kDevSumBack.w) {
+        fprintf(stderr, "FireRed's picture: its screen is not centred or meets the note, the note BACK, or the note across "
+                        "is not the note and BACK's place\n");
+        ++faults;
+    }
+    if (kDevIdleScreen.x + kDevIdleScreen.w / 2 != 160 || kDevIdleScreen.y + kDevIdleScreen.h / 2 != 120
+        || !Within(logo, idlePaper, 0) || logo.x - idlePaper.x != idlePaper.x + idlePaper.w - (logo.x + logo.w)
+        || logo.y - idlePaper.y != idlePaper.y + idlePaper.h - (logo.y + logo.h)) {
+        fprintf(stderr, "the idle screen is not centred, or the logo not centred on its paper\n");
+        ++faults;
+    }
+    return faults;
+}
+
 int main(void)
 {
     /* Every rectangle the header holds, by name, and the keys of each view state. */
@@ -785,6 +816,7 @@ int main(void)
                                          DevBoxMenuKey(6, 4), DevBoxMenuKey(6, 5)};
     const CtrPokeTouchRect ecList[] = {kDevEcUp, kDevEcDown, DevEcListKey(0), DevEcListKey(1), DevEcListKey(2)};
     const CtrPokeTouchRect ecAsk[] = {kDevAskYes, kDevAskNo};
+    const CtrPokeTouchRect frameKeys[] = {kDevSumBack};
     CtrPokeTouchRect ptyMenu[8][8], bagMenu[6][6], choiceKeys[3][8][9], nameKeys[2][5 + 32], boxMenu[7][7];
     CtrPokeTouchRect ecEdit[9][9 + 5], ecGrid[2][26 + 2];
     DevGroup ptyMenus[8], bagMenus[6], choiceGroups[3][8], nameGroups[2], boxMenus[7], ecEdits[9], ecGrids[2];
@@ -855,6 +887,8 @@ int main(void)
         {"Easy Chat rail", kDevEcRail}, {"Easy Chat up", kDevEcUp}, {"Easy Chat down", kDevEcDown},
         {"Easy Chat strip", kDevEcStrip}, {"Easy Chat strip's Z", DevEcStripCell(25)}, {"Easy Chat USE WORD", DevEcListKey(0)},
         {"Easy Chat list BACK", DevEcListKey(2)},
+        {"FireRed's picture's screen", kDevViewScreen}, {"FireRed's picture's note across", kDevViewNoteWide},
+        {"idle screen", kDevIdleScreen},
     };
     const DevGroup groups[] = {DEV_GROUP("HOME", homeKeys), DEV_GROUP("battle, a trainer", batTrainer),
                                DEV_GROUP("battle, wild", batWild), DEV_GROUP("battle moves", batMoves),
@@ -871,7 +905,8 @@ int main(void)
                                DEV_GROUP("relearner list", relearnList), DEV_GROUP("relearner YES / NO", relearnYesNo),
                                DEV_GROUP("PC box", boxKeys), DEV_GROUP("box YES / NO", boxYesNo),
                                DEV_GROUP("box chooser", boxChooser), DEV_GROUP("box marks", boxMarks),
-                               DEV_GROUP("Easy Chat list", ecList), DEV_GROUP("Easy Chat question", ecAsk)};
+                               DEV_GROUP("Easy Chat list", ecList), DEV_GROUP("Easy Chat question", ecAsk),
+                               DEV_GROUP("FireRed's picture", frameKeys)};
     int faults = 0;
 
     RulesCatchFaults();
@@ -960,6 +995,7 @@ int main(void)
     faults += NamingFaults();
     faults += BoxFaults();
     faults += EasyChatFaults();
+    faults += FrameFaults();
     assert(faults == 0);
     puts("PASS device layout");
     return 0;

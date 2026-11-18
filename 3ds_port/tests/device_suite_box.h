@@ -396,7 +396,7 @@ static void SuiteBox(void)
     assert(!CtrPokeTouch_BackHit(&v, 278, 210) && !CtrPokeTouch_BackHit(&v, 50, 220) && !CtrPokeTouch_BackHit(&v, 20, 20));
 
     /* what the box does not draw presents nothing; the shell's colour whole; the ways in and out (HOME; FireRed's own
-     * picture while it carries several: not the device's, nothing hit) */
+     * picture while it carries several: in the frame's screen, nothing of the box hit) */
     strcpy(v.bar[0], "Anything"); v.registeredItem = 7; v.enabled[PT_BAG] = 1; v.playerX = 3; v.backVisible = 0; v.box.box = 5;
     assert(DevCheckTouch(&old, &v).count == 0);
     v.shell = 2; assert(DevWhole(DevCheckTouch(&old, &v)) && at(1, 100) == DEV_SHELL_GREEN);
@@ -404,7 +404,7 @@ static void SuiteBox(void)
     other = v; other.box.on = 0; other.home = 1; other.playerX = other.playerY = other.cursorX = other.cursorY = -1;
     assert(DevWhole(DevCheckTouch(&old, &other)));
     v = BoxBoard(); assert(DevWhole(DevCheckTouch(&old, &v)));
-    v.viewport = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && !CtrPokeTouch_DeviceShown(&v) && CtrPokeTouch_BoxHit(&v, 30, 50) == ST_HIT_NONE);
+    v.viewport = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && CtrPokeTouch_DeviceShown(&v) && CtrPokeTouch_BoxHit(&v, 30, 50) == ST_HIT_NONE);
     v = BoxBoard(); DevCheckTouch(&old, &v);
     BoxWords(BoxBoard());
     CtrPokeTouch_Draw(canvas, &old);

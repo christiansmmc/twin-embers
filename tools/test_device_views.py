@@ -120,6 +120,12 @@ class DeviceViews(unittest.TestCase):
     def test_easychat(self):
         self.assertIn('PASS device easychat', run(self.harness, 'easychat'))
 
+    def test_frame(self):
+        self.assertIn('PASS device frame', run(self.harness, 'frame'))
+
+    def test_idle(self):
+        self.assertIn('PASS device idle', run(self.harness, 'idle'))
+
     def test_kit_shot(self):
         """DEVICE_OUT writes <suite>_<state>.ppm: the kit's sheet, 320x240."""
         with tempfile.TemporaryDirectory() as out:

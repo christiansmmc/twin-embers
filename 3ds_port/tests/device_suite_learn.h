@@ -168,7 +168,7 @@ static void SuiteLearn(void)
     lv.backVisible = 1; DevCheckTouch(&lo, &lv);
 
     /* what the move to forget does not draw presents nothing; the shell's colour whole; the ways in and out (HOME; the
-     * Summary's own picture before it is ready: not the device's, nothing hit) */
+     * Summary's own picture before it is ready: in the frame's screen, nothing of the move to forget hit) */
     strcpy(lv.bar[0], "Anything"); lv.registeredItem = 7; lv.enabled[PT_BAG] = 1; lv.playerX = 3;
     assert(DevCheckTouch(&lo, &lv).count == 0);
     lv.shell = 2; assert(DevWhole(DevCheckTouch(&lo, &lv)) && at(1, 100) == DEV_SHELL_GREEN);
@@ -178,8 +178,8 @@ static void SuiteLearn(void)
     assert(DevWhole(DevCheckTouch(&lo, &other)));
     lv = LearnBoard(); assert(DevWhole(DevCheckTouch(&lo, &lv)));
     other = lv; memset(&other.learn, 0, sizeof(other.learn)); other.viewport = 1;
-    assert(DevWhole(DevCheckTouch(&lo, &other)) && !CtrPokeTouch_DeviceShown(&other) && CtrPokeTouch_LearnHit(&other, 130, 60) == -1);
-    lv.viewport = 1; assert(!CtrPokeTouch_DeviceShown(&lv) && CtrPokeTouch_LearnHit(&lv, 130, 60) == -1);
+    assert(DevWhole(DevCheckTouch(&lo, &other)) && CtrPokeTouch_DeviceShown(&other) && CtrPokeTouch_LearnHit(&other, 130, 60) == -1);
+    lv.viewport = 1; assert(CtrPokeTouch_DeviceShown(&lv) && CtrPokeTouch_LearnHit(&lv, 130, 60) == -1);
     lv = LearnBoard(); assert(DevWhole(DevCheckTouch(&lo, &lv)));
     LearnUpperCase(LearnBoard());
     CtrPokeTouch_Draw(canvas, &lo);
