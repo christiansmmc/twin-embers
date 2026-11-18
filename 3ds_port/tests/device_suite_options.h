@@ -44,7 +44,7 @@ static CtrPokeTouchView OptPage(int page, int section, const char *second, int r
     CtrPokeTouchView v;
 
     memset(&v, 0, sizeof(v));
-    v.selected = v.pressed = PT_NONE;
+    v.pressed = PT_NONE;
     v.options = 1;
     v.optPage = (uint8_t)page;
     v.optPageCount = 6;
@@ -145,7 +145,7 @@ static void SuiteOptions(void)
 
     CtrPokeTouch_Draw(canvas, &old);
     /* the plan's suite */
-    v = OptBoard(); DevCheckTouch(&old, &v); assert(CtrPokeTouch_DeviceShown(&v));
+    v = OptBoard(); DevCheckTouch(&old, &v); assert(DrawnBy(&v, DevOptShown));
     for (s = 0; s < 4; ++s) AssertHits(OptHitV, &v, DevAcross(4, s, 8, 24), 0x100 + PT_OPT_KEY_SECTION + s);
     AssertKey(DevAcross(4, 0, 8, 24), DEV_LOOK_KEY, 1); AssertHits(OptHitV, &v, kDevBagUp, 0x100 + PT_OPT_KEY_UP); AssertHits(OptHitV, &v, kDevBagDown, 0x100 + PT_OPT_KEY_DOWN);
     for (i = 0; i < 4; ++i) { y = DevOptRow(i).y + 9;
@@ -201,9 +201,9 @@ static void SuiteOptions(void)
     v.backEnabled = 1; v.backVisible = 0; DevCheckTouch(&old, &v); assert(at(247, 210) == DEV_SHELL_RED && !BackV(&v, 247, 210));
     v.backVisible = 1; DevCheckTouch(&old, &v);
     /* what OPTIONS does not draw presents nothing: the first line of the bar (the row's label), a row past the page's,
-     * FRAME's type with no sample, a look not shown, the column, the map */
+     * FRAME's type with no sample, a look not shown, HOME's keys, the map */
     strcpy(v.bar[0], "Anything"); strcpy(v.optLabel[6], "Seventh"); v.optFrameType = 3; strcpy(v.optLook.name, "ASH");
-    v.registeredItem = 7; v.enabled[PT_BAG] = 1; v.selected = PT_OPTIONS; v.playerX = 3;
+    v.enabled[PT_BAG] = 1; v.playerX = 3;
     assert(DevCheckTouch(&old, &v).count == 0);
     v.optLook.name[0] = 0;
     v.shell = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && at(1, 100) == DEV_SHELL_BLUE);
@@ -216,7 +216,7 @@ static void SuiteOptions(void)
     other = v; other.options = 0; other.home = 1; other.playerX = other.playerY = other.cursorX = other.cursorY = -1;
     assert(DevWhole(DevCheckTouch(&old, &other)));
     v = OptBoard(); assert(DevWhole(DevCheckTouch(&old, &v)));
-    v.viewport = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && CtrPokeTouch_DeviceShown(&v));
+    v.viewport = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && DrawnBy(&v, DevFrameShown));
     assert(OptHitV(&v, 100, DevOptRow(1).y + 9) == -1 && CtrPokeTouch_BackHit(&v, 278, 209) && !CtrPokeTouch_BackHit(&v, 180, 210));
     v = OptBoard(); DevCheckTouch(&old, &v);
     OptUpperCase(OptBoard());

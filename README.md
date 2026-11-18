@@ -12,7 +12,7 @@ Most of the work in this project comes down to one question: what should the sec
 
 It is a native ARM11 program, not a GBA emulator wrapped in a launcher. It has no ROM inside it and never will; you bring your own cartridge dump and a small Windows tool turns it into the data file the game reads at startup.
 
-<img src="docs/media/02-night-cerulean.png" width="400" alt="Cerulean City at night, lit windows on the top screen and the ember touch menu underneath">
+<img src="docs/media/02-night-cerulean.png" width="400" alt="Cerulean City at night, lit windows on the top screen and the lower screen underneath">
 
 ---
 
@@ -31,8 +31,8 @@ It is a native ARM11 program, not a GBA emulator wrapped in a launcher. It has n
 **In v0.6.0:**
 
 - **Visible wild Pokémon (optional, off by default).** OPTIONS, Graphics, page Wilds: wild Pokémon walk in the grass and on the water of the map, up to 2 on an Old 3DS and up to 6 on a New 3DS, with a silhouette option and a setting for how many notice you and chase. The battle starts with the one you saw. Ideas from PR #83 by mcl5500/Sh3ld0r and the design of Wilds of Hoenn by poooooby, both credited. The owner played it on real hardware and its general operation is correct; the individual edge cases are still unverified. Details in [QUALITY-OF-LIFE.md](docs/QUALITY-OF-LIFE.md).
-- **Nuzlocke v2 and Randomlocke.** One catch per area, DUPLICATES and SHINY clauses, LEVEL CAPS, and wild and trainer Pokémon of random species fixed by your Trainer ID. Also **REUSABLE TMS**, **FREE HMS** and **REMEMBER** (the move relearner) in the party menu.
-- **A new lower-screen look.** OPTIONS in sections, HOME, the Bag, SAVE, the PC, the Pokédex, the Trainer Card, the Summary and the battle menus are redrawn in the ember look, with a native mail screen and Easy Chat on the lower screen.
+- **Nuzlocke v2 and Randomlocke.** One catch per area, DUPLICATES and SHINY clauses, LEVEL CAPS, and wild and trainer Pokémon of random species fixed by your Trainer ID. Also **REUSABLE TMS**, **FREE HMS** in OPTIONS. **REMEMBER** (the move relearner) is behind the build switch `CTR_PARTY_EXTRAS` (recipe 0264) and is no longer in the party menu.
+- **A new lower-screen look.** OPTIONS in sections, HOME, the Bag, SAVE, the PC, the Pokédex, the Trainer Card, the Summary and the battle menus are redrawn as **the red device**: a console shell in the colour you pick (OPTIONS, GRAPHICS, its LOOKS page, SHELL COLOUR: red, blue, green or grey), the screens embedded in it, cream keys that sink with a green light, and dark keys to leave. The mail screen and Easy Chat are native too.
 - **A better HOME map.** A world map built from your own Region Map art, with zoom, drag and a ribbon that cycles Kanto and the Sevii Islands; Fly works across them.
 - **Smoother.** No stall at doors from the day and night camera search, a cheaper lower screen and a HOME map that no longer slows the game when you change region.
 - **Fixes:** people and Pokémon that share a picture on screen (the Bird Keepers of Route 18) no longer borrow each other's frame (tested on a computer only, not yet in the game), a battle animation address, a German recipe alignment fix by mcl5500 (PR #84), and the evolution scene.
@@ -42,7 +42,7 @@ The full list, with the known issues, is in the [CHANGELOG](CHANGELOG.md).
 **In v0.5.2:**
 
 - **Choose who you are.** A new Builder option, *More characters to be*, adds 18 looks for you, for Leaf and for your rival (Ash in four versions, Gary, Silver, Gold, Brendan, May, Green, Kris), from [Emerald Lens](https://github.com/ElvieBlooms/emerald_lens) by its artists, used with its author's permission. In OPTIONS, page 3, RED LOOK, LEAF LOOK and RIVAL LOOK change the map sprite, your back in battle, the trainer card, the intro picture and the map icon at once, with a preview card (the walking picture, the name and the artists) under the rows. The default stays FireRed's Red and Leaf.
-- **EXP SHARE** in OPTIONS (OFF, HALF, FULL), **IV, EV and Hidden Power** on the Summary's STATS page, and **HEAL** in the party menu (heal the whole party anywhere for 250 per badge plus one).
+- **EXP SHARE** in OPTIONS (OFF, HALF, FULL), **IV, EV and Hidden Power** on the Summary's STATS page, and **HEAL** in the party menu (heal the whole party anywhere for 250 per badge plus one; since the red device HEAL and REMEMBER are behind the build switch `CTR_PARTY_EXTRAS`, recipe 0264, and no longer in the menu).
 - **Accuracy on the battle move cards**, beside the PP (the PP pips are now five).
 - **HD battle scenes**, a new Builder option: painted scenes that fill the top screen, by Bentley734 ([HD Dynamic Battlefields](https://github.com/Bentley734/HD-Dynamic-Battlefields)), used with his permission and reduced for the 3DS (125 files, about 13 MB).
 - **German:** modern capitalisation in the game's text, by mcl5500, and the options page in Title Case.
@@ -102,7 +102,7 @@ The [release notes](https://github.com/alex61194/twin-embers/releases) list ever
 
 The overworld is drawn at the 3DS's native top-screen size instead of the GBA's 240 × 160, so you see more of every town and route before you reach its edge. Beyond a map's edge the game draws its own border, as on the GBA.
 
-The lower screen is **PokéTouch**, a home screen with a touch Town Map and a column of buttons for the Pokédex, your party, Bag, Trainer Card, saving and options. Tapping a button opens that screen directly, and tapping another switches straight to it. Tapping a place on the map twice flies there once you can use FLY. X and Y hold your registered item and the Bicycle. The original START menu is no longer needed.
+The lower screen is **PokéTouch**, a home screen with a touch Town Map and six keys: POKéDEX, POKéMON, BAG, your name for the Trainer Card, SAVE and OPTION. A key opens that screen directly; to go to another one you leave with the view's dark key, back to HOME, and press the next. Tapping a place on the map twice flies there once you can use FLY. X and Y work on their own buttons (your registered item and the Bicycle); they have no tiles on the screen. The original START menu is no longer needed.
 
 <img src="docs/media/01-title.png" width="300" alt="Title screen"> <img src="docs/media/05-night-recap.png" width="300" alt="The Previously on your quest recap at night, with the touch map below">
 
@@ -122,7 +122,7 @@ The battle Bag keeps its pockets as tabs and shows the selected item large with 
 
 ### Looking after your team
 
-The party list, Pokémon Summary and Trainer Card each get a full lower-screen page, and the Bag and Pokédex open beside the button column. PC storage is touch-driven as well, menus included: move, withdraw and deposit by tapping. Saving asks once, with your progress shown next to it.
+The party list, Pokémon Summary and Trainer Card each get a full lower-screen page, and the Bag and Pokédex open the same way, each from its HOME key. PC storage is touch-driven as well, menus included: move, withdraw and deposit by tapping. Saving asks once, with your progress shown next to it.
 
 <img src="docs/media/12-party.png" width="300" alt="Party"> <img src="docs/media/14-pokedex.png" width="300" alt="Pokédex">
 
@@ -148,15 +148,15 @@ The party list, Pokémon Summary and Trainer Card each get a full lower-screen p
 
 ### Settings
 
-OPTIONS is split into sections (Settings, Graphics, Quality of life and Nuzlocke), each with its own pages. Settings holds FireRed's own options plus an on-screen FPS counter; the others hold the port's own: type matchups and move details on the battle cards, the time of day, the rising EMBERS, the optional looks, the visible wild Pokémon and the Nuzlocke rules.
+OPTIONS is split into sections (SETTINGS, GRAPHICS, QOL and NUZLOCKE; the GRAPHICS key names the page shown: GRAPHICS, LOOKS or WILDS), each with its own pages. Settings holds FireRed's own options plus an on-screen FPS counter; the others hold the port's own: type matchups and move details on the battle cards, the time of day, the optional looks (SHELL COLOUR of the lower screen: red, blue, green or grey, first row of the LOOKS page), the visible wild Pokémon and the Nuzlocke rules.
 
-<img src="docs/media/17-options-1.png" width="300" alt="Options, Settings: FireRed's own options"> <img src="docs/media/18-options-2.png" width="300" alt="Options, Graphics: frame, FPS counter, day and night, hour, embers and companion">
+<img src="docs/media/17-options-1.png" width="300" alt="Options, Settings: FireRed's own options"> <img src="docs/media/18-options-2.png" width="300" alt="Options, Graphics: frame, FPS counter, day and night, hour and companion">
 
 <img src="docs/media/25-options-looks.png" width="300" alt="Options, Looks: the player's and the rival's look, with a preview and its artist"> <img src="docs/media/26-options-wilds.png" width="300" alt="Options, Wilds: visible wild Pokémon, how they are shown and how many chase you">
 
 <img src="docs/media/27-options-qol.png" width="300" alt="Options, Quality of life: type matchups, move data, REPEL AGAIN, EXP share, reusable TMs and free HMs"> <img src="docs/media/28-options-nuzlocke.png" width="300" alt="Options, Nuzlocke: Nuzlocke, Randomlocke, duplicates and shiny clauses, level cap">
 
-<sub>The captures are from v0.6.0 (AzaharPlus, Spanish game, 2026-11-13 and 2026-11-14); the Trainer Card and Save ones were taken before the new START-column icons and only have those icons replaced by the current ones. All images are real captures from Azahar (AzaharPlus) and a New 3DS-family console; the battle, menu and PC screens come from AzaharPlus with the HeartGold sprites in the pack. Native resolutions are 400 × 240 on top and 320 × 240 below. Game artwork belongs to its rightsholders.</sub>
+<sub>The captures are from v0.6.0 (AzaharPlus, Spanish game, 2026-11-13 and 2026-11-14); the Trainer Card and Save ones were taken before the red device and show the earlier lower-screen look. All images are real captures from Azahar (AzaharPlus) and a New 3DS-family console; the battle, menu and PC screens come from AzaharPlus with the HeartGold sprites in the pack. Native resolutions are 400 × 240 on top and 320 × 240 below. Game artwork belongs to its rightsholders.</sub>
 
 ---
 

@@ -322,7 +322,7 @@ static void DevHomePanel(const CtrPokeTouchView *v)
 
 /* ---- The keys ---------------------------------------------------------------------------------------------------------- */
 
-/* A key's icon: the pack's soft 16x16 (the item icon the START column used), read once; NULL without the pack. */
+/* A key's icon: the pack's soft 16x16 of the entry's item icon (sMenuItemArt), read once; NULL without the pack. */
 static const PtSoft *DevHomeIcon(int id)
 {
     static struct {
@@ -338,11 +338,28 @@ static const PtSoft *DevHomeIcon(int id)
     return icons[id].soft.ok ? &icons[id].soft : NULL;
 }
 
+/* A START entry's word (PT_POKEDEX..PT_OPTIONS): the entry's, or for the Trainer Card the player's name as typed (into
+ * `name`). */
+static const char *DevHomeWord(int id, const CtrPokeTouchView *v, char name[16])
+{
+    const char *word = id == PT_POKEDEX ? CTR_TR("Pok\xC3\xA9" "dex", "Pok\xC3\xA9" "dex", "Pok\xc3\xa9" "dex")
+                     : id == PT_POKEMON ? CTR_TR("Pok\xC3\xA9mon", "Pok\xC3\xA9mon", "Pok\xc3\xa9" "mon")
+                     : id == PT_BAG ? CTR_TR("Bag", "Mochila", "Beutel")
+                     : id == PT_SAVE ? CTR_TR("Save", "Guardar", "Sichern") : id == PT_OPTIONS ? CTR_TR("Option", "Ajustes", "Option") : name;
+    int n = 0;
+
+    if (id == PT_CARD)
+        for (; n < 15 && v->playerName[n]; ++n)
+            name[n] = v->playerName[n];
+    name[n] = 0;
+    return word;
+}
+
 /* A key's word (into `out`): the entry's in capitals; the card's, the player's name as typed. */
 static const char *DevHomeKeyWord(int id, const CtrPokeTouchView *v, char out[24])
 {
     char name[16];
-    const char *word = ColumnLabel(id, v, name);
+    const char *word = DevHomeWord(id, v, name);
 
     DevUpper(out, word, 24);
     return id == PT_CARD ? strcpy(out, name) : out;

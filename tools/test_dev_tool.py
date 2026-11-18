@@ -134,6 +134,30 @@ class DevRender(unittest.TestCase):
             self.assertTrue(line.endswith(' kit home'))
             self.assertEqual(options['env']['MSYSTEM'], 'MSYS')
 
+    def test_boards_trace_the_harness_without_the_pack_in_msys(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            kit = Path(tmp) / 'kit'
+            (kit / 'msys2/usr/bin').mkdir(parents=True)
+            (kit / 'msys2/usr/bin/bash.exe').write_bytes(b'')
+            commands = []
+
+            def fake_run(command, **options):
+                commands.append((command, options))
+                return mock.Mock(returncode=0)
+
+            with mock.patch.object(dev, 'DEVKITPRO', kit), mock.patch.object(dev, 'PAK', Path(tmp) / 'none.pak'), \
+                    mock.patch.object(dev.subprocess, 'run', side_effect=fake_run):
+                dev.boards(argparse.Namespace(suites=['options', 'box']))
+            (command, options), = commands
+            self.assertEqual(command[:2], [str(kit / 'msys2/usr/bin/bash.exe'), '-lc'])
+            line = command[2]
+            self.assertIn('tools/make_device_boards.py --run', line)
+            self.assertIn('--trace ' + dev.msys(dev.ROOT / 'build/board-traces'), line)
+            self.assertIn('--out ' + dev.msys(dev.ROOT / 'build/boards'), line)
+            self.assertNotIn('--pak', line)
+            self.assertTrue(line.endswith(' options box'))
+            self.assertEqual(options['env']['MSYSTEM'], 'MSYS')
+
     def test_render_needs_the_pack(self):
         with tempfile.TemporaryDirectory() as tmp:
             (Path(tmp) / 'msys2/usr/bin').mkdir(parents=True)

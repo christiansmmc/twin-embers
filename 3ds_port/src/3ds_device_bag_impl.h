@@ -380,10 +380,8 @@ static void DevBagIcon(unsigned item, int x, int y, int half)
         }
 }
 
-/* Text in the small font wrapped at spaces and line breaks into at most maxLines lines DEV_BAG_SMALL_LINE apart, ending
- * by `right`: the first from firstX (after what is drawn before it on that line; it starts on the next line when its
- * first word does not fit there), the others from x. Returns the lines used. */
-static int DevBagSmallWrap(const char *s, int firstX, int x, int top, int right, int maxLines, uint16_t ink)
+/* DevBagSmallWrap's lines, drawn when `draw`, else only counted. */
+static int DevBagSmallWrapRun(const char *s, int firstX, int x, int top, int right, int maxLines, uint16_t ink, int draw)
 {
     char line[128];
     int lines = 0;
@@ -411,11 +409,20 @@ static int DevBagSmallWrap(const char *s, int firstX, int x, int top, int right,
             ++lines;                        /* the first word does not fit after what is there: the next line */
             continue;
         }
-        DevSmallText(line, from, top + lines * DEV_BAG_SMALL_LINE, ink, right);
+        if (draw)
+            DevSmallText(line, from, top + lines * DEV_BAG_SMALL_LINE, ink, right);
         ++lines;
         s += fit;
     }
     return lines;
+}
+
+/* Text in the small font wrapped at spaces and line breaks into at most maxLines lines DEV_BAG_SMALL_LINE apart, ending
+ * by `right`: the first from firstX (after what is drawn before it on that line; it starts on the next line when its
+ * first word does not fit there), the others from x. Returns the lines used. */
+static int DevBagSmallWrap(const char *s, int firstX, int x, int top, int right, int maxLines, uint16_t ink)
+{
+    return DevBagSmallWrapRun(s, firstX, x, top, right, maxLines, ink, 1);
 }
 
 /* The keys across the top: the pockets, a case's key (always sunk: it is the list shown) or the title's screen (and a

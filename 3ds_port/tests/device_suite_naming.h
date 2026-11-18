@@ -69,7 +69,7 @@ static CtrPokeTouchView NameBoard(void)
     CtrPokeTouchView v;
 
     memset(&v, 0, sizeof(v));
-    v.pressed = v.selected = PT_NONE;
+    v.pressed = PT_NONE;
     v.name.on = 1;
     v.name.maxChars = 7;
     v.name.pressed = -1;
@@ -185,7 +185,7 @@ static void SuiteNaming(void)
     gNameOld = v;
     CtrPokeTouch_Draw(canvas, &gNameOld);
     /* the plan's suite */
-    v = NameBoard(); DevCheckTouch(&gNameOld, &v); assert(CtrPokeTouch_DeviceShown(&v));
+    v = NameBoard(); DevCheckTouch(&gNameOld, &v); assert(DrawnBy(&v, DevNameShown));
     NameEveryKey(v);
     v = NameBoard(); v.name.curCol = 3; v.name.curRow = 2; DevCheckTouch(&gNameOld, &v); NameSunk(&v, 2 * PT_NAME_COLS + 3, -1);
     v.name.curCol = (int8_t)v.name.cols; v.name.curRow = 1; DevCheckTouch(&gNameOld, &v); NameSunk(&v, -1, PT_NAME_HIT_DELETE);
@@ -253,14 +253,14 @@ static void SuiteNaming(void)
 
     /* what the keyboard does not draw presents nothing; the shell's colour whole; the ways in and out (HOME; FireRed's
      * picture: in the frame's screen, nothing of the keyboard hit) */
-    strcpy(v.bar[0], "Anything"); v.registeredItem = 7; v.enabled[PT_BAG] = 1; v.playerX = 3; v.backVisible = 0;
+    strcpy(v.bar[0], "Anything"); v.enabled[PT_BAG] = 1; v.playerX = 3; v.backVisible = 0;
     assert(DevCheckTouch(&gNameOld, &v).count == 0);
     v.shell = 2; assert(DevWhole(DevCheckTouch(&gNameOld, &v)) && at(1, 100) == DEV_SHELL_GREEN);
     v.shell = 0; DevCheckTouch(&gNameOld, &v);
     other = v; other.name.on = 0; other.home = 1; other.playerX = other.playerY = other.cursorX = other.cursorY = -1;
     assert(DevWhole(DevCheckTouch(&gNameOld, &other)));
     v = NameBoard(); assert(DevWhole(DevCheckTouch(&gNameOld, &v)));
-    v.viewport = 1; assert(DevWhole(DevCheckTouch(&gNameOld, &v)) && CtrPokeTouch_DeviceShown(&v) && CtrPokeTouch_NameHit(&v, 30, 100) == -1);
+    v.viewport = 1; assert(DevWhole(DevCheckTouch(&gNameOld, &v)) && DrawnBy(&v, DevFrameShown) && CtrPokeTouch_NameHit(&v, 30, 100) == -1);
     v = NameBoard(); DevCheckTouch(&gNameOld, &v);
     NameWords(NameBoard());
     CtrPokeTouch_Draw(canvas, &gNameOld);

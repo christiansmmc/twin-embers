@@ -55,7 +55,7 @@ static CtrPokeTouchView BoxBoard(void)
     CtrPokeTouchBox *b = &v.box;
 
     memset(&v, 0, sizeof(v));
-    v.pressed = v.selected = PT_NONE;
+    v.pressed = PT_NONE;
     b->on = 1;
     b->state = PT_BOX_STATE_BOX;
     b->area = ST_AREA_BOX;
@@ -183,7 +183,7 @@ static void SuiteBox(void)
     monArt = 1;
     CtrPokeTouch_Draw(canvas, &old);
     /* the plan's suite */
-    DevCheckTouch(&old, &v); assert(CtrPokeTouch_DeviceShown(&v));
+    DevCheckTouch(&old, &v); assert(DrawnBy(&v, DevBoxShown));
     for (i = 0; i < 30; ++i) AssertRowHits(BoxHitV, &v, DevBoxCell(i), i);
     AssertRowHits(BoxHitV, &v, kDevBoxTitle, ST_HIT_TITLE); AssertHits(BoxHitV, &v, kDevBoxPrev, ST_HIT_PREV); AssertHits(BoxHitV, &v, kDevBoxNext, ST_HIT_NEXT);
     AssertHits(BoxHitV, &v, kDevBoxParty, ST_HIT_BUTTON_PARTY); AssertHits(BoxHitV, &v, kDevBoxClose, ST_HIT_BUTTON_CLOSE);
@@ -228,7 +228,8 @@ static void SuiteBox(void)
     assert(at(14, 14) == DEV_PAPER2 && Count(14, 14, 160, 24, DEV_INK) > 0 && Count(14, 14, 160, 24, DEV_BEZEL) == 0);
 
     /* the right column: ◀ ▶ sunk while held; PARTY and CLOSE BOX sunk by FireRed's cursor on its buttons or a held touch,
-     * which takes the cursor's marks (the frame, the band, a key) away from the rest of the box */
+     * which takes the cursor's marks (the frame, the band, a key) away from the rest of the box (the dark CLOSE BOX's face
+     * is the same up and sunk: AssertKey tells them apart by its LED) */
     v = BoxBoard(); DevCheckTouch(&old, &v);
     AssertKey(kDevBoxPrev, DEV_LOOK_KEY, 0); AssertKey(kDevBoxNext, DEV_LOOK_KEY, 0); AssertKey(kDevBoxParty, DEV_LOOK_KEY, 0); AssertKey(kDevBoxClose, DEV_LOOK_DARK, 0);
     v.box.area = ST_AREA_BUTTONS; v.box.pos = 0; DevCheckTouch(&old, &v); AssertKey(kDevBoxParty, DEV_LOOK_KEY, 1); AssertKey(kDevBoxClose, DEV_LOOK_DARK, 0);
@@ -325,6 +326,7 @@ static void SuiteBox(void)
     assert(CtrPokeTouch_BoxHit(&v, 20, 20) == ST_HIT_NONE && CtrPokeTouch_BoxHit(&v, 100, 200) == ST_HIT_NONE);
     v.box.pressed = ST_HIT_MENU_BASE + 3; DevCheckTouch(&old, &v); BoxKeysSunk(5, 3, 1);
     assert(at(DevBoxCell(29).x, DevBoxCell(29).y + 12) == BOX_DIM(DEV_BEZEL));   /* a held key is the menu's alone */
+    v.box.pressed = ST_HIT_MENU_BASE + 4; DevCheckTouch(&old, &v); BoxKeysSunk(5, 4, 1);   /* the dark CANCEL held: sunk, lit */
     v.box.pressed = ST_HIT_MENU_BASE + 6; DevCheckTouch(&old, &v); BoxKeysSunk(5, 1, 1);   /* no such key: as none */
     v.box.pressed = 3; assert(DevCheckTouch(&old, &v).count == 0);
     assert(at(DevBoxCell(29).x, DevBoxCell(29).y + 12) == BOX_DIM(DEV_BEZEL));   /* the place the menu is for */
@@ -397,14 +399,14 @@ static void SuiteBox(void)
 
     /* what the box does not draw presents nothing; the shell's colour whole; the ways in and out (HOME; FireRed's own
      * picture while it carries several: in the frame's screen, nothing of the box hit) */
-    strcpy(v.bar[0], "Anything"); v.registeredItem = 7; v.enabled[PT_BAG] = 1; v.playerX = 3; v.backVisible = 0; v.box.box = 5;
+    strcpy(v.bar[0], "Anything"); v.enabled[PT_BAG] = 1; v.playerX = 3; v.backVisible = 0; v.box.box = 5;
     assert(DevCheckTouch(&old, &v).count == 0);
     v.shell = 2; assert(DevWhole(DevCheckTouch(&old, &v)) && at(1, 100) == DEV_SHELL_GREEN);
     v.shell = 0; DevCheckTouch(&old, &v);
     other = v; other.box.on = 0; other.home = 1; other.playerX = other.playerY = other.cursorX = other.cursorY = -1;
     assert(DevWhole(DevCheckTouch(&old, &other)));
     v = BoxBoard(); assert(DevWhole(DevCheckTouch(&old, &v)));
-    v.viewport = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && CtrPokeTouch_DeviceShown(&v) && CtrPokeTouch_BoxHit(&v, 30, 50) == ST_HIT_NONE);
+    v.viewport = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && DrawnBy(&v, DevFrameShown) && CtrPokeTouch_BoxHit(&v, 30, 50) == ST_HIT_NONE);
     v = BoxBoard(); DevCheckTouch(&old, &v);
     BoxWords(BoxBoard());
     CtrPokeTouch_Draw(canvas, &old);

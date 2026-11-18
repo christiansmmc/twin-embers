@@ -46,8 +46,8 @@ static void RelearnFill(CtrPokeTouchRelearn *l, int pressed)
         sRelearnFirst = cur;
     if (cur >= sRelearnFirst + PT_RL_ROWS)
         sRelearnFirst = cur - PT_RL_ROWS + 1;
-    if (sRelearnFirst > count + 1 - PT_RL_ROWS)
-        sRelearnFirst = count + 1 - PT_RL_ROWS;
+    if (sRelearnFirst > count - PT_RL_ROWS)         /* CANCEL is a key, not a row: the window ends at the last move */
+        sRelearnFirst = count - PT_RL_ROWS;
     if (sRelearnFirst < 0)
         sRelearnFirst = 0;
     l->panel = (uint8_t)CtrBottomRelearn_Panel();
@@ -92,9 +92,9 @@ static int RelearnSnapshot(Snapshot *s, int mode)
     return 1;
 }
 
-/* A row: the list's cursor walks to it (RunRelearnPlan), a tap on the selected row is its A; CANCEL is FireRed's CANCEL row, the list's last
- * (index `count`), taken as a row is; the two arrows are its UP and DOWN. YES and NO: the menu's cursor goes to the one tapped and A takes
- * it; a message that waits for A goes on with a tap. */
+/* A row: the list's cursor walks to it (RunRelearnPlan), a tap on the selected row is its A; CANCEL is FireRed's B on the list, which asks
+ * the same give-up question as A on its CANCEL row, at once (owner decision, 2026-11-18); the two arrows are its UP and DOWN. YES and NO:
+ * the menu's cursor goes to the one tapped and A takes it; a message that waits for A goes on with a tap. */
 static void ProcessRelearnTouch(const CtrInput *in)
 {
     int hit = -1, input = CtrBottomRelearn_Input(), shown = sHaveShown && sShown.mode == MODE_GBAVIEW && sShown.touch.relearn.on,
@@ -121,11 +121,12 @@ static void ProcessRelearnTouch(const CtrInput *in)
         return;
     }
     if (sRelearnTap.inside && !sRelearnPlan.active) {
-        int row = sRelearnTap.code == PT_RL_HIT_CANCEL ? sShown.touch.relearn.count
-                                                       : sShown.touch.relearn.first + sRelearnTap.code - PT_RL_HIT_ROW;
+        int row = sShown.touch.relearn.first + sRelearnTap.code - PT_RL_HIT_ROW;
 
         if (sRelearnTap.code == PT_RL_HIT_MESSAGE)
             sRouteKey = K_A;
+        else if (sRelearnTap.code == PT_RL_HIT_CANCEL)
+            sRouteKey = K_B;
         else if (sRelearnTap.code == PT_RL_HIT_YES || sRelearnTap.code == PT_RL_HIT_NO) {
             memset(&sRelearnPlan, 0, sizeof(sRelearnPlan));
             sRelearnPlan.active = sRelearnPlan.menu = 1;

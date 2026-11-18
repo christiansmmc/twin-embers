@@ -20,7 +20,7 @@ static CtrPokeTouchView CardBoard(void)
     CtrPokeTouchCard *c = &v.card;
 
     memset(&v, 0, sizeof(v));
-    v.pressed = v.selected = PT_NONE;
+    v.pressed = PT_NONE;
     c->on = 1;
     strcpy(c->name, "Rick");
     for (int i = 0; i < 6; ++i)
@@ -44,16 +44,18 @@ static CtrPokeTouchView CardBoard(void)
     return v;
 }
 
-/* Upper case (owner decision 5): FireRed's labels and records' labels, which v0.6.0 title-cased, drawn in capitals; the
- * name as typed. */
+/* Upper case (owner decision 5): FireRed's labels and records' labels, which v0.6.0 title-cased, drawn in capitals, but
+ * IDNo., drawn as FireRed writes it; the name as typed. */
 static void CardUpperCase(CtrPokeTouchView v)
 {
-    static const char *const kTitle[6] = {"Name: ", "Idno.", "Money", "\xC2\xA5", "Pok\xC3\xA9" "dex", "Time"};
+    static const char *const kTitle[6] = {"Name: ", "IDNo.", "Money", "\xC2\xA5", "Pok\xC3\xA9" "dex", "Time"};
     CtrPokeTouchView cased = v;
 
     for (int i = 0; i < 6; ++i)
         strcpy(cased.card.label[i], kTitle[i]);
     TouchSamePixels(&cased, &v, 1, "the front's labels in v0.6.0's case and in capitals");
+    strcpy(cased.card.label[1], "IDNO.");
+    TouchSamePixels(&cased, &v, 0, "IDNo. as FireRed writes it and in capitals");
     strcpy(cased.card.name, "RICK");
     TouchSamePixels(&cased, &v, 0, "the name as typed and in capitals");
     v.card.back = cased.card.back = 1;
@@ -75,7 +77,7 @@ static void SuiteCard(void)
     cardArt = 1;
     CtrPokeTouch_Draw(canvas, &co);
     /* the plan's suite */
-    cv = CardBoard(); DevCheckTouch(&co, &cv); assert(CtrPokeTouch_DeviceShown(&cv));
+    cv = CardBoard(); DevCheckTouch(&co, &cv); assert(DrawnBy(&cv, DevCardShown));
     /* card */ AssertHits(CardHitV, &cv, kDevCardFlip, 1); assert(CtrPokeTouch_CardHit(&cv, 160, 90) == 1 && CtrPokeTouch_CardHit(&cv, 240, 200) == 0); AssertHits(BackV, &cv, kDevSumBack, 1);
     cv.card.pressed = 1; DevCheckTouch(&co, &cv); AssertKey(kDevCardFlip, DEV_LOOK_KEY, 1); cv.card.back = 1; cv.card.pressed = 0; assert(DevWhole(DevCheckTouch(&co, &cv)));
     cv.mapGroup ^= 1; cv.speed ^= 1; assert(DevCheckTouch(&co, &cv).count == 0);
@@ -146,16 +148,16 @@ static void SuiteCard(void)
     cv.backPressed = 1; assert(DevCheckTouch(&co, &cv).count == 0);                    /* a press on a grey BACK: not drawn */
     cv.backEnabled = 1; cv.backPressed = 0; cv.backVisible = 0; DevCheckTouch(&co, &cv);
     assert(at(247, 210) == DEV_SHELL_RED && !BackV(&cv, 247, 210)); AssertKey(kDevCardFlip, DEV_LOOK_KEY, 0);
-    /* what the card does not draw presents nothing: the bar, the column's fields, the map */
+    /* what the card does not draw presents nothing: the bar, HOME's keys, the map */
     cv = CardBoard(); DevCheckTouch(&co, &cv);
-    strcpy(cv.bar[0], "Anything"); cv.bar[1][0] = 0; cv.registeredItem = 7; cv.enabled[PT_BAG] = 1; cv.playerX = 3;
+    strcpy(cv.bar[0], "Anything"); cv.bar[1][0] = 0; cv.enabled[PT_BAG] = 1; cv.playerX = 3;
     assert(DevCheckTouch(&co, &cv).count == 0);
     cv.shell = 3; assert(DevWhole(DevCheckTouch(&co, &cv)) && at(1, 100) == DEV_SHELL_GREY);
     cv.shell = 0; DevCheckTouch(&co, &cv);
     strcpy(cv.card.name, "Leaf"); assert(DevWhole(DevCheckTouch(&co, &cv)));
     /* the ways in and out: the GBA picture (a link card: in the frame's screen, nothing of the card hit, the frame's
      * BACK) */
-    cv.viewport = 1; assert(DevWhole(DevCheckTouch(&co, &cv)) && CtrPokeTouch_DeviceShown(&cv));
+    cv.viewport = 1; assert(DevWhole(DevCheckTouch(&co, &cv)) && DrawnBy(&cv, DevFrameShown));
     assert(!CardHitV(&cv, 160, 90) && !CardHitV(&cv, 100, 200) && CtrPokeTouch_BackHit(&cv, 278, 209) && !CtrPokeTouch_BackHit(&cv, 180, 210));
     cv = CardBoard(); cv.card.on = 0; assert(!CardHitV(&cv, 160, 90));
     cv = CardBoard(); assert(DevWhole(DevCheckTouch(&co, &cv)));

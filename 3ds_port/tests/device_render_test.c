@@ -5,20 +5,24 @@
  * exactly where it is drawn (3ds_device_layout.h is the one source of both), and no port-authored key label is cut
  * (sDevKeyCut stays 0). No ROM-derived data: the fonts are synthetic stubs, every glyph DEVICE_FONT_W px wide (default
  * 5; the small font's 5), unless FIRERED_TEST_PAK names the owner's own pack, whose glyphs are then read (a local
- * viewing aid, tools/render_device_views.py; never committed). Environment:
+ * viewing aid, tools/render_device_views.py; never committed). What the kit is told each view draws (its DEV_TRACE,
+ * defined here before the renderer) is always collected; a state keeps the pieces of its last full draw. Environment:
  *   DEVICE_OUT=dir            one PPM per drawn state, dir/<suite>_<state>.ppm
- *   FIRERED_TEST_PAK=pak      the pack (ABI 0x8f71cf3a, its ROM's SHA-1), opened as poketouch_render_test.c does
+ *   DEVICE_TRACE=dir          one trace per drawn state, dir/<suite>_<state>.json (tools/make_device_boards.py)
+ *   FIRERED_TEST_PAK=pak      the pack (ABI 0x8f71cf3a, its ROM's SHA-1): its glyphs, item icons and art
  *   DEVICE_WIDTHS=file        the normal font's 256 glyph widths; DEVICE_SMALL_WIDTHS=file the small font's
  *   DEVICE_FONT_W=n           the stub glyph width
  *
  * usage: device_render_test <suite>   (kit, home, battle, party, summary, bag, options, save, card, mail, dex, choice,
  *        learn, relearn, naming, box, easychat, frame, idle, or all; prints PASS device <suite>) */
 #include <assert.h>
+/* The kit's trace: each piece it draws is told to TracePiece (with the canvas and the shots, below). */
+static void TracePiece(int op, int x, int y, int w, int h, int a, int b, const char *s);
+#define DEV_TRACE(op, x, y, w, h, a, b, s) TracePiece((op), (x), (y), (w), (h), (int)(a), (int)(b), (s))
 #ifndef PT_SOURCE
 #define PT_SOURCE "3ds_poketouch.c"
 #endif
 #include PT_SOURCE
-#include "3ds_text_case_views.h"   /* the game names in proper case, as 3ds_bottom.c gives them */
 #include "3ds_nature.h"            /* the Summary's nature marks */
 #include "3ds_pak.h"
 
@@ -63,7 +67,7 @@ static void SyntheticFont(uint8_t *data, int small)
     }
 }
 
-/* ---- The pack (FIRERED_TEST_PAK), as poketouch_render_test.c opens it --------------------------------------------- */
+/* ---- The pack (FIRERED_TEST_PAK) --------------------------------------------------------------------------------- */
 
 static FILE *realPack;
 static CtrPakHeader realHeader;
@@ -130,7 +134,15 @@ static void ReadWidths(const char *path, uint8_t widths[256])
     fclose(f);
 }
 
-/* ---- Game bridges: the battle's (the ember drawer's harness had them) and poketouch_render_test.c's map art ------- */
+/* ---- Game bridges: the battle's, the map's art, the item icons' files -------------------------------------------- */
+
+/* An item icon's files as the kit's decoder checks set them (KitDecoders): while `on`, every icon's tiles are the first
+ * `size` bytes of `tiles` and its palette `colors`, or (`fail`) the files are missing, pack or not. */
+static struct {
+    int on, fail;
+    unsigned size;
+    uint8_t tiles[288], colors[32];
+} gIconFile;
 
 /* The pack's files with FIRERED_TEST_PAK; else the two item icons, synthesised: a literal-only GBA LZ stream of 24x24
  * 4bpp tiles (3x3) and of a palette, so the full-size icon path runs without game data. */
@@ -142,17 +154,24 @@ void *CtrData_Load(const char *path, uint32_t *len)
     uint8_t *out;
     unsigned pos = 4;
 
-    if (realPack)
+    if (gIconFile.on && strstr(path, "graphics/items/icon")) {
+        if (gIconFile.fail)
+            return NULL;
+        size = palette ? 32u : gIconFile.size;
+        memcpy(raw, palette ? gIconFile.colors : gIconFile.tiles, size);
+    } else if (realPack) {
         return PackRead(path, len);
-    if (!strstr(path, "graphics/items/icon"))
+    } else if (!strstr(path, "graphics/items/icon")) {
         return NULL;
-    memset(raw, 0, sizeof(raw));
-    if (palette) {
-        raw[2] = 0xff; raw[3] = 0x03;               /* index 1: green */
     } else {
-        for (unsigned i = 0; i < 288; ++i)
-            raw[i] = (uint8_t)((i % 32) < 16 ? 0x11 : 0x00);   /* stripes, so tile order shows */
-        raw[0] = 0x21;                              /* the very first pixel: index 1, the second 2 */
+        memset(raw, 0, sizeof(raw));
+        if (palette) {
+            raw[2] = 0xff; raw[3] = 0x03;           /* index 1: green */
+        } else {
+            for (unsigned i = 0; i < 288; ++i)
+                raw[i] = (uint8_t)((i % 32) < 16 ? 0x11 : 0x00);   /* stripes, so tile order shows */
+            raw[0] = 0x21;                          /* the very first pixel: index 1, the second 2 */
+        }
     }
     *len = 4 + size + (size + 7) / 8;
     out = malloc(*len);
@@ -354,12 +373,225 @@ static void clear(uint16_t c)
         canvas[i] = c;
 }
 
-/* The canvas as dir/<suite>_<state>.ppm, with DEVICE_OUT. */
+/* ---- The trace: what the kit is told the view draws (3ds_device_kit_impl.h's DEV_TRACE), for a board ------------- */
+
+#define TRACE_MAX 1024                          /* pieces of one draw (the most a state draws: 231) */
+#define TRACE_TEXT 256                          /* bytes of one piece's text */
+
+static struct {
+    int op, x, y, w, h, a, b;
+    char s[TRACE_TEXT];
+} gTrace[TRACE_MAX];
+static int gTraceCount, gTraceLost, gTraceShot;
+static int gTraceShell = DEV_SHELL_RED;
+static const char *gTraceDir;
+
+/* The bytes of `s` the kit drew w pixels of (DevGlyphs: its glyphs while they fit). */
+static size_t TraceDrawn(const char *s, int w, int small)
+{
+    const char *p = s;
+
+    for (int x = 0; *p;) {
+        const char *q = p;
+        int gw = (small ? DevSmallGlyph(&q) : Glyph(&q))->width;
+
+        if (x + gw > w)
+            break;
+        x += gw;
+        p = q;
+    }
+    return (size_t)(p - s);
+}
+
+/* DEV_TRACE: a piece kept (a text with nothing drawn left out), or BEGIN, which drops them all. */
+static void TracePiece(int op, int x, int y, int w, int h, int a, int b, const char *s)
+{
+    size_t n = !s ? 0 : op == DEV_TRACE_TEXT && b < 2 ? TraceDrawn(s, w, b) : strlen(s);
+
+    if (op == DEV_TRACE_BEGIN) {                /* a new whole draw: what was told before is gone */
+        gTraceCount = gTraceLost = 0;
+        gTraceShell = a;
+        return;
+    }
+    if (op == DEV_TRACE_TEXT && w <= 0)
+        return;
+    if (gTraceCount == TRACE_MAX) {
+        ++gTraceLost;
+        return;
+    }
+    assert(n < TRACE_TEXT);
+    gTrace[gTraceCount].op = op;
+    gTrace[gTraceCount].x = x;
+    gTrace[gTraceCount].y = y;
+    gTrace[gTraceCount].w = w;
+    gTrace[gTraceCount].h = h;
+    gTrace[gTraceCount].a = a;
+    gTrace[gTraceCount].b = b;
+    memcpy(gTrace[gTraceCount].s, s ? s : "", n);
+    gTrace[gTraceCount++].s[n] = 0;
+}
+
+/* The colours the views name (the kit's and the plan-3 views' own), as the boards give them: each name's UI_RGB(r, g,
+ * b) read back as 0xrrggbb. A board shows a colour drawn as one of these in its board value. */
+#pragma push_macro("UI_RGB")
+#undef UI_RGB
+#define UI_RGB(r, g, b) ((unsigned)(r) << 16 | (unsigned)(g) << 8 | (unsigned)(b))
+static const unsigned kTraceRgb[] = {
+    DEV_SHELL_RED, DEV_SHELL_BLUE, DEV_SHELL_GREEN, DEV_SHELL_GREY, DEV_BEZEL, DEV_BEZEL_LINE, DEV_PAPER, DEV_PAPER2,
+    DEV_INK, DEV_INK_SH, DEV_INK2, DEV_INK_DIM, DEV_KEY, DEV_KEY_EDGE, DEV_KEY_INK, DEV_SUNK, DEV_SUNK_EDGE, DEV_SUNK_INK,
+    DEV_SUNK_INK_SH, DEV_LED, DEV_DARK_INK, DEV_FAINT, DEV_FAINT_EDGE, DEV_FAINT_INK, DEV_BUTTON_EDGE, DEV_HP_FRAME,
+    DEV_HP_TRACK, DEV_HP_GREEN, DEV_HP_YELLOW, DEV_HP_RED, DEV_HP_LABEL, DEV_EXP, DEV_EXP_LABEL, DEV_FX_SUPER,
+    DEV_FX_NOTVERY, DEV_FX_EFFECTIVE, DEV_FX_NONE, DEV_CAT_SPECIAL, DEV_CAT_PHYSICAL, DEV_PSN, DEV_FX_SUPER_SH,
+    DEV_FX_NOTVERY_SH, DEV_FX_EFFECTIVE_SH, DEV_CAT_SPECIAL_SH, DEV_LOW_INK, DEV_PP_QUARTER, DEV_PP_HALF, DEV_BLUE_INK,
+    DEV_STAT_UP, DEV_MALE, DEV_FEMALE, DEV_BAG_ARROW_OFF, DEV_BOX_TITLE_SH, DEV_CARD_GOLD,
+};
+#pragma pop_macro("UI_RGB")
+
+/* RGB565 c as "#rrggbb" into out: a named colour's board value, any other (a blend, a type's) widened. */
+static const char *TraceHex(int c, char out[8])
+{
+    for (size_t i = 0; i < sizeof(kTraceRgb) / sizeof(kTraceRgb[0]); ++i)
+        if (UI_RGB(kTraceRgb[i] >> 16, (kTraceRgb[i] >> 8) & 255, kTraceRgb[i] & 255) == c) {
+            snprintf(out, 8, "#%06x", kTraceRgb[i]);
+            return out;
+        }
+    snprintf(out, 8, "#%02x%02x%02x", (c >> 11) << 3 | (c >> 13), ((c >> 5) & 63) << 2 | ((c >> 9) & 3),
+             (c & 31) << 3 | ((c >> 2) & 7));
+    return out;
+}
+
+/* The character FireRed's code `code` draws, in UTF-8: the port's own spelling of it (GlyphCode's, read back), the
+ * gender signs, the ellipsis and "Lv"; "?" for any other. */
+static const char *TraceCodeText(unsigned code, char out[4])
+{
+    static const unsigned char kLead[3] = {0xc2, 0xc3, 0xc5};
+
+    for (unsigned c = 0x20; c < 0x7f; ++c) {
+        const char src[2] = {(char)c, 0}, *p = src;
+
+        if (GlyphCode(&p) == code) {
+            out[0] = (char)c; out[1] = 0;
+            return out;
+        }
+    }
+    for (int i = 0; i < 3; ++i)
+        for (unsigned c = 0x80; c < 0xc0; ++c) {
+            const char src[3] = {(char)kLead[i], (char)c, 0}, *p = src;
+
+            if (GlyphCode(&p) == code) {
+                out[0] = (char)kLead[i]; out[1] = (char)c; out[2] = 0;
+                return out;
+            }
+        }
+    return code == 0xb5 ? "\xE2\x99\x82" : code == 0xb6 ? "\xE2\x99\x80" : code == 0xb0 ? "\xE2\x80\xA6"
+         : code == 0x34 ? "Lv" : "?";
+}
+
+/* `s` as a JSON string: UTF-8 as it is, a FireRed code (0x01 escaped) as the character it draws; a Japanese one (0x02
+ * escaped) or a byte that is not UTF-8 as "?", a control as a space. */
+static void TraceJsonText(FILE *f, const char *s)
+{
+    char text[4];
+
+    fputc('"', f);
+    while (*s) {
+        unsigned char c = (unsigned char)*s++;
+        int more = c >= 0xc2 && c <= 0xdf ? 1 : c >= 0xe0 && c <= 0xef ? 2 : 0, k = 0;
+
+        while (k < more && ((unsigned char)s[k] & 0xc0) == 0x80)
+            ++k;
+        if ((c == 0x01 || c == 0x02) && *s) {
+            const char *drawn = c == 0x01 ? TraceCodeText((unsigned char)*s, text) : "?";
+
+            ++s;
+            fputs(!strcmp(drawn, "\"") ? "\\\"" : !strcmp(drawn, "\\") ? "\\\\" : drawn, f);
+        } else if (c == '"' || c == '\\')
+            fprintf(f, "\\%c", c);
+        else if (c < 0x20)
+            fputc(' ', f);
+        else if (c < 0x80)
+            fputc(c, f);
+        else if (more && k == more) {
+            fputc(c, f);
+            fwrite(s, 1, (size_t)more, f);
+            s += more;
+        } else
+            fputc('?', f);
+    }
+    fputc('"', f);
+}
+
+/* The trace of the last whole draw as dir/<suite>_<state>.json, with DEVICE_TRACE: {"suite", "state", "shot" (its
+ * place among the suite's), "shell", "items": [...]} in draw order (tools/make_device_boards.py reads it). */
+static void TraceWrite(const char *state)
+{
+    static const char *const kLook[3] = {"key", "dark", "faint"};
+    static const char *const kArt[] = {"icon", "picture", "item", "badge", "wallpaper", "mark", "sprite", "frame",
+                                       "logo", "gba"};
+    static const char *const kDir[4] = {"up", "down", "left", "right"};
+    static const char *const kOp[] = {"begin", "art", "shell", "screen", "key", "dim", "hole", "row", "rect", "led",
+                                      "text", "chip", "bar", "tri"};
+    char path[512], hex[8], hex2[8];
+    FILE *f;
+
+    ++gTraceShot;
+    if (!gTraceDir)
+        return;
+    if (gTraceLost) {
+        fprintf(stderr, "%s %s: the trace lost %d pieces (TRACE_MAX)\n", gSuite, state, gTraceLost);
+        assert(0);
+    }
+    snprintf(path, sizeof(path), "%s/%s_%s.json", gTraceDir, gSuite, state);
+    f = fopen(path, "wb");
+    assert(f);
+    fprintf(f, "{\"suite\": \"%s\", \"state\": \"%s\", \"shot\": %d, \"shell\": \"%s\", \"items\": [", gSuite, state,
+            gTraceShot, TraceHex(gTraceShell, hex));
+    for (int i = 0; i < gTraceCount; ++i) {
+        const int op = gTrace[i].op, a = gTrace[i].a, b = gTrace[i].b;
+
+        fprintf(f, "%s\n  {\"op\": \"%s\", \"x\": %d, \"y\": %d, \"w\": %d", i ? "," : "", kOp[op], gTrace[i].x,
+                gTrace[i].y, gTrace[i].w);
+        if (op != DEV_TRACE_TEXT)
+            fprintf(f, ", \"h\": %d", gTrace[i].h);
+        if (op == DEV_TRACE_SHELL)
+            fprintf(f, ", \"screws\": %d", a);
+        else if (op == DEV_TRACE_KEY)
+            fprintf(f, ", \"look\": \"%s\", \"sunk\": %d, \"radius\": %d", kLook[a], b & 1, b >> 1);
+        else if (op == DEV_TRACE_HOLE)
+            fprintf(f, ", \"radius\": %d", a);
+        else if (op == DEV_TRACE_ROW)
+            fprintf(f, ", \"chosen\": %d", a);
+        else if (op == DEV_TRACE_RECT)
+            fprintf(f, ", \"fill\": \"%s\"", TraceHex(a, hex));
+        else if (op == DEV_TRACE_TEXT) {
+            fprintf(f, ", \"font\": \"%s\", \"ink\": \"%s\"", b == 1 ? "small" : "normal", TraceHex(a, hex));
+            if (gTrace[i].h != a)
+                fprintf(f, ", \"shadow\": \"%s\"", TraceHex(gTrace[i].h, hex2));
+        } else if (op == DEV_TRACE_CHIP)
+            fprintf(f, ", \"fill\": \"%s\", \"shadow\": \"%s\"", TraceHex(a, hex), TraceHex(b, hex2));
+        else if (op == DEV_TRACE_BAR)
+            fprintf(f, ", \"fill\": \"%s\", \"filled\": %d", TraceHex(a, hex), b);
+        else if (op == DEV_TRACE_TRI)
+            fprintf(f, ", \"ink\": \"%s\", \"dir\": \"%s\"", TraceHex(a, hex), kDir[b & 3]);
+        else if (op == DEV_TRACE_ART)
+            fprintf(f, ", \"kind\": \"%s\"", kArt[a]);
+        if (op == DEV_TRACE_TEXT || op == DEV_TRACE_CHIP) {
+            fputs(", \"text\": ", f);
+            TraceJsonText(f, gTrace[i].s);
+        }
+        fputc('}', f);
+    }
+    fputs("\n]}\n", f);
+    fclose(f);
+}
+
+/* The canvas as dir/<suite>_<state>.ppm, with DEVICE_OUT; the trace as dir/<suite>_<state>.json, with DEVICE_TRACE. */
 static void shot(const char *state)
 {
     char path[512];
     FILE *f;
 
+    TraceWrite(state);
     if (!gOut)
         return;
     snprintf(path, sizeof(path), "%s/%s_%s.ppm", gOut, gSuite, state);
@@ -448,13 +680,22 @@ static uint16_t KeyFace(int look, int sunk)
     return sunk ? DEV_SUNK : DEV_KEY;
 }
 
+static int Count(int x, int y, int w, int h, uint16_t c);
+
+/* ...and on a dark or faint key, whose face is the same up and sunk, the LED: lit in its area when sunk, and not when up
+ * (a cream key's area may show an LED while up: the naming keyboard's page key FireRed's cursor turns to). */
 static __attribute__((unused)) void AssertKey(CtrPokeTouchRect r, int look, int sunk)
 {
-    int faceY = r.y + (sunk ? DEV_SINK : 0);
+    int faceY = r.y + (sunk ? DEV_SINK : 0), areaH = r.y + r.h + DEV_DROP > H ? H - r.y : r.h + DEV_DROP;
 
     if (at(r.x + 3, faceY + r.h / 2) != KeyFace(look, sunk)) {
         fprintf(stderr, "%s: key {%d,%d,%d,%d} look %d sunk %d: face %04x at %d,%d, wanted %04x\n", gSuite, r.x, r.y, r.w,
                 r.h, look, sunk, at(r.x + 3, faceY + r.h / 2), r.x + 3, faceY + r.h / 2, KeyFace(look, sunk));
+        assert(0);
+    }
+    if (look != DEV_LOOK_KEY && (Count(r.x, r.y, r.w, areaH, DEV_LED) > 0) != sunk) {
+        fprintf(stderr, "%s: key {%d,%d,%d,%d} look %d: LED %s, wanted %s\n", gSuite, r.x, r.y, r.w, r.h, look,
+                sunk ? "dark" : "lit", sunk ? "sunk" : "up");
         assert(0);
     }
 }
@@ -495,6 +736,15 @@ static __attribute__((unused)) void AssertRowHits(DevHitFn hit, const void *view
 static __attribute__((unused)) int BackV(const void *view, int x, int y)
 {
     return CtrPokeTouch_BackHit((const CtrPokeTouchView *)view, x, y);
+}
+
+/* The dispatcher's row that draws `view` is the one whose `shown` this is (a view's own row, or DevFrameShown: the
+ * frame, FireRed's picture in its screen). */
+static __attribute__((unused)) int DrawnBy(const CtrPokeTouchView *view, int (*shown)(const CtrPokeTouchView *))
+{
+    int i = DevFieldIndex(view);
+
+    return i >= 0 && kDevFieldViews[i].shown == shown;
 }
 
 /* With small letters wider than capitals (7 px in both fonts): `a` and `b` drawn alike, or (`same` 0) not. A suite's
@@ -855,8 +1105,67 @@ static void KitSheet(void)
     shot("sheet");
 }
 
+/* An item icon's files for the decoders (gIconFile): `size` bytes of clear tiles and a black palette. */
+static void IconFiles(unsigned size)
+{
+    memset(&gIconFile, 0, sizeof(gIconFile));
+    gIconFile.on = 1;
+    gIconFile.size = size;
+}
+
+/* The decoders of FireRed's item icons. The pack's LZ77 (0x10): a known block decodes to its bytes (literals, a
+ * back-reference), a block cut short, too big for the room or referring outside what is decoded is refused. The soft
+ * 16x16 of HOME's keys (PokeTouch_SoftIcon): coverage by area, the colour of the drawn pixels only; none for an icon
+ * missing, malformed or with nothing drawn. With FIRERED_TEST_PAK the pack's six HOME icons. */
+static void KitDecoders(void)
+{
+    static const uint8_t literals[] = {0x10, 3, 0, 0, 0, 1, 2, 3};
+    static const uint8_t repeated[] = {0x10, 6, 0, 0, 0x10, 1, 2, 3, 0, 2};   /* 1 2 3, then 3 back for 3 */
+    static const uint8_t before[] = {0x10, 3, 0, 0, 0x80, 0, 0};              /* 1 back with nothing decoded */
+    static const uint8_t overrun[] = {0x10, 2, 0, 0, 0x40, 1, 0, 0};          /* 3 bytes where 1 is left */
+    static PtSoft soft;
+    uint8_t out[512];
+
+    assert(PokeTouch_Lz77(literals, sizeof(literals), out, 3) == 3 && !memcmp(out, "\1\2\3", 3));
+    for (unsigned n = 0; n < sizeof(literals); ++n)
+        assert(!PokeTouch_Lz77(literals, n, out, 3));
+    assert(!PokeTouch_Lz77(literals, sizeof(literals), out, 2));
+    assert(PokeTouch_Lz77(repeated, sizeof(repeated), out, 6) == 6 && !memcmp(out, "\1\2\3\1\2\3", 6));
+    assert(!PokeTouch_Lz77(before, sizeof(before), out, sizeof(out)));
+    assert(!PokeTouch_Lz77(overrun, sizeof(overrun), out, sizeof(out)));
+    assert(!strcmp(sMenuItemArt[3], "card_key") && !strcmp(sMenuItemArt[5], "teachy_tv"));
+    IconFiles(287);
+    assert(!PokeTouch_SoftIcon("fame_checker", &soft));                       /* neither 3x3 nor 4x4 tiles */
+    IconFiles(288);
+    gIconFile.colors[2] = 0xff;                                                /* index 1: white */
+    gIconFile.colors[3] = 0x7f;
+    memset(gIconFile.tiles, 0x11, 288);
+    assert(PokeTouch_SoftIcon("fame_checker", &soft) && soft.ok);
+    for (int i = 0; i < PT_SOFT * PT_SOFT; ++i)
+        assert(soft.alpha[i] == 255 && soft.rgb[i] == 0xffff);
+    /* opaque left of x = 11 in every row: output columns 0-6 whole (to 10.5), 7 a third, 8 on none */
+    memset(gIconFile.tiles, 0, 288);
+    for (int tr = 0; tr < 3; ++tr)
+        for (int row = 0; row < 8; ++row) {
+            memset(&gIconFile.tiles[(tr * 3 + 0) * 32 + row * 4], 0x11, 4);
+            gIconFile.tiles[(tr * 3 + 1) * 32 + row * 4 + 0] = 0x11;
+            gIconFile.tiles[(tr * 3 + 1) * 32 + row * 4 + 1] = 0x01;
+        }
+    assert(PokeTouch_SoftIcon("fame_checker", &soft));
+    assert(soft.alpha[5] == 255 && soft.alpha[7] > 70 && soft.alpha[7] < 100 && soft.alpha[8] == 0 && soft.alpha[15] == 0);
+    assert(soft.rgb[7] == 0xffff);                                            /* the colour, not a darker mix */
+    memset(gIconFile.tiles, 0, 288);
+    assert(!PokeTouch_SoftIcon("fame_checker", &soft));                       /* nothing drawn */
+    gIconFile.fail = 1;
+    assert(!PokeTouch_SoftIcon("fame_checker", &soft));                       /* missing */
+    memset(&gIconFile, 0, sizeof(gIconFile));
+    for (unsigned i = 0; realPack && i < 6; ++i)
+        assert(PokeTouch_SoftIcon(sMenuItemArt[i], &soft) && soft.ok);
+}
+
 static void SuiteKit(void)
 {
+    KitDecoders();
     KitPieces();
     KitUpper();
     KitSheet();
@@ -879,7 +1188,7 @@ static CtrPokeTouchView HomeBoard(void)
     CtrPokeTouchView v;
 
     memset(&v, 0, sizeof(v));
-    v.selected = v.pressed = PT_NONE;
+    v.pressed = PT_NONE;
     v.optPressed = -1;
     v.home = 1;
     for (int i = 0; i < PT_COUNT; ++i)
@@ -936,6 +1245,13 @@ static void HomeUpperCase(CtrPokeTouchView v)
     assert(!memcmp(capitals, canvas, sizeof(capitals)));
     assert(sHomeRibbon.w == DevTextWidth("KANTO") + 23 && DevTextWidth("KANTO") != DevTextWidth("Kanto"));
     assert(!strcmp(DevHomeKeyWord(PT_POKEMON, &v, word), "POK\xC3\xA9MON") && !strcmp(DevHomeKeyWord(PT_CARD, &v, word), "Rick"));
+    /* the five entries' keys say DevHomeWord's words, in capitals: the label-fit builds' sDevKeyCut == 0 is their fit */
+    for (int id = PT_POKEDEX; id <= PT_OPTIONS; ++id) {
+        char name[16], up[24];
+
+        DevUpper(up, DevHomeWord(id, &v, name), sizeof(up));
+        assert(id == PT_CARD || (up[0] && !strcmp(DevHomeKeyWord(id, &v, word), up)));
+    }
     memcpy(fontWidths, keepWidths, sizeof(keepWidths));
     memcpy(smallWidths, keepSmall, sizeof(keepSmall));
     memset(sPtFontReady, 0, sizeof(sPtFontReady));
@@ -1040,9 +1356,31 @@ static void SuiteHome(void)
     assert(DevWhole(DevCheckTouch(&old, &v)) && at(160, 152) == DEV_SHELL_GREEN);
     /* nothing HOME draws changed: nothing presented */
     v.optPressed = 3;
-    v.registeredItem = 7;
+    v.backVisible = 1;
     d = DevCheckTouch(&old, &v);
     assert(d.count == 0);
+    /* every entry held and let go, not usable and usable again; RUN on, another name; FireRed's picture and back: each
+     * an Update equal to a full Draw */
+    for (i = 0; i < PT_COUNT; ++i) {
+        v.pressed = (uint8_t)i;
+        DevCheckTouch(&old, &v);
+        v.pressed = PT_NONE;
+        DevCheckTouch(&old, &v);
+        v.enabled[i] = 0;
+        DevCheckTouch(&old, &v);
+        v.enabled[i] = 1;
+        DevCheckTouch(&old, &v);
+    }
+    v.running = 1;
+    DevCheckTouch(&old, &v);
+    strcpy(v.playerName, "ALEX");
+    DevCheckTouch(&old, &v);
+    v.home = 0;
+    v.viewport = 1;
+    DevCheckTouch(&old, &v);
+    v.home = 1;
+    v.viewport = 0;
+    DevCheckTouch(&old, &v);
 
     /* Upper case, whatever case the words arrive in. */
     HomeUpperCase(HomeBoard());
@@ -1220,7 +1558,7 @@ static CtrBattleView BatBoard(void)
     }
     v.move[0].stab = 1;
     v.move[0].effectChance = 10;
-    strcpy(v.move[0].desc, "A powerful fire attack that may inflict a burn.");
+    strcpy(v.move[0].desc, "Port-written words in place of what a move does.");
     for (int i = 0; i < 3; ++i) {
         CtrBattleTarget *t = &v.target[i];
 
@@ -1750,7 +2088,7 @@ static CtrSummaryUiView SumBoard(void)
     strcpy(d->exp, "41000");
     strcpy(d->nextExp, "2808");
     strcpy(d->ability, "BLAZE");
-    strcpy(d->abilityDesc, "Powers up FIRE moves in a pinch.");
+    strcpy(d->abilityDesc, "Port words for an ability's text.");
     strcpy(d->memo, "ADAMANT nature.\nMet at Lv5, PALLET TOWN.");
     for (int i = 0; i < 4; ++i) {
         d->moves[i] = (unsigned short)(i + 1);
@@ -1920,7 +2258,7 @@ static void SuiteSummary(void)
 
     /* the details: FireRed's cursor inverts its row; the move's type and category, POWER and ACCURACY in the left
      * column; its description on the note; the arrows grey and not taken; CANCEL under the moves */
-    sv.data.page = SUI_PAGE_MOVES_INFO; sv.data.cursor = 0; strcpy(sv.data.moveDesc, "A powerful fire attack that may inflict a burn.");
+    sv.data.page = SUI_PAGE_MOVES_INFO; sv.data.cursor = 0; strcpy(sv.data.moveDesc, "Port-written words in place of what a move does.");
     DevCheckSummary(&so, &sv);
     AssertKey(kDevSumTab[2], DEV_LOOK_KEY, 1);
     assert(at(126, 54) == DEV_BEZEL && Count(124, 52, 176, 22, DEV_PAPER) > 0 && at(126, 78) == DEV_PAPER);
@@ -1929,9 +2267,9 @@ static void SuiteSummary(void)
     AssertRowHits(SumHitV, &sv, DevSumRow(0), SUI_HIT_MOVE);
     assert(Count(14, 194, 216, 32, DEV_INK) > 0);
     shot("details");
-    sv.data.cursor = 2; strcpy(sv.data.moveDesc, "Reduces the foe's ATTACK."); DevCheckSummary(&so, &sv);   /* GROWL: no category */
+    sv.data.cursor = 2; strcpy(sv.data.moveDesc, "Port words for one move."); DevCheckSummary(&so, &sv);   /* GROWL: no category */
     assert(at(126, 102) == DEV_BEZEL && Count(20, 97, 92, 12, DEV_CAT_SPECIAL) == 0 && Count(20, 97, 92, 12, DEV_CAT_PHYSICAL) == 0);
-    sv.data.cursor = 3; strcpy(sv.data.moveDesc, "Destroys barriers like LIGHT SCREEN."); DevCheckSummary(&so, &sv);   /* FIGHTING: physical */
+    sv.data.cursor = 3; strcpy(sv.data.moveDesc, "Port words for another move's text."); DevCheckSummary(&so, &sv);   /* FIGHTING: physical */
     assert(Count(20, 97, 92, 12, DEV_CAT_PHYSICAL) > 0);
     sv.data.moveDesc[0] = 0;                                                    /* CANCEL: no description */
     sv.data.page = SUI_PAGE_MOVES_INFO; sv.data.cursor = 4; DevCheckSummary(&so, &sv);
@@ -1962,7 +2300,7 @@ static void SuiteSummary(void)
     sv.data.origin = CTR_SUMMARY_FIELD_PARTY; DevCheckSummary(&so, &sv); assert(Count(14, 194, 216, 32, DEV_INK) > 0);
     sv.data.swapping = 1; DevCheckSummary(&so, &sv);
     sv.data.swapCursor = 3; assert(DevCheckSummary(&so, &sv).count == 1);
-    strcpy(sv.data.moveDesc, "Reduces the foe's ATTACK."); assert(DevCheckSummary(&so, &sv).count == 0);   /* the hint, not it */
+    strcpy(sv.data.moveDesc, "Port words for one move."); assert(DevCheckSummary(&so, &sv).count == 0);   /* the hint, not it */
     sv.data.swapping = 0; sv.data.swapCursor = 0; sv.data.cursor = 4; sv.data.moveDesc[0] = 0; DevCheckSummary(&so, &sv);
     sv.data.swapCursor = 2; assert(DevCheckSummary(&so, &sv).count == 0);                    /* not swapping: not drawn */
 
@@ -2006,7 +2344,7 @@ static void SuiteSummary(void)
     assert(Count(20, 63, 98, 12, DEV_MALE) == 0 && Count(20, 154, 92, 12, fire) == 0);
     sv.pressed = SUI_HIT_TAB + 1; DevCheckSummary(&so, &sv); AssertKey(kDevSumTab[3], DEV_LOOK_KEY, 1);    /* a grey tab: not chosen */
     sv.pressed = -1; assert(DevCheckSummary(&so, &sv).count == 0);
-    strcpy(sv.data.nickname, "EGG"); strcpy(sv.data.species, "EGG"); strcpy(sv.data.hatch, "It appears to move occasionally. It may be close to hatching.");
+    strcpy(sv.data.nickname, "EGG"); strcpy(sv.data.species, "EGG"); strcpy(sv.data.hatch, "Port-written words in place of how soon an EGG will hatch.");
     DevCheckSummary(&so, &sv); assert(Count(126, 50, 172, 120, DEV_INK) > 0);
     shot("egg");
     sv.trainer = 0; DevCheckSummary(&so, &sv); assert(Count(126, 50, 172, 120, DEV_INK) > 0 && Count(20, 154, 92, 12, fire) == 0);
@@ -2047,7 +2385,7 @@ static CtrPokeTouchView BagBoard(void)
     CtrPokeTouchBag *b = &v.bag;
 
     memset(&v, 0, sizeof(v));
-    v.selected = v.pressed = PT_NONE;
+    v.pressed = PT_NONE;
     v.optPressed = -1;
     b->on = 1;
     b->kind = PT_BAG_KIND_BAG;
@@ -2188,14 +2526,14 @@ static void SuiteBag(void)
     AssertKey(kDevBagClose, DEV_LOOK_DARK, 0); assert(Count(244, 190, 68, 40, DEV_DARK_INK) > 0);
     shot("items");
     /* a touch chooses: a row (the cursor's not), ▼; ▲ cannot go up, so its touch draws nothing; what the page does not
-     * draw (the column, the bar, BACK, the registered items outside Key Items, the quantity box's maximum) draws nothing */
+     * draw (HOME's keys, the bar, BACK, the registered items outside Key Items, the quantity box's maximum) draws nothing */
     v.bag.pressed = PT_BAG_HIT_ROW + 3; DevCheckTouch(&old, &v); assert(at(20, 104) == DEV_BEZEL && at(20, 72) == DEV_PAPER);
     v.bag.pressed = PT_BAG_HIT_DOWN; DevCheckTouch(&old, &v); AssertKey(kDevBagDown, DEV_LOOK_KEY, 1); assert(at(20, 72) == DEV_BEZEL);
     v.bag.pressed = PT_BAG_HIT_CLOSE; DevCheckTouch(&old, &v); AssertKey(kDevBagClose, DEV_LOOK_DARK, 1); assert(at(20, 72) == DEV_PAPER);
     v.bag.pressed = PT_BAG_HIT_TAB + 1; DevCheckTouch(&old, &v); AssertKey(kDevBagPocket[1], DEV_LOOK_KEY, 1); AssertKey(kDevBagPocket[0], DEV_LOOK_KEY, 0);
     v.bag.pressed = -1; DevCheckTouch(&old, &v);
     v.bag.pressed = PT_BAG_HIT_UP; assert(DevCheckTouch(&old, &v).count == 0);
-    v.bag.pressed = -1; strcpy(v.bar[0], "Items"); v.enabled[PT_BAG] = 1; v.backVisible = 1; v.registeredItem = 13;
+    v.bag.pressed = -1; strcpy(v.bar[0], "Items"); v.enabled[PT_BAG] = 1; v.backVisible = 1;
     v.bag.regX = 13; v.bag.tossMax = 99; v.bag.titleItem = 7; strcpy(v.bag.prompt, "?"); v.bag.money = 500;
     assert(DevCheckTouch(&old, &v).count == 0);
     v.bag.prompt[0] = 0;
@@ -2281,7 +2619,7 @@ static void SuiteBag(void)
     shot("itempc");
     strcpy(v.bag.title, "MAILBOX"); v.bag.typed = 1; v.bag.count = 3; v.bag.cursor = 0;
     for (i = 0; i < 3; ++i) { strcpy(v.bag.row[i].name, i ? "MOM" : "Rick"); v.bag.row[i].item = (uint16_t)(121 + i); v.bag.row[i].qty = 0; }
-    strcpy(v.bag.selName, "Rick"); v.bag.selItem = 121; strcpy(v.bag.selDesc, "A MAIL to be held by a POK\xC3\xA9MON.");
+    strcpy(v.bag.selName, "Rick"); v.bag.selItem = 121; strcpy(v.bag.selDesc, "Port words for a MAIL's text.");
     DevCheckTouch(&old, &v); assert(CtrPokeTouch_BagHit(&v, 138, 48 + 16 * 3 + 8) == -1 && CtrPokeTouch_BagHit(&v, 138, 48 + 8) == PT_BAG_HIT_ROW);
     shot("mailbox");
     BagUpperCase(BagBoard());
@@ -2364,6 +2702,7 @@ int main(int argc, char **argv)
         return 2;
     }
     gOut = getenv("DEVICE_OUT");
+    gTraceDir = getenv("DEVICE_TRACE");
     if (stub && atoi(stub) > 1 && atoi(stub) <= 16)
         gStubW = (unsigned)atoi(stub);
     SyntheticFont(font, 0);
@@ -2383,6 +2722,7 @@ int main(int argc, char **argv)
         if (all || !strcmp(argv[1], kSuites[i].name)) {
             gSuite = kSuites[i].name;
             sDevKeyCut = 0;
+            gTraceShot = 0;
             kSuites[i].run();
             printf("PASS device %s\n", kSuites[i].name);
             ++ran;

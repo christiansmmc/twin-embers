@@ -40,7 +40,8 @@ static int CancelRow(const CtrPokeTouchView *v)
  * recipe 0251): the Kanto Pokedex's top menu (sListMenuItems_KantoDexModeSelect: the list, nine habitats, the sixth not
  * seen yet, four searches, CLOSE in its own section) with the cursor on the second habitat; the ordered list of 151 from
  * its first row (the third seen, not caught; the fourth not seen), Ivysaur selected, caught; a habitat's first page of
- * two with three Pokemon; Ivysaur's page. BACK shown and usable, nothing held. */
+ * two with three Pokemon (a suite in CATEGORY selects the cursor's slot's, as FieldDexFill does); Ivysaur's page. BACK shown
+ * and usable, nothing held. */
 static CtrPokeTouchView DexBoard(void)
 {
     static const struct { int8_t id; const char *name; } kRow[] = {
@@ -58,7 +59,7 @@ static CtrPokeTouchView DexBoard(void)
     CtrPokeTouchDex *d = &v.dex;
 
     memset(&v, 0, sizeof(v));
-    v.pressed = v.selected = PT_NONE;
+    v.pressed = PT_NONE;
     d->on = 1;
     d->state = PT_DEX_STATE_MENU;
     d->pressed = -1;
@@ -84,8 +85,8 @@ static CtrPokeTouchView DexBoard(void)
     strcpy(d->typeName[0], "GRASS"); strcpy(d->typeName[1], "POISON");
     strcpy(d->kind, "SEED POK\xC3\xA9MON");
     d->height = 10; d->weight = 130;
-    strcpy(d->desc, "There is a plant bud on its back. As it absorbs nutrients, the bud is said to bloom into a large "
-                    "flower.");
+    strcpy(d->desc, "Port-written words for this test. They stand in for the entry FireRed shows on a "
+                    "POK\xC3\xA9MON's page here.");
     d->category = 0; d->page = 1; d->pages = 2; d->slots = 3; d->slot = 0; d->canNext = 1;
     d->mon[0] = d->row[0]; d->mon[1] = d->row[1]; d->mon[2] = d->row[3];
     snprintf(v.bar[0], PT_BAR_LEN, "Pok\xC3\xA9" "dex");          /* the bar: not drawn by the Pokedex */
@@ -124,8 +125,8 @@ static void DexUpperCase(CtrPokeTouchView v)
     v.dex.state = cased.dex.state = PT_DEX_STATE_PAGE;
     DevUpper(cased.dex.sel.name, v.dex.sel.name, sizeof(cased.dex.sel.name));
     TouchSamePixels(&cased, &v, 1, "a Pokemon's page in either case");
-    strcpy(cased.dex.desc, "THERE IS A PLANT BUD ON ITS BACK.");
-    strcpy(v.dex.desc, "There is a plant bud on its back.");
+    strcpy(cased.dex.desc, "PORT-WRITTEN WORDS FOR THIS TEST.");
+    strcpy(v.dex.desc, "Port-written words for this test.");
     TouchSamePixels(&cased, &v, 0, "the entry, as FireRed writes it");
 }
 
@@ -142,7 +143,7 @@ static void SuiteDex(void)
     dexArt = 1;
     CtrPokeTouch_Draw(canvas, &old);
     /* the plan's suite */
-    v = DexBoard(); DevCheckTouch(&old, &v); assert(CtrPokeTouch_DeviceShown(&v));
+    v = DexBoard(); DevCheckTouch(&old, &v); assert(DrawnBy(&v, DevDexShown));
     for (i = 0; i < 3; ++i) AssertHits(DexHitV, &v, kDevBagPocket[i], PT_DEX_HIT_TAB + i);
     AssertKey(kDevBagPocket[1], DEV_LOOK_KEY, 1);
     for (i = 0; i < 6; ++i) AssertHits(DexHitV, &v, DevDexItem(i), PT_DEX_HIT_ITEM + ItemRow(&v, i));
@@ -152,7 +153,7 @@ static void SuiteDex(void)
     assert(CtrPokeTouch_DexHit(&v, 294, 73) == -1 && Count(276, 40, 36, 66, DEV_BAG_ARROW_OFF) > 0); AssertHits(DexHitV, &v, kDevBagDown, PT_DEX_HIT_DOWN); AssertHits(BackV, &v, kDevBagClose, 1);
     r0 = DevTallRow(0, 0); r2 = DevTallRow(2, 0); assert(Count(r0.x + r0.w - 14, r0.y, 14, r0.h, STUB_MARK) > 0 && Count(r2.x + r2.w - 14, r2.y, 14, r2.h, STUB_MARK) == 0);
     v.dex.listFirst = 146; v.dex.listCursor = 150; DevCheckTouch(&old, &v); assert(CtrPokeTouch_DexHit(&v, 294, 147) == -1); AssertHits(DexHitV, &v, kDevBagUp, PT_DEX_HIT_UP);
-    v.dex.state = PT_DEX_STATE_CATEGORY; DevCheckTouch(&old, &v); for (i = 0; i < 3; ++i) AssertHits(DexHitV, &v, DevDexSlot(i), PT_DEX_HIT_SLOT + i);
+    v.dex.state = PT_DEX_STATE_CATEGORY; v.dex.sel = v.dex.mon[v.dex.slot]; DevCheckTouch(&old, &v); for (i = 0; i < 3; ++i) AssertHits(DexHitV, &v, DevDexSlot(i), PT_DEX_HIT_SLOT + i);
     assert(CtrPokeTouch_DexHit(&v, 238, 150) == -1 && CtrPokeTouch_DexHit(&v, 184, 210) == -1); AssertHits(DexHitV, &v, kDevSmallKey[1], PT_DEX_HIT_NEXT);
     v.dex.canPrev = 1; DevCheckTouch(&old, &v); AssertHits(DexHitV, &v, kDevSmallKey[0], PT_DEX_HIT_PREV);
     v.dex.state = PT_DEX_STATE_PAGE; DevCheckTouch(&old, &v); AssertHits(DexHitV, &v, kDevDexArea, PT_DEX_HIT_AREA); AssertHits(DexHitV, &v, kDevDexCry, PT_DEX_HIT_CRY);
@@ -241,14 +242,19 @@ static void SuiteDex(void)
     assert(CtrPokeTouch_DexHit(&v, 294, 147) == -1 && Count(276, 114, 36, 66, DEV_BAG_ARROW_OFF) > 0);
 
     /* CATEGORY: the habitat and the page on the title; the cursor's slot sunk (or the one under a held touch), the
-     * unseen one's picture left out; no fourth slot; ◀ grey, ▶ dark; the selected one in the small note; BACK */
-    v = DexBoard(); v.dex.state = PT_DEX_STATE_CATEGORY; DevCheckTouch(&old, &v);
+     * unseen one's picture left out, a caught one's mark (none on one only seen); no fourth slot; ◀ grey, ▶ dark; the
+     * selected one in the small note; BACK */
+    v = DexBoard(); v.dex.state = PT_DEX_STATE_CATEGORY; v.dex.sel = v.dex.mon[v.dex.slot]; DevCheckTouch(&old, &v);
     assert(Count(14, 12, 292, 16, DEV_INK) > 0);
     AssertKey(DevDexSlot(0), DEV_LOOK_KEY, 1); AssertKey(DevDexSlot(1), DEV_LOOK_KEY, 0); AssertKey(DevDexSlot(2), DEV_LOOK_KEY, 0);
     r = DevDexSlot(3); assert(at(r.x + 3, r.y + r.h / 2) == DEV_SHELL_RED);
     r = DevDexSlot(1); assert(Count(r.x + 70, r.y, r.w - 70, r.h, DEV_KEY_INK) > 0);
     assert(Count(168, 190, 32, 40, DEV_BAG_ARROW_OFF) > 0 && Count(204, 190, 32, 40, DEV_KEY_INK) > 0);
     assert(Count(14, 196, 140, 30, DEV_INK) > 0); AssertHits(BackV, &v, kDevBagClose, 1);
+    for (i = 0; i < 3; ++i) { r = DevDexSlot(i); assert((Count(r.x, r.y, r.w, r.h + DEV_DROP, STUB_MARK) > 0) == ((v.dex.mon[i].flags & 2) != 0)); }
+    v.dex.mon[1].flags = 1; DevCheckTouch(&old, &v); r = DevDexSlot(1); assert(Count(r.x, r.y, r.w, r.h + DEV_DROP, STUB_MARK) == 0);   /* seen only: no mark */
+    r = DevDexSlot(0); assert(Count(r.x, r.y, r.w, r.h + DEV_DROP, STUB_MARK) == 8 * 8);   /* caught: the mark, sunk with its slot */
+    v.dex.mon[1].flags = 3; DevCheckTouch(&old, &v);
     v.dex.pressed = PT_DEX_HIT_SLOT + 2; DevCheckTouch(&old, &v); AssertKey(DevDexSlot(2), DEV_LOOK_KEY, 1); AssertKey(DevDexSlot(0), DEV_LOOK_KEY, 0);
     v.dex.pressed = PT_DEX_HIT_NEXT; DevCheckTouch(&old, &v); AssertKey(kDevSmallKey[1], DEV_LOOK_KEY, 1); AssertKey(DevDexSlot(0), DEV_LOOK_KEY, 1);
     v.dex.pressed = -1; DevCheckTouch(&old, &v);
@@ -277,7 +283,7 @@ static void SuiteDex(void)
     v = DexBoard(); v.dex.state = PT_DEX_STATE_BUSY; assert(DevWhole(DevCheckTouch(&old, &v)));
     assert(CtrPokeTouch_DexHit(&v, 160, 100) == -1 && CtrPokeTouch_DexHit(&v, 20, 20) == -1 && at(160, 100) == DEV_SHELL_RED);
     v = DexBoard(); DevCheckTouch(&old, &v);
-    strcpy(v.bar[0], "Anything"); v.bar[1][0] = 0; v.registeredItem = 7; v.enabled[PT_BAG] = 1; v.playerX = 3;
+    strcpy(v.bar[0], "Anything"); v.bar[1][0] = 0; v.enabled[PT_BAG] = 1; v.playerX = 3;
     assert(DevCheckTouch(&old, &v).count == 0);
     v.shell = 2; assert(DevWhole(DevCheckTouch(&old, &v)) && at(1, 100) == DEV_SHELL_GREEN);
     v.shell = 0; DevCheckTouch(&old, &v);
@@ -285,8 +291,8 @@ static void SuiteDex(void)
     assert(DevWhole(DevCheckTouch(&old, &other)));
     v = DexBoard(); assert(DevWhole(DevCheckTouch(&old, &v)));
     other = v; memset(&other.dex, 0, sizeof(other.dex)); other.viewport = 1;
-    assert(DevWhole(DevCheckTouch(&old, &other)) && CtrPokeTouch_DeviceShown(&other) && CtrPokeTouch_DexHit(&other, 160, 90) == -1);
-    v = DexBoard(); v.viewport = 1; assert(CtrPokeTouch_DeviceShown(&v) && CtrPokeTouch_DexHit(&v, 160, 20) == -1);
+    assert(DevWhole(DevCheckTouch(&old, &other)) && DrawnBy(&other, DevFrameShown) && CtrPokeTouch_DexHit(&other, 160, 90) == -1);
+    v = DexBoard(); v.viewport = 1; assert(DrawnBy(&v, DevFrameShown) && CtrPokeTouch_DexHit(&v, 160, 20) == -1);
     v = DexBoard(); assert(DevWhole(DevCheckTouch(&old, &v)));
     DexUpperCase(DexBoard());
     CtrPokeTouch_Draw(canvas, &old);
@@ -306,8 +312,8 @@ static void SuiteDex(void)
     }
     v.dex.sel = v.dex.row[4];
     DevCheckTouch(&old, &v); shot("list_end");
-    v = DexBoard(); v.dex.state = PT_DEX_STATE_CATEGORY; DevCheckTouch(&old, &v); shot("category");
-    v.dex.state = PT_DEX_STATE_PAGE; DevCheckTouch(&old, &v); shot("page");
+    v = DexBoard(); v.dex.state = PT_DEX_STATE_CATEGORY; v.dex.sel = v.dex.mon[v.dex.slot]; DevCheckTouch(&old, &v); shot("category");
+    v = DexBoard(); v.dex.state = PT_DEX_STATE_PAGE; DevCheckTouch(&old, &v); shot("page");
     v.dex.sel.flags = 1; DevCheckTouch(&old, &v); shot("page_seen");
     v.dex.sel.flags = 3; v.dex.added = 1; DevCheckTouch(&old, &v); shot("added");
     dexArt = 0;

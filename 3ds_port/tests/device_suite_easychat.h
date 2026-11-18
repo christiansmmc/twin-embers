@@ -40,7 +40,7 @@ static CtrPokeTouchView EcBoard(void)
     CtrPokeTouchEasy *e = &v.ec;
 
     memset(&v, 0, sizeof(v));
-    v.pressed = v.selected = PT_NONE;
+    v.pressed = PT_NONE;
     e->on = 1;
     e->screen = PT_EC_EDIT;
     e->numWords = PT_EC_WORDS;
@@ -132,7 +132,7 @@ static void SuiteEasyChat(void)
 
     CtrPokeTouch_Draw(canvas, &old);
     /* the plan's suite */
-    DevCheckTouch(&old, &v); assert(CtrPokeTouch_DeviceShown(&v));
+    DevCheckTouch(&old, &v); assert(DrawnBy(&v, DevEcShown));
     for (i = 0; i < 9; ++i) AssertHits(EcHitV, &v, DevEcChip(9, i), PT_EC_HIT_CHIP + i);
     assert(CtrPokeTouch_EasyHit(&v, DevEcChip(9, 9).x + 3, 100) == -1);
     AssertHits(EcHitV, &v, DevAcross(2, 0, 136, 30), PT_EC_HIT_MODE_GROUPS); AssertHits(EcHitV, &v, DevAcross(2, 1, 136, 30), PT_EC_HIT_MODE_ALPHA);
@@ -225,7 +225,7 @@ static void SuiteEasyChat(void)
 
     /* a list: its title (the group) over the phrase in one line; the selected word's row inverted, or the one held; the
      * rail's thumb where the rows shown are (24 px of 124 for 30 rows: the top, the middle, the bottom); ▲ ▼ grey where
-     * the list goes no further, sunk while held; the strip's lit letter boxed; BACK (dark), the toggle, USE WORD */
+     * the list goes no further, sunk while held; the strip's lit letter boxed; USE WORD, the toggle, BACK (dark) */
     v = EcBoard(); v.ec.screen = PT_EC_LIST; v.ec.word = 3; DevCheckTouch(&old, &v);
     EcRowsInverted(&v, 3);
     assert(CountIn(kEcListLine1, DEV_INK) > 0 && CountIn(kEcListLine1, DEV_INK2) == 0 && CountIn(kEcListLine2, DEV_INK2) > 0);
@@ -286,7 +286,7 @@ static void SuiteEasyChat(void)
 
     /* what Easy Chat does not draw presents nothing (the bar, the field's state, another view under it: Easy Chat is the
      * dispatcher's first row); the shell's colour whole; the ways in and out (HOME) */
-    strcpy(v.bar[0], "Anything"); v.registeredItem = 7; v.enabled[PT_BAG] = 1; v.playerX = 3; v.backVisible = 0;
+    strcpy(v.bar[0], "Anything"); v.enabled[PT_BAG] = 1; v.playerX = 3; v.backVisible = 0;
     assert(DevCheckTouch(&old, &v).count == 0);
     other = v; other.box.on = other.dex.on = other.choice.on = 1; assert(DevCheckTouch(&old, &other).count == 0);
     DevCheckTouch(&old, &v);

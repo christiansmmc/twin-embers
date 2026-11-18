@@ -12,9 +12,9 @@ static void BagBar(CtrPokeTouchView *v)
     CtrBottomBag_PocketName(v->bar[0], PT_BAR_LEN);
     if (item != 0)
         CtrBottomBag_ItemName(item, v->bar[1], PT_BAR_LEN);
-    if (item != 0 && item == v->registeredItem)
+    if (item != 0 && item == CtrPokeTouch_RegisteredItem())
         snprintf(v->bar[2], PT_BAR_LEN, CTR_TR("On the X button", "En el bot\xc3\xb3n X", "Auf Taste X"));
-    else if (item != 0 && item == v->bikeItem)
+    else if (item != 0 && item == CtrPokeTouch_BikeItem())
         snprintf(v->bar[2], PT_BAR_LEN, CTR_TR("On the Y button", "En el bot\xc3\xb3n Y", "Auf Taste Y"));
     else
         snprintf(v->bar[2], PT_BAR_LEN, CTR_TR("Money  %u", "Dinero  %u", "Geld  %u"), CtrBottomBag_Money());

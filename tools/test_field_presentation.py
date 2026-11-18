@@ -112,7 +112,7 @@ int main(void) {
 #define CTR_SUMMARY_BATTLE_PARTY 2
 #define CtrLog_Write(...) ((void)0)
 static struct { int active,owner,battle,entered,frames,away; void *partyCallback; } sSession;
-static int sScreen,sStorageSession,sPendingScreen=PT_NONE;
+static int sScreen,sStorageSession;
 static void *sPartyMenuCallback;
 static void *CtrBottom_CurrentCallback(void) { return NULL; }
 static void *CtrBottomParty_Callback(void) { return NULL; }
@@ -772,24 +772,116 @@ static void BagPlanStart(const ListScreen *list, int kind, int target, int activ
         self.assertEqual(int(re.search(r'#define LIST_DRAG_ROW (\d+)', bottom).group(1)), pitch)
         self.assertIn('/ LIST_DRAG_ROW', function(bottom, 'ProcessFieldDexTouch'))
 
-    def test_relearn_cancel_key(self):
-        """The relearner's CANCEL is a key of its own on the red device (owner decision 4: PT_RL_HIT_CANCEL, 235, in the
-        Bag's CLOSE place), FireRed's CANCEL row no longer drawn as a row. A tap on it is taken as v0.6.0 took a tap on
-        that row, the list's last entry (index `count`): the cursor on it, A; else the walk to it. It has no branch of
-        its own. (The relearn suite of device_render_test.c pins where it is hit.)"""
+    def run_relearn(self, main):
+        """RelearnFill and ProcessRelearnTouch, their state and the game's answers as 3ds_bottom_relearn_impl.h declares
+        them, over a synthetic relearner on its list: gCount moves (the list has one more row, FireRed's CANCEL, index
+        gCount), the cursor at gCursor, the hit under the finger gHit; `main` drives it."""
         relearn = (ROOT / '3ds_port/src/3ds_bottom_relearn_impl.h').read_text(encoding='utf-8')
-        header = (ROOT / '3ds_port/include/3ds_poketouch.h').read_text(encoding='utf-8')
-        touch = function(relearn, 'ProcessRelearnTouch')
-        self.assertRegex(header, r'PT_RL_HIT_MESSAGE = 234, PT_RL_HIT_CANCEL = 235 \}')
-        target = re.search(r'int row = sRelearnTap\.code == PT_RL_HIT_CANCEL \? sShown\.touch\.relearn\.count\s*:\s*'
-                           r'sShown\.touch\.relearn\.first \+ sRelearnTap\.code - PT_RL_HIT_ROW;', touch)
-        self.assertIsNotNone(target)
-        self.assertEqual(touch.count('PT_RL_HIT_CANCEL'), 1)
-        rest = touch[target.end():]
-        self.assertLess(rest.index('else if (row == CtrBottomRelearn_Cursor())\n            sRouteKey = K_A;'),
-                        rest.index('sRelearnPlan.target = row;'))
-        for code in ('PT_RL_HIT_MESSAGE', 'PT_RL_HIT_YES', 'PT_RL_HIT_UP', 'PT_RL_HIT_DOWN'):
-            self.assertLess(rest.index(code), rest.index('else if (row == CtrBottomRelearn_Cursor())'))
+        externs = '\n'.join(re.findall(r'^extern [^;]+;', relearn, re.M))
+        start = relearn.index('static struct {\n    int down, inside, code;')
+        state = relearn[start:relearn.index('\n', relearn.index('static int sRelearnFirst;'))]
+        code = function(relearn, 'RelearnFill') + '\n' + function(relearn, 'ProcessRelearnTouch')
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+#include "3ds_input.h"
+#include "3ds_poketouch.h"
+#define K_A (1u << 0)
+#define K_B (1u << 1)
+#define K_UP (1u << 6)
+#define K_DOWN (1u << 7)
+enum { MODE_GBAVIEW = 18 };
+static uint16_t sRouteKey;
+static int sHaveShown = 1;
+static struct { int mode; CtrPokeTouchView touch; } sShown;
+static int gCount = 8, gCursor = 1, gHit = -1;
+extern int CtrBottom_IsFading(void);
+int CtrBottom_IsFading(void) { return 0; }
+''' + externs + '''
+int CtrBottomRelearn_IsOpen(void) { return 1; }
+int CtrBottomRelearn_Panel(void) { return PT_RL_PANEL_LIST; }
+int CtrBottomRelearn_Input(void) { return 1; }
+int CtrBottomRelearn_State(void) { return 0; }
+int CtrBottomRelearn_MenuCursor(void) { return 0; }
+void CtrBottomRelearn_Message(char *out, int size) { (void)size; out[0] = 0; }
+int CtrBottomRelearn_Count(void) { return gCount; }
+int CtrBottomRelearn_Cursor(void) { return gCursor; }
+unsigned CtrBottomRelearn_Species(void) { return 1; }
+void CtrBottomRelearn_Name(char *nickname, int nsize, char *level, int lsize)
+{ (void)nsize; (void)lsize; nickname[0] = level[0] = 0; }
+void CtrBottomRelearn_Question(char *out, int size) { (void)size; out[0] = 0; }
+unsigned CtrBottomRelearn_Row(int i, int *type, char *name, int nsize, char *pp, int psize, char *power, int wsize,
+                              char *accuracy, int asize)
+{
+    (void)nsize; (void)psize; (void)wsize; (void)asize;
+    name[0] = pp[0] = power[0] = accuracy[0] = 0;
+    *type = i < gCount ? 0 : -1;
+    return i < gCount ? 100u + (unsigned)i : 0u;     /* FireRed's CANCEL row: no move */
+}
+void CtrBottomRelearn_Description(unsigned move, char *out, int size) { (void)move; (void)size; out[0] = 0; }
+void CtrBottomRelearn_TypeName(int type, char *out, int size) { (void)type; (void)size; out[0] = 0; }
+int CtrPokeTouch_RelearnHit(const CtrPokeTouchView *view, int x, int y) { (void)view; (void)x; (void)y; return gHit; }
+''' + state + '\n' + code + '''
+/* What the screen shows now (RelearnFill), as the frame before the touch showed it. */
+static void Shown(void)
+{
+    memset(&sShown, 0, sizeof(sShown));
+    sShown.mode = MODE_GBAVIEW;
+    RelearnFill(&sShown.touch.relearn, -1);
+}
+/* A tap on `hit`: down, held, released. */
+static __attribute__((unused)) void Tap(int hit)
+{
+    CtrInput in;
+
+    gHit = hit;
+    memset(&in, 0, sizeof(in));
+    in.touchActive = in.touchDown = 1; in.touchX = 10; in.touchY = 10;
+    ProcessRelearnTouch(&in);
+    in.touchDown = 0; ProcessRelearnTouch(&in);
+    in.touchActive = 0; ProcessRelearnTouch(&in);
+}
+''' + main)
+
+    def test_relearn_cancel_sends_b(self):
+        """The relearner's CANCEL is a key of its own on the red device (owner decision 4: PT_RL_HIT_CANCEL, 235, in the
+        Bag's CLOSE place), FireRed's CANCEL row no longer drawn as a row. One tap on it is FireRed's B on the list
+        (owner decision, 2026-11-18), which asks the same give-up question as A on that row and is enabled while the list
+        takes keys (RelearnSnapshot): wherever the cursor is, B once, and no walk. A row is still walked to, and the
+        cursor's row taken with A. (The relearn suite of device_render_test.c pins where CANCEL is hit.)"""
+        self.run_relearn('''
+int main(void)
+{
+    gCursor = 1; Shown();
+    Tap(PT_RL_HIT_CANCEL); assert(sRouteKey == K_B && !sRelearnPlan.active);           /* the cursor on a move: B, once */
+    sRouteKey = 0; Tap(-1); assert(!sRouteKey && !sRelearnPlan.active);
+    gCursor = gCount; Shown(); Tap(PT_RL_HIT_CANCEL); assert(sRouteKey == K_B && !sRelearnPlan.active);   /* on CANCEL */
+    sRouteKey = 0; gCursor = 1; Shown(); assert(sShown.touch.relearn.first == 1);      /* the window back up to it */
+    Tap(PT_RL_HIT_ROW + 0); assert(sRouteKey == K_A && !sRelearnPlan.active);           /* the cursor's row: A */
+    sRouteKey = 0; Tap(PT_RL_HIT_ROW + 3); assert(!sRouteKey && sRelearnPlan.active && sRelearnPlan.target == 4);
+    return 0;
+}
+''')
+
+    def test_relearn_window_ends_at_the_last_move(self):
+        """The list's window of PT_RL_ROWS rows follows the cursor and ends at the last move: FireRed's CANCEL row is the
+        CANCEL key, not a row, so a window past the last move would leave its last row blank. With the cursor on the
+        last move or on CANCEL the window is the last PT_RL_ROWS moves; a list shorter than that starts at its top."""
+        self.run_relearn('''
+int main(void)
+{
+    gCount = 8; gCursor = 7; Shown(); assert(sShown.touch.relearn.first == 3);
+    for (int i = 0; i < PT_RL_ROWS; ++i) assert(sShown.touch.relearn.row[i].move == 103u + (unsigned)i);
+    gCursor = 8; Shown(); assert(sShown.touch.relearn.first == 3);                      /* the cursor on CANCEL */
+    gCursor = 0; Shown(); assert(sShown.touch.relearn.first == 0);
+    gCursor = 5; Shown(); assert(sShown.touch.relearn.first == 1);
+    gCount = 5; gCursor = 5; Shown(); assert(sShown.touch.relearn.first == 0);
+    gCount = 3; gCursor = 3; Shown(); assert(sShown.touch.relearn.first == 0 && sShown.touch.relearn.row[2].move == 102u);
+    return 0;
+}
+''')
 
     def test_battle_bag_drags_its_rows(self):
         """The battle Bag's rows drag as the field Bag's do (v0.6.0's battle Bag scrolled by touch, its rail): a finger
@@ -1032,8 +1124,7 @@ int main(void) {
         """On a field frame HOME's keys, its party, FLY, the region key and the map take a touch only while HOME is the
         picture the lower screen shows: the frame after another screen closed still shows that screen's picture (the
         Bag's, a viewport's), and a touch there must not open what HOME has at that place. A native screen (OPTIONS,
-        SAVE) hits the START column only before its own picture is shown: drawn as the red device it has no column, so
-        nothing is hit."""
+        SAVE) takes its touches itself: nothing of HOME's is hit under it, shown yet or not."""
         bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
         start = bottom.index('static struct {\n    int valid;')
         state = bottom[start:bottom.index('} sHome;', start) + len('} sHome;')]
@@ -1061,12 +1152,7 @@ static int OptionsActive(void) { return 0; }
 static int SaveActive(void) { return 0; }
 static void ProcessOptionsTouch(const CtrInput *in) { (void)in; }
 static void ProcessSaveInput(const CtrInput *in) { (void)in; }
-/* every view is drawn as the red device: HOME, the Bag, a field view's own row (OPTIONS, SAVE, the Pokedex, a choice,
- * the move to forget, the relearner, the naming keyboard, the PC box, Easy Chat...) and the frame, the dispatcher's
- * last row, for any other (FireRed's picture in its screen, or an empty screen) */
-bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *v) { (void)v; return true; }
 /* HOME: BAG's key at the bottom right, FLY and the region key in the window's top corners, the map below them */
-int CtrPokeTouch_HitTest(int x, int y) { return x < 60 && y < 60 ? PT_OPTIONS : PT_NONE; }
 int CtrPokeTouch_HomeHit(const CtrPokeTouchView *v, int x, int y) { (void)v; return x >= 200 && y >= 150 ? PT_BAG : PT_NONE; }
 bool CtrPokeTouch_FlyHit(int x, int y) { return x >= 160 && x < 200 && y < 30; }
 bool CtrPokeTouch_HomeRibbonHit(int x, int y) { return x < 30 && y < 30; }
@@ -1109,12 +1195,14 @@ int main(void) {
     Tap(250, 200); Tap(100, 80); assert(activated == -1 && !tapped);
     sShown.touch.viewport = 0; sShown.touch.home = 1; sHaveShown = 0;
     Tap(250, 200); Tap(100, 80); assert(activated == -1 && !tapped);
-    /* a native screen with nothing shown yet: the column's hits */
-    native = 1; sShown.touch.home = 0; Tap(20, 20); assert(activated == PT_OPTIONS);
+    /* a native screen with nothing shown yet, or HOME still shown on its first frame: nothing of HOME's is hit */
+    native = 1; sShown.touch.home = 1; Tap(250, 200); Tap(100, 80); Tap(10, 10);
+    assert(activated == -1 && !tapped && !nextMap && sPoke.id == PT_NONE && !sHome.down);
+    sHaveShown = 1; Tap(250, 200); Tap(100, 80); Tap(10, 10);
+    assert(activated == -1 && !tapped && !nextMap && sPoke.id == PT_NONE && !sHome.down);
     /* SAVE, OPTIONS, the Pokedex, a choice, the move to forget, the relearner, the naming keyboard, the PC box, Easy
-     * Chat or FireRed's picture on the red device (or HOME still shown on its first frame): no column under it, nothing
-     * hit */
-    sHaveShown = 1; sShown.touch.save = 1; activated = -1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
+     * Chat or FireRed's picture on the red device: nothing hit */
+    sShown.touch.home = 0; sShown.touch.save = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.save = 0; sShown.touch.options = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.options = 0; sShown.touch.dex.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.dex.on = 0; sShown.touch.choice.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
@@ -1192,14 +1280,21 @@ int main(void) {
 }
 ''')
 
-    def test_column_only_under_ember_views(self):
-        """While the START column still exists in code (PR C), no tap on a view drawn as the red device reaches it or the
-        route: the column's rectangles lie under the B views' ▲▼ and BACK. BACK is the one the view draws."""
+    def test_route_and_column_gone(self):
+        """The START column, its X / Y tiles and the route that unwound one menu to open another are gone (decision 3):
+        no view draws the column, so nothing hits it or routes from it. The X and Y buttons still use the registered
+        item and the Bicycle, from the field as ever. BACK is the one the view draws."""
         bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
-        self.assertIn('if (!sHaveShown || !CtrPokeTouch_DeviceShown(&sShown.touch))\n        ProcessRouteTouch(mode, in);', function(bottom, 'ProcessTouch'))
-        self.assertIn('CtrPokeTouch_DeviceShown(&sShown.touch)', function(bottom, 'PokeTouchHit'))
+        poketouch = ((ROOT / '3ds_port/src/3ds_poketouch.c').read_text(encoding='utf-8')
+                     + (ROOT / '3ds_port/include/3ds_poketouch.h').read_text(encoding='utf-8'))
+        for name in ('ProcessRouteTouch', 'RequestDestination', 'CanRouteDestination', 'CtrPokeTouch_HitTest',
+                     'gCtrPokeTouchRects', 'gCtrPokeTouchBack', 'CtrPokeTouch_DeviceShown', 'sPendingScreen',
+                     'CtrPokeTouch_HitOptPage'):
+            self.assertNotIn(name, bottom + poketouch)
+        frame = function(bottom, 'CtrBottom_Frame')            # X and Y keep the registered item and the Bicycle
+        self.assertIn('CtrPokeTouch_RequestFieldCommand(PT_BIKE);', frame)
+        self.assertIn('CtrPokeTouch_RequestFieldCommand(PT_REGISTERED);', frame)
         self.assertIn('CtrPokeTouch_BackHit(&sShown.touch,', function(bottom, 'ProcessBack'))
-        self.assertNotIn('CtrPokeTouch_HitOptPage', bottom)
 
     def test_idle_screen_in_the_shell_colour(self):
         """The idle screen (nothing for FireRed's screen above: MODE_OFF) is the red device's in the shell colour OPTIONS
@@ -1208,7 +1303,7 @@ int main(void) {
         bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
         self.assertIn('CtrPokeTouch_DrawIdle(sCanvas, s->idleLogo, s->touch.shell);', function(bottom, 'Render'))
         frame = function(bottom, 'CtrBottom_Frame')
-        fill = frame.index('    if (!nav) {\n        state.touch.shell = state.battle.shell = state.sum.shell = '
+        fill = frame.index('    if (!nav)\n        state.touch.shell = state.battle.shell = state.sum.shell = '
                            '(uint8_t)CtrOptions_Shell();\n')
         self.assertLess(frame.index('SnapshotState(&state,'), fill)
         self.assertLess(fill, frame.index('memcmp(&state, &sShown, sizeof(state))'))

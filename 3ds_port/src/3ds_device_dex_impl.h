@@ -571,7 +571,8 @@ static void DevDexList(const CtrPokeTouchView *v)
     DevFieldBack(v, &kDevBagClose, DevBackWord());
 }
 
-/* Slot i of a habitat's page (m its Pokemon, `sunk` chosen): the picture of one seen beside its number and its name. */
+/* Slot i of a habitat's page (m its Pokemon, `sunk` chosen): the picture of one seen beside its number and its name; a
+ * caught one's mark at its top-left corner, over the picture (v0.6.0's place). */
 static void DevDexSlotDraw(const CtrPokeTouchDexMon *m, int i, int sunk)
 {
     CtrPokeTouchRect r = DevDexSlot(i);
@@ -582,6 +583,10 @@ static void DevDexSlotDraw(const CtrPokeTouchDexMon *m, int i, int sunk)
     if (m->flags & 1) {
         DevArt(DEV_ART_PICTURE, r.x + 4, faceY + 3, 64, 64);
         FDPicDraw(m->species, r.x + 4, faceY + 3, 0);
+    }
+    if (m->flags & 2) {
+        DevArt(DEV_ART_MARK, r.x + 6, faceY + 6, 8, 8);
+        DevDexMark(r.x + 6, faceY + 6);
     }
     DevDexNumber(m->number, text, sizeof(text));
     DevTextInk(text, x, faceY + 20, end, ink, shadow);

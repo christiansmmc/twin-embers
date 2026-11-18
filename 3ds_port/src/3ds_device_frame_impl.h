@@ -6,13 +6,12 @@
  * own Summary, the Pokedex's AREA page, the Fame Checker...) is drawn by the GPU on the paper of an embedded screen
  * centred across the top: the paper is black under it, at PT_VIEW_X/Y (the one place of the picture, where a touch is a
  * GBA point). With no picture the screen is empty (its paper), never the ember look. Under it the note: the bar's title
- * in the normal font and its two hints as one text in the small font and the secondary ink, wrapped into two lines (the
- * title alone centred down the paper); BACK beside it in the Summary's place while the view shows it, a dark key (sunk
- * under a held touch, grey while it cannot be used), else the note across. The shell has its four screws (the legend
- * rule's exception: the frame and the idle screen). Every rectangle is 3ds_device_layout.h's, so what is drawn is what
- * a touch takes.
+ * in the normal font and its two hints in the small font and the secondary ink, one a line (the title alone centred down
+ * the paper); BACK beside it in the Summary's place while the view shows it, a dark key (sunk under a held touch, grey
+ * while it cannot be used), else the note across. The shell has its four screws (the legend rule's exception: the frame
+ * and the idle screen). Every rectangle is 3ds_device_layout.h's, so what is drawn is what a touch takes.
  *
- * Words (decision 5): the bar (v0.6.0 title-cases it) through DevUpper.
+ * Words (decision 5): the bar (v0.6.0 title-cased it) through DevUpper.
  *
  * Redraw: the screen whole when the picture's presence, the bar or BACK as drawn differ (DevFrameSame), and nothing
  * else.
@@ -26,21 +25,32 @@ static int DevFrameShown(const CtrPokeTouchView *v)
     return !DevHomeShown(v) && !DevBagShown(v);
 }
 
-/* The note under the picture: the title (bar[0]) in the normal font and the hints (bar[1] and bar[2], one text) in the
- * small font and the secondary ink, at most two lines; without hints the title alone, centred down the paper. */
+/* The note under the picture: the title (bar[0]) in the normal font at the paper's top and the hints (bar[1], bar[2])
+ * in the small font and the secondary ink under it, one a line while each fits (all of the port's do, in the three
+ * languages), else as one text wrapped into the two lines, what they cannot hold dropped and counted (sDevKeyCut);
+ * without hints the title alone, centred down the paper. */
 static void DevFrameNote(const CtrPokeTouchView *v)
 {
     CtrPokeTouchRect paper = DevScreen(v->backVisible ? &kDevSumNote : &kDevViewNoteWide);
-    char title[PT_BAR_LEN], text[2 * PT_BAR_LEN + 1], hints[2 * PT_BAR_LEN + 1];
-    int x = paper.x + 6, right = paper.x + paper.w - 6, any = v->bar[1][0] || v->bar[2][0];
+    char title[PT_BAR_LEN], hint[2][PT_BAR_LEN], text[2 * PT_BAR_LEN + 1];
+    int x = paper.x + 6, right = paper.x + paper.w - 6, top = paper.y + 14, any = v->bar[1][0] || v->bar[2][0];
 
     DevUpper(title, v->bar[0], sizeof(title));
-    DevText(title, x, any ? paper.y + 3 : paper.y + (paper.h - UI_TEXT_H) / 2, right);
+    DevText(title, x, any ? paper.y + 2 : paper.y + (paper.h - UI_TEXT_H) / 2, right);
     if (!any)
         return;
-    snprintf(text, sizeof(text), "%s %s", v->bar[1], v->bar[2]);
-    DevUpper(hints, text, sizeof(hints));
-    DevBagSmallWrap(hints, x, x, paper.y + 15, right, 2, DEV_INK2);
+    DevUpper(hint[0], v->bar[1], sizeof(hint[0]));
+    DevUpper(hint[1], v->bar[2], sizeof(hint[1]));
+    if (DevSmallTextWidth(hint[0]) <= right - x && DevSmallTextWidth(hint[1]) <= right - x) {
+        for (int i = 0, line = 0; i < 2; ++i)
+            if (hint[i][0])
+                DevSmallText(hint[i], x, top + DEV_BAG_SMALL_LINE * line++, DEV_INK2, right);
+        return;
+    }
+    snprintf(text, sizeof(text), "%s %s", hint[0], hint[1]);
+    DevBagSmallWrap(text, x, x, top, right, 2, DEV_INK2);
+    if (DevBagSmallWrapRun(text, x, x, top, right, 3, DEV_INK2, 0) > 2)
+        ++sDevKeyCut;
 }
 
 /* The frame whole (after DevBegin: the dispatcher's). */

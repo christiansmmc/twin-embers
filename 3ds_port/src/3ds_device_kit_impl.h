@@ -105,9 +105,27 @@ static uint16_t sDevShell __attribute__((unused)) = DEV_SHELL_RED;
 /* Key labels cut to fit since the counter was last cleared: the host harness requires none. */
 static int sDevKeyCut __attribute__((unused));
 
-/* What a view draws, told to a board maker: DEV_TRACE(op, x, y, w, h, a, b, s) is called with each piece a view
- * announces (art: DevArt). The game defines nothing and it does nothing; a host harness may define it before including
- * the renderer to collect the pieces. */
+/* What a view draws, told to a board maker (tools/make_device_boards.py): DEV_TRACE(op, x, y, w, h, a, b, s) is called
+ * with each piece the kit draws, in draw order, {x, y, w, h} its rectangle; a is a look, a colour or a kind, b sunk, a
+ * font or a direction, s a text:
+ *   BEGIN   a new whole draw (DevBegin): a the shell colour; what was told before it is gone
+ *   SHELL   the shell (the whole screen): a its screws (DEV_SCREWS_*)
+ *   SCREEN  an embedded screen: its outer rectangle (the paper is 6 px in)
+ *   KEY     a key's resting face (sunk: drawn DEV_SINK lower, its LED at its top right): a the look, b sunk | its
+ *           corners' radius as drawn (DevRadius'd) << 1
+ *   DIM     the pixels dimmed halfway to the shell
+ *   HOLE    a hole in the shell: a its corners' radius
+ *   ROW     a list row: a chosen (inverted)
+ *   RECT    a plain fill: a its colour
+ *   LED     a lone LED (not a sunk key's): w and h its size
+ *   TEXT    the glyphs drawn: y where the capitals start, w their width, h their shadow colour (the ink: none), a the
+ *           ink, b the font (0 normal, 1 small, 2 a sign drawn as a shape: s its character in UTF-8), s the text (its
+ *           first glyphs, as many as fill w)
+ *   CHIP    a chip with its text: a its colour, b the text's shadow (DEV_WHITE: none), s the text
+ *   BAR     an HP bar: a the colour of its fill, b the fill's width
+ *   TRI     a triangle: its 9x5 (5x9 across) box, a its colour, b the direction (DevTriangle's)
+ *   ART     art a view draws (DevArt): a its kind (DEV_ART_*)
+ * The game defines nothing and it does nothing; the host harness defines it before including the renderer. */
 #ifndef DEV_TRACE
 #define DEV_TRACE(op, x, y, w, h, a, b, s) \
     ((void)(op), (void)(x), (void)(y), (void)(w), (void)(h), (void)(a), (void)(b), (void)(s))
@@ -115,7 +133,8 @@ static int sDevKeyCut __attribute__((unused));
 /* The kinds of art a view draws (a board shows a stand-in for each), and the pieces DEV_TRACE is told of. */
 enum { DEV_ART_ICON, DEV_ART_PICTURE, DEV_ART_ITEM, DEV_ART_BADGE, DEV_ART_WALLPAPER, DEV_ART_MARK, DEV_ART_SPRITE,
        DEV_ART_FRAME, DEV_ART_LOGO, DEV_ART_GBA };
-enum { DEV_TRACE_ART = 1 };
+enum { DEV_TRACE_BEGIN = 0, DEV_TRACE_ART, DEV_TRACE_SHELL, DEV_TRACE_SCREEN, DEV_TRACE_KEY, DEV_TRACE_DIM, DEV_TRACE_HOLE,
+       DEV_TRACE_ROW, DEV_TRACE_RECT, DEV_TRACE_LED, DEV_TRACE_TEXT, DEV_TRACE_CHIP, DEV_TRACE_BAR, DEV_TRACE_TRI };
 
 /* ---- Pixels -------------------------------------------------------------------------------------------------------- */
 
@@ -137,6 +156,7 @@ UI_FN void DevBegin(uint16_t *canvas, uint8_t shell)
 
     sCanvas = canvas;
     sDevShell = kShells[shell & 3];
+    DEV_TRACE(DEV_TRACE_BEGIN, 0, 0, W, H, sDevShell, 0, NULL);
 }
 
 /* The canvas at (x, y); 0 off the screen. */
@@ -150,6 +170,7 @@ UI_FN uint16_t DevGet(int x, int y)
 /* A plain fill that draws something (a rule, a cursor's frame, an underline, a panel): c over {x, y, w, h}. */
 UI_FN void DevRect(int x, int y, int w, int h, uint16_t c)
 {
+    DEV_TRACE(DEV_TRACE_RECT, x, y, w, h, c, 0, NULL);
     Fill(x, y, w, h, c);
 }
 
@@ -307,6 +328,7 @@ UI_FN void DevScrew(int x, int y)
  * DEV_SCREWS_TOP / DEV_SCREWS_BOTTOM ask for, 5x5 in the corners. */
 UI_FN void DevShell(int screws)
 {
+    DEV_TRACE(DEV_TRACE_SHELL, 0, 0, W, H, screws, 0, NULL);
     Fill(0, 0, W, 2, DevBlend(sDevShell, DEV_WHITE, DEV_A_LIGHT));
     Fill(0, 2, W, H - 5, sDevShell);
     Fill(0, H - 3, W, 3, DevBlend(sDevShell, 0x0000, DEV_A_DARK));
@@ -327,6 +349,7 @@ UI_FN CtrPokeTouchRect DevScreen(const CtrPokeTouchRect *outer)
     int x = outer->x, y = outer->y, w = outer->w, h = outer->h, r = DevRadius(w, h, 6), ri = r > 0 ? r - 1 : 0;
     CtrPokeTouchRect paper = {(int16_t)(x + 6), (int16_t)(y + 6), (int16_t)(w - 12), (int16_t)(h - 12)};
 
+    DEV_TRACE(DEV_TRACE_SCREEN, x, y, w, h, 0, 0, NULL);
     DevOuter(x, y, w, h, r, 1, DEV_WHITE, DEV_A_LIGHT);
     DevRound(x, y, w, h, r, DEV_BEZEL);
     for (int j = 0; j < h; ++j) {                    /* inset 0 0 0 1px: the shape less the shape 1 px in */
@@ -355,8 +378,9 @@ UI_FN uint16_t DevKeyFace(int look, int sunk)
     return sunk ? DEV_SUNK : DEV_KEY;
 }
 
-/* The LED of a chosen key: a green disc s across at (x, y) with a 1 px glow on the face. */
-UI_FN void DevLed(int x, int y, int s, uint16_t face)
+/* The LED's pixels: a green disc s across at (x, y) with a 1 px glow on the face. (A sunk key's own, which its key
+ * stands for when told; DevLed's.) */
+UI_FN void DevLedPixels(int x, int y, int s, uint16_t face)
 {
     uint16_t glow = DevBlend(face, DEV_LED, 96);
 
@@ -371,6 +395,13 @@ UI_FN void DevLed(int x, int y, int s, uint16_t face)
         }
 }
 
+/* An LED lit on its own (the naming keyboard's page key FireRed's cursor turns to): DevLedPixels. */
+UI_FN void DevLed(int x, int y, int s, uint16_t face)
+{
+    DEV_TRACE(DEV_TRACE_LED, x, y, s, s, 0, 0, NULL);
+    DevLedPixels(x, y, s, face);
+}
+
 /* A key whose resting face is `r` (the boards' numbers). Up: the face at r.y, DEV_DROP rows of drop under it; a KEY has a
  * white top line and two inner bottom rows DEV_KEY_EDGE, a DARK one a DEV_BEZEL_LINE top line, a FAINT one two inner
  * bottom rows DEV_FAINT_EDGE. Sunk (any look): the face DEV_SINK rows lower, two inner top rows (DEV_SUNK_EDGE on a KEY,
@@ -383,13 +414,14 @@ UI_FN int DevKey(const CtrPokeTouchRect *r, int look, int sunk, int radius)
 
     if (w <= 0 || h <= 0)
         return y;
+    DEV_TRACE(DEV_TRACE_KEY, x, r->y, w, h, look, (sunk != 0) | (rr << 1), NULL);
     DevOuter(x, y, w, h, rr, sunk ? 1 : DEV_DROP, 0x0000, DEV_A_DROP);
     DevRound(x, y, w, h, rr, face);
     if (sunk) {
         int s = h >= 30 ? 5 : 4;
 
         DevInset(x, y, w, h, rr, 2, look == DEV_LOOK_KEY ? DEV_SUNK_EDGE : DevBlend(face, 0x0000, DEV_A_DROP), 0);
-        DevLed(x + w - 7 - s, y + (h >= 40 ? 6 : 4), s, face);
+        DevLedPixels(x + w - 7 - s, y + (h >= 40 ? 6 : 4), s, face);
     } else {
         if (look == DEV_LOOK_KEY)
             DevInset(x, y, w, h, rr, 1, DEV_WHITE, 0);
@@ -407,6 +439,7 @@ UI_FN void DevDim(const CtrPokeTouchRect *r)
     int x0 = r->x < 0 ? 0 : r->x, y0 = r->y < 0 ? 0 : r->y;
     int x1 = r->x + r->w > W ? W : r->x + r->w, y1 = r->y + r->h + DEV_DROP > H ? H : r->y + r->h + DEV_DROP;
 
+    DEV_TRACE(DEV_TRACE_DIM, x0, y0, x1 - x0, y1 - y0, 0, 0, NULL);
     for (int x = x0; x < x1 && y1 > y0; ++x) {
         uint16_t *p = sCanvas + (size_t)x * H + (H - (size_t)y1);
 
@@ -421,6 +454,7 @@ UI_FN void DevHole(const CtrPokeTouchRect *r, int radius)
 {
     int rr = DevRadius(r->w, r->h, radius);
 
+    DEV_TRACE(DEV_TRACE_HOLE, r->x, r->y, r->w, r->h, rr, 0, NULL);
     DevOuter(r->x, r->y, r->w, r->h, rr, 1, DEV_WHITE, DEV_A_HOLE_LIGHT);
     DevRoundBlend(r->x, r->y, r->w, r->h, rr, 0x0000, DEV_A_HOLE);
     DevInset(r->x, r->y, r->w, r->h, rr, 3, 0x0000, DEV_A_SCREW);
@@ -429,6 +463,7 @@ UI_FN void DevHole(const CtrPokeTouchRect *r, int radius)
 /* A list row on the paper: inverted (DEV_BEZEL) when chosen, the paper otherwise; its text in DevRowInk(chosen). */
 UI_FN void DevRow(const CtrPokeTouchRect *r, int chosen)
 {
+    DEV_TRACE(DEV_TRACE_ROW, r->x, r->y, r->w, r->h, chosen, 0, NULL);
     Fill(r->x, r->y, r->w, r->h, chosen ? DEV_BEZEL : DEV_PAPER);
 }
 
@@ -476,10 +511,8 @@ UI_FN const PtGlyph *DevSmallGlyph(const char **s)
     return &sDevSmall[code];
 }
 
-/* The glyphs of `s` in the normal or the small font from x, glyph row 0 at y, each drawn while it ends by `limit`: ink,
- * and the font's shadow pixels in `shadow` (none when shadow is ink). Text is clipped only across (at `limit`), never
- * down: a glyph's 16 rows are drawn wherever they fall. Returns the x after the last glyph drawn. */
-UI_FN int DevGlyphs(const char *s, int x, int y, int limit, uint16_t ink, uint16_t shadow, int small)
+/* DevGlyphs' pixels, not told (a chip's text, which its chip tells). */
+UI_FN int DevGlyphPixels(const char *s, int x, int y, int limit, uint16_t ink, uint16_t shadow, int small)
 {
     while (*s) {
         const PtGlyph *g = small ? DevSmallGlyph(&s) : Glyph(&s);
@@ -501,6 +534,17 @@ UI_FN int DevGlyphs(const char *s, int x, int y, int limit, uint16_t ink, uint16
         x += g->width;
     }
     return x;
+}
+
+/* The glyphs of `s` in the normal or the small font from x, glyph row 0 at y, each drawn while it ends by `limit`: ink,
+ * and the font's shadow pixels in `shadow` (none when shadow is ink). Text is clipped only across (at `limit`), never
+ * down: a glyph's 16 rows are drawn wherever they fall. Returns the x after the last glyph drawn. */
+UI_FN int DevGlyphs(const char *s, int x, int y, int limit, uint16_t ink, uint16_t shadow, int small)
+{
+    int end = DevGlyphPixels(s, x, y, limit, ink, shadow, small);
+
+    DEV_TRACE(DEV_TRACE_TEXT, x, y + (small ? 4 : 3), end - x, shadow, ink, small, s);
+    return end;
 }
 
 UI_FN int DevTextWidth(const char *s)
@@ -849,6 +893,10 @@ UI_FN void DevAlphaArt(const uint16_t *alpha, int size, int x, int y, uint16_t i
 /* A triangle pointing `dir` (0 up, 1 down, 2 left, 3 right), 9 px across, centred on (cx, cy). (Rework 1's KitTriangle.) */
 UI_FN void DevTriangle(int cx, int cy, int dir, uint16_t c)
 {
+    if (dir < 2)
+        DEV_TRACE(DEV_TRACE_TRI, cx - 4, cy - 2, 9, 5, c, dir, NULL);
+    else
+        DEV_TRACE(DEV_TRACE_TRI, cx - 2, cy - 4, 5, 9, c, dir, NULL);
     for (int i = 0; i < 5; ++i) {
         int len = 9 - 2 * i;
 
@@ -889,6 +937,7 @@ UI_FN void DevHpBar(int x, int y, int w, int h, unsigned hp, unsigned max)
         fill = 1;
     if (fill > inner)
         fill = inner;
+    DEV_TRACE(DEV_TRACE_BAR, x, y, w, h, DevHpColour(hp, max), fill, NULL);
     Fill(x, y, w, h, DEV_HP_FRAME);
     Fill(x + 1, y + 1, inner, h - 2, DEV_HP_TRACK);
     if (fill > 0)
@@ -914,9 +963,10 @@ UI_FN void DevChip(int x, int y, int w, int h, const char *text, uint16_t bg, ui
     else if (tw > w)
         ++sDevKeyCut;
     tx = x + (w - tw) / 2;
+    DEV_TRACE(DEV_TRACE_CHIP, x, y, w, h, bg, shadow, text);
     Fill(x, y, w, h, bg);
     /* The capitals are 7 rows, 8 with their shadow: centred, any odd row below. */
-    DevGlyphs(text, tx < x ? x : tx, y + (h - (shadow == DEV_WHITE ? 7 : 8)) / 2 - 4, x + w, DEV_WHITE, shadow, 1);
+    DevGlyphPixels(text, tx < x ? x : tx, y + (h - (shadow == DEV_WHITE ? 7 : 8)) / 2 - 4, x + w, DEV_WHITE, shadow, 1);
 }
 
 /* A label chip ("HP", "EXP"): the small font with 1 px around it, 9 px tall. Returns its width. */
@@ -924,7 +974,7 @@ UI_FN int DevLabelChip(int x, int y, const char *text, uint16_t bg, uint16_t ink
 {
     int w = DevSmallTextWidth(text) + 2;
 
-    Fill(x, y, w, 9, bg);
+    DevRect(x, y, w, 9, bg);
     DevSmallText(text, x + 1, y + 1, ink, x + w);
     return w;
 }
@@ -1002,7 +1052,7 @@ UI_FN int DevFieldBackSame(const CtrPokeTouchView *a, const CtrPokeTouchView *b)
 }
 
 /* A gender mark, 7x9 (v0.6.0's shapes) with the paper's text shadow 1 px right and down, so it paints 8x10: 0 male,
- * 1 female, 2 none (CtrBottomParty_Gender). */
+ * 1 female, 2 none (CtrBottomParty_Gender). Told as a sign: its character, ♂ or ♀. */
 UI_FN void DevGender(int gender, int x, int y)
 {
     static const uint8_t kMale[9] = {0x0F, 0x03, 0x05, 0x38, 0x44, 0x44, 0x44, 0x38, 0x00};
@@ -1011,6 +1061,8 @@ UI_FN void DevGender(int gender, int x, int y)
 
     if (gender != 0 && gender != 1)
         return;
+    DEV_TRACE(DEV_TRACE_TEXT, x, y, 7, DEV_INK_SH, gender == 0 ? DEV_MALE : DEV_FEMALE, 2,
+              gender == 0 ? "\xE2\x99\x82" : "\xE2\x99\x80");
     for (int pass = 0; pass < 2; ++pass)
         for (int row = 0; row < 9; ++row)
             for (int col = 0; col < 7; ++col)

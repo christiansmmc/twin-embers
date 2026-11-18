@@ -584,17 +584,24 @@ static int DexFaults(void)
 }
 
 /* The field's choices: n keys (1-8) in FireRed's one column (two past four, going down first) or a grid of 2 or 3
- * columns, every key above the question's note and BACK, which stand side by side under them. (The move to forget is
- * the Summary's page, the relearner the Bag's list page: no rectangle of their own.) */
+ * columns, every key above the question's note and BACK, which stand side by side under them; a grid of one column is
+ * the one column's layout (no key past the screen). (The move to forget is the Summary's page, the relearner the Bag's
+ * list page: no rectangle of their own.) */
 static int ChoiceFaults(void)
 {
-    static const int kCols[3] = {0, 2, 3};
+    static const int kCols[4] = {0, 1, 2, 3};
     int faults = 0;
 
     assert(Same(kDevChoiceNote, (CtrPokeTouchRect){8, 160, 228, 72}) && Same(kDevChoiceBack, (CtrPokeTouchRect){244, 160, 68, 70}));
     assert(Same(DevChoiceKey(6, 0, 3), (CtrPokeTouchRect){164, 8, 148, 40}) && Same(DevChoiceKey(4, 0, 3), (CtrPokeTouchRect){8, 116, 304, 32}));
     assert(Same(DevChoiceKey(8, 3, 7), (CtrPokeTouchRect){112, 96, 96, 40}) && Same(DevChoiceKey(8, 2, 7), (CtrPokeTouchRect){164, 116, 148, 32}));
-    for (int c = 0; c < 3; ++c)
+    for (int n = 1; n <= 8; ++n)
+        for (int i = 0; i < n; ++i)
+            if (!Same(DevChoiceKey(n, 1, i), DevChoiceKey(n, 0, i))) {
+                fprintf(stderr, "choice: key %d of %d in a grid of one column is not the one column's\n", i, n);
+                ++faults;
+            }
+    for (int c = 0; c < 4; ++c)
         for (int n = 1; n <= 8; ++n)
             for (int i = 0; i < n; ++i) {
                 CtrPokeTouchRect k = DevChoiceKey(n, kCols[c], i);

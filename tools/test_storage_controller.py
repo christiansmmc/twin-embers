@@ -118,7 +118,7 @@ int main(void)
 }
 ''')
 
-    def test_snapshot_has_no_implicit_pokedex_selection(self):
+    def test_snapshot_has_no_implicit_pokedex_press(self):
         source = (ROOT/'3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
         start = source.index('    memset(s, 0, sizeof(*s));', source.index('static void SnapshotState('))
         end = source.index('    if (mode == MODE_PARTY_CHILD', start)
@@ -136,11 +136,9 @@ int main(void)
 {
     Snapshot s;
     initialize(&s,11,0);
-    assert(s.touch.selected==PT_NONE && s.touch.pressed==PT_NONE);
+    /* PT_POKEDEX is zero: nothing pressed, nothing usable (HOME's keys are the field's alone). */
+    assert(s.touch.pressed==PT_NONE);
     for (int id=0;id<PT_COUNT;++id) assert(!s.touch.enabled[id]);
-    /* The renderer's exact button-state rule must disable POKEDEX as well. */
-    for (int id=0;id<PT_COUNT;++id)
-        assert(!(s.touch.enabled[id] || s.touch.selected==id));
 }
 ''')
 

@@ -285,7 +285,7 @@ refresh();
   dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
 })();
 
-// The embers of the lower screen (3ds_touch_skin_impl.h, EmbersStep): sparks rising slowly with a sway, a pale core
+// The embers of the lower screen (the 3DS port's former ember look, since removed): sparks rising slowly with a sway, a pale core
 // and a halo in one of three fire colours, brighter low down where the fire is. Drawn at a third of the window's
 // pixels so they look like the 3DS's.
 (function () {

@@ -3,10 +3,12 @@
  * bar's. */
 
 /* The papers of the note (the Summary's beside BACK, and across without it), where the title's capitals start and
- * where the hints' two lines (the small font) start. */
+ * where the hints' two lines (the small font, DEV_BAG_SMALL_LINE apart) start; the room of a line beside BACK. */
 static const CtrPokeTouchRect kFrameNotePaper = {14, 194, 216, 32}, kFrameWidePaper = {14, 194, 292, 32};
-#define FRAME_TITLE_Y 197
-#define FRAME_HINT_Y 209
+#define FRAME_TITLE_Y 196
+#define FRAME_HINT_Y 208
+#define FRAME_HINT_X (14 + 6)
+#define FRAME_HINT_ROOM (216 - 12)
 #define FRAME_SCREW DevBlend(DEV_SHELL_RED, 0x0000, DEV_A_SCREW)
 
 /* FireRed's own screen in the viewport as 3ds_bottom.c gives it (SnapshotState's MODE_GBAVIEW: the screen's title and
@@ -16,7 +18,7 @@ static CtrPokeTouchView FrameBoard(void)
     CtrPokeTouchView v;
 
     memset(&v, 0, sizeof(v));
-    v.pressed = v.selected = PT_NONE;
+    v.pressed = PT_NONE;
     v.viewport = 1;
     strcpy(v.bar[0], "Fame checker");
     strcpy(v.bar[1], "Use the game's own controls.");
@@ -40,7 +42,27 @@ static void FrameBack(int sunk)
     assert((Count(r.x, r.y, r.w, r.h + DEV_DROP, DEV_LED) > 0) == sunk);
 }
 
-/* Upper case (owner decision 5): the bar, which v0.6.0 title-cases, drawn in capitals. */
+/* The small font's ink of hint line `line` (0, 1) from x to the room's end. */
+static int FrameHintInk(int line, int x)
+{
+    return Count(x, FRAME_HINT_Y + DEV_BAG_SMALL_LINE * line, FRAME_HINT_X + FRAME_HINT_ROOM - x, 7, DEV_INK2);
+}
+
+/* Each hint on a line of its own while each fits the room: hint i's ink on line i, from its start to its width and none
+ * after it. */
+static void FrameHintsALine(const CtrPokeTouchView *v)
+{
+    for (int i = 0; i < 2; ++i) {
+        char hint[PT_BAR_LEN];
+        int w;
+
+        DevUpper(hint, v->bar[1 + i], sizeof(hint));
+        w = DevSmallTextWidth(hint);
+        assert(w <= FRAME_HINT_ROOM && FrameHintInk(i, FRAME_HINT_X) > 0 && FrameHintInk(i, FRAME_HINT_X + w) == 0);
+    }
+}
+
+/* Upper case (owner decision 5): the bar, which v0.6.0 title-cased, drawn in capitals. */
 static void FrameUpperCase(CtrPokeTouchView v)
 {
     CtrPokeTouchView cased = v;
@@ -59,13 +81,14 @@ static void SuiteFrame(void)
 {
     static const uint16_t kScrew[4][2] = {{4, 4}, {315, 4}, {4, 234}, {315, 234}};
     CtrPokeTouchView v = FrameBoard(), old = v, other;
+    uint8_t keepSmall[256];
     int x, y;
 
     CtrPokeTouch_Draw(canvas, &old);
     /* the plan's suite */
-    v.viewport = 1; v.backVisible = v.backEnabled = 1; DevCheckTouch(&old, &v); assert(CtrPokeTouch_DeviceShown(&v));
+    v.viewport = 1; v.backVisible = v.backEnabled = 1; DevCheckTouch(&old, &v); assert(DrawnBy(&v, DevFrameShown));
     assert(at(PT_VIEW_X, PT_VIEW_Y) == 0 && at(PT_VIEW_X + PT_VIEW_W - 1, PT_VIEW_Y + PT_VIEW_H - 1) == 0 && at(PT_VIEW_X - 1, PT_VIEW_Y + 20) == DEV_BEZEL);
-    for (y = -1; y <= H; ++y) for (x = -1; x <= W; ++x) {                                       /* moved from poketouch_render_test */
+    for (y = -1; y <= H; ++y) for (x = -1; x <= W; ++x) {                                       /* every point, and one past each edge */
         int in = x >= PT_VIEW_X && x < PT_VIEW_X + PT_VIEW_W && y >= PT_VIEW_Y && y < PT_VIEW_Y + PT_VIEW_H, gx, gy;
         assert(CtrPokeTouch_ViewportToGba(x, y, &gx, &gy) == in && (!in || (gx == x - PT_VIEW_X && gy == y - PT_VIEW_Y))); }
     AssertHits(BackV, &v, kDevSumBack, 1); v.backPressed = 1; DevCheckTouch(&old, &v); AssertKey(kDevSumBack, DEV_LOOK_DARK, 1);
@@ -86,9 +109,9 @@ static void SuiteFrame(void)
     assert(at(PT_VIEW_X - 1, PT_VIEW_Y - 1) == DEV_BEZEL && at(PT_VIEW_X + PT_VIEW_W, PT_VIEW_Y + PT_VIEW_H) == DEV_BEZEL);
     v.viewport = 0; assert(DevWhole(DevCheckTouch(&old, &v)));
     assert(Count(PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H, DEV_PAPER) == PT_VIEW_W * PT_VIEW_H);
-    /* the note beside BACK: the title in the paper's ink, the two hints as one text in the small font and the secondary
-     * ink, wrapped into two lines under it; nothing between the note and BACK */
-    v = FrameBoard(); DevCheckTouch(&old, &v);
+    /* the note beside BACK: the title in the paper's ink, the two hints in the small font and the secondary ink under
+     * it, one a line (each fits); nothing between the note and BACK */
+    v = FrameBoard(); DevCheckTouch(&old, &v); FrameHintsALine(&v);
     assert(Count(kFrameNotePaper.x, FRAME_TITLE_Y, kFrameNotePaper.w, UI_TEXT_H, DEV_INK) > 0);
     assert(Count(kFrameNotePaper.x, FRAME_HINT_Y, kFrameNotePaper.w, 7, DEV_INK2) > 0
            && Count(kFrameNotePaper.x, FRAME_HINT_Y + 9, kFrameNotePaper.w, 7, DEV_INK2) > 0);
@@ -110,6 +133,23 @@ static void SuiteFrame(void)
     strcpy(v.bar[2], "Back is the B button."); DevCheckTouch(&old, &v);
     assert(Count(kFrameNotePaper.x, FRAME_HINT_Y, kFrameNotePaper.w, 7, DEV_INK2) > 0
            && Count(kFrameNotePaper.x, FRAME_HINT_Y + 9, kFrameNotePaper.w, 7, DEV_INK2) == 0);
+    /* with capitals 8 px wide in the small font, a hint wider than the room: the two as one text, wrapped into the two
+     * lines (the second holds the first hint's end, not "BACK." alone); a text the two lines cannot hold: what is left
+     * dropped and counted as a cut */
+    memcpy(keepSmall, smallWidths, sizeof(keepSmall));
+    for (unsigned c = 0xbb; c <= 0xd4; ++c)        /* A..Z */
+        smallWidths[c] = 8;
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    strcpy(v.bar[1], "Port words that run on too long"); strcpy(v.bar[2], "Back.");
+    DevCheckTouch(&old, &v); assert(sDevKeyCut == 0);
+    assert(FrameHintInk(0, FRAME_HINT_X + 100) > 0 && FrameHintInk(1, FRAME_HINT_X + 60) > 0);
+    strcpy(v.bar[1], "Port words for this test, and on and on"); strcpy(v.bar[2], "More port words that two lines drop");
+    DevCheckTouch(&old, &v); sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &v);         /* one draw: one cut */
+    assert(sDevKeyCut == 1 && FrameHintInk(1, FRAME_HINT_X + FRAME_HINT_ROOM / 2) > 0);    /* line 2 past its middle */
+    sDevKeyCut = 0;
+    memcpy(smallWidths, keepSmall, sizeof(keepSmall));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    CtrPokeTouch_Draw(canvas, &old);
     /* without BACK the note goes across, its paper where BACK was */
     v = FrameBoard(); v.backVisible = 0; DevCheckTouch(&old, &v);
     assert(at(300, 199) == DEV_PAPER && at(kFrameWidePaper.x + kFrameWidePaper.w - 1, 200) == DEV_PAPER && at(312, 209) == DEV_SHELL_RED);
@@ -132,7 +172,7 @@ static void SuiteFrame(void)
      * presents nothing */
     v = FrameBoard(); DevCheckTouch(&old, &v);
     assert(DevCheckTouch(&old, &v).count == 0);
-    v.enabled[PT_BAG] = 1; v.registeredItem = 7; v.bikeItem = 9; v.running = 1; v.selected = PT_SAVE; v.pressed = PT_BAG;
+    v.enabled[PT_BAG] = 1; v.running = 1; v.pressed = PT_BAG;
     strcpy(v.playerName, "RED"); v.playerX = 3; v.optCount = 3;
     assert(DevCheckTouch(&old, &v).count == 0);
     strcpy(v.bar[0], "Teachy TV"); assert(DevWhole(DevCheckTouch(&old, &v)));
@@ -144,7 +184,7 @@ static void SuiteFrame(void)
     /* the dispatcher's rows: the frame is its last, for any field view no other row draws (FireRed's picture, or nothing
      * at all), never for a view of its own (Easy Chat even with a picture), HOME or the Bag */
     v = FrameBoard(); assert(FrameRow(&v));
-    memset(&other, 0, sizeof(other)); assert(FrameRow(&other) && CtrPokeTouch_DeviceShown(&other));
+    memset(&other, 0, sizeof(other)); assert(FrameRow(&other));
     for (int i = 0; i < 11; ++i) {
         other = FrameBoard();
         switch (i) {
@@ -163,9 +203,15 @@ static void SuiteFrame(void)
         assert(FrameRow(&other) == (i != 0));         /* a view's own row only without the picture (Easy Chat always) */
         other.viewport = 0; assert(!FrameRow(&other) && DevFieldIndex(&other) >= 0);
     }
-    other = FrameBoard(); other.viewport = 0; other.home = 1; assert(DevFieldIndex(&other) == -1 && CtrPokeTouch_DeviceShown(&other));
-    other.home = 0; other.bag.on = 1; assert(DevFieldIndex(&other) == -1 && CtrPokeTouch_DeviceShown(&other));
+    other = FrameBoard(); other.viewport = 0; other.home = 1; assert(DevFieldIndex(&other) == -1);
+    other.home = 0; other.bag.on = 1; assert(DevFieldIndex(&other) == -1);
     other.viewport = 1; assert(FrameRow(&other));     /* the Bag's picture (GIVE, a case) is FireRed's: the frame */
+    /* HOME and the Bag draw no BACK: none of their pixels is BACK, not even with BACK shown and usable (3ds_bottom.c
+     * asks it of HOME in the frames after OPTIONS opens, HOME still the picture shown, where OPTIONS' key is) */
+    other = HomeBoard(); other.backVisible = other.backEnabled = 1; assert(DevHomeShown(&other));
+    for (y = 0; y < H; ++y) for (x = 0; x < W; ++x) assert(!CtrPokeTouch_BackHit(&other, x, y));
+    other = BagBoard(); other.backVisible = other.backEnabled = 1; assert(DevBagShown(&other));
+    for (y = 0; y < H; ++y) for (x = 0; x < W; ++x) assert(!CtrPokeTouch_BackHit(&other, x, y));
     /* the ways in and out: HOME, the frame, the Bag, the frame */
     other = HomeBoard(); assert(DevWhole(DevCheckTouch(&old, &other)));
     v = FrameBoard(); assert(DevWhole(DevCheckTouch(&old, &v)));
@@ -179,7 +225,7 @@ static void SuiteFrame(void)
     v.backPressed = 1; DevCheckTouch(&old, &v); shot("back_pressed");
     v.backPressed = 0; v.backEnabled = 0; DevCheckTouch(&old, &v); shot("back_off");
     v = FrameBoard(); v.backVisible = 0; DevCheckTouch(&old, &v); shot("wide");
-    memset(&v, 0, sizeof(v)); v.pressed = v.selected = PT_NONE; DevCheckTouch(&old, &v); shot("empty");
+    memset(&v, 0, sizeof(v)); v.pressed = PT_NONE; DevCheckTouch(&old, &v); shot("empty");
     assert(sDevKeyCut == 0);                      /* main prints PASS device frame */
 }
 
