@@ -592,6 +592,20 @@ int main(void) {
         self.assertEqual([f['path'] for f in doc['files']], ['src/pokemon_summary_screen.c'])
         self.assertRegex((ROOT / '3ds_port/include/3ds_summary.h').read_text(encoding='utf-8'), r'unsigned char ribbons;\s*unsigned char contact;')
 
+    def test_device_drawers_write_non_ascii_as_escapes(self):
+        """A string literal in a device drawer holds ASCII and backslash escapes only (UTF-8 spelled as bytes, as the codebase
+        does): a raw non-ASCII character there is saved as other bytes and draws the wrong letters (ES YES was "S" plus two
+        garbage characters). Comments may hold any text."""
+        found = []
+        for path in sorted((ROOT / '3ds_port/src').glob('3ds_device_*_impl.h')):
+            text = path.read_text(encoding='utf-8')
+            text = re.sub(r'/\*.*?\*/', lambda m: re.sub(r'[^\n]', ' ', m.group(0)), text, flags=re.S)
+            for n, line in enumerate(text.split('\n'), 1):
+                for lit in re.findall(r'"(?:[^"\\n]|\.)*"', line):
+                    if any(ord(c) > 127 for c in lit):
+                        found.append('%s:%d' % (path.name, n))
+        self.assertEqual(found, [])
+
     def test_party_menu_marks(self):
         """The B Party's action menu: a field move's name in blue (FireRed's own colour for them, ids from
         CURSOR_OPTION_FIELD_MOVES on), CANCEL a dark key (CURSOR_OPTION_CANCEL1 or _CANCEL2); bit i for row i. The ids

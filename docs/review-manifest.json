@@ -6728,7 +6728,7 @@
   },
   {
    "path": "tools/test_field_presentation.py",
-   "sha256": "887d8cf63e434ac0b51b8ff1d0d198864b65e75e1864c4e2f8a303326216a7a3",
+   "sha256": "23cf4b7432e7e7e682fd7f8f5e8b4d84e983b81fa1964c4aa4c16cce327ba703",
    "review_status": "reviewed",
    "credit": "alex61194; Twin Embers Port contributors; inherited/adapted upstream portions as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; external game/dependency rights excluded",
@@ -7393,7 +7393,7 @@
   },
   {
    "path": "3ds_port/src/3ds_device_summary_impl.h",
-   "sha256": "22a7919dbc6a5ad51579f41df683b52e972b8f536e1093bc931bc699283f0ab0",
+   "sha256": "bbb9ae1f25b8503aeadbaf8c59c402d6724192b87c99976cac353e23e12aa167",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

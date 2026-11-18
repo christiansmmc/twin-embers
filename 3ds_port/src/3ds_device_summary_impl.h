@@ -436,7 +436,7 @@ static void DevSumMoveColumn(const CtrSummaryUiView *v)
         DevColumnRow(118, CTR_TR("ACCURACY", "PRECISI\xC3\x93N", "GENAUIGKEIT"), d->accuracy[i][0] ? d->accuracy[i] : "-",
                      DEV_SUM_COL_X, DEV_SUM_COL_VALUE);
         DevColumnRow(134, CTR_TR("CONTACT", "CONTACTO", "KONTAKT"),
-                     (d->contact >> i) & 1 ? CTR_TR("YES", "SÃ", "JA") : CTR_TR("NO", "NO", "NEIN"), DEV_SUM_COL_X,
+                     (d->contact >> i) & 1 ? CTR_TR("YES", "S\xC3\x8D", "JA") : CTR_TR("NO", "NO", "NEIN"), DEV_SUM_COL_X,
                      DEV_SUM_COL_VALUE);
     }
 }
