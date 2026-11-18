@@ -44,6 +44,8 @@
 #define DEV_LED            UI_RGB(0x58, 0xE0, 0x70)
 /* The dark key's label and arrows (its face is DEV_BEZEL, its top line DEV_BEZEL_LINE). */
 #define DEV_DARK_INK       UI_RGB(0xF2, 0xEC, 0xE0)
+/* ▲▼ (or ◀ ▶) with nothing that way (the board's). */
+#define DEV_ARROW_OFF      UI_RGB(0xB8, 0xB0, 0xA0)
 /* A fainted Pokemon's key. */
 #define DEV_FAINT          UI_RGB(0xD2, 0xCA, 0xB8)
 #define DEV_FAINT_EDGE     UI_RGB(0xBC, 0xB2, 0x9C)
@@ -98,6 +100,8 @@
 #define DEV_SCREWS_TOP     1
 #define DEV_SCREWS_BOTTOM  2
 #define DEV_LINE_H         13       /* DevWrap's lines */
+/* The small font's lines, tight: the board's 9 px (the Bag's description, the frame's hints, OPTIONS, the PC box). */
+#define DEV_SMALL_LINE_TIGHT 9
 
 enum { DEV_LOOK_KEY, DEV_LOOK_DARK, DEV_LOOK_FAINT };
 
@@ -831,6 +835,85 @@ UI_FN void DevKeyWord(const CtrPokeTouchRect *r, int faceY, int look, int sunk, 
     DevKeyWordInk(r, faceY, sunk, s, DevKeyInk(look, sunk), DevKeyInkShadow(look, sunk));
 }
 
+/* A key's label in `ink` over `shadow` from `inset` px in (the boards' 12), when it fits before the LED's box; inset 0,
+ * or a word too long for it, DevKeyWordInk's. */
+UI_FN void DevKeyWordAtInk(const CtrPokeTouchRect *r, int faceY, int sunk, const char *s, int inset, uint16_t ink,
+                           uint16_t shadow)
+{
+    int ledX = r->x + r->w - 7 - (r->h >= 30 ? 5 : 4) - 2;
+
+    if (inset && DevTextWidth(s) <= ledX - (r->x + inset)) {
+        DevTextInk(s, r->x + inset, faceY + (r->h - UI_TEXT_H) / 2, ledX, ink, shadow);
+        return;
+    }
+    DevKeyWordInk(r, faceY, sunk, s, ink, shadow);
+}
+
+/* A key's label in its look's ink from `inset` px in (DevKeyWordAtInk). */
+UI_FN void DevKeyWordAt(const CtrPokeTouchRect *r, int faceY, int look, int sunk, const char *s, int inset)
+{
+    DevKeyWordAtInk(r, faceY, sunk, s, inset, DevKeyInk(look, sunk), DevKeyInkShadow(look, sunk));
+}
+
+/* DevSmallWrap's lines, drawn when `draw`, else only counted. */
+UI_FN int DevSmallWrapRun(const char *s, int firstX, int x, int top, int right, int maxLines, int pitch, uint16_t ink,
+                          int draw)
+{
+    char line[128];
+    int lines = 0;
+
+    while (lines < maxLines) {
+        int fit = 0, end = 0, from = lines ? x : firstX;
+
+        while (*s == ' ' || *s == '\n')
+            ++s;
+        if (!*s)
+            break;
+        for (;;) {
+            while (s[end] && s[end] != ' ' && s[end] != '\n' && end < (int)sizeof(line) - 1)
+                ++end;
+            DevWrapCopy(line, s, end);
+            if (fit > 0 && DevSmallTextWidth(line) > right - from)
+                break;
+            fit = end;
+            if (!s[end] || end >= (int)sizeof(line) - 1)
+                break;
+            ++end;                          /* past the space, to the next word */
+        }
+        DevWrapCopy(line, s, fit);
+        if (from != x && DevSmallTextWidth(line) > right - from) {
+            ++lines;                        /* the first word does not fit after what is there: the next line */
+            continue;
+        }
+        if (draw)
+            DevSmallText(line, from, top + lines * pitch, ink, right);
+        ++lines;
+        s += fit;
+    }
+    return lines;
+}
+
+/* Text in the small font wrapped at spaces and line breaks into at most maxLines lines `pitch` apart
+ * (DEV_SMALL_LINE_TIGHT: the board's 9 px), ending by `right`: the first from firstX (after what is drawn before it on
+ * that line; it starts on the next line when its first word does not fit there), the others from x. Returns the lines
+ * used. */
+UI_FN int DevSmallWrap(const char *s, int firstX, int x, int top, int right, int maxLines, int pitch, uint16_t ink)
+{
+    return DevSmallWrapRun(s, firstX, x, top, right, maxLines, pitch, ink, 1);
+}
+
+/* Words read on a screen's paper, from x to `right`: the normal font in two lines at most, centred down the paper; a
+ * text that needs more, the small font in three from `smallTop`, `pitch` apart. */
+UI_FN void DevReadText(const char *text, const CtrPokeTouchRect *paper, int x, int right, int smallTop, int pitch)
+{
+    int width = right - x, lines = DevWrapLines(text, width, 3);
+
+    if (lines <= 2)
+        DevWrap(text, x, paper->y + (paper->h - (8 + DEV_LINE_H * (lines - 1))) / 2, width, 2, DEV_INK, DEV_INK_SH);
+    else
+        DevSmallWrap(text, x, x, smallTop, right, 3, pitch, DEV_INK);
+}
+
 /* ---- Marks, bars, chips, icons ------------------------------------------------------------------------------------- */
 
 /* A ring s pixels across, its box's top-left at (x, y): the pixels whose centre is within the circle's last pixel. */
@@ -911,6 +994,20 @@ UI_FN void DevTriangle(int cx, int cy, int dir, uint16_t c)
     }
 }
 
+/* Two keys with a triangle each (▲ ▼, or ◀ ▶ `across`): grey (DEV_ARROW_OFF) where there is nowhere to go (`on0`,
+ * `on1`), sunk under a held touch (`held0`, `held1`) only where there is. */
+UI_FN void DevArrowKeys(const CtrPokeTouchRect *r0, const CtrPokeTouchRect *r1, int on0, int on1, int held0, int held1,
+                        int across)
+{
+    for (int k = 0; k < 2; ++k) {
+        const CtrPokeTouchRect *r = k ? r1 : r0;
+        int on = k ? on1 : on0, sunk = on && (k ? held1 : held0), faceY = DevKey(r, DEV_LOOK_KEY, sunk, 6);
+
+        DevTriangle(r->x + r->w / 2, faceY + r->h / 2, across ? 2 + k : k,
+                    on ? DevKeyInk(DEV_LOOK_KEY, sunk) : DEV_ARROW_OFF);
+    }
+}
+
 /* The HP colour of FireRed's own battle HUD, so the two screens agree: a full bar is green; otherwise the hp is measured
  * on the HUD's 48-pixel bar (rounded down, but at least a pixel while any hp is left), and more than 24 pixels is green,
  * more than 9 yellow, 9 or less red. */
@@ -979,6 +1076,29 @@ UI_FN int DevLabelChip(int x, int y, const char *text, uint16_t bg, uint16_t ink
     return w;
 }
 
+/* A type's chip: its name in capitals in the small font, 40 wide (the board's type chip) or the word's width and 4 px a
+ * side. Its width; and the chip at (x, y), h tall, in the type's colour (FireRed's), returning its width. */
+UI_FN int DevTypeChipWidth(const char *typeName)
+{
+    char word[16];
+    int w;
+
+    DevUpper(word, typeName, sizeof(word));
+    w = DevSmallTextWidth(word) + 8;
+    return w < 40 ? 40 : w;
+}
+
+UI_FN int DevTypeChip(const char *typeName, int type, int x, int y, int h)
+{
+    uint16_t bg = UiTypeColor(type);
+    char word[16];
+    int w = DevTypeChipWidth(typeName);
+
+    DevUpper(word, typeName, sizeof(word));
+    DevChip(x, y, w, h, word, bg, DevChipShadow(bg));
+    return w;
+}
+
 /* A move's PP in the colours of FireRed's own move window, so the two screens agree: full PP, `normal`. With a maximum of 7
  * or less it goes by what is left: more than 2 (more than 1 when the maximum is 2 or less) `normal`, 2 the half colour,
  * 1 the quarter colour, none the empty one. Above 7: none left, empty; up to a quarter of the maximum (rounded down),
@@ -1005,10 +1125,24 @@ UI_FN const char *DevBackWord(void)
     return CTR_TR("BACK", "ATR\xC3\x81S", "ZUR\xC3\x9C" "CK");
 }
 
+/* CLOSE's word, on a key that closes an app (when the game names none of its own). */
+UI_FN const char *DevCloseWord(void)
+{
+    return CTR_TR("CLOSE", "CERRAR", "SCHLIE\xC3\x9F" "EN");
+}
+
 /* The key shown sunk: the one under a held touch, else the game's cursor. */
 UI_FN int DevChosen(int id, int cursor, int pressed)
 {
     return pressed >= 0 ? id == pressed : id == cursor;
+}
+
+/* A touch at (x, y) is on key r: its face or the drop under it (DevKeyArea). */
+UI_FN int DevOnKey(const CtrPokeTouchRect *r, int x, int y)
+{
+    CtrPokeTouchRect a = DevKeyArea(r);
+
+    return UiIn(&a, x, y);
 }
 
 /* A label and its value across row r: the label small in the secondary ink at its left, the value in the paper's ink
@@ -1027,6 +1161,14 @@ UI_FN void DevLabelValue(const CtrPokeTouchRect *r, const char *label, const cha
         value = cut;
     }
     DevText(value, right - DevTextWidth(value), r->y + (r->h - UI_TEXT_H) / 2, right);
+}
+
+/* "LABEL value" across a column from x to `right` at box top y: the label small in the secondary ink (capitals y + 4),
+ * the value in the paper's ink ending at `right` (capitals y + 3). */
+UI_FN void DevColumnRow(int y, const char *label, const char *value, int x, int right)
+{
+    DevSmallText(label, x, y + 4, DEV_INK2, right);
+    DevText(value, right - DevTextWidth(value), y + 3, right);
 }
 
 /* A field view's BACK (or CLOSE) in key r with `word`, while the view shows it (backVisible): a dark key, sunk under a
@@ -1098,4 +1240,24 @@ UI_FN void DevMonIcon(int slot, unsigned icon, int x, int y, int half, int faint
     if (slot < 0 || slot >= 6 || !BPartyIcon(slot, icon))
         return;
     DevIconPixels(sBPIcon[slot].pixels, sBPIcon[slot].pal, x, y, half, faint);
+}
+
+/* An item's icon (FireRed's 24x24) at (x, y), or at half size (12x12: of each 2x2 block its first pixel that is not
+ * clear, in reading order). */
+UI_FN void DevItemIcon(unsigned item, int x, int y, int half)
+{
+    int slot = BItemIcon(item), size = half ? 12 : 24, step = half ? 2 : 1;
+
+    if (slot < 0)
+        return;
+    for (int py = 0; py < size; ++py)
+        for (int px = 0; px < size; ++px) {
+            const uint8_t *src = sBIcon[slot].pixels + py * step * 24 + px * step;
+            uint8_t c = src[0];
+
+            if (half && !c)
+                c = src[1] ? src[1] : src[24] ? src[24] : src[25];
+            if (c)
+                Px(x + px, y + py, sBIcon[slot].pal[c]);
+        }
 }

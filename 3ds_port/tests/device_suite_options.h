@@ -147,15 +147,15 @@ static void SuiteOptions(void)
     /* the plan's suite */
     v = OptBoard(); DevCheckTouch(&old, &v); assert(DrawnBy(&v, DevOptShown));
     for (s = 0; s < 4; ++s) AssertHits(OptHitV, &v, DevAcross(4, s, 8, 24), 0x100 + PT_OPT_KEY_SECTION + s);
-    AssertKey(DevAcross(4, 0, 8, 24), DEV_LOOK_KEY, 1); AssertHits(OptHitV, &v, kDevBagUp, 0x100 + PT_OPT_KEY_UP); AssertHits(OptHitV, &v, kDevBagDown, 0x100 + PT_OPT_KEY_DOWN);
+    AssertKey(DevAcross(4, 0, 8, 24), DEV_LOOK_KEY, 1); AssertHits(OptHitV, &v, kDevGridUp, 0x100 + PT_OPT_KEY_UP); AssertHits(OptHitV, &v, kDevGridDown, 0x100 + PT_OPT_KEY_DOWN);
     for (i = 0; i < 4; ++i) { y = DevOptRow(i).y + 9;
         assert(OptHitV(&v, 16, y) == i * 16 + PT_OPT_ZONE_LABEL && OptHitV(&v, 135, y) == i * 16 + PT_OPT_ZONE_LABEL && OptHitV(&v, 136, y) == i * 16 + PT_OPT_ZONE_PREV
                && OptHitV(&v, 160, y) == i * 16 + PT_OPT_ZONE_NEXT && OptHitV(&v, 259, y) == i * 16 + PT_OPT_ZONE_NEXT && OptHitV(&v, 15, y) == -1 && OptHitV(&v, 260, y) == -1); }
     for (k = 0; k < 3; ++k) assert(OptHitV(&v, 137 + 41 * k, DevOptRow(4).y + 9) == 4 * 16 + PT_OPT_ZONE_SEG + k && CtrPokeTouch_OptionSegment(137 + 41 * k, 3) == k);
-    AssertHits(OptHitV, &v, kDevSmallKey[0], 16 + PT_OPT_ZONE_PREV); AssertHits(OptHitV, &v, kDevSmallKey[1], 16 + PT_OPT_ZONE_NEXT); AssertHits(BackV, &v, kDevBagClose, 1);
+    AssertHits(OptHitV, &v, kDevSmallKey[0], 16 + PT_OPT_ZONE_PREV); AssertHits(OptHitV, &v, kDevSmallKey[1], 16 + PT_OPT_ZONE_NEXT); AssertHits(BackV, &v, kDevGridExit, 1);
     assert(OptHitV(&v, 20, DevOptRow(5).y + 9) == -1 && at(17, DevOptRow(1).y + 9) == DEV_BEZEL);                 /* x 17: before the label */
     v.optPressed = 3; v.optZone = PT_OPT_ZONE_LABEL; DevCheckTouch(&old, &v); assert(at(17, DevOptRow(3).y + 9) == DEV_BEZEL && at(17, DevOptRow(1).y + 9) != DEV_BEZEL);
-    v.optPressed = -1; v.optKey = PT_OPT_KEY_DOWN; assert(DevWhole(DevCheckTouch(&old, &v))); AssertKey(kDevBagDown, DEV_LOOK_KEY, 1);
+    v.optPressed = -1; v.optKey = PT_OPT_KEY_DOWN; assert(DevWhole(DevCheckTouch(&old, &v))); AssertKey(kDevGridDown, DEV_LOOK_KEY, 1);
     AssertKey(DevAcross(4, 0, 8, 24), DEV_LOOK_KEY, 1);                                                          /* ▼ held: the section stays sunk */
     v.optKey = -1; DevCheckTouch(&old, &v); v.mapGroup ^= 1; v.speed ^= 1; assert(DevCheckTouch(&old, &v).count == 0);
     v.optPageCount = 1; DevCheckTouch(&old, &v); assert(CtrPokeTouch_OptionKey(&v, 294, 73) == -1 && at(294, 73) == DEV_SHELL_RED);
@@ -168,8 +168,8 @@ static void SuiteOptions(void)
     for (s = 1; s < 4; ++s) AssertKey(DevAcross(4, s, 8, 24), DEV_LOOK_KEY, 0);
     assert(Count(8, 8, 73, 24, DEV_LED) > 0 && Count(85, 8, 227, 24, DEV_LED) == 0);
     assert(at(17, DevOptRow(0).y + 9) == DEV_PAPER && at(20, DevOptRow(5).y + 9) == DEV_PAPER);
-    AssertKey(kDevBagUp, DEV_LOOK_KEY, 0); AssertKey(kDevBagDown, DEV_LOOK_KEY, 0);
-    AssertKey(kDevSmallKey[0], DEV_LOOK_KEY, 0); AssertKey(kDevSmallKey[1], DEV_LOOK_KEY, 0); AssertKey(kDevBagClose, DEV_LOOK_DARK, 0);
+    AssertKey(kDevGridUp, DEV_LOOK_KEY, 0); AssertKey(kDevGridDown, DEV_LOOK_KEY, 0);
+    AssertKey(kDevSmallKey[0], DEV_LOOK_KEY, 0); AssertKey(kDevSmallKey[1], DEV_LOOK_KEY, 0); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0);
     assert(Count(14, 196, 140, 30, DEV_INK) > 0 && Count(244, 190, 68, 40, DEV_DARK_INK) > 0);
     /* a row's text: its label from 6 px in, ◀ in PREV, the value and ▶ in NEXT (the inverted row's in the paper's ink) */
     y = DevOptRow(1).y;
@@ -193,10 +193,10 @@ static void SuiteOptions(void)
     v.optPressed = 3; DevCheckTouch(&old, &v); AssertKey(kDevSmallKey[1], DEV_LOOK_KEY, 0);                     /* another row's: not */
     v.optPressed = -1; v.optKey = PT_OPT_KEY_SECTION + 2; DevCheckTouch(&old, &v);
     AssertKey(DevAcross(4, 2, 8, 24), DEV_LOOK_KEY, 1); AssertKey(DevAcross(4, 0, 8, 24), DEV_LOOK_KEY, 0);
-    v.optKey = PT_OPT_KEY_UP; DevCheckTouch(&old, &v); AssertKey(kDevBagUp, DEV_LOOK_KEY, 1);
+    v.optKey = PT_OPT_KEY_UP; DevCheckTouch(&old, &v); AssertKey(kDevGridUp, DEV_LOOK_KEY, 1);
     v.optKey = -1;
     /* BACK: sunk under a touch, grey while it cannot be used, gone when not shown (and the shell there) */
-    v.backPressed = 1; DevCheckTouch(&old, &v); AssertKey(kDevBagClose, DEV_LOOK_DARK, 1);
+    v.backPressed = 1; DevCheckTouch(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);
     v.backPressed = 0; v.backEnabled = 0; DevCheckTouch(&old, &v); assert(at(247, 210) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, 128));
     v.backEnabled = 1; v.backVisible = 0; DevCheckTouch(&old, &v); assert(at(247, 210) == DEV_SHELL_RED && !BackV(&v, 247, 210));
     v.backVisible = 1; DevCheckTouch(&old, &v);

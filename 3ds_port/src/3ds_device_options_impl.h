@@ -1,14 +1,15 @@
 /* OPTIONS as the red device (no board; plan 3), included by 3ds_poketouch.c after the Summary: a row of the field
  * dispatcher (3ds_device_field_impl.h), shown while view->options and there is no GBA picture (DevOptShown).
  *
- * The Bag's list page. Across the top the four sections as keys, the shown one sunk (its key says its page's name: LOOKS
- * while GRAPHICS shows its looks page), or the one under a held touch. The page's rows on the list's screen, the row
- * described inverted (or the one under a held touch): its label, ◀ in PREV, the value centred in NEXT and ▶; a switch's
- * value the port's ON / OFF; a row of levels its levels side by side, the chosen one boxed (a held one boxed instead).
- * ▲ ▼ beside the rows while there are pages to turn. Under them the description in the small note (the small font, three
- * lines), ◀ ▶ stepping the row described (sunk while its own zone is held), and BACK, a dark key (grey while it cannot be
- * used). FRAME's sample (the frame chosen, from the pack) under five rows; a look's panel (its walking picture, its name
- * and its artists) under four. Every rectangle is 3ds_device_layout.h's, so what is drawn is what a touch takes.
+ * The grid's list page. Across the top the four sections as keys, the shown one sunk (its key says its page's name:
+ * LOOKS while GRAPHICS shows its looks page), or the one under a held touch. The page's rows on the list's screen, the
+ * row described inverted (or the one under a held touch): its label, ◀ in PREV, the value centred in NEXT and ▶; a
+ * switch's value the port's ON / OFF; a row of levels its levels side by side, the chosen one boxed (a held one boxed
+ * instead). ▲ ▼ beside the rows while there are pages to turn. Under them the description in the small note (the small
+ * font, three lines), ◀ ▶ stepping the row described (sunk while its own zone is held), and BACK, a dark key (grey
+ * while it cannot be used). FRAME's sample (the frame chosen, from the pack) under five rows; a look's panel (its
+ * walking picture, its name and its artists) under four. Every rectangle is 3ds_device_layout.h's, so what is drawn is
+ * what a touch takes.
  *
  * Words (decision 5): v0.6.0's words (the sections, the labels, the values, the levels, the description, a look's name)
  * through DevUpper; the port's in capitals; a look's credit (its artists' names) as typed.
@@ -49,7 +50,7 @@ bool CtrPokeTouch_OptionHit(const CtrPokeTouchView *v, int x, int y, int *row, i
     if (!DevOptShown(v))
         return false;
     for (int k = 0; k < 2; ++k)
-        if (v->optSelected < DevOptRows(v) && DevBagOnKey(&kDevSmallKey[k], x, y)) {
+        if (v->optSelected < DevOptRows(v) && DevOnKey(&kDevSmallKey[k], x, y)) {
             *row = v->optSelected;
             *zone = k ? PT_OPT_ZONE_NEXT : PT_OPT_ZONE_PREV;
             return true;
@@ -75,12 +76,12 @@ int CtrPokeTouch_OptionKey(const CtrPokeTouchView *v, int x, int y)
     for (int s = 0; s < v->optSectionCount && s < PT_OPT_SECTIONS; ++s) {
         CtrPokeTouchRect r = DevOptSection(s);
 
-        if (DevBagOnKey(&r, x, y))
+        if (DevOnKey(&r, x, y))
             return PT_OPT_KEY_SECTION + s;
     }
-    if (v->optPageCount > 1 && DevBagOnKey(&kDevBagUp, x, y))
+    if (v->optPageCount > 1 && DevOnKey(&kDevGridUp, x, y))
         return PT_OPT_KEY_UP;
-    if (v->optPageCount > 1 && DevBagOnKey(&kDevBagDown, x, y))
+    if (v->optPageCount > 1 && DevOnKey(&kDevGridDown, x, y))
         return PT_OPT_KEY_DOWN;
     return -1;
 }
@@ -250,7 +251,7 @@ static void DevOptLookPanel(const CtrPokeTouchView *v)
     }
     DevUpper(name, l->name, sizeof(name));
     DevText(name, textX, r->y + 6, right);
-    DevBagSmallWrap(l->credit, textX, textX, r->y + 20, right, 3, DEV_INK2);
+    DevSmallWrap(l->credit, textX, textX, r->y + 20, right, 3, DEV_SMALL_LINE_TIGHT, DEV_INK2);
 }
 
 /* ▲ ▼ while there are pages: sunk under a held touch. */
@@ -259,7 +260,7 @@ static void DevOptPages(const CtrPokeTouchView *v)
     if (v->optPageCount <= 1)
         return;
     for (int i = 0; i < 2; ++i) {
-        const CtrPokeTouchRect *r = i ? &kDevBagDown : &kDevBagUp;
+        const CtrPokeTouchRect *r = i ? &kDevGridDown : &kDevGridUp;
         int sunk = v->optKey == (i ? PT_OPT_KEY_DOWN : PT_OPT_KEY_UP), faceY = DevKey(r, DEV_LOOK_KEY, sunk, 6);
 
         DevTriangle(r->x + r->w / 2, faceY + r->h / 2, i, DevKeyInk(DEV_LOOK_KEY, sunk));
@@ -274,7 +275,7 @@ static void DevOptNote(const CtrPokeTouchView *v)
 
     snprintf(text, sizeof(text), "%s %s", v->bar[1], v->bar[2]);
     DevUpper(upper, text, sizeof(upper));
-    DevBagSmallWrap(upper, paper.x + 4, paper.x + 4, paper.y + 3, paper.x + paper.w - 4, 3, DEV_INK);
+    DevSmallWrap(upper, paper.x + 4, paper.x + 4, paper.y + 3, paper.x + paper.w - 4, 3, DEV_SMALL_LINE_TIGHT, DEV_INK);
 }
 
 /* ◀ ▶: they step the row described, sunk while its own zone of that kind is held. */
@@ -295,7 +296,7 @@ static void DevOptDraw(const CtrPokeTouchView *v)
 {
     DevShell(0);
     DevOptSections(v);
-    DevScreen(&kDevBagList);
+    DevScreen(&kDevGridScreen);
     for (int i = 0; i < DevOptRows(v); ++i)
         DevOptRowDraw(v, i);
     if (v->optFrameShow) {
@@ -307,7 +308,7 @@ static void DevOptDraw(const CtrPokeTouchView *v)
     DevOptPages(v);
     DevOptNote(v);
     DevOptSteps(v);
-    DevFieldBack(v, &kDevBagClose, DevBackWord());          /* BACK while shown */
+    DevFieldBack(v, &kDevGridExit, DevBackWord());          /* BACK while shown */
 }
 
 /* ---- The dispatcher's row: whether two views draw the same, where BACK is ------------------------------------------- */
@@ -350,8 +351,8 @@ static int DevOptSame(const CtrPokeTouchView *a, const CtrPokeTouchView *b)
                                              && !memcmp(a->optLook.palette, b->optLook.palette, sizeof(b->optLook.palette)))));
 }
 
-/* BACK as drawn now: kDevBagClose while shown. */
+/* BACK as drawn now: kDevGridExit while shown. */
 static const CtrPokeTouchRect *DevOptBackKey(const CtrPokeTouchView *v)
 {
-    return v->backVisible ? &kDevBagClose : NULL;
+    return v->backVisible ? &kDevGridExit : NULL;
 }

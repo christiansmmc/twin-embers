@@ -3,7 +3,7 @@
  * bar's. */
 
 /* The papers of the note (the Summary's beside BACK, and across without it), where the title's capitals start and
- * where the hints' two lines (the small font, DEV_BAG_SMALL_LINE apart) start; the room of a line beside BACK. */
+ * where the hints' two lines (the small font, DEV_SMALL_LINE_TIGHT apart) start; the room of a line beside BACK. */
 static const CtrPokeTouchRect kFrameNotePaper = {14, 194, 216, 32}, kFrameWidePaper = {14, 194, 292, 32};
 #define FRAME_TITLE_Y 196
 #define FRAME_HINT_Y 208
@@ -36,7 +36,7 @@ static int FrameRow(const CtrPokeTouchView *v)
 /* BACK (a dark key) up or sunk: its face (the same colour either way) and the LED a sunk key lights. */
 static void FrameBack(int sunk)
 {
-    const CtrPokeTouchRect r = kDevSumBack;
+    const CtrPokeTouchRect r = kDevTallBack;
 
     AssertKey(r, DEV_LOOK_DARK, sunk);
     assert((Count(r.x, r.y, r.w, r.h + DEV_DROP, DEV_LED) > 0) == sunk);
@@ -45,7 +45,7 @@ static void FrameBack(int sunk)
 /* The small font's ink of hint line `line` (0, 1) from x to the room's end. */
 static int FrameHintInk(int line, int x)
 {
-    return Count(x, FRAME_HINT_Y + DEV_BAG_SMALL_LINE * line, FRAME_HINT_X + FRAME_HINT_ROOM - x, 7, DEV_INK2);
+    return Count(x, FRAME_HINT_Y + DEV_SMALL_LINE_TIGHT * line, FRAME_HINT_X + FRAME_HINT_ROOM - x, 7, DEV_INK2);
 }
 
 /* Each hint on a line of its own while each fits the room: hint i's ink on line i, from its start to its width and none
@@ -91,7 +91,7 @@ static void SuiteFrame(void)
     for (y = -1; y <= H; ++y) for (x = -1; x <= W; ++x) {                                       /* every point, and one past each edge */
         int in = x >= PT_VIEW_X && x < PT_VIEW_X + PT_VIEW_W && y >= PT_VIEW_Y && y < PT_VIEW_Y + PT_VIEW_H, gx, gy;
         assert(CtrPokeTouch_ViewportToGba(x, y, &gx, &gy) == in && (!in || (gx == x - PT_VIEW_X && gy == y - PT_VIEW_Y))); }
-    AssertHits(BackV, &v, kDevSumBack, 1); v.backPressed = 1; DevCheckTouch(&old, &v); AssertKey(kDevSumBack, DEV_LOOK_DARK, 1);
+    AssertHits(BackV, &v, kDevTallBack, 1); v.backPressed = 1; DevCheckTouch(&old, &v); AssertKey(kDevTallBack, DEV_LOOK_DARK, 1);
     v.backEnabled = 0; v.backPressed = 0; DevCheckTouch(&old, &v); assert(at(247, 209) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, 128));
     v.backVisible = 0; DevCheckTouch(&old, &v); assert(!CtrPokeTouch_BackHit(&v, 278, 209) && at(278, 209) != DEV_SHELL_RED);
     v.viewport = 0; DevCheckTouch(&old, &v); assert(at(160, 90) == DEV_PAPER);                   /* nothing to show: an empty screen, never the embers */
@@ -153,16 +153,16 @@ static void SuiteFrame(void)
     /* without BACK the note goes across, its paper where BACK was */
     v = FrameBoard(); v.backVisible = 0; DevCheckTouch(&old, &v);
     assert(at(300, 199) == DEV_PAPER && at(kFrameWidePaper.x + kFrameWidePaper.w - 1, 200) == DEV_PAPER && at(312, 209) == DEV_SHELL_RED);
-    assert(Count(kDevSumBack.x, kFrameWidePaper.y, kFrameWidePaper.x + kFrameWidePaper.w - kDevSumBack.x, kFrameWidePaper.h, DEV_BEZEL) == 0);
+    assert(Count(kDevTallBack.x, kFrameWidePaper.y, kFrameWidePaper.x + kFrameWidePaper.w - kDevTallBack.x, kFrameWidePaper.h, DEV_BEZEL) == 0);
     /* BACK: a dark key with BACK's word, sunk with its LED under a touch, grey while it cannot be used (a touch on it then
      * sinks nothing), hit where it is drawn and nowhere else; gone with the note across when it is not shown */
     v = FrameBoard(); DevCheckTouch(&old, &v); FrameBack(0);
-    assert(Count(kDevSumBack.x, kDevSumBack.y, kDevSumBack.w, kDevSumBack.h, DEV_DARK_INK) > 0);
-    AssertHits(BackV, &v, kDevSumBack, 1);
+    assert(Count(kDevTallBack.x, kDevTallBack.y, kDevTallBack.w, kDevTallBack.h, DEV_DARK_INK) > 0);
+    AssertHits(BackV, &v, kDevTallBack, 1);
     assert(!BackV(&v, 180, 210) && !BackV(&v, 160, 90) && !BackV(&v, 100, 210));     /* not v0.6.0's BACK place, the picture, the note */
     v.backPressed = 1; DevCheckTouch(&old, &v); FrameBack(1);
     v.backEnabled = 0; DevCheckTouch(&old, &v);
-    assert(at(247, 209) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, DEV_A_DIM) && Count(kDevSumBack.x, kDevSumBack.y, kDevSumBack.w, kDevSumBack.h + DEV_DROP, DEV_LED) == 0);
+    assert(at(247, 209) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, DEV_A_DIM) && Count(kDevTallBack.x, kDevTallBack.y, kDevTallBack.w, kDevTallBack.h + DEV_DROP, DEV_LED) == 0);
     v.backPressed = 0; assert(DevCheckTouch(&old, &v).count == 0);                     /* not usable: never drawn held */
     v.backVisible = 0; DevCheckTouch(&old, &v);
     for (y = 0; y < H; y += 3)

@@ -28,9 +28,7 @@
 #define DEV_BAG_WORD        24                              /* a name as the page keeps it (in capitals, or as typed) */
 #define DEV_BAG_TEXT        112                             /* a description, a question, a message */
 #define DEV_BAG_MENU        PT_BAG_MENU_MAX
-#define DEV_BAG_SMALL_LINE  9                               /* the small font's lines (the board's 9 px) */
 #define DEV_BAG_READ_X      48                              /* the narrow screen's words (the board's x) */
-#define DEV_BAG_ARROW_OFF   UI_RGB(0xB8, 0xB0, 0xA0)        /* ▲▼ with nothing that way (the board's) */
 #define DEV_BAG_ICON_X      5                               /* a row's icon (12x12) and name, from the row's left */
 #define DEV_BAG_NAME_X      22
 #define DEV_BAG_PAD         6                               /* a row's right margin, and the gap before its count */
@@ -114,12 +112,6 @@ static int DevBagCode(int code, int from, int to)
 
 /* ---- Reading the views ----------------------------------------------------------------------------------------------- */
 
-/* CLOSE's word when the list has none of its own (the Bag's, the battle's). */
-static const char *DevBagCloseWord(void)
-{
-    return CTR_TR("CLOSE", "CERRAR", "SCHLIE\xC3\x9F" "EN");
-}
-
 /* The narrow screen's words while the item's menu is open: FireRed's "... is selected." */
 static void DevBagSelected(DevBagPage *p, const char *name)
 {
@@ -185,7 +177,7 @@ static void DevBagFromField(const CtrPokeTouchBag *b, DevBagPage *p)
     if (b->closeName[0])
         DevUpper(p->closeName, b->closeName, sizeof(p->closeName));
     else
-        snprintf(p->closeName, sizeof(p->closeName), "%s", DevBagCloseWord());
+        snprintf(p->closeName, sizeof(p->closeName), "%s", DevCloseWord());
     if (b->typed)
         snprintf(name, sizeof(name), "%s", b->selName);
     else
@@ -253,7 +245,7 @@ static void DevBagFromBattle(const CtrBattleBag *b, DevBagPage *p)
         p->selItem = b->selItem;
         snprintf(p->desc, sizeof(p->desc), "%s", b->selDesc);
     }
-    snprintf(p->closeName, sizeof(p->closeName), "%s", DevBagCloseWord());
+    snprintf(p->closeName, sizeof(p->closeName), "%s", DevCloseWord());
     if (p->state == DEV_BAG_ACTIONS) {
         p->menuCount = (uint8_t)(b->menuCount > 3 ? 3 : b->menuCount);
         p->menuCursor = b->menuCursor;
@@ -307,13 +299,6 @@ static int DevBagPressDrawn(const DevBagPage *p, int press)
     }
 }
 
-static int DevBagOnKey(const CtrPokeTouchRect *r, int x, int y)
-{
-    CtrPokeTouchRect a = DevKeyArea(r);
-
-    return UiIn(&a, x, y);
-}
-
 static int DevBagHit(const DevBagPage *p, int x, int y)
 {
     static const CtrPokeTouchRect *const kQty[4] = {&kDevBagQtyUp, &kDevBagQtyDown, &kDevBagQtyOk, &kDevBagQtyCancel};
@@ -328,25 +313,25 @@ static int DevBagHit(const DevBagPage *p, int x, int y)
         for (int i = 0; i < n; ++i) {
             CtrPokeTouchRect r = DevBagMenuKey(n, i);
 
-            if (DevBagOnKey(&r, x, y))
+            if (DevOnKey(&r, x, y))
                 return DEV_BAG_HIT_MENU + i;
         }
         return -1;
     }
     case DEV_BAG_QUANTITY:
         for (int i = 0; i < 4; ++i)
-            if (DevBagOnKey(kQty[i], x, y))
+            if (DevOnKey(kQty[i], x, y))
                 return DEV_BAG_HIT_QTY_UP + i;
         return -1;
     default:
         for (int i = 0; i < p->keyCount; ++i)
-            if (((p->keyTouch >> i) & 1) && DevBagOnKey(&kDevBagPocket[i], x, y))
+            if (((p->keyTouch >> i) & 1) && DevOnKey(&kDevBagPocket[i], x, y))
                 return DEV_BAG_HIT_KEY + i;
-        if (DevBagOnKey(&kDevBagUp, x, y))
+        if (DevOnKey(&kDevGridUp, x, y))
             return DevBagUpOn(p) ? DEV_BAG_HIT_UP : -1;
-        if (DevBagOnKey(&kDevBagDown, x, y))
+        if (DevOnKey(&kDevGridDown, x, y))
             return DevBagDownOn(p) ? DEV_BAG_HIT_DOWN : -1;
-        if (DevBagOnKey(&kDevBagClose, x, y))
+        if (DevOnKey(&kDevGridExit, x, y))
             return DEV_BAG_HIT_CLOSE;
         for (int i = 0; i < p->rows; ++i) {
             CtrPokeTouchRect r = DevBagRow(i, 0);
@@ -360,77 +345,12 @@ static int DevBagHit(const DevBagPage *p, int x, int y)
 
 /* ---- Drawing --------------------------------------------------------------------------------------------------------- */
 
-/* An item's icon (FireRed's 24x24) at (x, y), or at half size (12x12: of each 2x2 block its first pixel that is not
- * clear, in reading order). */
-static void DevBagIcon(unsigned item, int x, int y, int half)
-{
-    int slot = BItemIcon(item), size = half ? 12 : 24, step = half ? 2 : 1;
-
-    if (slot < 0)
-        return;
-    for (int py = 0; py < size; ++py)
-        for (int px = 0; px < size; ++px) {
-            const uint8_t *src = sBIcon[slot].pixels + py * step * 24 + px * step;
-            uint8_t c = src[0];
-
-            if (half && !c)
-                c = src[1] ? src[1] : src[24] ? src[24] : src[25];
-            if (c)
-                Px(x + px, y + py, sBIcon[slot].pal[c]);
-        }
-}
-
-/* DevBagSmallWrap's lines, drawn when `draw`, else only counted. */
-static int DevBagSmallWrapRun(const char *s, int firstX, int x, int top, int right, int maxLines, uint16_t ink, int draw)
-{
-    char line[128];
-    int lines = 0;
-
-    while (lines < maxLines) {
-        int fit = 0, end = 0, from = lines ? x : firstX;
-
-        while (*s == ' ' || *s == '\n')
-            ++s;
-        if (!*s)
-            break;
-        for (;;) {
-            while (s[end] && s[end] != ' ' && s[end] != '\n' && end < (int)sizeof(line) - 1)
-                ++end;
-            DevWrapCopy(line, s, end);
-            if (fit > 0 && DevSmallTextWidth(line) > right - from)
-                break;
-            fit = end;
-            if (!s[end] || end >= (int)sizeof(line) - 1)
-                break;
-            ++end;                          /* past the space, to the next word */
-        }
-        DevWrapCopy(line, s, fit);
-        if (from != x && DevSmallTextWidth(line) > right - from) {
-            ++lines;                        /* the first word does not fit after what is there: the next line */
-            continue;
-        }
-        if (draw)
-            DevSmallText(line, from, top + lines * DEV_BAG_SMALL_LINE, ink, right);
-        ++lines;
-        s += fit;
-    }
-    return lines;
-}
-
-/* Text in the small font wrapped at spaces and line breaks into at most maxLines lines DEV_BAG_SMALL_LINE apart, ending
- * by `right`: the first from firstX (after what is drawn before it on that line; it starts on the next line when its
- * first word does not fit there), the others from x. Returns the lines used. */
-static int DevBagSmallWrap(const char *s, int firstX, int x, int top, int right, int maxLines, uint16_t ink)
-{
-    return DevBagSmallWrapRun(s, firstX, x, top, right, maxLines, ink, 1);
-}
-
 /* The keys across the top: the pockets, a case's key (always sunk: it is the list shown) or the title's screen (and a
  * mart's money at its right); grey outside the list. */
 static void DevBagKeys(const DevBagPage *p, int held)
 {
     if (p->keys == DEV_BAG_KEYS_TITLE) {
-        CtrPokeTouchRect paper = DevScreen(&kDevBagTitle);
+        CtrPokeTouchRect paper = DevScreen(&kDevGridTitle);
         int top = paper.y + (paper.h - 8) / 2, right = paper.x + paper.w - 6;
 
         if (p->showMoney) {
@@ -456,7 +376,7 @@ static void DevBagKeys(const DevBagPage *p, int held)
         }
     }
     if (p->state != DEV_BAG_LIST)
-        DevDim(&kDevBagTitle);                              /* the row's whole band: the title's, over the keys' too */
+        DevDim(&kDevGridTitle);                             /* the row's whole band: the title's, over the keys' too */
 }
 
 /* The list's rows on its screen (wide, or narrow beside a column of keys). In the list the chosen row is the one under a
@@ -466,7 +386,7 @@ static void DevBagRows(const DevBagPage *p, int held)
 {
     int narrow = DevBagNarrow(p), list = p->state == DEV_BAG_LIST, cursor = -1;
     int pressed = held == DEV_BAG_HIT_CLOSE || (held >= DEV_BAG_HIT_ROW && held < DEV_BAG_HIT_ROW + PT_BAG_ROWS) ? held : -1;
-    CtrPokeTouchRect paper = DevScreen(narrow ? &kDevBagListNarrow : &kDevBagList);
+    CtrPokeTouchRect paper = DevScreen(narrow ? &kDevBagListNarrow : &kDevGridScreen);
 
     if (p->cursor >= p->count)
         cursor = DEV_BAG_HIT_CLOSE;
@@ -479,7 +399,7 @@ static void DevBagRows(const DevBagPage *p, int held)
         int top = r.y + (r.h - UI_TEXT_H) / 2, right = r.x + r.w - DEV_BAG_PAD, nameRight = right;
 
         DevRow(&r, chosen);
-        DevBagIcon(p->row[i].item, r.x + DEV_BAG_ICON_X, r.y + 2, 1);
+        DevItemIcon(p->row[i].item, r.x + DEV_BAG_ICON_X, r.y + 2, 1);
         if (p->row[i].right[0]) {
             int w = DevTextWidth(p->row[i].right);
 
@@ -505,41 +425,26 @@ static void DevBagRows(const DevBagPage *p, int held)
  * `dim`: grey keys (a message). */
 static void DevBagArrows(const DevBagPage *p, int held, int dim)
 {
-    for (int i = 0; i < 2; ++i) {
-        const CtrPokeTouchRect *r = i ? &kDevBagDown : &kDevBagUp;
-        int on = i ? DevBagDownOn(p) : DevBagUpOn(p), sunk = !dim && held == (i ? DEV_BAG_HIT_DOWN : DEV_BAG_HIT_UP);
-        int faceY = DevKey(r, DEV_LOOK_KEY, sunk, 6);
-
-        DevTriangle(r->x + r->w / 2, faceY + r->h / 2, i, on ? DevKeyInk(DEV_LOOK_KEY, sunk) : DEV_BAG_ARROW_OFF);
-        if (dim)
-            DevDim(r);
+    DevArrowKeys(&kDevGridUp, &kDevGridDown, DevBagUpOn(p), DevBagDownOn(p), !dim && held == DEV_BAG_HIT_UP,
+                 !dim && held == DEV_BAG_HIT_DOWN, 0);
+    if (dim) {
+        DevDim(&kDevGridUp);
+        DevDim(&kDevGridDown);
     }
-}
-
-/* Words read on the narrow screen, from x to `right`: the normal font in two lines at most, centred down the paper; a
- * text that needs more, the small font in three. */
-static void DevBagRead(const char *text, const CtrPokeTouchRect *paper, int x, int right)
-{
-    int width = right - x, lines = DevWrapLines(text, width, 3);
-
-    if (lines <= 2)
-        DevWrap(text, x, paper->y + (paper->h - (8 + DEV_LINE_H * (lines - 1))) / 2, width, 2, DEV_INK, DEV_INK_SH);
-    else
-        DevBagSmallWrap(text, x, x, kDevBagDescText.y + 2, right, 3, DEV_INK);
 }
 
 /* The description's screen: the selected item's icon and, wide, a TM's type and how many the Bag holds of a mart's item
  * in chips before FireRed's description (the small font, three lines); narrow, what the narrow screen reads. */
 static void DevBagDesc(const DevBagPage *p, int narrow)
 {
-    CtrPokeTouchRect paper = DevScreen(narrow ? &kDevBagDescNarrow : &kDevBagDesc);
+    CtrPokeTouchRect paper = DevScreen(narrow ? &kDevBagDescNarrow : &kDevGridNote);
     int x = kDevBagDescText.x, top = kDevBagDescText.y + 2, right = paper.x + paper.w - 4, first = x;
     char text[48];
 
     if (p->selItem)
-        DevBagIcon(p->selItem, kDevBagDescIcon.x, kDevBagDescIcon.y, 0);
+        DevItemIcon(p->selItem, kDevBagDescIcon.x, kDevBagDescIcon.y, 0);
     if (narrow) {
-        DevBagRead(p->read, &paper, DEV_BAG_READ_X, right);
+        DevReadText(p->read, &paper, DEV_BAG_READ_X, right, kDevBagDescText.y + 2, DEV_SMALL_LINE_TIGHT);
         return;
     }
     if (!p->selItem)
@@ -561,19 +466,7 @@ static void DevBagDesc(const DevBagPage *p, int narrow)
         DevChip(first, top, w, 9, text, DEV_BLUE_INK, DevChipShadow(DEV_BLUE_INK));
         first += w + 4;
     }
-    DevBagSmallWrap(p->desc, first, x, top, right, 3, DEV_INK);
-}
-
-/* A key's word: from 12 px in (the board's), or centred like any key's (`left` 0, or a word too long for it). */
-static void DevBagWord(const CtrPokeTouchRect *r, int faceY, int look, int sunk, const char *s, int left)
-{
-    int ledX = r->x + r->w - 7 - (r->h >= 30 ? 5 : 4) - 2;
-
-    if (left && DevTextWidth(s) <= ledX - (r->x + 12)) {
-        DevTextInk(s, r->x + 12, faceY + (r->h - UI_TEXT_H) / 2, ledX, DevKeyInk(look, sunk), DevKeyInkShadow(look, sunk));
-        return;
-    }
-    DevKeyWord(r, faceY, look, sunk, s);
+    DevSmallWrap(p->desc, first, x, top, right, 3, DEV_SMALL_LINE_TIGHT, DEV_INK);
 }
 
 /* The item's menu (the last key dark) or YES / NO: FireRed's cursor sunk, or the key under a held touch. */
@@ -590,7 +483,7 @@ static void DevBagMenu(const DevBagPage *p, int held)
 
         if (yesNo)
             DevUpper(word, CtrUiText(i ? UIS_NO : UIS_YES), sizeof(word));
-        DevBagWord(&r, faceY, look, sunk, yesNo ? word : p->menuName[i], look == DEV_LOOK_KEY);
+        DevKeyWordAt(&r, faceY, look, sunk, yesNo ? word : p->menuName[i], look == DEV_LOOK_KEY ? 12 : 0);
     }
 }
 
@@ -637,11 +530,11 @@ static void DevBagClose(const DevBagPage *p, int held)
     int sunk = !message && DevChosen(DEV_BAG_HIT_CLOSE, p->cursor >= p->count ? DEV_BAG_HIT_CLOSE : -1,
                                      held == DEV_BAG_HIT_CLOSE || (held >= DEV_BAG_HIT_ROW && held < DEV_BAG_HIT_ROW + PT_BAG_ROWS)
                                      ? held : -1);
-    int faceY = DevKey(&kDevBagClose, DEV_LOOK_DARK, sunk, 6);
+    int faceY = DevKey(&kDevGridExit, DEV_LOOK_DARK, sunk, 6);
 
-    DevKeyWord(&kDevBagClose, faceY, DEV_LOOK_DARK, sunk, p->closeName);
+    DevKeyWord(&kDevGridExit, faceY, DEV_LOOK_DARK, sunk, p->closeName);
     if (message)
-        DevDim(&kDevBagClose);
+        DevDim(&kDevGridExit);
 }
 
 /* The page whole, `pressed` the page's code under a held touch (or -1). DevBegin is the caller's. */
@@ -652,7 +545,7 @@ static void DevBagDraw(const DevBagPage *p, int pressed)
     DevShell(0);
     DevBagKeys(p, held);
     if (p->state == DEV_BAG_MESSAGE) {
-        CtrPokeTouchRect paper = DevScreen(&kDevBagList);
+        CtrPokeTouchRect paper = DevScreen(&kDevGridScreen);
 
         DevWrap(p->read, paper.x + 8, paper.y + 8, paper.w - 28, (paper.h - 16) / DEV_LINE_H, DEV_INK, DEV_INK_SH);
         DevTriangle(paper.x + paper.w - 10, paper.y + paper.h - 8, 1, DEV_INK2);

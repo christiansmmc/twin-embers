@@ -23,7 +23,7 @@ static int DevCardShown(const CtrPokeTouchView *v)
 
 int CtrPokeTouch_CardHit(const CtrPokeTouchView *v, int x, int y)
 {
-    return DevCardShown(v) && (UiIn(&kDevTallScreen, x, y) || DevBagOnKey(&kDevCardFlip, x, y));
+    return DevCardShown(v) && (UiIn(&kDevTallScreen, x, y) || DevOnKey(&kDevCardFlip, x, y));
 }
 
 /* ---- FireRed's pictures ---------------------------------------------------------------------------------------------- */
@@ -205,7 +205,7 @@ static void DevCardDraw(const CtrPokeTouchView *v)
         DevCardFront(&v->card);
     faceY = DevKey(&kDevCardFlip, DEV_LOOK_KEY, sunk, 6);
     DevKeyWord(&kDevCardFlip, faceY, DEV_LOOK_KEY, sunk, CTR_TR("FLIP", "GIRAR", "UMDREHEN"));
-    DevFieldBack(v, &kDevSumBack, DevBackWord());
+    DevFieldBack(v, &kDevTallBack, DevBackWord());
 }
 
 /* ---- The dispatcher's row: whether two views draw the same, where BACK is ------------------------------------------- */
@@ -236,5 +236,5 @@ static int DevCardSame(const CtrPokeTouchView *a, const CtrPokeTouchView *b)
 /* BACK as drawn now: the Summary's place while shown. */
 static const CtrPokeTouchRect *DevCardBackKey(const CtrPokeTouchView *v)
 {
-    return v->backVisible ? &kDevSumBack : NULL;
+    return v->backVisible ? &kDevTallBack : NULL;
 }

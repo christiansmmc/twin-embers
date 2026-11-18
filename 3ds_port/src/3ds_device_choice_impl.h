@@ -32,7 +32,7 @@ int CtrPokeTouch_ChoiceHit(const CtrPokeTouchView *v, int x, int y)
     for (int i = 0; i < DevChoiceCount(c); ++i) {
         CtrPokeTouchRect r = DevChoiceKey(c->count, c->cols, i);
 
-        if (DevBagOnKey(&r, x, y))
+        if (DevOnKey(&r, x, y))
             return PT_CHOICE_HIT_ROW + i;
     }
     return -1;
@@ -49,7 +49,7 @@ static void DevChoicePrompt(const char *text, const CtrPokeTouchRect *paper)
     if (lines <= 4)
         DevWrap(text, x, paper->y + (paper->h - (8 + DEV_LINE_H * (lines - 1))) / 2, width, 4, DEV_INK, DEV_INK_SH);
     else
-        DevBagSmallWrap(text, x, x, paper->y + 4, x + width, 6, DEV_INK);
+        DevSmallWrap(text, x, x, paper->y + 4, x + width, 6, DEV_SMALL_LINE_TIGHT, DEV_INK);
 }
 
 /* The choice whole (after DevBegin: the dispatcher's). */

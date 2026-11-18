@@ -109,28 +109,28 @@ int CtrPokeTouch_EasyHit(const CtrPokeTouchView *v, int x, int y)
     if (!DevEcShown(v))
         return -1;
     if (e->ask) {
-        if (DevBagOnKey(&kDevAskYes, x, y))
+        if (DevOnKey(&kDevAskYes, x, y))
             return PT_EC_HIT_YES;
-        return DevBagOnKey(&kDevAskNo, x, y) ? PT_EC_HIT_NO : -1;
+        return DevOnKey(&kDevAskNo, x, y) ? PT_EC_HIT_NO : -1;
     }
     if (e->screen == PT_EC_EDIT) {
         n = DevEcSlots(e);
         for (int i = 0; i < n; ++i) {
             CtrPokeTouchRect r = DevEcChip(n, i);
 
-            if (DevBagOnKey(&r, x, y))
+            if (DevOnKey(&r, x, y))
                 return PT_EC_HIT_CHIP + i;
         }
         for (int i = 0; i < 2; ++i) {
             CtrPokeTouchRect r = DevEcMode(i);
 
-            if (DevBagOnKey(&r, x, y))
+            if (DevOnKey(&r, x, y))
                 return PT_EC_HIT_MODE_GROUPS + i;   /* BY GROUP, A TO Z */
         }
         for (int i = 0; i < 3; ++i) {
             CtrPokeTouchRect r = DevEcFooter(i);
 
-            if (DevBagOnKey(&r, x, y))
+            if (DevOnKey(&r, x, y))
                 return PT_EC_HIT_DELETE + i;        /* CLEAR, CANCEL, CONFIRM */
         }
         return -1;
@@ -140,7 +140,7 @@ int CtrPokeTouch_EasyHit(const CtrPokeTouchView *v, int x, int y)
         for (int i = 0; i < n + 2; ++i) {
             CtrPokeTouchRect r = i < n ? DevEcCellKey(e, i) : DevEcToggle(i - n);
 
-            if (DevBagOnKey(&r, x, y))
+            if (DevOnKey(&r, x, y))
                 return PT_EC_HIT_CELL + (i < n ? i : i == n ? PT_EC_CELL_TOGGLE : PT_EC_CELL_BACK);
         }
         return -1;
@@ -151,9 +151,9 @@ int CtrPokeTouch_EasyHit(const CtrPokeTouchView *v, int x, int y)
         if (DevEcRowOn(e, k) && UiIn(&r, x, y))
             return PT_EC_HIT_ROW + k;
     }
-    if (DevBagOnKey(&kDevEcUp, x, y))
+    if (DevOnKey(&kDevEcUp, x, y))
         return PT_EC_HIT_UP;
-    if (DevBagOnKey(&kDevEcDown, x, y))
+    if (DevOnKey(&kDevEcDown, x, y))
         return PT_EC_HIT_DOWN;
     if (UiIn(&kDevEcRail, x, y))
         return PT_EC_HIT_RAIL;
@@ -162,7 +162,7 @@ int CtrPokeTouch_EasyHit(const CtrPokeTouchView *v, int x, int y)
     for (int i = 0; i < 3; ++i) {
         CtrPokeTouchRect r = DevEcListKey(i);
 
-        if (DevBagOnKey(&r, x, y))
+        if (DevOnKey(&r, x, y))
             return kDevEcListCode[i];
     }
     return -1;
@@ -265,7 +265,7 @@ static void DevEcGrid(const CtrPokeTouchEasy *e)
     if (held >= n && held != PT_EC_CELL_TOGGLE && held != PT_EC_CELL_BACK)
         held = -1;                                  /* a cell not drawn */
     DevEcCount(e, count, sizeof(count));
-    DevEcTitle(&kDevBagTitle, e->title, count);
+    DevEcTitle(&kDevGridTitle, e->title, count);
     for (int i = 0; i < n; ++i) {
         CtrPokeTouchRect r = DevEcCellKey(e, i);
 
@@ -350,7 +350,7 @@ static void DevEcArrow(const CtrPokeTouchRect *r, int dir, int on, int held)
 {
     int faceY = DevKey(r, DEV_LOOK_KEY, held, 6);
 
-    DevTriangle(r->x + r->w / 2, faceY + r->h / 2, dir, on ? DevKeyInk(DEV_LOOK_KEY, held) : DEV_BAG_ARROW_OFF);
+    DevTriangle(r->x + r->w / 2, faceY + r->h / 2, dir, on ? DevKeyInk(DEV_LOOK_KEY, held) : DEV_ARROW_OFF);
 }
 
 /* The letter strip: A..Z small, the letter of the list's first row boxed; grey under A-Z (not taken there). */

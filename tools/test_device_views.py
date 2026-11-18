@@ -147,6 +147,21 @@ class DeviceViews(unittest.TestCase):
         self.labels_fit('ES')
 
 
+class ViewRects(unittest.TestCase):
+    """Each view's rectangles and drawing helpers are its own, the grid's (3ds_device_layout.h) or the kit's."""
+
+    def test_views_borrow_no_view_rects(self):
+        """A view draws with the grid's names, the shared shapes, the kit or its own: the Bag's and the Summary's rects
+        and helpers are theirs alone, so one view's task cannot move another view (plan 04a, Task 1). The dispatcher's
+        question "is the Bag shown" (DevBagShown) is not a rect or a drawing helper."""
+        for path in sorted((ROOT / '3ds_port/src').glob('3ds_device_*_impl.h')):
+            text = path.read_text(encoding='utf-8')
+            if path.name != '3ds_device_bag_impl.h':
+                self.assertNotRegex(text, r'\bkDevBag\w+|\bDevBag(?!Battle|Shown\()[A-Z]\w*\(|\bDEV_BAG_\w+', path.name)
+            if path.name != '3ds_device_summary_impl.h':
+                self.assertNotRegex(text, r'\bkDevSum\w+|\bDevSum[A-Z]\w*\(', path.name)
+
+
 class EmberGone(unittest.TestCase):
     """The ember look is deleted (decision 4, spec 5.6): its shell, skin, backdrop and pieces, the art made for it and its
     generator, the test that pinned it and the bar's title case it drew. Nothing in the port, its tools or CI names what

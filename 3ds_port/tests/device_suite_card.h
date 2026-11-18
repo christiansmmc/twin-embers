@@ -78,7 +78,7 @@ static void SuiteCard(void)
     CtrPokeTouch_Draw(canvas, &co);
     /* the plan's suite */
     cv = CardBoard(); DevCheckTouch(&co, &cv); assert(DrawnBy(&cv, DevCardShown));
-    /* card */ AssertHits(CardHitV, &cv, kDevCardFlip, 1); assert(CtrPokeTouch_CardHit(&cv, 160, 90) == 1 && CtrPokeTouch_CardHit(&cv, 240, 200) == 0); AssertHits(BackV, &cv, kDevSumBack, 1);
+    /* card */ AssertHits(CardHitV, &cv, kDevCardFlip, 1); assert(CtrPokeTouch_CardHit(&cv, 160, 90) == 1 && CtrPokeTouch_CardHit(&cv, 240, 200) == 0); AssertHits(BackV, &cv, kDevTallBack, 1);
     cv.card.pressed = 1; DevCheckTouch(&co, &cv); AssertKey(kDevCardFlip, DEV_LOOK_KEY, 1); cv.card.back = 1; cv.card.pressed = 0; assert(DevWhole(DevCheckTouch(&co, &cv)));
     cv.mapGroup ^= 1; cv.speed ^= 1; assert(DevCheckTouch(&co, &cv).count == 0);
 
@@ -94,7 +94,7 @@ static void SuiteCard(void)
         r = DevCardBadge(i);
         assert(Count(r.x, r.y, r.w, r.h, blue) == 32 * 32);
     }
-    AssertKey(kDevCardFlip, DEV_LOOK_KEY, 0); AssertKey(kDevSumBack, DEV_LOOK_DARK, 0);
+    AssertKey(kDevCardFlip, DEV_LOOK_KEY, 0); AssertKey(kDevTallBack, DEV_LOOK_DARK, 0);
     assert(Count(8, 188, 228, 42, DEV_KEY_INK) > 0 && Count(244, 188, 68, 42, DEV_DARK_INK) > 0);
     /* the first line: NAME and the name at its left, IDNo. and the ID at its right; then MONEY, POKeDEX, TIME */
     r = DevCardRow(0);
@@ -143,7 +143,7 @@ static void SuiteCard(void)
 
     /* BACK: sunk under a touch, grey while it cannot be used, gone when not shown (the shell there); FLIP stays */
     cv = CardBoard(); DevCheckTouch(&co, &cv);
-    cv.backPressed = 1; DevCheckTouch(&co, &cv); AssertKey(kDevSumBack, DEV_LOOK_DARK, 1);
+    cv.backPressed = 1; DevCheckTouch(&co, &cv); AssertKey(kDevTallBack, DEV_LOOK_DARK, 1);
     cv.backPressed = 0; cv.backEnabled = 0; DevCheckTouch(&co, &cv); assert(at(247, 210) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, 128));
     cv.backPressed = 1; assert(DevCheckTouch(&co, &cv).count == 0);                    /* a press on a grey BACK: not drawn */
     cv.backEnabled = 1; cv.backPressed = 0; cv.backVisible = 0; DevCheckTouch(&co, &cv);

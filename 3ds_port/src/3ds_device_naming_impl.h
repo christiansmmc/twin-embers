@@ -43,14 +43,14 @@ int CtrPokeTouch_NameHit(const CtrPokeTouchView *v, int x, int y)
     for (int i = 0; i < 5; ++i) {
         CtrPokeTouchRect r = DevNameTop(i);
 
-        if (DevBagOnKey(&r, x, y))
+        if (DevOnKey(&r, x, y))
             return i < 3 ? PT_NAME_HIT_TAB + kDevNamePage[i] : i == 3 ? PT_NAME_HIT_DELETE : PT_NAME_HIT_OK;
     }
     for (int row = 0; row < PT_NAME_ROWS; ++row)
         for (int col = 0; col < DevNameCols(n); ++col) {
             CtrPokeTouchRect r = DevNameKey(n->cols, row, col);
 
-            if (n->key[row][col] != 0xff && DevBagOnKey(&r, x, y))
+            if (n->key[row][col] != 0xff && DevOnKey(&r, x, y))
                 return PT_NAME_HIT_KEY + row * PT_NAME_COLS + col;
         }
     return -1;

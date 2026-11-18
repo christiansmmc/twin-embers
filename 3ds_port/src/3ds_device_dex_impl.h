@@ -3,7 +3,7 @@
  * stays FireRed's picture). A remote for FireRed's own Pokedex (3ds_poketouch.h CtrPokeTouchDex): every cursor is the
  * Pokedex's own (3ds_bottom.c walks them with its keys); every picture and word is FireRed's but for the port's few.
  *
- * The top menu (MENU): its three sections as the Bag's pocket keys, the one the cursor is in sunk (CLOSE belongs to the
+ * The top menu (MENU): its three sections as tabs (DevDexTabKey), the one the cursor is in sunk (CLOSE belongs to the
  * lists: v0.6.0's rule) or the one under a held touch; that section's rows as keys, six to a page (v0.6.0's paging), each
  * FireRed's menu icon over its name, the cursor's sunk, a habitat with nothing seen yet faint; ▲ ▼ with more than one
  * page; SEEN and OWNED on the small note; CLOSE, FireRed's CLOSE POKeDEX row, a dark key sunk while the cursor is on it.
@@ -255,26 +255,29 @@ int CtrPokeTouch_DexHit(const CtrPokeTouchView *v, int x, int y)
     case PT_DEX_STATE_MENU: {
         int first, count, pages, cancel = DevDexCancelRow(d);
 
-        for (int i = 0; i < 3; ++i)
-            if (DevBagOnKey(&kDevBagPocket[i], x, y))
+        for (int i = 0; i < 3; ++i) {
+            CtrPokeTouchRect r = DevDexTabKey(i);
+
+            if (DevOnKey(&r, x, y))
                 return PT_DEX_HIT_TAB + i;
+        }
         DevDexGridPage(d, DevDexTab(d), &first, &count, &pages);
-        if (pages > 1 && DevBagOnKey(&kDevSmallKey[0], x, y))
+        if (pages > 1 && DevOnKey(&kDevSmallKey[0], x, y))
             return PT_DEX_HIT_UP;
-        if (pages > 1 && DevBagOnKey(&kDevSmallKey[1], x, y))
+        if (pages > 1 && DevOnKey(&kDevSmallKey[1], x, y))
             return PT_DEX_HIT_DOWN;
         for (int i = 0; i < count; ++i) {
             CtrPokeTouchRect r = DevDexItem(i);
 
-            if (DevBagOnKey(&r, x, y))
+            if (DevOnKey(&r, x, y))
                 return PT_DEX_HIT_ITEM + first + i;
         }
-        return cancel >= 0 && DevBagOnKey(&kDevBagClose, x, y) ? PT_DEX_HIT_ITEM + cancel : -1;
+        return cancel >= 0 && DevOnKey(&kDevGridExit, x, y) ? PT_DEX_HIT_ITEM + cancel : -1;
     }
     case PT_DEX_STATE_LIST:
-        if (DevBagOnKey(&kDevBagUp, x, y))
+        if (DevOnKey(&kDevGridUp, x, y))
             return d->listFirst > 0 ? PT_DEX_HIT_UP : -1;
-        if (DevBagOnKey(&kDevBagDown, x, y))
+        if (DevOnKey(&kDevGridDown, x, y))
             return d->listFirst + PT_DEX_ROWS < d->listCount ? PT_DEX_HIT_DOWN : -1;
         for (int i = 0; i < PT_DEX_ROWS && d->listFirst + i < d->listCount; ++i) {
             CtrPokeTouchRect r = DevTallRow(i, 0);
@@ -284,23 +287,23 @@ int CtrPokeTouch_DexHit(const CtrPokeTouchView *v, int x, int y)
         }
         return -1;
     case PT_DEX_STATE_CATEGORY:
-        if (DevBagOnKey(&kDevSmallKey[0], x, y))
+        if (DevOnKey(&kDevSmallKey[0], x, y))
             return d->canPrev ? PT_DEX_HIT_PREV : -1;
-        if (DevBagOnKey(&kDevSmallKey[1], x, y))
+        if (DevOnKey(&kDevSmallKey[1], x, y))
             return d->canNext ? PT_DEX_HIT_NEXT : -1;
         for (int i = 0; i < d->slots && i < 4; ++i) {
             CtrPokeTouchRect r = DevDexSlot(i);
 
-            if (DevBagOnKey(&r, x, y))
+            if (DevOnKey(&r, x, y))
                 return PT_DEX_HIT_SLOT + i;
         }
         return -1;
     case PT_DEX_STATE_PAGE:
         if (d->added)                       /* the page a catch added: OK or the screen goes on with the battle (its A) */
-            return UiIn(&kDevTallScreen, x, y) || DevBagOnKey(&kDevWideKey, x, y) ? PT_DEX_HIT_CONTINUE : -1;
-        if (DevBagOnKey(&kDevDexArea, x, y))
+            return UiIn(&kDevTallScreen, x, y) || DevOnKey(&kDevWideKey, x, y) ? PT_DEX_HIT_CONTINUE : -1;
+        if (DevOnKey(&kDevDexArea, x, y))
             return PT_DEX_HIT_AREA;
-        return DevBagOnKey(&kDevDexCry, x, y) ? PT_DEX_HIT_CRY : -1;
+        return DevOnKey(&kDevDexCry, x, y) ? PT_DEX_HIT_CRY : -1;
     }
     return -1;
 }
@@ -394,24 +397,10 @@ static const CtrUiString kDevDexTabWord[3] = {UIS_DEX_LISTS, UIS_DEX_HABITATS, U
 static const CtrUiString kDevDexOrder[6] = {UIS_DEX_KANTO, UIS_DEX_ATOZ, UIS_DEX_TYPE, UIS_DEX_LIGHTEST, UIS_DEX_SMALLEST,
                                             UIS_DEX_NATIONAL};
 
-/* Two keys with a triangle each (▲ ▼, or ◀ ▶ `across`): grey where there is nowhere to go (`on0`, `on1`), sunk under a
- * held touch (`held0`, `held1`) only where there is. */
-static void DevDexArrows(const CtrPokeTouchRect *r0, const CtrPokeTouchRect *r1, int on0, int on1, int held0, int held1,
-                         int across)
-{
-    for (int k = 0; k < 2; ++k) {
-        const CtrPokeTouchRect *r = k ? r1 : r0;
-        int on = k ? on1 : on0, sunk = on && (k ? held1 : held0), faceY = DevKey(r, DEV_LOOK_KEY, sunk, 6);
-
-        DevTriangle(r->x + r->w / 2, faceY + r->h / 2, across ? 2 + k : k,
-                    on ? DevKeyInk(DEV_LOOK_KEY, sunk) : DEV_BAG_ARROW_OFF);
-    }
-}
-
 /* The title's screen: `left` in the paper's ink, `right` (or nothing) small at its right in the secondary ink. */
 static void DevDexTitle(const char *left, const char *right)
 {
-    CtrPokeTouchRect paper = DevScreen(&kDevBagTitle);
+    CtrPokeTouchRect paper = DevScreen(&kDevGridTitle);
     int top = paper.y + (paper.h - 8) / 2, end = paper.x + paper.w - 6, rw = DevSmallTextWidth(right);
 
     if (right[0])
@@ -464,11 +453,11 @@ static void DevDexMenu(const CtrPokeTouchView *v)
     char word[DEV_DEX_WORD];
 
     for (int i = 0; i < 3; ++i) {
-        const CtrPokeTouchRect *r = &kDevBagPocket[i];
-        int sunk = DevChosen(i, tab, pressTab), faceY = DevKey(r, DEV_LOOK_KEY, sunk, 5);
+        CtrPokeTouchRect r = DevDexTabKey(i);
+        int sunk = DevChosen(i, tab, pressTab), faceY = DevKey(&r, DEV_LOOK_KEY, sunk, 5);
 
         DevUpper(word, CtrUiText(kDevDexTabWord[i]), sizeof(word));
-        DevKeyWord(r, faceY, DEV_LOOK_KEY, sunk, word);
+        DevKeyWord(&r, faceY, DEV_LOOK_KEY, sunk, word);
     }
     page = DevDexGridPage(d, tab, &first, &count, &pages);
     for (int i = 0; i < count; ++i) {
@@ -482,13 +471,13 @@ static void DevDexMenu(const CtrPokeTouchView *v)
         DevDexKeySmall(&r, faceY + 55, word, DevKeyInk(look, sunk));
     }
     if (pages > 1)
-        DevDexArrows(&kDevSmallKey[0], &kDevSmallKey[1], page > 0, page < pages - 1, pressed == PT_DEX_HIT_UP,
+        DevArrowKeys(&kDevSmallKey[0], &kDevSmallKey[1], page > 0, page < pages - 1, pressed == PT_DEX_HIT_UP,
                      pressed == PT_DEX_HIT_DOWN, 0);
     DevDexCounts(d);
     if (cancel >= 0) {
-        int sunk = DevChosen(cancel, d->menuCursor, pressRow), faceY = DevKey(&kDevBagClose, DEV_LOOK_DARK, sunk, 6);
+        int sunk = DevChosen(cancel, d->menuCursor, pressRow), faceY = DevKey(&kDevGridExit, DEV_LOOK_DARK, sunk, 6);
 
-        DevKeyWord(&kDevBagClose, faceY, DEV_LOOK_DARK, sunk, DevBagCloseWord());
+        DevKeyWord(&kDevGridExit, faceY, DEV_LOOK_DARK, sunk, DevCloseWord());
     }
 }
 
@@ -554,12 +543,12 @@ static void DevDexList(const CtrPokeTouchView *v)
         snprintf(counts, sizeof(counts), "%s %u  %s %u", seen, (unsigned)d->seen[nat], owned, (unsigned)d->owned[nat]);
     }
     DevDexTitle(title, counts);
-    DevScreen(&kDevBagList);
+    DevScreen(&kDevGridScreen);
     for (int i = 0; i < PT_DEX_ROWS && d->listFirst + i < d->listCount; ++i)
         DevDexRow(&d->row[i], i, DevChosen(i, d->listCursor - d->listFirst, pressRow));
-    DevDexArrows(&kDevBagUp, &kDevBagDown, d->listFirst > 0, d->listFirst + PT_DEX_ROWS < d->listCount,
+    DevArrowKeys(&kDevGridUp, &kDevGridDown, d->listFirst > 0, d->listFirst + PT_DEX_ROWS < d->listCount,
                  d->pressed == PT_DEX_HIT_UP, d->pressed == PT_DEX_HIT_DOWN, 0);
-    paper = DevScreen(&kDevBagDesc);                    /* the selected one: a caught one's types and kind */
+    paper = DevScreen(&kDevGridNote);                   /* the selected one: a caught one's types and kind */
     if (d->sel.flags & 2) {
         char kind[DEV_DEX_WORD];
         int x = DevDexTypes(d, paper.x + 6, paper.y + (paper.h - 12) / 2, paper.x + paper.w - 6);
@@ -568,7 +557,7 @@ static void DevDexList(const CtrPokeTouchView *v)
         DevSmallText(kind, x + 3, paper.y + (paper.h - 7) / 2, DEV_INK2, paper.x + paper.w - 6);
     } else
         DevText("?????", paper.x + 6, paper.y + (paper.h - UI_TEXT_H) / 2, paper.x + paper.w - 6);
-    DevFieldBack(v, &kDevBagClose, DevBackWord());
+    DevFieldBack(v, &kDevGridExit, DevBackWord());
 }
 
 /* Slot i of a habitat's page (m its Pokemon, `sunk` chosen): the picture of one seen beside its number and its name; a
@@ -607,7 +596,7 @@ static void DevDexCategory(const CtrPokeTouchView *v)
     DevDexTitle(habitat, page);
     for (int i = 0; i < d->slots && i < 4; ++i)
         DevDexSlotDraw(&d->mon[i], i, DevChosen(i, d->slot, pressSlot));
-    DevDexArrows(&kDevSmallKey[0], &kDevSmallKey[1], d->canPrev, d->canNext, d->pressed == PT_DEX_HIT_PREV,
+    DevArrowKeys(&kDevSmallKey[0], &kDevSmallKey[1], d->canPrev, d->canNext, d->pressed == PT_DEX_HIT_PREV,
                  d->pressed == PT_DEX_HIT_NEXT, 1);
     paper = DevScreen(&kDevSmallNote);                  /* the selected one: its number small, its name */
     if (d->sel.species) {
@@ -615,7 +604,7 @@ static void DevDexCategory(const CtrPokeTouchView *v)
         DevSmallText(word, paper.x + 6, paper.y + 4, DEV_INK2, paper.x + paper.w - 6);
         DevText(DevDexName(&d->sel, "?????", word, sizeof(word)), paper.x + 6, paper.y + 16, paper.x + paper.w - 6);
     }
-    DevFieldBack(v, &kDevBagClose, DevBackWord());
+    DevFieldBack(v, &kDevGridExit, DevBackWord());
 }
 
 /* A Pokemon's page (PAGE): the picture (HeartGold's 80x80 when the pack has it, else the 64x64 centred), the number and
@@ -666,7 +655,7 @@ static void DevDexPage(const CtrPokeTouchView *v)
         DevUpper(word, CtrUiText(k ? UIS_DEX_CRY : UIS_DEX_AREA), sizeof(word));
         DevKeyWord(r, faceY, DEV_LOOK_KEY, sunk, word);
     }
-    DevFieldBack(v, &kDevSumBack, DevBackWord());
+    DevFieldBack(v, &kDevTallBack, DevBackWord());
 }
 
 /* The Pokedex whole (after DevBegin: the dispatcher's); busy with nothing kept yet, the shell. */
@@ -699,8 +688,8 @@ static int DevDexSame(const CtrPokeTouchView *a, const CtrPokeTouchView *b)
     return !memcmp(&p, &q, sizeof(p)) && DevFieldBackSame(a, b);
 }
 
-/* BACK as drawn now: CLOSE's place beside a list or a habitat's page, the Summary's on a Pokemon's page; none on the top
- * menu (its CLOSE is FireRed's CLOSE POKeDEX), the page a catch added or while nothing is kept. */
+/* BACK as drawn now: the grid's exit beside a list or a habitat's page, the tall BACK on a Pokemon's page; none on the
+ * top menu (its CLOSE is FireRed's CLOSE POKeDEX), the page a catch added or while nothing is kept. */
 static const CtrPokeTouchRect *DevDexBackKey(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchDex *d = &v->dex;
@@ -708,6 +697,6 @@ static const CtrPokeTouchRect *DevDexBackKey(const CtrPokeTouchView *v)
     if (!v->backVisible)
         return NULL;
     if (d->state == PT_DEX_STATE_LIST || d->state == PT_DEX_STATE_CATEGORY)
-        return &kDevBagClose;
-    return d->state == PT_DEX_STATE_PAGE && !d->added ? &kDevSumBack : NULL;
+        return &kDevGridExit;
+    return d->state == PT_DEX_STATE_PAGE && !d->added ? &kDevTallBack : NULL;
 }

@@ -443,7 +443,7 @@ static const unsigned kTraceRgb[] = {
     DEV_HP_TRACK, DEV_HP_GREEN, DEV_HP_YELLOW, DEV_HP_RED, DEV_HP_LABEL, DEV_EXP, DEV_EXP_LABEL, DEV_FX_SUPER,
     DEV_FX_NOTVERY, DEV_FX_EFFECTIVE, DEV_FX_NONE, DEV_CAT_SPECIAL, DEV_CAT_PHYSICAL, DEV_PSN, DEV_FX_SUPER_SH,
     DEV_FX_NOTVERY_SH, DEV_FX_EFFECTIVE_SH, DEV_CAT_SPECIAL_SH, DEV_LOW_INK, DEV_PP_QUARTER, DEV_PP_HALF, DEV_BLUE_INK,
-    DEV_STAT_UP, DEV_MALE, DEV_FEMALE, DEV_BAG_ARROW_OFF, DEV_BOX_TITLE_SH, DEV_CARD_GOLD,
+    DEV_STAT_UP, DEV_MALE, DEV_FEMALE, DEV_ARROW_OFF, DEV_BOX_TITLE_SH, DEV_CARD_GOLD,
 };
 #pragma pop_macro("UI_RGB")
 
@@ -2188,14 +2188,14 @@ static void SuiteSummary(void)
     CtrSummaryUi_Draw(canvas, &so);
     DevCheckSummary(&so, &sv);
     for (i = 0; i < 4; ++i) AssertHits(SumHitV, &sv, kDevSumTab[i], SUI_HIT_TAB + i);
-    AssertHits(SumHitV, &sv, kDevSumPrev, SUI_HIT_PREV); AssertHits(SumHitV, &sv, kDevSumNext, SUI_HIT_NEXT); AssertHits(SumHitV, &sv, kDevSumBack, SUI_HIT_BACK);
+    AssertHits(SumHitV, &sv, kDevSumPrev, SUI_HIT_PREV); AssertHits(SumHitV, &sv, kDevSumNext, SUI_HIT_NEXT); AssertHits(SumHitV, &sv, kDevTallBack, SUI_HIT_BACK);
     AssertKey(kDevSumTab[0], DEV_LOOK_KEY, 1); AssertKey(kDevSumPrev, DEV_LOOK_DARK, 0);
     /* INFO, the board's pieces: the chosen tab's LED, the others up; the arrows and BACK dark with their light ink; the
      * left column's paper, the picture in its box, the FIRE chip; the rows' labels and values, the HP bar, the EXP chip
      * and bar; the ability's name and its description on the note */
     assert(at(54, 15) == DEV_LED);
     for (i = 1; i < 4; ++i) AssertKey(kDevSumTab[i], DEV_LOOK_KEY, 0);
-    AssertKey(kDevSumNext, DEV_LOOK_DARK, 0); AssertKey(kDevSumBack, DEV_LOOK_DARK, 0);
+    AssertKey(kDevSumNext, DEV_LOOK_DARK, 0); AssertKey(kDevTallBack, DEV_LOOK_DARK, 0);
     assert(Count(252, 8, 28, 24, DEV_DARK_INK) > 0 && Count(284, 8, 28, 24, DEV_DARK_INK) > 0 && Count(244, 188, 68, 42, DEV_DARK_INK) > 0);
     assert(at(16, 48) == DEV_PAPER2 && at(116, 172) == DEV_PAPER2 && at(119, 48) == DEV_PAPER);
     assert(at(66, 114) == red && at(35, 83) == DEV_PAPER2 && at(97, 145) == DEV_PAPER2 && Count(34, 82, 64, 64, blue) > 0);
@@ -2354,9 +2354,9 @@ static void SuiteSummary(void)
     sv.loading = 1; DevCheckSummary(&so, &sv); assert(CtrSummaryUi_Hit(&sv, 36, 20) == -1 && CtrSummaryUi_Hit(&sv, 278, 209) == SUI_HIT_BACK);
     /* loading: the frame only, every tab and arrow grey, BACK taken */
     for (i = 0; i < 4; ++i) assert(at(kDevSumTab[i].x + 3, 20) == dimKey);
-    assert(at(255, 20) == dimDark && at(287, 20) == dimDark); AssertKey(kDevSumBack, DEV_LOOK_DARK, 0);
+    assert(at(255, 20) == dimDark && at(287, 20) == dimDark); AssertKey(kDevTallBack, DEV_LOOK_DARK, 0);
     assert(Count(14, 46, 292, 128, DEV_INK) == 0 && Count(14, 194, 216, 32, DEV_INK) == 0);
-    sv.pressed = SUI_HIT_BACK; DevCheckSummary(&so, &sv); AssertKey(kDevSumBack, DEV_LOOK_DARK, 1);
+    sv.pressed = SUI_HIT_BACK; DevCheckSummary(&so, &sv); AssertKey(kDevTallBack, DEV_LOOK_DARK, 1);
     sumArt = 0;
     assert(sDevKeyCut == 0);                      /* main prints PASS device summary */
 }
@@ -2515,7 +2515,7 @@ static void SuiteBag(void)
     for (i = 0; i < 8; ++i) AssertRowHits(BagHitV, &v, DevBagRow(i, 0), PT_BAG_HIT_ROW + i);
     assert(at(20, 72) == DEV_BEZEL);                                                                  /* row 1, the cursor's, inverted */
     assert(CtrPokeTouch_BagHit(&v, 294, 73) == -1 && CtrPokeTouch_BagHit(&v, 294, 147) == PT_BAG_HIT_DOWN);   /* nothing above yet */
-    AssertHits(BagHitV, &v, kDevBagClose, PT_BAG_HIT_CLOSE);
+    AssertHits(BagHitV, &v, kDevGridExit, PT_BAG_HIT_CLOSE);
     DevCheckTouch(&old, &v);
     /* the board's pieces: the pocket's LED, the rows on the paper with their counts at the right, the cursor's row in
      * the paper's ink, ▲ grey and ▼ dark, the item's icon and description, CLOSE dark */
@@ -2523,13 +2523,13 @@ static void SuiteBag(void)
     assert(Count(232, 48, 22, 16, DEV_INK) > 0 && Count(232, 64, 22, 16, DEV_PAPER) > 0 && Count(40, 64, 60, 16, DEV_PAPER) > 0);
     assert(Count(290, 70, 9, 7, arrowOff) > 0 && Count(290, 144, 9, 7, DEV_KEY_INK) > 0);
     assert(at(22, 51) != DEV_PAPER && Count(18, 199, 24, 24, DEV_PAPER) < 24 * 24 && Count(46, 197, 180, 27, DEV_INK) > 0);
-    AssertKey(kDevBagClose, DEV_LOOK_DARK, 0); assert(Count(244, 190, 68, 40, DEV_DARK_INK) > 0);
+    AssertKey(kDevGridExit, DEV_LOOK_DARK, 0); assert(Count(244, 190, 68, 40, DEV_DARK_INK) > 0);
     shot("items");
     /* a touch chooses: a row (the cursor's not), ▼; ▲ cannot go up, so its touch draws nothing; what the page does not
      * draw (HOME's keys, the bar, BACK, the registered items outside Key Items, the quantity box's maximum) draws nothing */
     v.bag.pressed = PT_BAG_HIT_ROW + 3; DevCheckTouch(&old, &v); assert(at(20, 104) == DEV_BEZEL && at(20, 72) == DEV_PAPER);
-    v.bag.pressed = PT_BAG_HIT_DOWN; DevCheckTouch(&old, &v); AssertKey(kDevBagDown, DEV_LOOK_KEY, 1); assert(at(20, 72) == DEV_BEZEL);
-    v.bag.pressed = PT_BAG_HIT_CLOSE; DevCheckTouch(&old, &v); AssertKey(kDevBagClose, DEV_LOOK_DARK, 1); assert(at(20, 72) == DEV_PAPER);
+    v.bag.pressed = PT_BAG_HIT_DOWN; DevCheckTouch(&old, &v); AssertKey(kDevGridDown, DEV_LOOK_KEY, 1); assert(at(20, 72) == DEV_BEZEL);
+    v.bag.pressed = PT_BAG_HIT_CLOSE; DevCheckTouch(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1); assert(at(20, 72) == DEV_PAPER);
     v.bag.pressed = PT_BAG_HIT_TAB + 1; DevCheckTouch(&old, &v); AssertKey(kDevBagPocket[1], DEV_LOOK_KEY, 1); AssertKey(kDevBagPocket[0], DEV_LOOK_KEY, 0);
     v.bag.pressed = -1; DevCheckTouch(&old, &v);
     v.bag.pressed = PT_BAG_HIT_UP; assert(DevCheckTouch(&old, &v).count == 0);
@@ -2539,10 +2539,10 @@ static void SuiteBag(void)
     v.bag.prompt[0] = 0;
     v.shell = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && at(1, 100) == DEV_SHELL_BLUE);
     v.shell = 0; DevCheckTouch(&old, &v);
-    v.bag.cursor = v.bag.count; DevCheckTouch(&old, &v); AssertKey(kDevBagClose, DEV_LOOK_DARK, 1);     /* the game's cursor on CLOSE BAG */
+    v.bag.cursor = v.bag.count; DevCheckTouch(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);     /* the game's cursor on CLOSE BAG */
     assert(at(20, 72) == DEV_PAPER && Count(46, 197, 180, 27, DEV_INK) == 0);
     shot("close");
-    v.bag.count = 0; v.bag.cursor = 0; DevCheckTouch(&old, &v); assert(CtrPokeTouch_BagHit(&v, 138, 56) == -1); AssertKey(kDevBagClose, DEV_LOOK_DARK, 1);
+    v.bag.count = 0; v.bag.cursor = 0; DevCheckTouch(&old, &v); assert(CtrPokeTouch_BagHit(&v, 138, 56) == -1); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);
     assert(Count(16, 48, 244, 16, DEV_BEZEL) == 0 && Count(16, 48, 244, 128, DEV_INK2) > 0);            /* no rows: the pocket is empty */
     shot("empty");
     v.bag.count = 9; v.bag.cursor = 1;
@@ -2615,7 +2615,7 @@ static void SuiteBag(void)
     shot("shop");
     v.bag.kind = PT_BAG_KIND_ITEMPC; strcpy(v.bag.title, "WITHDRAW ITEM"); v.bag.money = 0; v.bag.showOwned = 0;
     for (i = 0; i < 8; ++i) { v.bag.row[i].price = 0; v.bag.row[i].qty = (uint16_t)kBagItem[i].qty; }
-    DevCheckTouch(&old, &v); AssertHits(BagHitV, &v, kDevBagClose, PT_BAG_HIT_CLOSE);
+    DevCheckTouch(&old, &v); AssertHits(BagHitV, &v, kDevGridExit, PT_BAG_HIT_CLOSE);
     shot("itempc");
     strcpy(v.bag.title, "MAILBOX"); v.bag.typed = 1; v.bag.count = 3; v.bag.cursor = 0;
     for (i = 0; i < 3; ++i) { strcpy(v.bag.row[i].name, i ? "MOM" : "Rick"); v.bag.row[i].item = (uint16_t)(121 + i); v.bag.row[i].qty = 0; }
@@ -2635,12 +2635,12 @@ static void SuiteBag(void)
     assert(at(160, 20) == DEV_SHELL_RED && at(264, 20) == DEV_SHELL_RED && at(20, 72) == DEV_BEZEL);
     shot("battle");
     bv.bag.berries = 365; DevCheckBattle(&bo, &bv); AssertHits(BatHitV, &bv, kDevBagPocket[1], BUI_BAG_BERRIES);
-    AssertRowHits(BatHitV, &bv, DevBagRow(0, 0), BUI_BAG_ROW); AssertHits(BatHitV, &bv, kDevBagClose, BUI_BAG_CANCEL);
+    AssertRowHits(BatHitV, &bv, DevBagRow(0, 0), BUI_BAG_ROW); AssertHits(BatHitV, &bv, kDevGridExit, BUI_BAG_CANCEL);
     /* BERRIES under a touch is the one sunk; the battle's own fields are not drawn; to the commands and back, whole */
     AssertKey(kDevBagPocket[1], DEV_LOOK_KEY, 0); assert(at(264, 20) == DEV_SHELL_RED);
     shot("battle_berries");
     bv.pressed = BUI_BAG_BERRIES; DevCheckBattle(&bo, &bv); AssertKey(kDevBagPocket[1], DEV_LOOK_KEY, 1); AssertKey(kDevBagPocket[0], DEV_LOOK_KEY, 0);
-    bv.pressed = BUI_BAG_DOWN; DevCheckBattle(&bo, &bv); AssertKey(kDevBagDown, DEV_LOOK_KEY, 1); AssertKey(kDevBagPocket[0], DEV_LOOK_KEY, 1);
+    bv.pressed = BUI_BAG_DOWN; DevCheckBattle(&bo, &bv); AssertKey(kDevGridDown, DEV_LOOK_KEY, 1); AssertKey(kDevBagPocket[0], DEV_LOOK_KEY, 1);
     bv.pressed = -1; DevCheckBattle(&bo, &bv);
     bv.activeHp = 7; bv.party[2] = 2; bv.cursor = 2; bv.showCursor = 1; bv.bag.bagState = 3; assert(DevCheckBattle(&bo, &bv).count == 0);
     strcpy(bv.bag.row[0].name, "Potion"); assert(DevCheckBattle(&bo, &bv).count == 0);           /* drawn as POTION all the same */

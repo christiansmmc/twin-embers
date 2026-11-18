@@ -96,7 +96,7 @@ static int DevSumPressDrawn(const CtrSummaryUiView *v)
 int CtrSummaryUi_Hit(const CtrSummaryUiView *v, int x, int y)
 {
     const CtrSummaryView *d = &v->data;
-    CtrPokeTouchRect a = DevKeyArea(&kDevSumBack);
+    CtrPokeTouchRect a = DevKeyArea(&kDevTallBack);
 
     if (UiIn(&a, x, y))
         return SUI_HIT_BACK;
@@ -358,13 +358,6 @@ static int DevSumStatusMove(const CtrSummaryView *d, int i)
     return !d->power[i][0] || d->power[i][0] == '-';
 }
 
-/* "LABEL value" across the left column at box top y: the label small in the secondary ink, the value at its right. */
-static void DevSumColumnRow(int y, const char *label, const char *value)
-{
-    DevSmallText(label, 20, y + 4, DEV_INK2, 112);
-    DevText(value, 112 - DevTextWidth(value), y + 3, 112);
-}
-
 /* The left column of INFO, STATS and MEMO: the name, the gender and the level, the picture in its box (the icon at 2x
  * without one), the types. An egg: its name and its picture. */
 static void DevSumColumn(const CtrSummaryUiView *v)
@@ -425,8 +418,9 @@ static void DevSumMoveColumn(const CtrSummaryUiView *v)
             else
                 DevSumChip(x, 97, 112, 0, CTR_TR("SPECIAL", "ESPECIAL", "SPEZIAL"), DEV_CAT_SPECIAL, DEV_CAT_SPECIAL_SH);
         }
-        DevSumColumnRow(116, CTR_TR("POWER", "POTENCIA", "ST\xC3\x84RKE"), d->power[i][0] ? d->power[i] : "-");
-        DevSumColumnRow(132, CTR_TR("ACCURACY", "PRECISI\xC3\x93N", "GENAUIGKEIT"), d->accuracy[i][0] ? d->accuracy[i] : "-");
+        DevColumnRow(116, CTR_TR("POWER", "POTENCIA", "ST\xC3\x84RKE"), d->power[i][0] ? d->power[i] : "-", 20, 112);
+        DevColumnRow(132, CTR_TR("ACCURACY", "PRECISI\xC3\x93N", "GENAUIGKEIT"),
+                     d->accuracy[i][0] ? d->accuracy[i] : "-", 20, 112);
     }
 }
 
@@ -720,7 +714,7 @@ static void DevSumNote(const CtrSummaryUiView *v)
     const CtrSummaryView *d = &v->data;
     int tab = CtrSummaryUi_Tab(v);
 
-    DevScreen(&kDevSumNote);
+    DevScreen(&kDevTallNote);
     if (v->loading)
         return;
     if ((tab == SUI_TAB_INFO || tab == SUI_TAB_STATS) && !d->egg) {
@@ -781,8 +775,8 @@ static void DevSumKeys(const CtrSummaryUiView *v)
             DevDim(r);
     }
     sunk = held == SUI_HIT_BACK;
-    faceY = DevKey(&kDevSumBack, DEV_LOOK_DARK, sunk, 6);
-    DevKeyWord(&kDevSumBack, faceY, DEV_LOOK_DARK, sunk, DevBackWord());
+    faceY = DevKey(&kDevTallBack, DEV_LOOK_DARK, sunk, 6);
+    DevKeyWord(&kDevTallBack, faceY, DEV_LOOK_DARK, sunk, DevBackWord());
 }
 
 void CtrSummaryUi_Draw(uint16_t *canvas, const CtrSummaryUiView *v)

@@ -32,7 +32,7 @@ static const CtrPokeTouchRect *DevSaveKeyRect(int k)
 int CtrPokeTouch_SaveHit(int x, int y, int state)
 {
     for (int k = 0; k < DevSaveKeyCount(state); ++k)
-        if (DevBagOnKey(DevSaveKeyRect(k), x, y))
+        if (DevOnKey(DevSaveKeyRect(k), x, y))
             return PT_SAVE_FIRST + k;
     return PT_SAVE_NONE;
 }

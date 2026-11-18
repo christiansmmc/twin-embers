@@ -113,9 +113,9 @@ static void SuiteLearn(void)
     CtrPokeTouch_Draw(canvas, &lo);
     /* the plan's suite */
     lv = LearnBoard(); DevCheckTouch(&lo, &lv); assert(DrawnBy(&lv, DevLearnShown));
-    /* learn */ for (i = 0; i < 5; ++i) AssertRowHits(LearnHitV, &lv, DevSumRow(i), PT_LEARN_HIT_ROW + i);
-    assert(at(DevSumRow(4).x + 1, DevSumRow(4).y + 11) == DEV_BEZEL); AssertHits(BackV, &lv, kDevSumBack, 1);   /* before the name */
-    lv.learn.row[2].move = lv.learn.row[3].move = 0; DevCheckTouch(&lo, &lv); assert(CtrPokeTouch_LearnHit(&lv, 130, DevSumRow(2).y + 5) == -1);
+    /* learn */ for (i = 0; i < 5; ++i) AssertRowHits(LearnHitV, &lv, DevLearnSlot(i), PT_LEARN_HIT_ROW + i);
+    assert(at(DevLearnSlot(4).x + 1, DevLearnSlot(4).y + 11) == DEV_BEZEL); AssertHits(BackV, &lv, kDevTallBack, 1);   /* before the name */
+    lv.learn.row[2].move = lv.learn.row[3].move = 0; DevCheckTouch(&lo, &lv); assert(CtrPokeTouch_LearnHit(&lv, 130, DevLearnSlot(2).y + 5) == -1);
     lv.learn.row[0].locked ^= 1; lv.mapGroup ^= 1; lv.speed ^= 1; assert(DevCheckTouch(&lo, &lv).count == 0);
 
     /* the title: the question in the paper's ink; the column (the paper's second tone): the name, the level small in the
@@ -133,21 +133,21 @@ static void SuiteLearn(void)
         full = DevSmallTextWidth(level);
         assert(full > bare && Count(20 + bare, 63, full - bare, 10, DEV_INK2) > 0 && Count(20 + full, 63, 92 - full, 10, DEV_INK2) == 0);
     }
-    assert(Count(kDevSumPic.x, kDevSumPic.y, kDevSumPic.w, kDevSumPic.h, STUB_PIC) == 48 * 48);
+    assert(Count(kDevLearnPic.x, kDevLearnPic.y, kDevLearnPic.w, kDevLearnPic.h, STUB_PIC) == 48 * 48);
     assert(Count(20, 148, 92, 26, DEV_INK2) > 0 && Count(20, 148, 92, 26, DEV_INK) > 0);
     /* the rows: the cursor's inverted, the others the paper's; each its name, its type's chip and its PP; the rule over
      * the new one; the description on the note */
     for (i = 0; i < PT_LEARN_ROWS; ++i) {
-        r = DevSumRow(i);
+        r = DevLearnSlot(i);
         assert(at(r.x + 1, r.y + 1) == (i == 4 ? DEV_BEZEL : DEV_PAPER));
         assert(Count(r.x + r.w - 90, r.y, 90, r.h, UiTypeColor(kLearnMove[i].t)) > 0);
         assert(Count(r.x, r.y, 80, r.h, i == 4 ? DEV_PAPER : DEV_INK) > 0 && Count(r.x + r.w - 40, r.y, 40, r.h, i == 4 ? DEV_PAPER : DEV_INK) > 0);
     }
-    r = DevSumRow(4); assert(Count(r.x, r.y - 2, r.w, 1, DEV_INK_SH) == r.w);
+    r = DevLearnSlot(4); assert(Count(r.x, r.y - 2, r.w, 1, DEV_INK_SH) == r.w);
     assert(CountIn(kSumNotePaper, DEV_INK) > 0);
     /* a touch inverts the row under it, not the cursor's; the cursor's move's numbers follow it */
     lv.learn.pressed = PT_LEARN_HIT_ROW + 1; DevCheckTouch(&lo, &lv);
-    r = DevSumRow(1); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL); r = DevSumRow(4); assert(at(r.x + 1, r.y + 1) == DEV_PAPER);
+    r = DevLearnSlot(1); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL); r = DevLearnSlot(4); assert(at(r.x + 1, r.y + 1) == DEV_PAPER);
     lv.learn.pressed = -1; lv.learn.cursor = 1; DevCheckTouch(&lo, &lv);
     other = lv; strcpy(other.learn.row[1].power, "1000"); TouchSamePixels(&lv, &other, 0, "the cursor's move's power");
     other = lv; strcpy(other.learn.row[1].accuracy, "1000"); TouchSamePixels(&lv, &other, 0, "the cursor's move's accuracy");
@@ -156,11 +156,11 @@ static void SuiteLearn(void)
     /* two moves and the new one: the empty rows not drawn (the paper), not hit */
     lv = LearnBoard(); lv.learn.row[2].move = lv.learn.row[3].move = 0; DevCheckTouch(&lo, &lv);
     for (i = 2; i < 4; ++i) {
-        r = DevSumRow(i);
+        r = DevLearnSlot(i);
         assert(Count(r.x, r.y, r.w, r.h, DEV_PAPER) == r.w * r.h && CtrPokeTouch_LearnHit(&lv, r.x + 10, r.y + 10) == -1);
     }
     /* BACK: dark in the Summary's place, sunk under a touch, grey while it cannot be used, gone while not shown */
-    AssertKey(kDevSumBack, DEV_LOOK_DARK, 0); assert(Count(244, 188, 68, 45, DEV_LED) == 0);
+    AssertKey(kDevTallBack, DEV_LOOK_DARK, 0); assert(Count(244, 188, 68, 45, DEV_LED) == 0);
     lv.backPressed = 1; DevCheckTouch(&lo, &lv); assert(Count(244, 188, 68, 45, DEV_LED) > 0);
     lv.backPressed = 0; lv.backEnabled = 0; DevCheckTouch(&lo, &lv); assert(at(247, 209) == DIM_DARK);
     lv.backEnabled = 1; lv.backVisible = 0; DevCheckTouch(&lo, &lv); assert(at(247, 209) == DEV_SHELL_RED && !BackV(&lv, 247, 209));
