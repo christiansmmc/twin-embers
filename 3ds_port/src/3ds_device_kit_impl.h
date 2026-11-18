@@ -111,7 +111,8 @@ static int sDevKeyCut __attribute__((unused));
  *   BEGIN   a new whole draw (DevBegin): a the shell colour; what was told before it is gone
  *   SHELL   the shell (the whole screen): a its screws (DEV_SCREWS_*)
  *   SCREEN  an embedded screen: its outer rectangle (the paper is 6 px in)
- *   KEY     a key's resting face (sunk: drawn DEV_SINK lower, its LED at its top right): a the look, b sunk
+ *   KEY     a key's resting face (sunk: drawn DEV_SINK lower, its LED at its top right): a the look, b sunk | its
+ *           corners' radius as drawn (DevRadius'd) << 1
  *   DIM     the pixels dimmed halfway to the shell
  *   HOLE    a hole in the shell: a its corners' radius
  *   ROW     a list row: a chosen (inverted)
@@ -413,7 +414,7 @@ UI_FN int DevKey(const CtrPokeTouchRect *r, int look, int sunk, int radius)
 
     if (w <= 0 || h <= 0)
         return y;
-    DEV_TRACE(DEV_TRACE_KEY, x, r->y, w, h, look, sunk, NULL);
+    DEV_TRACE(DEV_TRACE_KEY, x, r->y, w, h, look, (sunk != 0) | (rr << 1), NULL);
     DevOuter(x, y, w, h, rr, sunk ? 1 : DEV_DROP, 0x0000, DEV_A_DROP);
     DevRound(x, y, w, h, rr, face);
     if (sunk) {

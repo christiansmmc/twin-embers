@@ -374,8 +374,9 @@ def main():
     p = sub.add_parser('render', help='the B views as PNGs with your own pack (build/renders, never committed)')
     p.add_argument('views', nargs='*', help='only these views (default: all)')
     p.set_defaults(func=render)
-    p = sub.add_parser('boards', help='the B views as boards made from the harness, no pack (build/boards)')
-    p.add_argument('suites', nargs='*', help='only these suites (default: the views plan 3 drew without a board)')
+    p = sub.add_parser('boards', help='the B views as boards made from the harness, no pack (build/boards; the shell '
+                       'colour is a {{shell}} hole the design canvas fills: raw in a browser a board looks dark)')
+    p.add_argument('suites', nargs='*', help='only these suites (default: the views plan 3 drew without a board; no other)')
     p.set_defaults(func=boards)
     sub.add_parser('run', help='build and start in Azahar').set_defaults(func=run)
     p = sub.add_parser('send', help='build and run once on the 3DS (3dslink)')

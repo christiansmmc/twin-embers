@@ -10,6 +10,11 @@ shell's colour, Pixelify Sans standing in for the game's font, a striped box whe
 synthetic fonts and no pack and runs the suites with DEVICE_TRACE=DIR. A trace holds the harness's own words and the
 layout's rectangles, never a pixel: no art and nothing of a pack can reach a board. `python tools/dev.py boards` runs
 this with --run in the devkitPro MSYS shell (default suites: the views plan 3 drew without a board).
+
+The shell's colour is a {{shell}} hole the design canvas fills (its Shell editor, the trace's colour by default): opened
+raw in a browser a board shows the hole unfilled, the screen dark. Only the views whose every piece the kit traces are
+made (SUITES); HOME, the battle, the Party, the Summary and the Bag still draw pieces the trace does not tell, and a
+suite outside SUITES is refused.
 """
 import argparse
 import html
@@ -25,8 +30,7 @@ PORT = ROOT / '3ds_port'
 SUITES = ['options', 'save', 'card', 'mail', 'dex', 'choice', 'learn', 'relearn', 'naming', 'box', 'easychat', 'frame',
           'idle']
 # A board's title: "B · <view>: <state>" (the canvas's words: pt-BR, the game's own in capitals).
-VIEWS = {'kit': 'Kit', 'home': 'Início', 'battle': 'Batalha', 'party': 'POKéMON', 'summary': 'Resumo', 'bag': 'BAG',
-         'options': 'OPTIONS', 'save': 'SAVE', 'card': 'Cartão de treinador', 'mail': 'Carta', 'dex': 'POKéDEX',
+VIEWS = {'options': 'OPTIONS', 'save': 'SAVE', 'card': 'Cartão de treinador', 'mail': 'Carta', 'dex': 'POKéDEX',
          'choice': 'Escolhas', 'learn': 'Esquecer golpe', 'relearn': 'Relembrar golpe', 'naming': 'Teclado de nomes',
          'box': 'PC: caixas', 'easychat': 'Easy Chat', 'frame': 'Tela do FireRed', 'idle': 'Em repouso'}
 # What a stand-in box says it stands for (art the view draws from the pack, or the project's logo).
@@ -126,7 +130,7 @@ def element(item):
         sunk, h = item['sunk'], item['h']
         styles = KEY_SUNK if sunk else KEY_UP
         out = (f'<button type="button" style="{box(item, SINK if sunk else 0)}; padding: 0; border: 0; '
-               f'border-radius: {5 if h <= 24 else 6}px; {styles[item["look"]]}"></button>')
+               f'border-radius: {item["radius"]}px; {styles[item["look"]]}"></button>')
         if sunk:
             size = 5 if h >= 30 else 4
             out += '\n' + led(item['x'] + item['w'] - 7 - size, item['y'] + SINK + (6 if h >= 40 else 4), size)
@@ -144,7 +148,7 @@ def element(item):
         return led(item['x'], item['y'], item['w'])
     if op == 'text':
         into, size = FONTS[item['font']]
-        return (f'<div style="position: absolute; left: {item["x"]}px; top: {item["y"] - into}px; white-space: nowrap; '
+        return (f'<div style="position: absolute; left: {item["x"]}px; top: {item["y"] - into}px; white-space: pre; '
                 f'{size}; color: {item["ink"]}; {shadow(item.get("shadow"))}">{words(item["text"])}</div>')
     if op == 'chip':
         ink_shadow = item['shadow'] if item['shadow'] != '#ffffff' else None
@@ -218,6 +222,10 @@ def main(argv: list[str] | None = None):
     args = ap.parse_args(argv)
     out = out_dir(args.out)
     suites = args.suites or SUITES
+    untraced = [s for s in suites if s not in SUITES]
+    if untraced:
+        raise SystemExit(f'{", ".join(untraced)}: no board (its view draws pieces the trace does not tell); boards are '
+                         f'made of {", ".join(SUITES)}')
     if args.run:
         run_harness(args.trace.resolve(), suites)
     traces = [read_trace(p) for p in sorted(args.trace.glob('*.json'))]

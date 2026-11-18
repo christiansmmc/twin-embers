@@ -556,7 +556,7 @@ static void TraceWrite(const char *state)
         if (op == DEV_TRACE_SHELL)
             fprintf(f, ", \"screws\": %d", a);
         else if (op == DEV_TRACE_KEY)
-            fprintf(f, ", \"look\": \"%s\", \"sunk\": %d", kLook[a], b);
+            fprintf(f, ", \"look\": \"%s\", \"sunk\": %d, \"radius\": %d", kLook[a], b & 1, b >> 1);
         else if (op == DEV_TRACE_HOLE)
             fprintf(f, ", \"radius\": %d", a);
         else if (op == DEV_TRACE_ROW)

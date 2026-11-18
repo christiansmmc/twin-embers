@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class DeviceBoards(unittest.TestCase):
     def test_rect_becomes_an_element(self):
         html = tool.board_html({'suite': 'options', 'state': 'x', 'shell': '#c23a2e', 'items': [
-            {'op': 'key', 'x': 8, 'y': 8, 'w': 73, 'h': 24, 'look': 'key', 'sunk': 1},
+            {'op': 'key', 'x': 8, 'y': 8, 'w': 73, 'h': 24, 'look': 'key', 'sunk': 1, 'radius': 5},
             {'op': 'text', 'x': 20, 'y': 12, 'w': 40, 'font': 'normal', 'ink': '#3a3a3a', 'text': 'SETTINGS'},
             {'op': 'art', 'x': 20, 'y': 124, 'w': 32, 'h': 32, 'kind': 'sprite'}]})
         self.assertIn('left: 8px; top: 10px; width: 73px; height: 24px', html)          # sunk: 2 px lower, as the kit draws it
@@ -54,6 +54,67 @@ class DeviceBoards(unittest.TestCase):
                     self.assertEqual(trace['items'][0]['op'], 'shell', f'{suite} {trace["state"]}')
                     self.assertIn('<x-dc>', tool.board_html(trace))
 
+    def test_real_traces_pin_the_pieces(self):
+        """The pieces a hand-made trace stands for, on the harness's own traces: the PC box's chooser dims the box (dim)
+        under its screens (screen) and the Party's rows (row); the naming keyboard's page key FireRed's cursor turns to
+        lights a lone LED (led); the relearner's list has its type chips (chip) and ▲ ▼ (tri). Each is its board's
+        element. A key is traced with its corners' radius as the kit clamps it (the naming keyboard's top row: 24 tall at
+        radius 6), and its board's corners are that radius."""
+        with tempfile.TemporaryDirectory() as tmp:
+            harness = Path(tmp) / ('device_render_test.exe' if os.name == 'nt' else 'device_render_test')
+            build(harness)
+            for suite in ('box', 'naming', 'relearn'):
+                run(harness, suite, DEVICE_TRACE=tmp)
+            traces = {p.stem: tool.read_trace(p) for p in Path(tmp).glob('*.json')}
+        wanted = {'box_choose': {'dim': 'opacity: 0.5', 'screen': 'box-shadow: inset 0 0 0 1px #4a4a54',
+                                 'row': 'background: #f8f8f4'},
+                  'naming_cursor_page': {'led': '#58e070; box-shadow'},
+                  'relearn_list': {'chip': 'color: #ffffff', 'tri': '▼'}}
+        for state, pieces in wanted.items():
+            ops = [item['op'] for item in traces[state]['items']]
+            html = tool.board_html(traces[state])
+            for op, css in pieces.items():
+                self.assertIn(op, ops, state)
+                self.assertIn(css, html, f'{state} {op}')
+        top = [i for i in traces['naming_upper']['items'] if i['op'] == 'key' and i['y'] == 56 and i['h'] == 24]
+        self.assertEqual(len(top), 5)
+        self.assertEqual({i['radius'] for i in top}, {6})
+        self.assertIn('border-radius: 6px', tool.element(top[0]))
+
+    def test_key_corners_are_the_traced_radius(self):
+        for h, radius in ((24, 6), (24, 5), (40, 6), (20, 4)):
+            html = tool.element({'op': 'key', 'x': 8, 'y': 8, 'w': 60, 'h': h, 'look': 'key', 'sunk': 0, 'radius': radius})
+            self.assertIn(f'border-radius: {radius}px', html)
+
+    def test_text_keeps_its_spaces(self):
+        """A text's repeated spaces survive (the counts' "SEEN 142  OWNED 118"): white-space pre, never wrapped."""
+        html = tool.element({'op': 'text', 'x': 8, 'y': 8, 'w': 90, 'font': 'normal', 'ink': '#626262',
+                             'text': 'SEEN 1  OWNED 2'})
+        self.assertIn('white-space: pre;', html)
+        self.assertIn('SEEN 1  OWNED 2', html)
+
+    def test_untraced_suites_are_refused(self):
+        """HOME, the battle, the Party, the Summary, the Bag (and the kit's sheet) still draw pieces the trace does not
+        tell: no board is made of them, before anything is built or read."""
+        self.assertEqual(tool.SUITES, ['options', 'save', 'card', 'mail', 'dex', 'choice', 'learn', 'relearn', 'naming',
+                                       'box', 'easychat', 'frame', 'idle'])
+        (ROOT / 'build').mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory() as traces, tempfile.TemporaryDirectory(dir=ROOT / 'build') as out:
+            for suite in ('home', 'battle', 'party', 'summary', 'bag', 'kit', 'nosuch'):
+                for run_first in ([], ['--run']):
+                    with self.assertRaises(SystemExit) as stop:
+                        tool.main(['--trace', traces, '--out', out, *run_first, 'options', suite])
+                    self.assertIn(suite, str(stop.exception))
+                    self.assertIn('options', str(stop.exception))
+            self.assertEqual(list(Path(traces).iterdir()), [])
+
+    def test_the_shell_is_the_canvas_hole(self):
+        """The shell's colour is a {{shell}} hole the design canvas fills (its Shell editor); a browser shows the hole
+        unfilled, so the docstring and `dev.py boards`' help say so."""
+        self.assertIn('{{shell}}', tool.__doc__)
+        dev = (ROOT / 'tools/dev.py').read_text(encoding='utf-8')
+        self.assertIn('{{shell}}', dev[dev.index("sub.add_parser('boards'"):dev.index("set_defaults(func=boards)")])
+
     def test_out_must_be_under_build(self):
         with tempfile.TemporaryDirectory() as tmp, self.assertRaises(SystemExit):
             tool.main(['--trace', tmp, '--out', str(Path(tmp) / 'boards')])
@@ -65,8 +126,8 @@ class DeviceBoards(unittest.TestCase):
             {'op': 'screen', 'x': 8, 'y': 40, 'w': 260, 'h': 144},
             {'op': 'row', 'x': 14, 'y': 46, 'w': 248, 'h': 18, 'chosen': 1},
             {'op': 'rect', 'x': 20, 'y': 70, 'w': 92, 'h': 1, 'fill': '#d5d5cd'},
-            {'op': 'key', 'x': 244, 'y': 190, 'w': 68, 'h': 40, 'look': 'dark', 'sunk': 0},
-            {'op': 'key', 'x': 8, 'y': 190, 'w': 68, 'h': 40, 'look': 'faint', 'sunk': 1},
+            {'op': 'key', 'x': 244, 'y': 190, 'w': 68, 'h': 40, 'look': 'dark', 'sunk': 0, 'radius': 6},
+            {'op': 'key', 'x': 8, 'y': 190, 'w': 68, 'h': 40, 'look': 'faint', 'sunk': 1, 'radius': 6},
             {'op': 'dim', 'x': 244, 'y': 190, 'w': 68, 'h': 43},
             {'op': 'hole', 'x': 164, 'y': 120, 'w': 148, 'h': 50, 'radius': 6},
             {'op': 'led', 'x': 300, 'y': 12, 'w': 4, 'h': 4},
