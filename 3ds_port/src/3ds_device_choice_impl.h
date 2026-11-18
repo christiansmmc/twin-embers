@@ -12,7 +12,8 @@
  * a list's key across the screen and centred on the others; its question as FireRed writes it; BACK's word the port's.
  * A priced row (recipe 0267 splits FireRed's label at its CLEAR_TO: the drinks, the Game Corner's coins and prizes)
  * shows its price in the keys' secondary ink: ending 12 px in from the right of a list's key, or small under the label
- * on a narrower key; YES / NO never has one.
+ * on the others (a narrower key, and the tall keys of two rows in one column: the Cerulean bike shop's BICYCLE; a YES /
+ * NO has no price, so it stays as it is).
  *
  * Redraw: the screen whole when the choice as drawn differs (DevChoiceSame), and nothing else. */
 
@@ -67,28 +68,30 @@ static const char *DevChoiceFit(const char *word, int room, char *cut, size_t si
 
 /* A priced key's label and price. On a list's key (`inset` 12, def_choice_list) the price ends `inset` px in from the
  * right in DEV_KEY_INK2 without a shadow and the label runs from `inset` px in to 8 px before it, both centred down the
- * key; on a narrower one the label centred across with its capitals 10 px down the face and the price small and centred
- * under it, its capitals 21 px down. What does not fit is cut and counted. */
+ * key; on any other (inset 0: a narrower key, or a tall one of two rows in one column) the label centred across and the
+ * price small and centred under it, the pair (the label's capitals, 2 px, the price's 7) centred down the face: their
+ * capitals 10 and 21 px down a 38 px key, 33 and 44 down an 84 px one. What does not fit is cut and counted. */
 static void DevChoicePriced(const CtrPokeTouchRect *r, int faceY, int sunk, const char *word, const char *price,
                             int inset)
 {
     uint16_t ink = DevKeyInk(DEV_LOOK_KEY, sunk), shadow = DevKeyInkShadow(DEV_LOOK_KEY, sunk);
     char cut[32];
-    int w;
+    int w, top = faceY + (r->h - (UI_TEXT_H + 2 + 7)) / 2;
 
     if (inset) {
-        int right = r->x + r->w - inset, end = right - DevTextWidth(price) - 8, top = faceY + (r->h - UI_TEXT_H) / 2;
+        int right = r->x + r->w - inset, end = right - DevTextWidth(price) - 8, line = faceY + (r->h - UI_TEXT_H) / 2;
 
-        DevTextRight(price, right, top, DEV_KEY_INK2);
-        DevTextInk(DevChoiceFit(word, end - (r->x + inset), cut, sizeof(cut)), r->x + inset, top, end, ink, shadow);
+        DevTextRight(price, right, line, DEV_KEY_INK2);
+        DevTextInk(DevChoiceFit(word, end - (r->x + inset), cut, sizeof(cut)), r->x + inset, line, end, ink, shadow);
         return;
     }
     word = DevChoiceFit(word, r->w - 8, cut, sizeof(cut));
-    DevTextInk(word, r->x + (r->w - DevTextWidth(word)) / 2, faceY + 10, r->x + r->w - 4, ink, shadow);
+    DevTextInk(word, r->x + (r->w - DevTextWidth(word)) / 2, top, r->x + r->w - 4, ink, shadow);
     w = DevSmallTextWidth(price);
     if (w > r->w - 8)
         ++sDevKeyCut;
-    DevSmallText(price, w > r->w - 8 ? r->x + 4 : r->x + (r->w - w) / 2, faceY + 21, DEV_KEY_INK2, r->x + r->w - 4);
+    DevSmallText(price, w > r->w - 8 ? r->x + 4 : r->x + (r->w - w) / 2, top + UI_TEXT_H + 2, DEV_KEY_INK2,
+                 r->x + r->w - 4);
 }
 
 /* The choice whole (after DevBegin: the dispatcher's). */
@@ -105,7 +108,7 @@ static void DevChoiceDraw(const CtrPokeTouchView *v)
 
         DevUpper(word, c->label[i], sizeof(word));
         DevUpper(price, c->price[i], sizeof(price));
-        if (price[0] && !DevChoiceYesNo(c))
+        if (price[0])
             DevChoicePriced(&r, faceY, sunk, word, price, DevChoiceInset(c, &r));
         else
             DevKeyWordAt(&r, faceY, DEV_LOOK_KEY, sunk, word, DevChoiceInset(c, &r));

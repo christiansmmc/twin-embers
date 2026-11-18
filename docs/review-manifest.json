@@ -7505,7 +7505,7 @@
   },
   {
    "path": "3ds_port/src/3ds_device_choice_impl.h",
-   "sha256": "635fd067382c2ce342c2fbd3004c84914e8bd491c5a4cb43d4a8b3f99c795d50",
+   "sha256": "62211d14a294848e3d9ed59a05bbd70b49a53870647df4d6808fecd68160f0e1",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7529,7 +7529,7 @@
   },
   {
    "path": "3ds_port/tests/device_suite_choice.h",
-   "sha256": "5d148837c15b1cccc2770ddee9a519ec992693f4c5827ab7e0d4f34e9379375d",
+   "sha256": "c157a45ca440506a971beec92bce74482c3dc38bf0fcdd0e75547174ce0293e9",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

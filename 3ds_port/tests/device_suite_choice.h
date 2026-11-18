@@ -90,13 +90,14 @@ static void ChoiceQuestion(CtrPokeTouchView *old, CtrPokeTouchView v)
 /* Port-written prices (recipe 0267 splits FireRed's priced rows into the label and the price). */
 static const char *const kChoiceDrink[3] = {"\xC2\xA5" "200", "\xC2\xA5" "300", "\xC2\xA5" "350"};
 static const char *const kChoicePrize[5] = {"180 COINS", "500 COINS", "2,800 COINS", "5,500 COINS", "9,999 COINS"};
+static const char kChoiceBike[] = "\xC2\xA5" "1,000,000";
 
 /* A priced choice (def_choice_list's drinks: three priced rows and CANCEL): on a list's key across the screen the price
  * ends 12 px in from the right in the keys' secondary ink without a shadow, the label from 12 px in with its own;
  * on a narrower key (a prize menu of six rows in two columns, FireRed's grid) the label centred with its capitals 10 px
- * down the face and the price small and centred under it (capitals 21 px down); an unpriced row and YES / NO show no
- * price; a label too wide for what the price leaves is cut 8 px before it and counted; a price changed draws the choice
- * whole. */
+ * down the face and the price small and centred under it (capitals 21 px down), and the same pair centred down a tall
+ * key (the bike shop's two rows); an unpriced row shows no price, and YES / NO, never priced, is as Task 10 draws it;
+ * a label too wide for what the price leaves is cut 8 px before it and counted; a price changed draws the choice whole. */
 static void ChoicePrices(CtrPokeTouchView *old)
 {
     static uint8_t keep[256];
@@ -140,16 +141,32 @@ static void ChoicePrices(CtrPokeTouchView *old)
     v.choice.cols = 3; DevCheckTouch(old, &v);       /* FireRed's grid: keys of 96, the same */
     k = DevChoiceKey(6, 3, 4); assert(k.w == 96 && Count(k.x, k.y + 21, k.w, 8, DEV_KEY_INK2) > 0);
 
-    /* YES / NO: no price */
-    v = ChoiceBoard(2, 0); strcpy(v.choice.price[0], kChoiceDrink[0]); strcpy(v.choice.price[1], kChoiceDrink[1]);
+    /* two rows in one column, the first priced (the Cerulean bike shop, FireRed's one such choice) on YES / NO's tall
+     * keys: the label and the small price under it, both centred across and the pair centred down the face (capitals 33
+     * and 44 px down the 84 px key); the unpriced key without a price */
+    v = ChoiceBoard(2, 0); v.choice.cursor = 1;
+    strcpy(v.choice.label[0], "BICYCLE"); strcpy(v.choice.price[0], kChoiceBike); strcpy(v.choice.label[1], "NO THANKS");
     DevCheckTouch(old, &v);
+    k = DevChoiceKey(2, 0, 0); x = k.x + (k.w - DevTextWidth("BICYCLE")) / 2;
+    assert(k.h == 84 && Count(k.x, k.y, x - k.x, k.h, DEV_KEY_INK) == 0 && Count(x, k.y + 33, 2, 9, DEV_KEY_INK) > 0);
+    assert(Count(k.x, k.y, k.w, 33, DEV_KEY_INK) == 0 && Count(k.x, k.y + 42, k.w, k.h - 42, DEV_KEY_INK) == 0);
+    w = DevSmallTextWidth(kChoiceBike); x = k.x + (k.w - w) / 2;
+    assert(Count(x, k.y + 42, w, 10, DEV_KEY_INK2) > 0 && Count(k.x, k.y, x - k.x, k.h, DEV_KEY_INK2) == 0
+           && Count(x + w, k.y, k.x + k.w - x - w, k.h, DEV_KEY_INK2) == 0);
+    assert(Count(k.x, k.y, k.w, 40, DEV_KEY_INK2) == 0 && Count(k.x, k.y + 54, k.w, k.h - 54 + DEV_DROP, DEV_KEY_INK2) == 0);
+    k = DevChoiceKey(2, 0, 1); assert(Count(k.x, k.y, k.w, k.h + DEV_DROP, DEV_KEY_INK2) == 0);
+    v.choice.cursor = 0; DevCheckTouch(old, &v);     /* sunk: the pair 2 px lower, its LED lit */
+    k = DevChoiceKey(2, 0, 0); assert(LedAt(k) && Count(k.x, k.y + 44, k.w, 10, DEV_KEY_INK2) > 0);
+    /* YES / NO (never priced): as Task 10 draws it, no price, the words centred down the tall keys */
+    v = ChoiceBoard(2, 0); DevCheckTouch(old, &v); k = DevChoiceKey(2, 0, 1);
     assert(Count(8, 8, 304, 180, DEV_KEY_INK2) == 0);
+    assert(Count(k.x, k.y, k.w, 37, DEV_KEY_INK) == 0 && Count(k.x, k.y + 37, k.w, 9, DEV_KEY_INK) > 0);
 
     /* a label too wide for the room the price leaves: cut 8 px before the price, counted once a draw (no stub or pack
      * glyph makes 23 letters that wide: the capitals widened for that one draw, as TouchSamePixels does; drawn without
      * BACK and the question, whose words widen too: German BACK would be cut as well) */
     v = ChoiceBoard(4, 0); strcpy(v.choice.label[1], "TWENTY-THREE CHARACTERS");
-    strcpy(v.choice.price[1], "\xC2\xA5" "1,000,000");
+    strcpy(v.choice.price[1], kChoiceBike);
     assert(strlen(v.choice.label[1]) == 23);
     DevCheckTouch(old, &v); assert(sDevKeyCut == 0);
     wide = v; wide.backVisible = 0; wide.choice.prompt[0] = 0;
@@ -280,5 +297,7 @@ static void SuiteChoice(void)
     for (i = 0; i < 5; ++i)
         strcpy(v.choice.price[i], kChoicePrize[i]);
     DevCheckTouch(&old, &v); shot("prizes");
+    v = ChoiceBoard(2, 0); strcpy(v.choice.label[0], "BICYCLE"); strcpy(v.choice.price[0], kChoiceBike);
+    strcpy(v.choice.label[1], "NO THANKS"); DevCheckTouch(&old, &v); shot("bike");
     assert(sDevKeyCut == 0);                      /* main prints PASS device choice */
 }
