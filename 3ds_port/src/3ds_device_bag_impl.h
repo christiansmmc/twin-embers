@@ -119,6 +119,13 @@ static int DevBagCode(int code, int from, int to)
 
 /* ---- Reading the views ----------------------------------------------------------------------------------------------- */
 
+/* The item's menu, YES / NO or how many open: the list narrow beside a column of keys, the footer what the page reads
+ * (the description, its chips and CLOSE are not drawn, so not read). */
+static int DevBagNarrow(const DevBagPage *p)
+{
+    return p->state == DEV_BAG_ACTIONS || p->state == DEV_BAG_YESNO || p->state == DEV_BAG_QUANTITY;
+}
+
 /* The narrow screen's words while the item's menu is open: FireRed's "... is selected." */
 static void DevBagSelected(DevBagPage *p, const char *name)
 {
@@ -171,20 +178,23 @@ static void DevBagFromField(const CtrPokeTouchBag *b, DevBagPage *p)
         else if (b->row[i].item && (b->row[i].item == b->regX || b->row[i].item == b->regY))
             p->row[i].button = b->row[i].item == b->regX ? 'X' : 'Y';
     }
-    if (b->cursor >= 0 && b->cursor < p->count && b->selItem) {
+    p->moveType = -1;
+    if (b->cursor >= 0 && b->cursor < p->count && b->selItem)
         p->selItem = b->selItem;
-        p->moveType = b->moveType;
-        if (b->moveType >= 0)
-            DevUpper(p->typeName, b->typeName, sizeof(p->typeName));
-        p->showOwned = b->showOwned;
-        p->owned = b->showOwned ? b->owned : 0;
-        snprintf(p->desc, sizeof(p->desc), "%s", b->selDesc);
-    } else
-        p->moveType = -1;
-    if (b->closeName[0])
-        DevUpper(p->closeName, b->closeName, sizeof(p->closeName));
-    else
-        snprintf(p->closeName, sizeof(p->closeName), "%s", DevCloseWord());
+    if (!DevBagNarrow(p)) {                                 /* the list's (or a message's) footer and CLOSE */
+        if (p->selItem) {
+            p->moveType = b->moveType;
+            if (b->moveType >= 0)
+                DevUpper(p->typeName, b->typeName, sizeof(p->typeName));
+            p->showOwned = b->showOwned;
+            p->owned = b->showOwned ? b->owned : 0;
+            snprintf(p->desc, sizeof(p->desc), "%s", b->selDesc);
+        }
+        if (b->closeName[0])
+            DevUpper(p->closeName, b->closeName, sizeof(p->closeName));
+        else
+            snprintf(p->closeName, sizeof(p->closeName), "%s", DevCloseWord());
+    }
     if (b->typed)
         snprintf(name, sizeof(name), "%s", b->selName);
     else
@@ -248,11 +258,13 @@ static void DevBagFromBattle(const CtrBattleBag *b, DevBagPage *p)
             DevBagCount(p->row[i].right, sizeof(p->row[i].right), b->row[i].qty);
     }
     p->moveType = -1;
-    if (b->cursor >= 0 && b->cursor < p->count && b->selItem) {
+    if (b->cursor >= 0 && b->cursor < p->count && b->selItem)
         p->selItem = b->selItem;
-        snprintf(p->desc, sizeof(p->desc), "%s", b->selDesc);
+    if (!DevBagNarrow(p)) {                                 /* the list's (or a message's) footer and CLOSE */
+        if (p->selItem)
+            snprintf(p->desc, sizeof(p->desc), "%s", b->selDesc);
+        snprintf(p->closeName, sizeof(p->closeName), "%s", DevCloseWord());
     }
-    snprintf(p->closeName, sizeof(p->closeName), "%s", DevCloseWord());
     if (p->state == DEV_BAG_ACTIONS) {
         p->menuCount = (uint8_t)(b->menuCount > 3 ? 3 : b->menuCount);
         p->menuCursor = b->menuCursor;
@@ -266,11 +278,6 @@ static void DevBagFromBattle(const CtrBattleBag *b, DevBagPage *p)
 }
 
 /* ---- Where a touch goes ---------------------------------------------------------------------------------------------- */
-
-static int DevBagNarrow(const DevBagPage *p)
-{
-    return p->state == DEV_BAG_ACTIONS || p->state == DEV_BAG_YESNO || p->state == DEV_BAG_QUANTITY;
-}
 
 static int DevBagUpOn(const DevBagPage *p)
 {
@@ -455,8 +462,9 @@ static void DevBagArrows(const DevBagPage *p, int held, int dim)
 
 /* The footer, the grid's note: the selected item's icon and, in the list (or under a message), a TM's type and how many
  * the Bag holds of a mart's item in chips (9 tall) before FireRed's description (the small font, three lines
- * DEV_SMALL_LINE apart: capitals 198, 208, 218), all from DEV_BAG_READ_X; with the item's menu, YES / NO or how many
- * open, what the page reads there ("... is selected.", the question) from the same x. */
+ * DEV_SMALL_LINE apart: capitals 198, 208, 218; a longer one cut and counted), all from DEV_BAG_READ_X; with the
+ * item's menu, YES / NO or how many open, what the page reads there ("... is selected.", the question) from the same
+ * x. */
 static void DevBagDesc(const DevBagPage *p)
 {
     CtrPokeTouchRect paper = DevScreen(&kDevGridNote);
@@ -488,7 +496,7 @@ static void DevBagDesc(const DevBagPage *p)
         DevChip(first, top, w, 9, text, DEV_BLUE_INK, DevChipShadow(DEV_BLUE_INK));
         first += w + 4;
     }
-    DevSmallWrap(p->desc, first, x, top, right, 3, DEV_SMALL_LINE, DEV_INK);
+    DevSmallFit(p->desc, first, x, top, right, 3, DEV_SMALL_LINE, DEV_INK);
 }
 
 /* The item's menu or YES / NO (DevBagMenuRect): the actions (YES) cream in the grid's column, their words from x + 10;

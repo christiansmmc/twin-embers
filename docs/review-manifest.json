@@ -6728,7 +6728,7 @@
   },
   {
    "path": "tools/test_field_presentation.py",
-   "sha256": "0acce17ab119094cf0b44eb6bf8827e6e3f0ef876868ad52b706a5cc642f2f6a",
+   "sha256": "4aa5774c22e8280d7c5601419bc567fc0c93f3af45c3079ee852780f3eb4fe28",
    "review_status": "reviewed",
    "credit": "alex61194; Twin Embers Port contributors; inherited/adapted upstream portions as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; external game/dependency rights excluded",
@@ -7305,7 +7305,7 @@
   },
   {
    "path": "3ds_port/src/3ds_device_kit_impl.h",
-   "sha256": "2d7d86f7b5af4caab1ef4922dc885d210be824ed758e3c60c132c2b28bb990de",
+   "sha256": "c72bfb9951f77ee17a53a2008ac47b831d2a38c071a1bbf3e194f95c2e2a7709",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7321,7 +7321,7 @@
   },
   {
    "path": "3ds_port/tests/device_render_test.c",
-   "sha256": "9a747a9e1b88bd7f486d8eaee324736d5b0e4e9061d69b402c44c26f70aa2414",
+   "sha256": "6943845d606d7e22064ca9dbf7810062a8784f7bbb6767a2f9d895c8d5dc319a",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7401,7 +7401,7 @@
   },
   {
    "path": "3ds_port/src/3ds_device_bag_impl.h",
-   "sha256": "5946b72a3dd0d1e6db396b147d2b3a82246df943cd24210e6ae6837e50967eed",
+   "sha256": "de50c27efd01fe8e7dff26912308db94bde3d7e0dbf04882b62d849308e1a753",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

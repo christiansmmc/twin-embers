@@ -804,9 +804,8 @@ UI_FN int DevKeyLedClear(const CtrPokeTouchRect *r)
 
 /* A key's label in `ink` over `shadow` (DevKeyLabelInk: centred, cut and counted when too wide), clear of the LED a
  * sunk key lights at its top right where the two share rows (keys 30 tall or less): moved left of it when it would run
- * under it; a word too long to fit left of it at all (CONFIRM in German, a German field move on a two-column key, a
- * Summary tab's word in Spanish) in the small font, sunk or not, so it does not change size when chosen. (The Party's
- * and the Summary's.) */
+ * under it; a word too long to fit left of it at all (CONFIRM in German, a Summary tab's word in Spanish) in the small
+ * font, sunk or not, so it does not change size when chosen. (The Party's and the Summary's.) */
 UI_FN void DevKeyWordInk(const CtrPokeTouchRect *r, int faceY, int sunk, const char *s, uint16_t ink, uint16_t shadow)
 {
     int w = DevTextWidth(s), x = r->x + (r->w - w) / 2, top = faceY + (r->h - UI_TEXT_H) / 2;
