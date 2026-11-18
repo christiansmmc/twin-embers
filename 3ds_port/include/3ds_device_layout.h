@@ -164,27 +164,23 @@ static inline CtrPokeTouchRect DevPtyMenuKey(int n, int i)
     return r;
 }
 
-/* ---- The Summary (boards B · Resumo: INFO, STATS, MOVES; 3ds_device_summary_impl.h) -----------------------------------
- * The four tabs (INFO, STATS, MOVES, MEMO: SUI_TAB_* order) and the previous / next Pokemon (dark keys) across the top;
- * the screen, its paper's left column (DEV_PAPER2) with the Pokemon (its picture in kDevSumPic, the 80x80 one centred on
- * it) and the page's rows on the right; under it the tall note and BACK (kDevTallNote, kDevTallBack, until its task).
- * MOVES and the move details list the moves in DevSumRow(0..3), the details' CANCEL in DevSumRow(4) (rows: no drop).
- * STATS' switch (STATS | IV/EV) is drawn in kDevSumIvSwitch and taken in the larger kDevSumIvSwitchHit. */
-static const CtrPokeTouchRect kDevSumTab[4] __attribute__((unused)) = {
-    {8, 8, 56, 24}, {68, 8, 56, 24}, {128, 8, 56, 24}, {188, 8, 56, 24},
-};
-static const CtrPokeTouchRect kDevSumPrev __attribute__((unused)) = {252, 8, 28, 24};
-static const CtrPokeTouchRect kDevSumNext __attribute__((unused)) = {284, 8, 28, 24};
-static const CtrPokeTouchRect kDevSumScreen __attribute__((unused)) = {8, 40, 304, 140};
-static const CtrPokeTouchRect kDevSumColumn __attribute__((unused)) = {14, 46, 104, 128};
-static const CtrPokeTouchRect kDevSumPic __attribute__((unused)) = {34, 82, 64, 64};
-static const CtrPokeTouchRect kDevSumIvSwitch __attribute__((unused)) = {228, 49, 70, 13};
-static const CtrPokeTouchRect kDevSumIvSwitchHit __attribute__((unused)) = {224, 46, 78, 20};
+/* ---- The Summary (boards def_sum_info, def_sum_stats, def_sum_moves; 3ds_device_summary_impl.h) -----------------------
+ * On the grid: the four tabs (INFO, STATS, MOVES, MEMO: SUI_TAB_* order) are DevGridTab(4, i); the previous and next
+ * Pokemon the grid's ▲▼ (kDevGridUp, kDevGridDown) beside its screen (kDevGridScreen); the note and BACK the grid's
+ * (kDevGridNote, kDevGridExit). On the screen's paper the left column (DEV_PAPER2) with the Pokemon (its picture in
+ * kDevSumPic, the 80x80 one centred on it) and the page right of it. MOVES and the move details list the moves in
+ * DevSumRow(0..3), the details' CANCEL in DevSumRow(4) (rows: no drop). STATS' switch (STATS | IV/EV) is drawn in
+ * kDevSumIvSwitch (70 px, ending at the page's right, x 256: Call 17) and taken in the larger kDevSumIvSwitchHit. */
+static const CtrPokeTouchRect kDevSumColumn __attribute__((unused)) = {14, 46, 96, 132};
+static const CtrPokeTouchRect kDevSumPic __attribute__((unused)) = {30, 80, 64, 64};
+static const CtrPokeTouchRect kDevSumIvSwitch __attribute__((unused)) = {186, 49, 70, 13};
+static const CtrPokeTouchRect kDevSumIvSwitchHit __attribute__((unused)) = {182, 46, 78, 20};
 
-/* Row i (0-3 a move, 4 the details' CANCEL) of MOVES and the move details. */
+/* Row i (0-3 a move, 4 the details' CANCEL) of MOVES and the move details: the grid's rows (24 tall, 26 apart), 4 px
+ * right of the column. */
 static inline CtrPokeTouchRect DevSumRow(int i)
 {
-    CtrPokeTouchRect r = {124, (int16_t)(52 + 24 * i), 176, 22};
+    CtrPokeTouchRect r = {114, (int16_t)(48 + DEV_GRID_ROW_PITCH * i), 146, DEV_GRID_ROW_H};
 
     return r;
 }
@@ -219,8 +215,8 @@ static inline CtrPokeTouchRect DevBagMenuKey(int n, int i)
  * No board draws these views: they draw on the grid's names and these few. Keys across the screen (DevAcross: the
  * battle's rows); a list's rows h tall on the grid's screen's paper (DevListRow; DevTallRow: the Pokedex's list, the
  * relearner's); the small note (a screen) with two small keys and the grid's exit beside it; a tall screen over a wide
- * key; the tall note with BACK beside it (kDevTallNote, kDevTallBack: the Summary's until its task, the frame's, the
- * move to forget's, the Trainer Card's and the Pokedex page's BACK by their boards); a question's note beside YES and
+ * key; the tall note with BACK beside it (kDevTallNote, kDevTallBack: the frame's, the move to forget's, the Trainer
+ * Card's and the Pokedex page's BACK until their boards' tasks); a question's note beside YES and
  * NO (where HOME's third and sixth keys are). */
 static const CtrPokeTouchRect kDevSmallNote __attribute__((unused)) = {8, 190, 152, 42};
 static const CtrPokeTouchRect kDevSmallKey[2] __attribute__((unused)) = {{168, 190, 32, 40}, {204, 190, 32, 40}};

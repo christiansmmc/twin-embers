@@ -2079,12 +2079,12 @@ static int SumHitV(const void *view, int x, int y)
 
 /* The boards' Pokemon: CHARMELEON (its species' own name), male, Lv36, No.005, OT RED, no item, ADAMANT (3), BLAZE,
  * 112/112; ATTACK 84, DEFENSE 66, SP. ATK 70, SP. DEF 68, SPEED 85, 41 % of the way to Lv37 (Medium Slow); FLAMETHROWER
- * 15/15 (FIRE, 95, 100), SCRATCH 15/35, GROWL 40/40 (a status move), BRICK BREAK 3/15 (FIGHTING). Strings as FireRed
+ * 15/15 (FIRE, 95, 100), SCRATCH 15/35, GROWL 40/40 (a status move), BRICK BREAK 3/15 (FIGHT). Strings as FireRed
  * has them (the B views are upper case); FireRed's cursor on the first move. */
 static CtrSummaryUiView SumBoard(void)
 {
     static const char *const kMove[4] = {"FLAMETHROWER", "SCRATCH", "GROWL", "BRICK BREAK"};
-    static const char *const kType[4] = {"FIRE", "NORMAL", "NORMAL", "FIGHTING"};
+    static const char *const kType[4] = {"FIRE", "NORMAL", "NORMAL", "FIGHT"};     /* FireRed's names: 6 letters at most */
     static const unsigned char kTypeId[4] = {10, 0, 0, 1};
     static const char *const kPp[4] = {"15/15", "15/35", "40/40", "3/15"};
     static const char *const kPower[4] = {"95", "40", "---", "75"};
@@ -2120,7 +2120,7 @@ static CtrSummaryUiView SumBoard(void)
     strcpy(d->exp, "41000");
     strcpy(d->nextExp, "2808");
     strcpy(d->ability, "BLAZE");
-    strcpy(d->abilityDesc, "Port words for an ability's text.");
+    strcpy(d->abilityDesc, "Port words for an ability.");    /* one small line on the note, small letters 7 px too */
     strcpy(d->memo, "ADAMANT nature.\nMet at Lv5, PALLET TOWN.");
     for (int i = 0; i < 4; ++i) {
         d->moves[i] = (unsigned short)(i + 1);
@@ -2198,17 +2198,19 @@ static void SumUpperCase(CtrSummaryUiView v)
     SumSamePixels(&v, &proper, 0);
 }
 
-/* The plan's suite (the tabs, the arrows, BACK, the switch and the move rows hit where they are drawn; the chosen tab;
- * the arrows off in the move details; CANCEL inverted under FireRed's cursor; an egg's pages; the frame while loading),
- * the boards' pieces, what is not drawn, upper case, sparse data, then the states for the eye. */
+/* The plan's suite (the tabs, ▲▼, BACK, the switch and the move rows hit where they are drawn; the chosen tab; ▲▼ grey
+ * and not taken in the move details; CANCEL inverted under FireRed's cursor; an egg's pages; the frame while loading),
+ * the boards' pieces on the grid (def_sum_info, def_sum_stats, def_sum_moves: the page from x 116 to 256, nothing
+ * past it), what is not drawn, upper case, sparse data, then the states for the eye. */
 static void SuiteSummary(void)
 {
     CtrSummaryUiView sv = SumBoard(), so = sv;
-    CtrPokeTouchRect r;
-    uint16_t dimKey = DevBlend(DEV_SHELL_RED, DEV_KEY, 128), dimDark = DevBlend(DEV_SHELL_RED, DEV_BEZEL, 128);
+    CtrPokeTouchRect r, tab[SUI_TABS];
     uint16_t bar = UI_RGB(0x8A, 0x94, 0xA8), fire = UiTypeColor(10), red = GbaColor(SUM_ART_RED), blue = GbaColor(SUM_ART_BLUE);
     int i;
 
+    for (i = 0; i < SUI_TABS; ++i)
+        tab[i] = DevGridTab(4, i);
     assert(CtrNature_Up(3) == 0 && CtrNature_Down(3) == 2 && CtrNature_Up(15) == 2 && CtrNature_Down(15) == 0
            && CtrNature_Up(10) == 4 && CtrNature_Up(0) == -1 && CtrNature_Down(24) == -1 && CtrNature_Up(25) == -1);
     for (i = 0; i < 25; ++i) {          /* the five with n / 5 == n % 5 are neutral; each other raises one stat, lowers another */
@@ -2219,45 +2221,58 @@ static void SuiteSummary(void)
     sumArt = 1;
     CtrSummaryUi_Draw(canvas, &so);
     DevCheckSummary(&so, &sv);
-    for (i = 0; i < 4; ++i) AssertHits(SumHitV, &sv, kDevSumTab[i], SUI_HIT_TAB + i);
-    AssertHits(SumHitV, &sv, kDevSumPrev, SUI_HIT_PREV); AssertHits(SumHitV, &sv, kDevSumNext, SUI_HIT_NEXT); AssertHits(SumHitV, &sv, kDevTallBack, SUI_HIT_BACK);
-    AssertKey(kDevSumTab[0], DEV_LOOK_KEY, 1); AssertKey(kDevSumPrev, DEV_LOOK_DARK, 0);
-    /* INFO, the board's pieces: the chosen tab's LED, the others up; the arrows and BACK dark with their light ink; the
-     * left column's paper, the picture in its box, the FIRE chip; the rows' labels and values, the HP bar, the EXP chip
-     * and bar; the ability's name and its description on the note */
-    assert(LedAt(kDevSumTab[0]));
-    for (i = 1; i < 4; ++i) AssertKey(kDevSumTab[i], DEV_LOOK_KEY, 0);
-    AssertKey(kDevSumNext, DEV_LOOK_DARK, 0); AssertKey(kDevTallBack, DEV_LOOK_DARK, 0);
-    assert(Count(252, 8, 28, 24, DEV_DARK_INK) > 0 && Count(284, 8, 28, 24, DEV_DARK_INK) > 0 && Count(244, 188, 68, 42, DEV_DARK_INK) > 0);
-    assert(at(16, 48) == DEV_PAPER2 && at(116, 172) == DEV_PAPER2 && at(119, 48) == DEV_PAPER);
-    assert(at(66, 114) == red && at(35, 83) == DEV_PAPER2 && at(97, 145) == DEV_PAPER2 && Count(34, 82, 64, 64, blue) > 0);
-    assert(at(21, 155) == fire && Count(20, 154, 92, 12, fire) > 0);
-    assert(Count(126, 50, 172, 96, DEV_INK) > 0 && Count(126, 50, 60, 96, DEV_INK2) > 0);
-    assert(at(126, 150) == DEV_HP_FRAME && at(128, 152) == DEV_HP_GREEN && at(296, 152) == DEV_HP_GREEN);
-    assert(at(126, 159) == DEV_HP_FRAME && Count(126, 159, 172, 9, DEV_EXP_LABEL) > 0 && Count(126, 159, 172, 9, DEV_EXP) > 0);
-    assert(Count(14, 194, 216, 32, DEV_SUNK_INK) > 0 && Count(14, 194, 216, 32, DEV_INK) > 0);
+    for (i = 0; i < 4; ++i) AssertHits(SumHitV, &sv, DevGridTab(4, i), SUI_HIT_TAB + i);
+    AssertHits(SumHitV, &sv, kDevGridUp, SUI_HIT_PREV); AssertHits(SumHitV, &sv, kDevGridDown, SUI_HIT_NEXT); AssertHits(SumHitV, &sv, kDevGridExit, SUI_HIT_BACK);
+    AssertKey(kDevGridUp, DEV_LOOK_KEY, 0); assert(Count(276, 40, 36, 66, DEV_KEY_INK) > 0 && Count(257, 46, 5, 132, DEV_INK) == 0);   /* nothing past 256 */
+    assert(Count(64, 155, 40, 7, DEV_INK2) > 0);                                                     /* No. beside one chip */
+    /* INFO, the board's pieces: the chosen tab sunk with its LED, the others up; ▲▼ cream keys, BACK dark in the exit
+     * corner; the left column's paper with the name, the gender and the level, the picture in its box, the FIRE chip and
+     * the number beside it; the rows' labels and values (capitals 53 + 15k), the HP bar, the EXP chip and bar; the
+     * ability's name and its description on the note */
+    AssertKey(tab[0], DEV_LOOK_KEY, 1); assert(LedAt(tab[0]));
+    for (i = 1; i < 4; ++i) AssertKey(tab[i], DEV_LOOK_KEY, 0);
+    AssertKey(kDevGridDown, DEV_LOOK_KEY, 0); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0);
+    assert(Count(276, 114, 36, 66, DEV_KEY_INK) > 0 && Count(244, 190, 68, 40, DEV_DARK_INK) > 0);
+    assert(at(16, 48) == DEV_PAPER2 && at(109, 177) == DEV_PAPER2 && at(110, 48) == DEV_PAPER && at(261, 177) == DEV_PAPER);
+    assert(Count(20, 52, 86, 8, DEV_INK) > 0 && Count(20, 52, 86, 8, DEV_INK2) == 0 && Count(20, 65, 9, 9, DEV_MALE) > 0 && Count(31, 66, 75, 8, DEV_INK) > 0);
+    assert(at(62, 112) == red && at(31, 81) == DEV_PAPER2 && at(93, 143) == DEV_PAPER2 && Count(30, 80, 64, 64, blue) > 0);
+    assert(at(21, 153) == fire && at(59, 163) == fire && at(60, 153) == DEV_PAPER2 && Count(20, 167, 86, 7, DEV_INK2) == 0);
+    for (i = 0; i < 7; ++i)                                     /* SPECIES, OT, ID No., ITEM, NATURE, ABILITY, HP */
+        assert(Count(116, 54 + 15 * i, 30, 7, DEV_INK2) > 0 && Count(226, 53 + 15 * i, 30, 8, DEV_INK) > 0);
+    assert(at(116, 157) == DEV_HP_FRAME && at(117, 159) == DEV_HP_GREEN && at(254, 159) == DEV_HP_GREEN && at(255, 159) == DEV_HP_FRAME);
+    assert(at(116, 165) == DEV_HP_FRAME && Count(116, 165, 140, 9, DEV_EXP_LABEL) > 0 && Count(116, 165, 140, 9, DEV_EXP) > 0);
+    assert(Count(250, 167, 6, 4, DEV_HP_FRAME) > 0 && Count(256, 160, 6, 18, DEV_HP_FRAME) == 0);   /* the EXP bar to 256 */
+    assert(Count(14, 196, 216, 12, DEV_TITLE_INK) > 0 && Count(14, 210, 216, 10, DEV_INK) > 0);
     shot("info");
+    /* two types: the second chip after the first, the number under them */
+    sv.data.typeIds[1] = 2; strcpy(sv.data.types[1], "Flying"); DevCheckSummary(&so, &sv); assert(Count(20, 167, 40, 7, DEV_INK2) > 0);
+    assert(Count(64, 155, 42, 7, DEV_INK2) == 0 && at(64, 153) == UiTypeColor(2) && Count(106, 152, 4, 12, UiTypeColor(2)) == 0);
+    sv.data.typeIds[1] = 10; strcpy(sv.data.types[1], "FIRE"); DevCheckSummary(&so, &sv);
 
-    sv.data.page = SUI_PAGE_SKILLS; DevCheckSummary(&so, &sv); assert(CtrSummaryUi_Hit(&sv, 263, 55) == SUI_HIT_IVTOGGLE); AssertKey(kDevSumTab[1], DEV_LOOK_KEY, 1);
+    sv.data.page = SUI_PAGE_SKILLS; DevCheckSummary(&so, &sv); assert(CtrSummaryUi_Hit(&sv, 221, 55) == SUI_HIT_IVTOGGLE); AssertKey(tab[1], DEV_LOOK_KEY, 1);
     /* STATS: the switch hit round where it is drawn, its STATS half shown; the nature's name; ATTACK raised (red, ▲),
-     * SP. ATK lowered (blue, ▼), the others in the secondary ink; a bar each, HP's (the largest) full; the EXP line */
-    AssertRowHits(SumHitV, &sv, kDevSumIvSwitchHit, SUI_HIT_IVTOGGLE); AssertKey(kDevSumTab[0], DEV_LOOK_KEY, 0);
-    assert(Count(229, 50, 34, 11, DEV_SHELL_BLUE) > 0 && Count(264, 50, 33, 11, DEV_SHELL_BLUE) == 0 && at(228, 55) == DEV_BUTTON_EDGE);
-    assert(Count(126, 49, 96, 13, DEV_INK2) > 0);
-    assert(Count(126, 79, 64, 13, DEV_STAT_UP) > 0 && Count(126, 107, 64, 13, DEV_BLUE_INK) > 0);
-    assert(Count(126, 65, 172, 84, DEV_STAT_UP) == Count(126, 79, 64, 13, DEV_STAT_UP));
-    assert(Count(126, 65, 172, 84, DEV_BLUE_INK) == Count(126, 107, 64, 13, DEV_BLUE_INK));
+     * SP. ATK lowered (blue, ▼), the others in the secondary ink; six rows from 69, 14 apart: a bar each (HP's, the
+     * largest, full) ending by 228, the value at 256; the EXP line and NEXT, the bar ending before NEXT */
+    AssertRowHits(SumHitV, &sv, kDevSumIvSwitchHit, SUI_HIT_IVTOGGLE); AssertKey(tab[0], DEV_LOOK_KEY, 0);
+    assert(Count(187, 50, 34, 11, DEV_SHELL_BLUE) > 0 && Count(222, 50, 33, 11, DEV_SHELL_BLUE) == 0 && at(186, 55) == DEV_BUTTON_EDGE);
+    assert(Count(116, 52, 66, 7, DEV_INK2) > 0 && Count(257, 46, 5, 132, DEV_INK) == 0);
+    assert(Count(116, 83, 64, 13, DEV_STAT_UP) > 0 && Count(116, 111, 64, 13, DEV_BLUE_INK) > 0);
+    assert(Count(116, 69, 140, 84, DEV_STAT_UP) == Count(116, 83, 64, 13, DEV_STAT_UP));
+    assert(Count(116, 69, 140, 84, DEV_BLUE_INK) == Count(116, 111, 64, 13, DEV_BLUE_INK));
     for (i = 0; i < 6; ++i) {
-        assert(Count(126, 65 + 14 * i, 172, 13, bar) > 0 && Count(282, 65 + 14 * i, 16, 13, DEV_INK) > 0);
-        if (i != 1 && i != 3) assert(Count(126, 65 + 14 * i, 48, 13, DEV_INK2) > 0);
+        assert(Count(164, 73 + 14 * i, 64, 4, bar) > 0 && Count(228, 69 + 14 * i, 28, 13, bar) == 0);
+        assert(Count(240, 69 + 14 * i, 16, 13, DEV_INK) > 0);                     /* the value, ending at 256 */
+        if (i != 1 && i != 3) assert(Count(116, 72 + 14 * i, 48, 7, DEV_INK2) > 0);
     }
-    assert(Count(126, 65, 172, 13, UI_RGB(0xE2, 0xE2, 0xDA)) == 0 && Count(126, 93, 172, 13, UI_RGB(0xE2, 0xE2, 0xDA)) > 0);
-    assert(Count(126, 152, 172, 9, DEV_EXP) > 0 && Count(126, 152, 172, 9, DEV_INK2) > 0);
-    assert(Count(14, 194, 216, 32, DEV_SUNK_INK) > 0);
+    assert(Count(160, 73, 68, 4, bar) >= 4 * 48);       /* HP, the largest: the whole bar (shorter beside ES / DE labels) */
+    assert(Count(116, 69, 140, 13, UI_RGB(0xE2, 0xE2, 0xDA)) == 0 && Count(116, 97, 140, 13, UI_RGB(0xE2, 0xE2, 0xDA)) > 0);
+    assert(at(116, 158) == DEV_HP_FRAME && Count(116, 158, 140, 9, DEV_EXP) > 0 && Count(200, 158, 56, 7, DEV_INK2) > 0);
+    assert(Count(211, 160, 45, 4, DEV_HP_FRAME) == 0 && Count(200, 158, 56, 7, DEV_INK) == 0);   /* NEXT n, clear of the bar */
+    assert(Count(14, 196, 216, 12, DEV_TITLE_INK) > 0);
     shot("stats");
     /* a neutral nature marks nothing; a held touch on the switch draws nothing */
     sv.data.natureId = 6; DevCheckSummary(&so, &sv);
-    assert(Count(126, 65, 172, 84, DEV_STAT_UP) == 0 && Count(126, 65, 172, 84, DEV_BLUE_INK) == 0);
+    assert(Count(116, 69, 140, 84, DEV_STAT_UP) == 0 && Count(116, 69, 140, 84, DEV_BLUE_INK) == 0);
     sv.data.natureId = 3; DevCheckSummary(&so, &sv);
     sv.pressed = SUI_HIT_IVTOGGLE; assert(DevCheckSummary(&so, &sv).count == 0);
     sv.pressed = -1; DevCheckSummary(&so, &sv);
@@ -2265,82 +2280,102 @@ static void SuiteSummary(void)
     sv.ivView = 1; DevCheckSummary(&so, &sv);
     sv.ivView = 0; assert(DevWhole(DevCheckSummary(&so, &sv)));                 /* the switch: the screen whole */
     sv.ivView = 1; assert(DevWhole(DevCheckSummary(&so, &sv)));
-    /* IV / EV: the switch's other half; a bar each (the IVs), Hidden Power's type and power on the last line */
-    assert(Count(229, 50, 34, 11, DEV_SHELL_BLUE) == 0 && Count(264, 50, 33, 11, DEV_SHELL_BLUE) > 0);
-    for (i = 0; i < 6; ++i) assert(Count(126, 65 + 14 * i, 172, 13, bar) > 0);
-    assert(Count(126, 150, 172, 13, UiTypeColor(12)) > 0 && Count(126, 150, 172, 13, DEV_EXP) == 0);
+    /* IV / EV: the switch's other half; a bar each (the IVs) ending by 210, the IV at 228, the EV at 256; Hidden Power's
+     * type and power on the last line, capitals 158 */
+    assert(Count(187, 50, 34, 11, DEV_SHELL_BLUE) == 0 && Count(222, 50, 33, 11, DEV_SHELL_BLUE) > 0);
+    for (i = 0; i < 6; ++i)
+        assert(Count(116, 69 + 14 * i, 140, 13, bar) > 0 && Count(210, 69 + 14 * i, 46, 13, bar) == 0
+               && Count(212, 71 + 14 * i, 16, 8, DEV_INK) > 0 && Count(240, 71 + 14 * i, 16, 8, DEV_INK2) > 0);
+    assert(Count(116, 154, 140, 13, UiTypeColor(12)) > 0 && Count(116, 154, 140, 13, DEV_EXP) == 0);
+    assert(Count(116, 158, 60, 7, DEV_INK2) > 0 && Count(240, 158, 16, 7, DEV_INK) > 0 && Count(257, 46, 5, 132, DEV_INK) == 0);
     shot("ivev");
 
     sv.data.page = SUI_PAGE_MOVES; DevCheckSummary(&so, &sv);
     for (i = 0; i < 4; ++i) AssertRowHits(SumHitV, &sv, DevSumRow(i), SUI_HIT_MOVE + i);
-    assert(CtrSummaryUi_Hit(&sv, 263, 55) != SUI_HIT_IVTOGGLE && CtrSummaryUi_Hit(&sv, 212, 159) == -1);
-    /* MOVES: the rows on the paper, none chosen, each with its type's band; SCRATCH's PP at half, BRICK BREAK's at a
-     * quarter (FireRed's colours); the icon, the name and the level, a rule, the Pokemon's type; no CANCEL row */
-    AssertKey(kDevSumTab[2], DEV_LOOK_KEY, 1);
-    for (i = 0; i < 4; ++i) assert(at(126, DevSumRow(i).y + 2) == DEV_PAPER);
-    assert(at(132, 58) == fire && at(132, 82) == UiTypeColor(0) && at(132, 130) == UiTypeColor(1));
-    assert(Count(250, 76, 50, 22, DEV_PP_HALF) > 0 && Count(250, 124, 50, 22, DEV_PP_QUARTER) > 0 && Count(250, 52, 50, 22, DEV_INK) > 0);
-    assert(at(30, 62) == red && at(60, 62) != red && at(20, 90) == DEV_HP_TRACK && at(21, 98) == fire);
-    assert(Count(124, 148, 176, 22, DEV_INK) == 0 && Count(124, 148, 176, 22, DEV_INK2) == 0);
-    assert(Count(14, 194, 216, 32, DEV_INK) > 0);
+    assert(CtrSummaryUi_Hit(&sv, 221, 55) != SUI_HIT_IVTOGGLE && CtrSummaryUi_Hit(&sv, 170, 164) == -1);
+    /* MOVES: the rows on the paper, none chosen, each with its type's band (4 px); SCRATCH's PP at half, BRICK BREAK's
+     * at a quarter (FireRed's colours), ending at 256; the column: no icon, the name, "Lv" small, the rule, the Pokemon's
+     * type at y 84 and no number; no CANCEL row */
+    AssertKey(tab[2], DEV_LOOK_KEY, 1);
+    for (i = 0; i < 4; ++i) assert(at(130, DevSumRow(i).y + 2) == DEV_PAPER && at(118, DevSumRow(i).y + 2) == DEV_PAPER);
+    assert(at(114, 48) == fire && at(117, 71) == fire && at(115, 76) == UiTypeColor(0) && at(115, 128) == UiTypeColor(1));
+    assert(Count(206, 74, 50, 24, DEV_PP_HALF) > 0 && Count(206, 126, 50, 24, DEV_PP_QUARTER) > 0 && Count(206, 48, 50, 24, DEV_INK) > 0);
+    assert(Count(122, 56, 60, 8, DEV_INK) > 0 && Count(257, 46, 5, 132, DEV_INK) == 0);
+    assert(Count(14, 46, 96, 132, red) == 0 && Count(20, 52, 86, 8, DEV_INK) > 0 && Count(20, 66, 86, 7, DEV_INK2) > 0);
+    assert(at(20, 78) == DEV_RULE && at(103, 78) == DEV_RULE && at(104, 78) == DEV_PAPER2 && at(21, 85) == fire);
+    assert(Count(20, 98, 86, 80, DEV_INK2) == 0 && Count(20, 98, 86, 80, DEV_INK) == 0);
+    assert(Count(114, 152, 146, 24, DEV_INK) == 0 && Count(114, 152, 146, 24, DEV_INK2) == 0);
+    assert(Count(14, 196, 216, 30, DEV_INK) > 0);
     shot("moves");
-    /* a held touch inverts its row */
-    sv.pressed = SUI_HIT_MOVE + 2; DevCheckSummary(&so, &sv); assert(at(126, 102) == DEV_BEZEL && at(126, 54) == DEV_PAPER);
+    /* a held touch inverts its row, its band kept */
+    sv.pressed = SUI_HIT_MOVE + 2; DevCheckSummary(&so, &sv); assert(at(130, 102) == DEV_BEZEL && at(130, 50) == DEV_PAPER && at(115, 102) == UiTypeColor(0));
     sv.pressed = -1; DevCheckSummary(&so, &sv);
 
-    /* the details: FireRed's cursor inverts its row; the move's type and category, POWER and ACCURACY in the left
-     * column; its description on the note; the arrows grey and not taken; CANCEL under the moves */
+    /* the details: FireRed's cursor inverts its row; the move's type and category (ending by 106), POWER and ACCURACY in
+     * the left column; its description on the note; ▲▼ grey and not taken; CANCEL under the moves */
     sv.data.page = SUI_PAGE_MOVES_INFO; sv.data.cursor = 0; strcpy(sv.data.moveDesc, "Port-written words in place of what a move does.");
     DevCheckSummary(&so, &sv);
-    AssertKey(kDevSumTab[2], DEV_LOOK_KEY, 1);
-    assert(at(126, 54) == DEV_BEZEL && Count(124, 52, 176, 22, DEV_PAPER) > 0 && at(126, 78) == DEV_PAPER);
-    assert(at(21, 98) == fire && Count(20, 97, 92, 12, DEV_CAT_SPECIAL) > 0 && Count(20, 116, 92, 30, DEV_INK) > 0 && Count(20, 116, 92, 30, DEV_INK2) > 0);
-    assert(at(255, 20) == dimDark && at(287, 20) == dimDark && Count(124, 148, 176, 22, DEV_INK2) > 0);
+    AssertKey(tab[2], DEV_LOOK_KEY, 1);
+    assert(at(130, 50) == DEV_BEZEL && at(115, 50) == fire && Count(114, 48, 146, 24, DEV_PAPER) > 0 && at(130, 76) == DEV_PAPER);
+    assert(at(21, 85) == fire && at(59, 95) == fire && Count(60, 84, 46, 12, DEV_CAT_SPECIAL) > 0 && Count(106, 84, 4, 12, DEV_CAT_SPECIAL) == 0);
+    assert(Count(20, 105, 86, 8, DEV_INK) > 0 && Count(20, 106, 50, 7, DEV_INK2) > 0 && Count(20, 121, 86, 8, DEV_INK) > 0 && Count(20, 122, 50, 7, DEV_INK2) > 0);
+    assert(Count(105, 98, 5, 36, DEV_INK) == 0);                                /* the values end at 104 */
+    assert(Count(276, 40, 36, 66, DEV_ARROW_OFF) > 0 && Count(276, 114, 36, 66, DEV_ARROW_OFF) > 0 && Count(276, 40, 36, 144, DEV_KEY_INK) == 0);
+    assert(Count(114, 152, 146, 24, DEV_INK2) > 0 && Count(257, 46, 5, 132, DEV_INK) == 0);
     AssertRowHits(SumHitV, &sv, DevSumRow(0), SUI_HIT_MOVE);
-    assert(Count(14, 194, 216, 32, DEV_INK) > 0);
+    assert(Count(14, 196, 216, 30, DEV_INK) > 0 && Count(14, 196, 216, 30, DEV_TITLE_INK) == 0);
     shot("details");
     sv.data.cursor = 2; strcpy(sv.data.moveDesc, "Port words for one move."); DevCheckSummary(&so, &sv);   /* GROWL: no category */
-    assert(at(126, 102) == DEV_BEZEL && Count(20, 97, 92, 12, DEV_CAT_SPECIAL) == 0 && Count(20, 97, 92, 12, DEV_CAT_PHYSICAL) == 0);
-    sv.data.cursor = 3; strcpy(sv.data.moveDesc, "Port words for another move's text."); DevCheckSummary(&so, &sv);   /* FIGHTING: physical */
-    assert(Count(20, 97, 92, 12, DEV_CAT_PHYSICAL) > 0);
+    assert(at(130, 102) == DEV_BEZEL && Count(60, 84, 50, 12, DEV_CAT_SPECIAL) == 0 && Count(60, 84, 50, 12, DEV_CAT_PHYSICAL) == 0);
+    sv.data.cursor = 3; strcpy(sv.data.moveDesc, "Port words for another move's text."); DevCheckSummary(&so, &sv);   /* FIGHT: physical */
+    assert(Count(60, 84, 46, 12, DEV_CAT_PHYSICAL) > 0 && Count(106, 84, 4, 12, DEV_CAT_PHYSICAL) == 0);
     sv.data.moveDesc[0] = 0;                                                    /* CANCEL: no description */
+    /* Review Focus 5: the details — ▲▼ grey, not hit; the CANCEL row chosen; the rows hit */
     sv.data.page = SUI_PAGE_MOVES_INFO; sv.data.cursor = 4; DevCheckSummary(&so, &sv);
-    AssertRowHits(SumHitV, &sv, DevSumRow(4), SUI_HIT_CANCEL); assert(at(130, 159) == DEV_BEZEL);        /* the cursor on CANCEL: its row inverted */
-    assert(CtrSummaryUi_Hit(&sv, 266, 20) == -1 && CtrSummaryUi_Hit(&sv, 298, 20) == -1);                 /* ▲▼ off in the details */
-    assert(Count(124, 148, 176, 22, DEV_PAPER) > 0 && at(126, 54) == DEV_PAPER);
-    assert(Count(14, 194, 216, 32, DEV_INK) == 0);                              /* CANCEL: nothing to describe */
+    assert(CtrSummaryUi_Hit(&sv, 294, 73) == -1 && Count(276, 40, 36, 66, DEV_ARROW_OFF) > 0 && at(DevSumRow(4).x + 1, DevSumRow(4).y + 12) == DEV_BEZEL);
+    for (i = 0; i < 5; ++i) AssertRowHits(SumHitV, &sv, DevSumRow(i), SUI_HIT_MOVE + i);
+    assert(at(21, 78) == DEV_RULE);
+    assert(CtrSummaryUi_Hit(&sv, 294, 147) == -1 && Count(276, 114, 36, 66, DEV_ARROW_OFF) > 0);
+    assert(Count(114, 152, 146, 24, DEV_PAPER) > 0 && Count(122, 156, 80, 8, DEV_PAPER) > 0 && at(130, 50) == DEV_PAPER);
+    assert(at(21, 85) == fire && Count(20, 98, 86, 40, DEV_INK) == 0);         /* no move chosen: the Pokemon's type */
+    assert(Count(14, 196, 216, 30, DEV_INK) == 0);                              /* CANCEL: nothing to describe */
     shot("details_cancel");
     /* a touch held on what is not drawn (the review's race: FireRed starts a swap under a touch on the CANCEL it hides; a
      * slot without a move) chooses nothing: FireRed's cursor row stays inverted, and the touch's end draws nothing */
     sv.data.cursor = 1; DevCheckSummary(&so, &sv);
     sv.data.swapping = 1; sv.data.swapCursor = 1; sv.pressed = SUI_HIT_CANCEL; DevCheckSummary(&so, &sv);
-    assert(at(126, 78) == DEV_BEZEL);
+    assert(at(130, 76) == DEV_BEZEL);
     sv.pressed = -1; assert(DevCheckSummary(&so, &sv).count == 0);
     sv.data.swapping = 0; sv.data.moves[3] = 0; DevCheckSummary(&so, &sv);
-    sv.pressed = SUI_HIT_MOVE + 3; DevCheckSummary(&so, &sv); assert(at(126, 78) == DEV_BEZEL);
+    sv.pressed = SUI_HIT_MOVE + 3; DevCheckSummary(&so, &sv); assert(at(130, 76) == DEV_BEZEL);
     sv.pressed = -1; assert(DevCheckSummary(&so, &sv).count == 0);
     sv.data.moves[3] = 4; sv.data.cursor = 4; DevCheckSummary(&so, &sv);
-    sv.data.swapping = 1; DevCheckSummary(&so, &sv); assert(CtrSummaryUi_Hit(&sv, 212, 159) == -1);
-    /* a swap: no CANCEL; the move being moved framed, the cursor's row inverted; the hint on the note */
-    sv.data.swapCursor = 1; sv.data.cursor = 2; DevCheckSummary(&so, &sv); assert(CtrSummaryUi_Hit(&sv, 212, 159) == -1);
-    assert(at(130, 159) == DEV_PAPER && Count(124, 148, 176, 22, DEV_INK) == 0 && Count(124, 148, 176, 22, DEV_INK2) == 0);
-    assert(at(124, 86) == DEV_BEZEL && at(126, 86) == DEV_PAPER && at(126, 110) == DEV_BEZEL && Count(14, 194, 216, 32, DEV_INK) > 0);
+    sv.data.swapping = 1; DevCheckSummary(&so, &sv); assert(CtrSummaryUi_Hit(&sv, 170, 164) == -1);
+    /* a swap: no CANCEL; the move being moved framed (over its band), the cursor's row inverted; the hint on the note */
+    sv.data.swapCursor = 1; sv.data.cursor = 2; DevCheckSummary(&so, &sv); assert(CtrSummaryUi_Hit(&sv, 170, 164) == -1);
+    assert(at(130, 164) == DEV_PAPER && Count(114, 152, 146, 24, DEV_INK) == 0 && Count(114, 152, 146, 24, DEV_INK2) == 0);
+    assert(at(130, 74) == DEV_BEZEL && at(130, 75) == DEV_PAPER && at(114, 80) == DEV_BEZEL && at(115, 80) == UiTypeColor(0) && at(259, 80) == DEV_BEZEL);
+    assert(at(130, 102) == DEV_BEZEL && Count(14, 196, 216, 30, DEV_INK) > 0);
     shot("swap");
     /* a battle's Summary: FireRed moves no move in a battle, so no swap hint on the note */
-    sv.data.origin = CTR_SUMMARY_BATTLE_PARTY; DevCheckSummary(&so, &sv); assert(Count(14, 194, 216, 32, DEV_INK) == 0);
-    sv.data.swapping = 0; DevCheckSummary(&so, &sv); assert(Count(14, 194, 216, 32, DEV_INK) == 0);         /* no description */
-    sv.data.origin = CTR_SUMMARY_FIELD_PARTY; DevCheckSummary(&so, &sv); assert(Count(14, 194, 216, 32, DEV_INK) > 0);
+    sv.data.origin = CTR_SUMMARY_BATTLE_PARTY; DevCheckSummary(&so, &sv); assert(Count(14, 196, 216, 30, DEV_INK) == 0);
+    sv.data.swapping = 0; DevCheckSummary(&so, &sv); assert(Count(14, 196, 216, 30, DEV_INK) == 0);         /* no description */
+    sv.data.origin = CTR_SUMMARY_FIELD_PARTY; DevCheckSummary(&so, &sv); assert(Count(14, 196, 216, 30, DEV_INK) > 0);
     sv.data.swapping = 1; DevCheckSummary(&so, &sv);
     sv.data.swapCursor = 3; assert(DevCheckSummary(&so, &sv).count == 1);
     strcpy(sv.data.moveDesc, "Port words for one move."); assert(DevCheckSummary(&so, &sv).count == 0);   /* the hint, not it */
     sv.data.swapping = 0; sv.data.swapCursor = 0; sv.data.cursor = 4; sv.data.moveDesc[0] = 0; DevCheckSummary(&so, &sv);
     sv.data.swapCursor = 2; assert(DevCheckSummary(&so, &sv).count == 0);                    /* not swapping: not drawn */
 
-    sv.data.swapping = 0; sv.trainer = 1; sv.data.page = SUI_PAGE_INFO; DevCheckSummary(&so, &sv); AssertKey(kDevSumTab[3], DEV_LOOK_KEY, 1);
-    /* MEMO: the left column as INFO's; OT, ID No., the nature, the ribbons and FireRed's memo; the arrows back; the hint */
-    AssertKey(kDevSumTab[0], DEV_LOOK_KEY, 0); AssertKey(kDevSumPrev, DEV_LOOK_DARK, 0);
-    assert(at(66, 114) == red && at(21, 155) == fire && Count(126, 50, 172, 64, DEV_INK) > 0 && Count(126, 50, 60, 64, DEV_INK2) > 0);
-    assert(Count(126, 116, 172, 56, DEV_INK) > 0 && Count(14, 194, 216, 32, DEV_INK) > 0);
+    sv.data.swapping = 0; sv.trainer = 1; sv.data.page = SUI_PAGE_INFO; DevCheckSummary(&so, &sv); AssertKey(tab[3], DEV_LOOK_KEY, 1);
+    /* MEMO: the left column as INFO's; NATURE and RIBBONS in rows, then FireRed's memo from capitals 85; ▲▼ back; the
+     * hint */
+    AssertKey(tab[0], DEV_LOOK_KEY, 0); assert(Count(276, 40, 36, 66, DEV_KEY_INK) > 0);
+    assert(at(62, 112) == red && at(21, 153) == fire && Count(64, 155, 40, 7, DEV_INK2) > 0);
+    for (i = 0; i < 2; ++i)
+        assert(Count(116, 54 + 15 * i, 30, 7, DEV_INK2) > 0 && Count(226, 53 + 15 * i, 30, 8, DEV_INK) > 0);
+    assert(Count(116, 77, 140, 101, DEV_INK2) == 0 && Count(116, 77, 140, 8, DEV_INK) == 0 && Count(116, 85, 140, 8, DEV_INK) > 0);
+    assert(Count(257, 46, 5, 132, DEV_INK) == 0 && Count(14, 196, 216, 30, DEV_INK) > 0);
     shot("memo");
 
     /* not drawn: where the Summary was opened from, FireRed's readiness, the cursor and a description outside the details,
@@ -2353,9 +2388,9 @@ static void SuiteSummary(void)
     sv.shell = 0; DevCheckSummary(&so, &sv);
     /* the 80x80 picture, whole and centred on the box; without a picture, the icon at 2x in the box */
     sumArt = 2; sv.data.serial = 2; DevCheckSummary(&so, &sv);
-    assert(at(66, 114) == red && Count(26, 74, 80, 8, blue) > 0 && Count(26, 146, 80, 8, blue) > 0);
+    assert(at(62, 112) == red && Count(22, 72, 80, 8, blue) > 0 && Count(22, 144, 80, 8, blue) > 0);
     sumArt = 3; sv.data.serial = 3; DevCheckSummary(&so, &sv);
-    assert(at(34 + 4, 82 + 4) == red && at(34 + 60, 82 + 60) == red && Count(34, 82, 64, 64, blue) == 0);
+    assert(at(30 + 4, 80 + 4) == red && at(30 + 60, 80 + 60) == red && Count(30, 80, 64, 64, blue) == 0);
     sumArt = 1; sv.data.serial = 1; DevCheckSummary(&so, &sv);
     SumUpperCase(sv);
     CtrSummaryUi_Draw(canvas, &so);
@@ -2365,30 +2400,35 @@ static void SuiteSummary(void)
     sv.data.moveNames[2][0] = sv.data.moveNames[3][0] = sv.data.pp[2][0] = sv.data.pp[3][0] = 0; DevCheckSummary(&so, &sv);
     for (i = 2; i < 4; ++i) {
         r = DevSumRow(i);
-        assert(CtrSummaryUi_Hit(&sv, r.x + 80, r.y + 10) == -1 && at(r.x + 8, r.y + 10) != UiTypeColor(0));
+        assert(CtrSummaryUi_Hit(&sv, r.x + 80, r.y + 10) == -1 && at(r.x + 1, r.y + 10) == DEV_PAPER);
     }
     sv = SumBoard(); sv.trainer = 1; DevCheckSummary(&so, &sv);
 
-    sv.data.egg = 1; DevCheckSummary(&so, &sv); assert(CtrSummaryUi_Hit(&sv, 96, 20) == -1 && CtrSummaryUi_Hit(&sv, 156, 20) == -1 && CtrSummaryUi_Hit(&sv, 216, 20) == SUI_HIT_TAB + 3);
-    /* an egg: STATS and MOVES grey; its name, no gender, level or types; the memo and how soon it hatches */
-    assert(at(kDevSumTab[1].x + 3, 20) == dimKey && at(kDevSumTab[2].x + 3, 20) == dimKey);
-    AssertKey(kDevSumTab[0], DEV_LOOK_KEY, 0); AssertKey(kDevSumTab[3], DEV_LOOK_KEY, 1);
-    assert(Count(20, 63, 98, 12, DEV_MALE) == 0 && Count(20, 154, 92, 12, fire) == 0);
-    sv.pressed = SUI_HIT_TAB + 1; DevCheckSummary(&so, &sv); AssertKey(kDevSumTab[3], DEV_LOOK_KEY, 1);    /* a grey tab: not chosen */
+    sv.data.egg = 1; DevCheckSummary(&so, &sv);
+    assert(CtrSummaryUi_Hit(&sv, tab[1].x + 10, 20) == -1 && CtrSummaryUi_Hit(&sv, tab[2].x + 10, 20) == -1 && CtrSummaryUi_Hit(&sv, tab[3].x + 10, 20) == SUI_HIT_TAB + 3);
+    /* an egg: STATS and MOVES beige (unused); its name, no gender, level, types or number; the memo and how soon it
+     * hatches; ▲▼ still walk the party (FireRed's first page) */
+    AssertKey(tab[1], DEV_LOOK_FAINT, 0); AssertKey(tab[2], DEV_LOOK_FAINT, 0);
+    AssertKey(tab[0], DEV_LOOK_KEY, 0); AssertKey(tab[3], DEV_LOOK_KEY, 1);
+    assert(Count(20, 63, 86, 12, DEV_MALE) == 0 && Count(20, 152, 86, 22, fire) == 0 && Count(20, 152, 86, 22, DEV_INK2) == 0);
+    AssertHits(SumHitV, &sv, kDevGridUp, SUI_HIT_PREV); AssertKey(kDevGridUp, DEV_LOOK_KEY, 0);
+    sv.pressed = SUI_HIT_TAB + 1; DevCheckSummary(&so, &sv); AssertKey(tab[3], DEV_LOOK_KEY, 1); AssertKey(tab[1], DEV_LOOK_FAINT, 0);   /* not chosen */
     sv.pressed = -1; assert(DevCheckSummary(&so, &sv).count == 0);
     strcpy(sv.data.nickname, "EGG"); strcpy(sv.data.species, "EGG"); strcpy(sv.data.hatch, "Port-written words in place of how soon an EGG will hatch.");
-    DevCheckSummary(&so, &sv); assert(Count(126, 50, 172, 120, DEV_INK) > 0);
+    DevCheckSummary(&so, &sv); assert(Count(116, 50, 140, 120, DEV_INK) > 0 && Count(257, 46, 5, 132, DEV_INK) == 0);
     shot("egg");
-    sv.trainer = 0; DevCheckSummary(&so, &sv); assert(Count(126, 50, 172, 120, DEV_INK) > 0 && Count(20, 154, 92, 12, fire) == 0);
+    /* Review Focus 5: an egg's INFO, how soon it hatches from (116, 53) */
+    sv.trainer = 0; DevCheckSummary(&so, &sv); assert(Count(116, 53, 140, 60, DEV_INK) > 0 && Count(116, 46, 140, 6, DEV_INK) == 0);
+    assert(Count(20, 152, 86, 12, fire) == 0 && Count(257, 46, 5, 132, DEV_INK) == 0 && Count(14, 196, 216, 30, DEV_INK) == 0);
     shot("egg_info");
     sv.trainer = 1;
 
-    sv.loading = 1; DevCheckSummary(&so, &sv); assert(CtrSummaryUi_Hit(&sv, 36, 20) == -1 && CtrSummaryUi_Hit(&sv, 278, 209) == SUI_HIT_BACK);
-    /* loading: the frame only, every tab and arrow grey, BACK taken */
-    for (i = 0; i < 4; ++i) assert(at(kDevSumTab[i].x + 3, 20) == dimKey);
-    assert(at(255, 20) == dimDark && at(287, 20) == dimDark); AssertKey(kDevTallBack, DEV_LOOK_DARK, 0);
-    assert(Count(14, 46, 292, 128, DEV_INK) == 0 && Count(14, 194, 216, 32, DEV_INK) == 0);
-    sv.pressed = SUI_HIT_BACK; DevCheckSummary(&so, &sv); AssertKey(kDevTallBack, DEV_LOOK_DARK, 1);
+    sv.loading = 1; DevCheckSummary(&so, &sv); assert(CtrSummaryUi_Hit(&sv, 36, 20) == -1 && CtrSummaryUi_Hit(&sv, 278, 209) == SUI_HIT_BACK && CtrSummaryUi_Hit(&sv, 294, 73) == -1);
+    /* loading: the frame only, every tab beige and ▲▼ grey, BACK taken */
+    for (i = 0; i < 4; ++i) AssertKey(tab[i], DEV_LOOK_FAINT, 0);
+    assert(Count(276, 40, 36, 144, DEV_ARROW_OFF) > 0 && Count(276, 40, 36, 144, DEV_KEY_INK) == 0); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0);
+    assert(Count(14, 46, 248, 132, DEV_INK) == 0 && Count(14, 196, 216, 30, DEV_INK) == 0);
+    sv.pressed = SUI_HIT_BACK; DevCheckSummary(&so, &sv); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);
     sumArt = 0;
     assert(sDevKeyCut == 0);                      /* main prints PASS device summary */
 }

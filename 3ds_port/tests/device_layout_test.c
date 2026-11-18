@@ -284,48 +284,36 @@ static int PartyFaults(void)
     return faults;
 }
 
-/* The Summary (boards B · Resumo): the brief's numbers; the tabs and the arrows (with their drops) above the screen, the
- * tall note and BACK under it (kDevTallNote, kDevTallBack), side by side; on the screen's paper the left column with the
- * picture's box (the 80x80 picture centred on it fits the column too), and right of the column the switch (inside the
- * larger rectangle that takes it) and the five rows, one under the other. */
+/* The Summary (boards def_sum_info, def_sum_stats, def_sum_moves): the brief's numbers; on the grid's screen's paper the
+ * left column with the picture's box (the 80x80 picture centred on it fits the column too), and from 4 px right of the
+ * column the switch (ending at the page's right, x 256, inside the larger rectangle that takes it, which stays on the
+ * paper) and the five rows, the grid's 24 tall and 26 apart. (The tabs, ▲▼, the screen, the note and BACK are the
+ * grid's: GridFaults.) */
 static int SummaryFaults(void)
 {
-    const CtrPokeTouchRect paper = {14, 46, 292, 128}, big = {26, 74, 80, 80};
+    const CtrPokeTouchRect paper = PaperOf(kDevGridScreen), big = {22, 72, 80, 80};
+    const int page = kDevSumColumn.x + kDevSumColumn.w + 4;
     int faults = 0;
 
-    for (int i = 0; i < 4; ++i)
-        assert(Same(kDevSumTab[i], (CtrPokeTouchRect){(int16_t)(8 + 60 * i), 8, 56, 24}));
-    assert(Same(kDevSumPrev, (CtrPokeTouchRect){252, 8, 28, 24}) && Same(kDevSumNext, (CtrPokeTouchRect){284, 8, 28, 24}));
-    assert(Same(kDevSumScreen, (CtrPokeTouchRect){8, 40, 304, 140}) && Same(kDevSumColumn, (CtrPokeTouchRect){14, 46, 104, 128}));
-    assert(Same(kDevSumPic, (CtrPokeTouchRect){34, 82, 64, 64}) && Same(kDevSumIvSwitch, (CtrPokeTouchRect){228, 49, 70, 13}));
-    assert(Same(kDevSumIvSwitchHit, (CtrPokeTouchRect){224, 46, 78, 20}));
+    assert(Same(kDevSumColumn, (CtrPokeTouchRect){14, 46, 96, 132}) && Same(kDevSumPic, (CtrPokeTouchRect){30, 80, 64, 64}));
+    assert(Same(kDevSumIvSwitch, (CtrPokeTouchRect){186, 49, 70, 13}) && Same(kDevSumIvSwitchHit, (CtrPokeTouchRect){182, 46, 78, 20}));
     for (int i = 0; i < 5; ++i) {
         CtrPokeTouchRect r = DevSumRow(i);
 
-        assert(Same(r, (CtrPokeTouchRect){124, (int16_t)(52 + 24 * i), 176, 22}));
-        if (!Within(r, paper, 0) || r.x < kDevSumColumn.x + kDevSumColumn.w
-            || (i > 0 && r.y < DevSumRow(i - 1).y + DevSumRow(i - 1).h)) {
+        assert(Same(r, (CtrPokeTouchRect){114, (int16_t)(48 + 26 * i), 146, 24}));
+        if (!Within(r, paper, 0) || r.x < page || (i > 0 && r.y < DevSumRow(i - 1).y + DevSumRow(i - 1).h + 2)) {
             fprintf(stderr, "Summary: row %d leaves the paper right of the column, or meets the row above\n", i);
             ++faults;
         }
     }
-    if (!Within(kDevSumIvSwitch, kDevSumIvSwitchHit, 0) || !Within(kDevSumIvSwitch, paper, 0)
-        || kDevSumIvSwitch.x < kDevSumColumn.x + kDevSumColumn.w) {
-        fprintf(stderr, "Summary: the switch leaves its touch area or the paper right of the column\n");
+    if (!Within(kDevSumIvSwitch, kDevSumIvSwitchHit, 0) || !Within(kDevSumIvSwitchHit, paper, 0) || kDevSumIvSwitch.x < page
+        || kDevSumIvSwitch.x + kDevSumIvSwitch.w != 256) {
+        fprintf(stderr, "Summary: the switch leaves its touch area, the touch area the paper, or the page\n");
         ++faults;
     }
-    if (!Within(kDevSumColumn, paper, 0) || !Within(kDevSumPic, kDevSumColumn, 0) || !Within(big, kDevSumColumn, 0)) {
-        fprintf(stderr, "Summary: the column leaves the paper, or a picture the column\n");
-        ++faults;
-    }
-    for (int i = 0; i < 4; ++i)
-        if (kDevSumTab[i].y + kDevSumTab[i].h + DEV_DROP > kDevSumScreen.y) {
-            fprintf(stderr, "Summary: tab %d reaches the screen\n", i);
-            ++faults;
-        }
-    if (kDevSumPrev.y + kDevSumPrev.h + DEV_DROP > kDevSumScreen.y || kDevSumScreen.y + kDevSumScreen.h + 1 > kDevTallNote.y
-        || kDevSumScreen.y + kDevSumScreen.h + 1 > kDevTallBack.y || kDevTallNote.x + kDevTallNote.w > kDevTallBack.x) {
-        fprintf(stderr, "Summary: an arrow reaches the screen, the screen the note or BACK, or the note BACK\n");
+    if (!Within(kDevSumColumn, paper, 0) || kDevSumColumn.x != paper.x || !Within(kDevSumPic, kDevSumColumn, 0)
+        || !Within(big, kDevSumColumn, 0)) {
+        fprintf(stderr, "Summary: the column leaves the paper's left, or a picture the column\n");
         ++faults;
     }
     return faults;
@@ -392,7 +380,8 @@ static int BagFaults(void)
 /* The grid (def_spec): TOPO y 8-32 (the tabs, DevGridTab, or the title, kDevGridTitle), MEIO y 40-184 (the screen with
  * ▲▼ beside it, the wide screen, or a narrow screen with the key column at x 204: DevGridColumnKey), RODAPÉ y 190-232
  * (the note with the exit beside it, or the wide note); a list's five rows, 24 tall and 26 apart, on its screen's
- * paper. The tall note and BACK (the Summary's until its task) keep their numbers. */
+ * paper. The tall note and BACK (the frame's, the Trainer Card's, the Pokedex page's and the move to forget's until
+ * their tasks) keep their numbers. */
 static int GridFaults(void)
 {
     const CtrPokeTouchRect paper = PaperOf(kDevGridScreen), narrowPaper = PaperOf(kDevGridScreenNarrow);
@@ -892,8 +881,8 @@ int main(void)
     const CtrPokeTouchRect ptyMulti[] = {DevPtyBay(0), DevPtyBay(1), DevPtyBay(2), DevPtyBay(3), DevPtyBay(4), DevPtyBay(5),
                                          kDevPtyConfirm, kDevPtyCancelLow};
     const CtrPokeTouchRect ptyOk[] = {kDevPtyCancel};
-    const CtrPokeTouchRect sumKeys[] = {kDevSumTab[0], kDevSumTab[1], kDevSumTab[2], kDevSumTab[3], kDevSumPrev, kDevSumNext,
-                                        kDevTallBack};
+    const CtrPokeTouchRect sumKeys[] = {DevGridTab(4, 0), DevGridTab(4, 1), DevGridTab(4, 2), DevGridTab(4, 3), kDevGridUp,
+                                        kDevGridDown, kDevGridExit};
     const CtrPokeTouchRect bagList[] = {DevGridTab(3, 0), DevGridTab(3, 1), DevGridTab(3, 2), kDevGridUp, kDevGridDown, kDevGridExit};
     const CtrPokeTouchRect bagCase[] = {kDevBagCaseKey, kDevGridUp, kDevGridDown, kDevGridExit};
     const CtrPokeTouchRect bagQty[] = {kDevBagQtyUp, kDevBagQtyDown, kDevBagQtyOk, kDevGridExit};
@@ -951,10 +940,7 @@ int main(void)
         {"Party note", kDevPtyNote}, {"Party CANCEL", kDevPtyCancel}, {"Party CONFIRM", kDevPtyConfirm},
         {"Party CANCEL (several)", kDevPtyCancelLow}, {"Party menu's screen", kDevPtyMenuNote},
         {"Party level-up screen", kDevPtyLevelScreen}, {"Party bay 0", DevPtyBay(0)}, {"Party bay 5", DevPtyBay(5)},
-        {"Summary INFO", kDevSumTab[0]}, {"Summary STATS", kDevSumTab[1]}, {"Summary MOVES", kDevSumTab[2]},
-        {"Summary MEMO", kDevSumTab[3]}, {"Summary previous", kDevSumPrev}, {"Summary next", kDevSumNext},
-        {"Summary screen", kDevSumScreen}, {"Summary column", kDevSumColumn}, {"Summary picture", kDevSumPic},
-        {"Summary switch", kDevSumIvSwitch},
+        {"Summary column", kDevSumColumn}, {"Summary picture", kDevSumPic}, {"Summary switch", kDevSumIvSwitch},
         {"Summary switch's touch", kDevSumIvSwitchHit}, {"Summary row 0", DevSumRow(0)}, {"Summary CANCEL row", DevSumRow(4)},
         {"Bag case key", kDevBagCaseKey}, {"Bag description's icon", kDevBagDescIcon}, {"Bag how many: up", kDevBagQtyUp},
         {"Bag how many: count", kDevBagQtyScreen}, {"Bag how many: down", kDevBagQtyDown}, {"Bag how many: OK", kDevBagQtyOk},
