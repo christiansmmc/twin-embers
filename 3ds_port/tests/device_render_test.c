@@ -1734,6 +1734,26 @@ static void BatNames(CtrBattleView v)
     memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
 }
 
+/* While `on`: the small font's p and y with a descender, an ink pixel in glyph row 11 under the capitals' rows 4-10 (the
+ * game's p, q, g, y and comma have theirs there; the stubs have none). Off puts the glyphs back as they were. */
+static void BatDescenders(int on)
+{
+    static const unsigned kCode[2] = {0xe4, 0xed};      /* p, y */
+    static uint8_t keep[2][32];
+
+    for (int i = 0; i < 2; ++i) {
+        uint8_t *glyph = smallFont + kCode[i] * 32u;
+
+        if (on) {
+            memcpy(keep[i], glyph, 32);
+            GlyphPixel(glyph, 1, 0, 11, 1);
+        } else {
+            memcpy(glyph, keep[i], 32);
+        }
+    }
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+}
+
 /* The plan's suite (each key hit where it is drawn, the touch or else the cursor sinks one key, the quick ball's arrows
  * and its grey states, RUN when there is no running, holes for missing moves, nothing hit while idle), the boards'
  * pieces where the boards put them, then the states for the eye. The commands are def_fight's (owner O1): FIGHT across,
@@ -1849,7 +1869,7 @@ static void SuiteBattle(void)
     assert(Count(164, 71, 148, 8, DEV_PP_HALF) > 0 && Count(164, 161, 148, 8, DEV_PP_QUARTER) > 0);   /* 15/35, 3/15 */
     assert(Count(164, 8, 148, 60, DEV_PP_HALF) == 0 && Count(164, 98, 148, 60, DEV_PP_QUARTER) == 0);   /* above their glyphs */
     /* the footer [8,190,228,42]: FIRE, SPECIAL and STAB, chips 10 tall at 198 from x 20, 4 apart; POW / ACC small, right
-     * at 226 on their line, after the chips; FireRed's description in two small lines, capitals 209 and 219 */
+     * at 226 on their line, after the chips; FireRed's description in two small lines 9 apart, capitals 209 and 218 */
     cat = 20 + DevTypeChipWidth("FIRE") + 4;
     stab = cat + DevSmallTextWidth(DevCategoryWord(0)) + 8 + 4;
     end = stab + DevSmallTextWidth("STAB") + 8;
@@ -1858,11 +1878,18 @@ static void SuiteBattle(void)
     assert(at(21, 198) == UiTypeColor(10) && at(21, 207) == UiTypeColor(10) && at(21, 197) == DEV_PAPER && at(21, 208) == DEV_PAPER);
     assert(at(cat - 1, 200) == DEV_PAPER && at(cat + 1, 198) == DEV_CAT_SPECIAL && at(stab + 1, 207) == DEV_TAG_STAB && at(end, 200) == DEV_PAPER);
     assert(Count(226 - w, 198, w, 7, DEV_INK) > 0 && Count(end, 196, 226 - w - end, 12, DEV_INK) == 0 && Count(226, 196, 4, 30, DEV_INK) == 0);
-    assert(Count(14, 196, 216, 12, DEV_INK2) == 0 && Count(20, 209, 204, 7, DEV_INK2) > 0 && Count(20, 219, 204, 7, DEV_INK2) > 0);
+    assert(Count(14, 196, 216, 12, DEV_INK2) == 0 && Count(20, 209, 204, 7, DEV_INK2) > 0 && Count(20, 218, 204, 7, DEV_INK2) > 0);
     assert(Count(14, 196, 216, 12, DEV_TAG_STAB) > 0);
     shot("moves");
     v.move[0].stab = 0; DevCheckBattle(&old, &v); assert(Count(14, 196, 216, 12, DEV_TAG_STAB) == 0 && Count(20, 209, 204, 17, DEV_INK2) > 0);
     v.move[0].stab = 1; DevCheckBattle(&old, &v); assert(Count(14, 196, 216, 12, DEV_TAG_STAB) > 0);
+    /* the second line's descenders (g, p, q, y and the comma; the stubs' p and y given one) end on the paper's last row,
+     * 225: none on the bezel under it */
+    BatDescenders(1);
+    strcpy(v.move[0].desc, "Port-written words in place of what a move does, plainly typed."); DevCheckBattle(&old, &v);
+    assert(Count(20, 218, 204, 7, DEV_INK2) > 0 && Count(20, 225, 204, 1, DEV_INK2) > 0 && Count(14, 226, 216, 5, DEV_INK2) == 0);
+    BatDescenders(0);
+    v.move[0] = BatBoard().move[0]; DevCheckBattle(&old, &v);
     v.cursor = 3; DevCheckBattle(&old, &v);                                                     /* BRICK BREAK: physical */
     assert(Count(14, 196, 216, 12, DEV_CAT_PHYSICAL) > 0 && Count(14, 196, 216, 12, DEV_CAT_SPECIAL) == 0);
     v.cursor = 2; DevCheckBattle(&old, &v);                                                     /* GROWL: no power, no category */
@@ -1870,27 +1897,30 @@ static void SuiteBattle(void)
     v.pressed = 0; DevCheckBattle(&old, &v); assert(Count(14, 196, 216, 12, DEV_CAT_SPECIAL) > 0);   /* a held touch: its move */
     v.pressed = -1;
     v.cursor = 0; v.move[0].desc[0] = 0; DevCheckBattle(&old, &v);                            /* no description: the effect's chance */
-    assert(Count(20, 209, 204, 7, DEV_INK2) > 0 && Count(20, 219, 204, 7, DEV_INK2) == 0);
+    assert(Count(20, 209, 204, 7, DEV_INK2) > 0 && Count(20, 218, 204, 7, DEV_INK2) == 0);
     v.move[0] = BatBoard().move[0];
     /* a physical STAB move, the widest chips (drawn in the ES / DE runs too): POW / ACC clear of them, nothing cut */
-    v.move[3].stab = 1; strcpy(v.move[3].desc, "Port words in one line."); v.cursor = 3; DevCheckBattle(&old, &v);
+    v.move[3].stab = 1; strcpy(v.move[3].desc, "Port words, plainly typed."); v.cursor = 3; DevCheckBattle(&old, &v);
     end = 20 + DevTypeChipWidth("FIGHT") + 4 + DevSmallTextWidth(DevCategoryWord(1)) + 8 + 4 + DevSmallTextWidth("STAB") + 8;
     assert(Count(14, 196, 216, 12, DEV_TAG_STAB) > 0 && Count(14, 196, 216, 12, DEV_CAT_PHYSICAL) > 0);
     assert(Count(20, 198, end - 20, 7, DEV_INK) == 0 && Count(20, 196, 206, 30, DEV_INK) > 0 && sDevKeyCut == 0);   /* the chips' capitals' rows */
     shot("moves_stab");
     /* POW / ACC wider than the room the chips leave (digits and spaces 8 px, as the game's widths may make it in ES / DE):
-     * the first small line, from x 20 at capitals 209; the description one line under it (a second line cut, counted) */
+     * the first small line, from x 20 at capitals 209; the description one line under it, 9 below (capitals 218, its
+     * descenders on 225; a second line cut, counted) */
     memcpy(keepSmall, smallWidths, sizeof(keepSmall));
     smallWidths[0] = 8;                                 /* the space */
     for (unsigned c = 0xa1; c <= 0xaa; ++c)             /* 0..9 */
         smallWidths[c] = 8;
-    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    BatDescenders(1);
     CtrBattleUi_Draw(canvas, &v);
     assert(Count(20, 196, 206, 9, DEV_INK) == 0 && Count(20, 209, 206, 7, DEV_INK) > 0 && Count(14, 196, 216, 12, DEV_TAG_STAB) > 0);
-    assert(Count(20, 209, 204, 7, DEV_INK2) == 0 && Count(20, 219, 204, 7, DEV_INK2) > 0 && sDevKeyCut == 0);
+    assert(Count(20, 209, 204, 7, DEV_INK2) == 0 && Count(20, 218, 204, 7, DEV_INK2) > 0 && sDevKeyCut == 0);
+    assert(Count(20, 225, 204, 1, DEV_INK2) > 0 && Count(14, 226, 216, 5, DEV_INK2) == 0);
     strcpy(v.move[3].desc, BatBoard().move[0].desc); CtrBattleUi_Draw(canvas, &v);
-    assert(Count(20, 219, 204, 7, DEV_INK2) > 0 && sDevKeyCut == 1);
+    assert(Count(20, 218, 204, 7, DEV_INK2) > 0 && sDevKeyCut == 1);
     sDevKeyCut = 0;
+    BatDescenders(0);
     memcpy(smallWidths, keepSmall, sizeof(keepSmall));
     memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
     v.move[3] = BatBoard().move[3];

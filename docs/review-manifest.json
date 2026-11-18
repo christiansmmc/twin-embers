@@ -7321,7 +7321,7 @@
   },
   {
    "path": "3ds_port/tests/device_render_test.c",
-   "sha256": "db1f24fcef071a50b1dde1d96ab490b8b5fdb6a59d3c8febb380458e9fb5cb1f",
+   "sha256": "9a747a9e1b88bd7f486d8eaee324736d5b0e4e9061d69b402c44c26f70aa2414",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7353,7 +7353,7 @@
   },
   {
    "path": "3ds_port/src/3ds_device_battle_impl.h",
-   "sha256": "64359dbea18fa138a3e2c38730fec92b64f8d0c5197128c9f3466a53620db39a",
+   "sha256": "34f4b05faff5509cb27e7e2c2bd7fd2431f8f11fa6ae3efbbb5a9e1bc1075541",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

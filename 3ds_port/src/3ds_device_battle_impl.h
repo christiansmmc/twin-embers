@@ -494,8 +494,9 @@ static int DevBatNoteMove(const CtrBattleView *v)
  * from x 20, its category (none for a status move), STAB when it has it), and "POW n  ACC n" small, right at
  * paper.x + paper.w - 4 on their line; where it would come within 6 px of the chips (Spanish or German words with a
  * physical STAB move) it is the first small line under them instead (Pre-flight ruling 9). Then FireRed's description
- * small from capitals paper.y + 13 in the lines left (two, or one), 10 apart, or without one the chance of its extra
- * effect there. Empty on BACK. */
+ * small from capitals paper.y + 13 in the lines left (two, or one), DEV_SMALL_LINE_TIGHT apart, or without one the
+ * chance of its extra effect there: the second line's capitals at paper.y + 22, so its descenders (g, p, q, y, the
+ * comma: the small font's glyph row 11) end on the paper's last row, not on the bezel. Empty on BACK. */
 static void DevBatMoveNote(const CtrBattleView *v)
 {
     CtrPokeTouchRect paper = DevScreen(&kDevGridNote);
@@ -525,11 +526,11 @@ static void DevBatMoveNote(const CtrBattleView *v)
         DevSmallText(text, right - w, paper.y + 2, DEV_INK, right);
     else {
         DevSmallText(text, paper.x + 6, top, DEV_INK, right);
-        top += DEV_SMALL_LINE;
+        top += DEV_SMALL_LINE_TIGHT;
         lines = 1;
     }
     if (m->desc[0])
-        DevSmallFit(m->desc, paper.x + 6, paper.x + 6, top, paper.x + paper.w - 6, lines, DEV_SMALL_LINE, DEV_INK2);
+        DevSmallFit(m->desc, paper.x + 6, paper.x + 6, top, paper.x + paper.w - 6, lines, DEV_SMALL_LINE_TIGHT, DEV_INK2);
     else if (m->effectChance) {
         snprintf(text, sizeof(text), CTR_TR("EFFECT %u%%", "EFECTO %u%%", "EFFEKT %u%%"), (unsigned)m->effectChance);
         DevSmallText(text, paper.x + 6, top, DEV_INK2, paper.x + paper.w - 6);
