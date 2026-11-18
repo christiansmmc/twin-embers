@@ -1565,7 +1565,7 @@ static void SuiteHome(void)
     assert(sDevKeyCut == 0);
 }
 
-/* ---- battle: the commands, the quick ball, the moves, the targets, Safari, idle (boards B · Comandos, B · Golpes) ---- */
+/* ---- battle: the commands, the quick ball, the moves, the targets, Safari, idle (boards def_fight, def_moves) ---- */
 
 static int BatHitV(const void *view, int x, int y)
 {
@@ -1646,8 +1646,8 @@ static CtrBattleView BatBoard(void)
     return v;
 }
 
-/* The move screen and the keys draw the game's words in capitals, whatever case they arrive in: with small letters made
- * wider than capitals, the moves in proper case draw what they draw in capitals. */
+/* The move keys draw the game's words in capitals, whatever case they arrive in: with small letters made wider than
+ * capitals, the moves in proper case draw what they draw in capitals. */
 static void BatUpperCase(CtrBattleView v)
 {
     static uint16_t capitals[W * H];
@@ -1734,22 +1734,27 @@ static void BatNames(CtrBattleView v)
     memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
 }
 
-/* While `on`: the small font's p and y with a descender, an ink pixel in glyph row 11 under the capitals' rows 4-10 (the
- * game's p, q, g, y and comma have theirs there; the stubs have none). Off puts the glyphs back as they were. */
-static void BatDescenders(int on)
+/* While `on`: every small glyph with a descender, an ink pixel at its left in glyph row 11, under the capitals' rows
+ * 4-10 (where the game's g, p, q, y and comma have theirs; the stubs have none), the worst a footer line can meet: the
+ * battle's moves, the learn and relearn suites' footers. The pixel is set, not added to (the pack's glyphs fill their
+ * background with 3, which is drawn as nothing: a bit added to it would leave it 3). Off puts the glyphs back as they
+ * were. */
+static void SmallDescenders(int on)
 {
-    static const unsigned kCode[2] = {0xe4, 0xed};      /* p, y */
-    static uint8_t keep[2][32];
+    static uint8_t keep[sizeof(smallFont)];
 
-    for (int i = 0; i < 2; ++i) {
-        uint8_t *glyph = smallFont + kCode[i] * 32u;
+    if (on) {
+        memcpy(keep, smallFont, sizeof(keep));
+        for (unsigned code = 1; code < 256; ++code) {
+            uint8_t *row = smallFont + code * 32u + 16 + (11 % 8) * 2;      /* the second tile's row 3 */
+            unsigned bits = ((unsigned)row[1] << 8 | row[0]) & ~(3u << 14);  /* x 0: the top two bits */
 
-        if (on) {
-            memcpy(keep[i], glyph, 32);
-            GlyphPixel(glyph, 1, 0, 11, 1);
-        } else {
-            memcpy(glyph, keep[i], 32);
+            bits |= 1u << 14;
+            row[0] = (uint8_t)bits;
+            row[1] = (uint8_t)(bits >> 8);
         }
+    } else {
+        memcpy(smallFont, keep, sizeof(keep));
     }
     memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
 }
@@ -1857,6 +1862,7 @@ static void SuiteBattle(void)
     AssertKey(kDevBatMove[1], DEV_LOOK_KEY, 1); assert(LedAt(kDevBatMove[1])); AssertKey(kDevBatMove[0], DEV_LOOK_KEY, 0);
     assert(CtrBattleUi_Hit(&v, 160, 50) == -1 && CtrBattleUi_Hit(&v, 80, 96) == -1 && CtrBattleUi_Hit(&v, 120, 210) == -1);   /* between the keys; the footer */
     v.pressed = BUI_CANCEL; DevCheckBattle(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1); AssertKey(kDevBatMove[1], DEV_LOOK_KEY, 0);
+    assert(Count(14, 196, 216, 30, DEV_PAPER) == 216 * 30);                    /* BACK held: the footer empty, as on BACK */
     v.pressed = -1;
     /* the board's state: the cursor on FLAMETHROWER, sunk (its face at 10, its LED at (145, 14)) */
     v.cursor = 0; DevCheckBattle(&old, &v); assert(LedAt(kDevBatMove[0]));
@@ -1883,12 +1889,12 @@ static void SuiteBattle(void)
     shot("moves");
     v.move[0].stab = 0; DevCheckBattle(&old, &v); assert(Count(14, 196, 216, 12, DEV_TAG_STAB) == 0 && Count(20, 209, 204, 17, DEV_INK2) > 0);
     v.move[0].stab = 1; DevCheckBattle(&old, &v); assert(Count(14, 196, 216, 12, DEV_TAG_STAB) > 0);
-    /* the second line's descenders (g, p, q, y and the comma; the stubs' p and y given one) end on the paper's last row,
-     * 225: none on the bezel under it */
-    BatDescenders(1);
+    /* the second line's descenders (g, p, q, y and the comma; every stub glyph given one: SmallDescenders) end on the
+     * paper's last row, 225: none on the bezel under it */
+    SmallDescenders(1);
     strcpy(v.move[0].desc, "Port-written words in place of what a move does, plainly typed."); DevCheckBattle(&old, &v);
     assert(Count(20, 218, 204, 7, DEV_INK2) > 0 && Count(20, 225, 204, 1, DEV_INK2) > 0 && Count(14, 226, 216, 5, DEV_INK2) == 0);
-    BatDescenders(0);
+    SmallDescenders(0);
     v.move[0] = BatBoard().move[0]; DevCheckBattle(&old, &v);
     v.cursor = 3; DevCheckBattle(&old, &v);                                                     /* BRICK BREAK: physical */
     assert(Count(14, 196, 216, 12, DEV_CAT_PHYSICAL) > 0 && Count(14, 196, 216, 12, DEV_CAT_SPECIAL) == 0);
@@ -1912,7 +1918,7 @@ static void SuiteBattle(void)
     smallWidths[0] = 8;                                 /* the space */
     for (unsigned c = 0xa1; c <= 0xaa; ++c)             /* 0..9 */
         smallWidths[c] = 8;
-    BatDescenders(1);
+    SmallDescenders(1);
     CtrBattleUi_Draw(canvas, &v);
     assert(Count(20, 196, 206, 9, DEV_INK) == 0 && Count(20, 209, 206, 7, DEV_INK) > 0 && Count(14, 196, 216, 12, DEV_TAG_STAB) > 0);
     assert(Count(20, 209, 204, 7, DEV_INK2) == 0 && Count(20, 218, 204, 7, DEV_INK2) > 0 && sDevKeyCut == 0);
@@ -1920,7 +1926,7 @@ static void SuiteBattle(void)
     strcpy(v.move[3].desc, BatBoard().move[0].desc); CtrBattleUi_Draw(canvas, &v);
     assert(Count(20, 218, 204, 7, DEV_INK2) > 0 && sDevKeyCut == 1);
     sDevKeyCut = 0;
-    BatDescenders(0);
+    SmallDescenders(0);
     memcpy(smallWidths, keepSmall, sizeof(keepSmall));
     memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
     v.move[3] = BatBoard().move[3];

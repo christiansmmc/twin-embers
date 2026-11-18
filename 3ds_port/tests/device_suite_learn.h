@@ -98,30 +98,6 @@ static void LearnHint(const char *hint)
     assert(Count(20 + w, 196, 210 - w, 30, DEV_INK2) == 0 && Count(20, 225, 204, 1, DEV_INK2) == 0);
 }
 
-/* While `on`: every small glyph with a descender, an ink pixel at its left in glyph row 11, under the capitals' rows
- * 4-10 (where the game's g, p, q, y and comma have theirs; the stubs have none), the worst a footer line can meet. The
- * pixel is set, not added to (the pack's glyphs fill their background with 3, which is drawn as nothing). Off puts the
- * glyphs back as they were. */
-static void LearnDescenders(int on)
-{
-    static uint8_t keep[sizeof(smallFont)];
-
-    if (on) {
-        memcpy(keep, smallFont, sizeof(keep));
-        for (unsigned code = 1; code < 256; ++code) {
-            uint8_t *row = smallFont + code * 32u + 16 + (11 % 8) * 2;      /* the second tile's row 3 */
-            unsigned bits = ((unsigned)row[1] << 8 | row[0]) & ~(3u << 14);  /* x 0: the top two bits */
-
-            bits |= 1u << 14;
-            row[0] = (uint8_t)bits;
-            row[1] = (uint8_t)(bits >> 8);
-        }
-    } else {
-        memcpy(smallFont, keep, sizeof(keep));
-    }
-    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
-}
-
 /* Upper case (owner decision 5): FireRed's move and type names, which v0.6.0 title-cased, in capitals; the name its
  * species' own in capitals, a nickname as typed; FireRed's question and description as they are. */
 static void LearnUpperCase(CtrPokeTouchView v)
@@ -248,13 +224,13 @@ static void SuiteLearn(void)
     other = lv; other.learn.row[1].locked ^= 1; other.learn.row[3].locked ^= 1;
     assert(DevCheckTouch(&lo, &other).count == 0);                  /* no row: no lock drawn */
     /* the hint is the footer's last line: with a descender on every small glyph (the game's g, p, q, y and comma have
-     * theirs in glyph row 11) it ends on the paper's last row, 225, and none reaches the bezel under it; the
-     * description's second line keeps its own off the hint */
+     * theirs in glyph row 11: SmallDescenders) it ends on the paper's last row, 225, and none reaches the bezel under
+     * it; the description's second line keeps its own off the hint */
     lv = LearnBoard(); DevCheckTouch(&lo, &lv);
-    LearnDescenders(1); CtrPokeTouch_Draw(canvas, &lv);
+    SmallDescenders(1); CtrPokeTouch_Draw(canvas, &lv);
     assert(Count(20, 225, 204, 1, DEV_INK2) > 0 && Count(14, 226, 216, 5, DEV_INK2) == 0 && Count(14, 226, 216, 5, DEV_INK) == 0);
     assert(Count(20, 215, 204, 1, DEV_INK) > 0 && Count(14, 216, 216, 10, DEV_INK) == 0);
-    LearnDescenders(0); CtrPokeTouch_Draw(canvas, &lo);
+    SmallDescenders(0); CtrPokeTouch_Draw(canvas, &lo);
     /* the cursor's move's numbers follow it; another move's do not show */
     other = lv; strcpy(other.learn.row[1].power, "1000"); TouchSamePixels(&lv, &other, 0, "the cursor's move's power");
     other = lv; strcpy(other.learn.row[1].accuracy, "1000"); TouchSamePixels(&lv, &other, 0, "the cursor's move's accuracy");

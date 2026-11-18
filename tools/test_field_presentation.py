@@ -841,7 +841,7 @@ static void BagPlanStart(const ListScreen *list, int kind, int target, int activ
         moves the cursor one Pokemon per LIST_DRAG_ROW pixels, the rows' own pitch, so the list follows the finger."""
         bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
         layout = (ROOT / '3ds_port/include/3ds_device_layout.h').read_text(encoding='utf-8')
-        pitch = int(re.search(r'DevTallRow\(int i, int narrow\)\s*\{\s*return DevListRow\(i, narrow, (\d+)\);', layout).group(1))
+        pitch = int(re.search(r'DevTallRow\(int i\)\s*\{\s*return DevListRow\(i, (\d+)\);', layout).group(1))
         self.assertEqual(int(re.search(r'#define LIST_DRAG_ROW (\d+)', bottom).group(1)), pitch)
         self.assertIn('/ LIST_DRAG_ROW', function(bottom, 'ProcessFieldDexTouch'))
 

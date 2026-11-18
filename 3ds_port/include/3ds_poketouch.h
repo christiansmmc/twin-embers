@@ -301,7 +301,7 @@ typedef struct {
     int8_t cursor;
     int16_t pressed;                /* the hit code under a held touch, or -1 */
     char label[PT_CHOICE_MAX][24];
-    char price[PT_CHOICE_MAX][12];
+    char price[PT_CHOICE_MAX][12];  /* sized by the longest, the bike's "¥1,000,000" (11 bytes in UTF-8), and its NUL */
     char prompt[160];
 } CtrPokeTouchChoice;
 

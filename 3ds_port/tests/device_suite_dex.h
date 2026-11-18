@@ -149,9 +149,9 @@ static void SuiteDex(void)
     for (i = 0; i < 6; ++i) AssertHits(DexHitV, &v, DevDexItem(i), PT_DEX_HIT_ITEM + ItemRow(&v, i));
     AssertKey(DevDexItem(1), DEV_LOOK_KEY, 1); AssertKey(DevDexItem(5), DEV_LOOK_FAINT, 0);
     AssertHits(DexHitV, &v, kDevSmallKey[0], PT_DEX_HIT_UP); AssertHits(DexHitV, &v, kDevSmallKey[1], PT_DEX_HIT_DOWN); AssertHits(DexHitV, &v, kDevGridExit, PT_DEX_HIT_ITEM + CancelRow(&v)); assert(!CtrPokeTouch_BackHit(&v, 278, 210));
-    v.dex.state = PT_DEX_STATE_LIST; DevCheckTouch(&old, &v); for (i = 0; i < 5; ++i) AssertRowHits(DexHitV, &v, DevTallRow(i, 0), PT_DEX_HIT_ROW + i);
+    v.dex.state = PT_DEX_STATE_LIST; DevCheckTouch(&old, &v); for (i = 0; i < 5; ++i) AssertRowHits(DexHitV, &v, DevTallRow(i), PT_DEX_HIT_ROW + i);
     assert(CtrPokeTouch_DexHit(&v, 294, 73) == -1 && Count(276, 40, 36, 66, DEV_ARROW_OFF) > 0); AssertHits(DexHitV, &v, kDevGridDown, PT_DEX_HIT_DOWN); AssertHits(BackV, &v, kDevGridExit, 1);
-    r0 = DevTallRow(0, 0); r2 = DevTallRow(2, 0); assert(Count(r0.x + r0.w - 14, r0.y, 14, r0.h, STUB_MARK) > 0 && Count(r2.x + r2.w - 14, r2.y, 14, r2.h, STUB_MARK) == 0);
+    r0 = DevTallRow(0); r2 = DevTallRow(2); assert(Count(r0.x + r0.w - 14, r0.y, 14, r0.h, STUB_MARK) > 0 && Count(r2.x + r2.w - 14, r2.y, 14, r2.h, STUB_MARK) == 0);
     v.dex.listFirst = 146; v.dex.listCursor = 150; DevCheckTouch(&old, &v); assert(CtrPokeTouch_DexHit(&v, 294, 147) == -1); AssertHits(DexHitV, &v, kDevGridUp, PT_DEX_HIT_UP);
     v.dex.state = PT_DEX_STATE_CATEGORY; v.dex.sel = v.dex.mon[v.dex.slot]; DevCheckTouch(&old, &v); for (i = 0; i < 3; ++i) AssertHits(DexHitV, &v, DevDexSlot(i), PT_DEX_HIT_SLOT + i);
     assert(CtrPokeTouch_DexHit(&v, 238, 150) == -1 && CtrPokeTouch_DexHit(&v, 184, 210) == -1); AssertHits(DexHitV, &v, kDevSmallKey[1], PT_DEX_HIT_NEXT);
@@ -219,14 +219,14 @@ static void SuiteDex(void)
      * ▲ grey and ▼ dark at the top; BACK dark, sunk, grey, gone */
     v = DexBoard(); v.dex.state = PT_DEX_STATE_LIST; DevCheckTouch(&old, &v);
     assert(Count(14, 12, 292, 16, DEV_INK) > 0 && Count(160, 12, 146, 16, DEV_INK2) > 0);
-    r = DevTallRow(1, 0); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL && Count(r.x, r.y, 60, r.h, DEV_PAPER) > 0);
-    r = DevTallRow(0, 0); assert(at(r.x + 1, r.y + 1) == DEV_PAPER && Count(r.x, r.y, 60, r.h, DEV_INK) > 0);
-    for (i = 0; i < PT_DEX_ROWS; ++i) { r = DevTallRow(i, 0); assert((Count(r.x + r.w - 14, r.y, 14, r.h, STUB_MARK) > 0) == ((v.dex.row[i].flags & 2) != 0)); }
+    r = DevTallRow(1); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL && Count(r.x, r.y, 60, r.h, DEV_PAPER) > 0);
+    r = DevTallRow(0); assert(at(r.x + 1, r.y + 1) == DEV_PAPER && Count(r.x, r.y, 60, r.h, DEV_INK) > 0);
+    for (i = 0; i < PT_DEX_ROWS; ++i) { r = DevTallRow(i); assert((Count(r.x + r.w - 14, r.y, 14, r.h, STUB_MARK) > 0) == ((v.dex.row[i].flags & 2) != 0)); }
     assert(Count(14, 196, 216, 30, UiTypeColor(12)) > 0 && Count(14, 196, 216, 30, UiTypeColor(3)) > 0 && Count(14, 196, 216, 30, DEV_INK2) > 0);
     assert(Count(276, 114, 36, 66, DEV_KEY_INK) > 0); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0);
     v.dex.pressed = PT_DEX_HIT_ROW + 3; DevCheckTouch(&old, &v);
-    r = DevTallRow(3, 0); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL); r = DevTallRow(1, 0); assert(at(r.x + 1, r.y + 1) == DEV_PAPER);
-    v.dex.pressed = PT_DEX_HIT_DOWN; DevCheckTouch(&old, &v); AssertKey(kDevGridDown, DEV_LOOK_KEY, 1); r = DevTallRow(1, 0); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL);
+    r = DevTallRow(3); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL); r = DevTallRow(1); assert(at(r.x + 1, r.y + 1) == DEV_PAPER);
+    v.dex.pressed = PT_DEX_HIT_DOWN; DevCheckTouch(&old, &v); AssertKey(kDevGridDown, DEV_LOOK_KEY, 1); r = DevTallRow(1); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL);
     v.dex.pressed = -1; DevCheckTouch(&old, &v); v.dex.national = 1; assert(DevCheckTouch(&old, &v).count == 0);  /* the order says whose counts */
     v.dex.order = 1; DevCheckTouch(&old, &v); assert(Count(14, 12, 292, 16, DEV_INK2) == 0);
     v.dex.order = 0; v.dex.sel.flags = 1; DevCheckTouch(&old, &v);
@@ -237,7 +237,7 @@ static void SuiteDex(void)
     v.backEnabled = 1; v.backVisible = 0; DevCheckTouch(&old, &v); assert(at(247, 210) == DEV_SHELL_RED && !BackV(&v, 247, 210));
     v.backVisible = 1; DevCheckTouch(&old, &v);
     /* a list of three: no row past it is drawn or hit, ▲ ▼ grey */
-    v.dex.listCount = 3; DevCheckTouch(&old, &v); r = DevTallRow(3, 0);
+    v.dex.listCount = 3; DevCheckTouch(&old, &v); r = DevTallRow(3);
     assert(CtrPokeTouch_DexHit(&v, r.x + 10, r.y + 10) == -1 && Count(r.x, r.y, r.w, 2 * r.h, DEV_INK) == 0);
     assert(CtrPokeTouch_DexHit(&v, 294, 147) == -1 && Count(276, 114, 36, 66, DEV_ARROW_OFF) > 0);
 

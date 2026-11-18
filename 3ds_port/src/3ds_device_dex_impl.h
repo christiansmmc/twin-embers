@@ -280,7 +280,7 @@ int CtrPokeTouch_DexHit(const CtrPokeTouchView *v, int x, int y)
         if (DevOnKey(&kDevGridDown, x, y))
             return d->listFirst + PT_DEX_ROWS < d->listCount ? PT_DEX_HIT_DOWN : -1;
         for (int i = 0; i < PT_DEX_ROWS && d->listFirst + i < d->listCount; ++i) {
-            CtrPokeTouchRect r = DevTallRow(i, 0);
+            CtrPokeTouchRect r = DevTallRow(i);
 
             if (UiIn(&r, x, y))
                 return PT_DEX_HIT_ROW + i;
@@ -510,7 +510,7 @@ static int DevDexTypes(const CtrPokeTouchDex *d, int x, int y, int right)
  * right. */
 static void DevDexRow(const CtrPokeTouchDexMon *m, int i, int chosen)
 {
-    CtrPokeTouchRect r = DevTallRow(i, 0);
+    CtrPokeTouchRect r = DevTallRow(i);
     int top = r.y + (r.h - UI_TEXT_H) / 2, markX = r.x + r.w - 14;
     uint16_t ink = DevRowInk(chosen), shadow = chosen ? ink : DEV_INK_SH;
     char no[12], name[DEV_DEX_WORD];

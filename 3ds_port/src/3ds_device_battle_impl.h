@@ -481,11 +481,11 @@ static int DevBatStatusMove(const CtrBattleMove *m)
     return !m->power[0] || m->power[0] == '-';
 }
 
-/* The move MOVE's footer shows: the one under a held touch, else the cursor's; -1 for none (BACK, a slot without a
- * move). */
+/* The move MOVE's footer shows: the key under a held touch, else the cursor's (as the keys sink, DevChosen); -1 for
+ * none (BACK, held or the cursor's; a slot without a move). */
 static int DevBatNoteMove(const CtrBattleView *v)
 {
-    int chosen = v->pressed >= 0 && v->pressed < 4 ? v->pressed : v->cursor;
+    int chosen = v->pressed >= 0 ? v->pressed : v->cursor;
 
     return chosen >= 0 && chosen < 4 && v->move[chosen].present ? chosen : -1;
 }

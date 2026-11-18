@@ -236,18 +236,18 @@ static const CtrPokeTouchRect kDevAskNote __attribute__((unused)) = {8, 156, 200
 static const CtrPokeTouchRect kDevAskYes __attribute__((unused)) = {216, 156, 96, 36};
 static const CtrPokeTouchRect kDevAskNo __attribute__((unused)) = {216, 198, 96, 34};
 
-/* Row i of a list h tall a row on kDevGridScreen's paper, or (`narrow`) on the paper of a screen 184 wide. */
-static inline CtrPokeTouchRect DevListRow(int i, int narrow, int h)
+/* Row i of a list h tall a row on kDevGridScreen's paper. */
+static inline CtrPokeTouchRect DevListRow(int i, int h)
 {
-    CtrPokeTouchRect r = {16, (int16_t)(48 + h * i), (int16_t)(narrow ? 168 : 244), (int16_t)h};
+    CtrPokeTouchRect r = {16, (int16_t)(48 + h * i), 244, (int16_t)h};
 
     return r;
 }
 
-/* Row i (0-4) of a list of tall rows (24 px, no gap) on the same papers: the Pokedex's list. */
-static inline CtrPokeTouchRect DevTallRow(int i, int narrow)
+/* Row i (0-4) of a list of tall rows (24 px, no gap) on the same paper: the Pokedex's list. */
+static inline CtrPokeTouchRect DevTallRow(int i)
 {
-    return DevListRow(i, narrow, 24);
+    return DevListRow(i, 24);
 }
 
 /* Key i of n (1-8) across x 8..312, at y and h tall: 8 px apart up to three keys, 4 beyond. (n 3 at y 8 are the
@@ -284,7 +284,7 @@ static inline CtrPokeTouchRect DevOptSection(int s)
 /* Row i (0 to PT_OPT_MAX - 1) of OPTIONS. */
 static inline CtrPokeTouchRect DevOptRow(int i)
 {
-    return DevListRow(i, 0, DEV_OPT_ROW_H);
+    return DevListRow(i, DEV_OPT_ROW_H);
 }
 
 /* Level k of a row of `count` levels on row i: PREV and NEXT shared out from x 136, a level taking the columns whose

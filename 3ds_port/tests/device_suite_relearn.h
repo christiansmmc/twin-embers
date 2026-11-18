@@ -1,5 +1,5 @@
 /* ---- relearn: the move relearner as the red device (board def_relearn; plan 04a Task 15), through the field dispatcher
- * Included by device_render_test.c before its kSuites, after the learn suite (LearnDescenders). */
+ * Included by device_render_test.c before its kSuites, after the learn suite. */
 
 /* The papers it writes on: the grid's title, its screen, its narrow screen and its note (each screen's paper is 6 px
  * in). */
@@ -187,10 +187,10 @@ static void SuiteRelearn(void)
     assert(Count(20, 209, 204, 7, DEV_INK) > 0 && Count(20, 218, 204, 7, DEV_INK) > 0 && Count(14, 196, 216, 11, DEV_INK) == 0);
     assert(Count(14, 196, 6, 30, DEV_INK) == 0 && Count(224, 196, 6, 30, DEV_INK) == 0);
     /* the description's last line: with a descender on every small glyph (the game's g, p, q, y and comma have theirs in
-     * glyph row 11: LearnDescenders) it ends on the paper's last row, 225, and none reaches the bezel under it */
-    LearnDescenders(1); CtrPokeTouch_Draw(canvas, &rv);
+     * glyph row 11: SmallDescenders) it ends on the paper's last row, 225, and none reaches the bezel under it */
+    SmallDescenders(1); CtrPokeTouch_Draw(canvas, &rv);
     assert(Count(20, 225, 204, 1, DEV_INK) > 0 && Count(14, 226, 216, 5, DEV_INK) == 0 && Count(14, 226, 216, 5, DEV_INK2) == 0);
-    LearnDescenders(0); CtrPokeTouch_Draw(canvas, &ro);
+    SmallDescenders(0); CtrPokeTouch_Draw(canvas, &ro);
     /* the cursor past the first move: ▲ on and hit */
     rv.relearn.cursor = 1; RelearnRows(&rv, 0); DevCheckTouch(&ro, &rv);
     AssertHits(RlHitV, &rv, kDevGridUp, PT_RL_HIT_UP); assert(Count(276, 40, 36, 66, DEV_KEY_INK) > 0);

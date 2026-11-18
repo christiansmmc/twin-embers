@@ -447,11 +447,11 @@ static int LearnFaults(void)
 
 /* The shapes the views without a board share (plan 3): DevAcross gives the boarded rows back (the battle's wild row
  * and its moves' keys) and fits n keys of 1-8 across; the tall rows (DevTallRow: the Pokedex's list) on the list's
- * paper and a narrow one; the small note with its two keys and CLOSE beside it, the tall screen over the
- * wide key, the question's note beside YES / NO. */
+ * paper; the small note with its two keys and CLOSE beside it, the tall screen over the wide key, the question's note
+ * beside YES / NO. */
 static int SharedFaults(void)
 {
-    const CtrPokeTouchRect paper = {14, 46, 248, 132}, narrowPaper = {14, 46, 172, 132};
+    const CtrPokeTouchRect paper = {14, 46, 248, 132};
     int faults = 0;
 
     for (int i = 0; i < 4; ++i)
@@ -471,10 +471,10 @@ static int SharedFaults(void)
             assert(!Overlap(DevAcross(n, i - 1, 8, 24), DevAcross(n, i, 8, 24)));
     }
     for (int i = 0; i < 5; ++i) {
-        CtrPokeTouchRect r = DevTallRow(i, 0), n = DevTallRow(i, 1);
+        CtrPokeTouchRect r = DevTallRow(i);
 
-        assert(Same(r, (CtrPokeTouchRect){16, (int16_t)(48 + 24 * i), 244, 24}) && Same(n, (CtrPokeTouchRect){16, r.y, 168, 24}));
-        if (!Within(r, paper, 0) || !Within(n, narrowPaper, 0)) {
+        assert(Same(r, (CtrPokeTouchRect){16, (int16_t)(48 + 24 * i), 244, 24}));
+        if (!Within(r, paper, 0)) {
             fprintf(stderr, "a tall row %d leaves its paper\n", i);
             ++faults;
         }
@@ -506,7 +506,7 @@ static int OptionsFaults(void)
     for (int i = 0; i < PT_OPT_MAX; ++i) {
         CtrPokeTouchRect r = DevOptRow(i);
 
-        assert(Same(r, (CtrPokeTouchRect){16, (int16_t)(48 + 18 * i), 244, 18}) && Same(r, DevListRow(i, 0, 18)));
+        assert(Same(r, (CtrPokeTouchRect){16, (int16_t)(48 + 18 * i), 244, 18}) && Same(r, DevListRow(i, 18)));
         if (!Within(r, paper, 0)) {
             fprintf(stderr, "OPTIONS: row %d leaves the list's paper\n", i);
             ++faults;
@@ -931,7 +931,7 @@ int main(void)
         {"small note", kDevSmallNote}, {"small key 0", kDevSmallKey[0]}, {"small key 1", kDevSmallKey[1]},
         {"tall screen", kDevTallScreen}, {"tall note", kDevTallNote}, {"tall BACK", kDevTallBack}, {"wide key", kDevWideKey},
         {"question's note", kDevAskNote},
-        {"question's YES", kDevAskYes}, {"question's NO", kDevAskNo}, {"tall row 4", DevTallRow(4, 0)},
+        {"question's YES", kDevAskYes}, {"question's NO", kDevAskNo}, {"tall row 4", DevTallRow(4)},
         {"OPTIONS row 0", DevOptRow(0)}, {"OPTIONS row 6", DevOptRow(PT_OPT_MAX - 1)}, {"OPTIONS FRAME sample", kDevOptSample},
         {"OPTIONS look panel", kDevOptLook},
         {"SAVE row 0", DevSaveRow(0)}, {"SAVE row 4", DevSaveRow(4)}, {"SAVE icon", kDevSaveSprite},
