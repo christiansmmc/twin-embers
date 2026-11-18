@@ -2168,7 +2168,7 @@
   },
   {
    "path": "README.md",
-   "sha256": "6a2085610fd80b571e500a197f6cb7eaf134e692f4c3526f09d81b5ed06e4f87",
+   "sha256": "9362ebf9d9c0dcaafa987d1ff5c14cfe6f65b01007cdbe606020841789e5c58f",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
