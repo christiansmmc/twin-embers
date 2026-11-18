@@ -11,12 +11,14 @@
  * item's icon at half size, its name, how many at the right; a mart's price; a key item's X or Y button), FireRed's
  * cursor inverted; ▲ and ▼ beside it, tall keys, their triangle grey when the list goes no further that way. Under it
  * the description's screen (the item's icon, a TM's type, how many the Bag holds of a mart's item, FireRed's
- * description) and CLOSE, a dark key, sunk while FireRed's cursor is on the list's CLOSE row. The item's menu: the list
- * narrows and its words go grey, and the actions stand as keys on the right (the last, CANCEL or EXIT, dark); the narrow
- * screen says what is selected. YES / NO: two keys and the question. How many: ▲, the count's screen (with what that
- * many cost or fetch and the money, buying or selling), ▼, OK and CANCEL, and the question. A message is on the list's
- * screen with FireRed's arrow, the other keys grey: a tap anywhere goes on. The keys across the top are grey but in the
- * list.
+ * description) and CLOSE, a dark key, sunk while FireRed's cursor is on the list's CLOSE row. The item's menu (board B ·
+ * BAG: menu do item): the list narrows and its words go grey, the actions stand as cream keys in the grid's column on
+ * the right and FireRed's last row (CANCEL or EXIT) is the dark key in the exit corner; the footer says what is
+ * selected. YES / NO: YES in the column, NO in the exit corner, the question in the footer. How many: ▲, the count's
+ * screen (with what that many cost or fetch and the money, buying or selling), ▼ and OK in the column, CANCEL in the
+ * exit corner, the question in the footer. Meanwhile the pockets but the one shown are beige and take no touch; the one
+ * shown (a case's key) stays sunk, a title as it is. A message is on the list's screen with FireRed's arrow, the other
+ * keys and the band across the top grey: a tap anywhere goes on.
  *
  * The chosen key or row is the one under a held touch, else the game's cursor (DevChosen); a touch on what is not drawn
  * or cannot be used chooses nothing (DevBagPressDrawn). Four screws (DevShell). Words: upper case (decision 5): FireRed's names and
@@ -304,9 +306,16 @@ static int DevBagPressDrawn(const DevBagPage *p, int press)
     }
 }
 
+/* The menu's rows (YES / NO: two): row i (i < n - 1) a key in the grid's column, the last FireRed's CANCEL or EXIT (NO)
+ * in the grid's exit. */
+static CtrPokeTouchRect DevBagMenuRect(int n, int i)
+{
+    return i == n - 1 ? kDevGridExit : DevBagMenuKey(n, i);
+}
+
 static int DevBagHit(const DevBagPage *p, int x, int y)
 {
-    static const CtrPokeTouchRect *const kQty[4] = {&kDevBagQtyUp, &kDevBagQtyDown, &kDevBagQtyOk, &kDevBagQtyCancel};
+    static const CtrPokeTouchRect *const kQty[4] = {&kDevBagQtyUp, &kDevBagQtyDown, &kDevBagQtyOk, &kDevGridExit};
 
     switch (p->state) {
     case DEV_BAG_MESSAGE:
@@ -316,7 +325,7 @@ static int DevBagHit(const DevBagPage *p, int x, int y)
         int n = p->state == DEV_BAG_YESNO ? 2 : p->menuCount;
 
         for (int i = 0; i < n; ++i) {
-            CtrPokeTouchRect r = DevBagMenuKey(n, i);
+            CtrPokeTouchRect r = DevBagMenuRect(n, i);
 
             if (DevOnKey(&r, x, y))
                 return DEV_BAG_HIT_MENU + i;
@@ -354,7 +363,8 @@ static int DevBagHit(const DevBagPage *p, int x, int y)
 /* ---- Drawing --------------------------------------------------------------------------------------------------------- */
 
 /* The keys across the top: the pockets, a case's key (always sunk: it is the list shown) or the title's screen (and a
- * mart's money at its right); grey outside the list. */
+ * mart's money at its right). With the item's menu, YES / NO or how many open the pockets but the one shown are beige
+ * (not hit), the one shown stays sunk; under a message the whole band is grey. */
 static void DevBagKeys(const DevBagPage *p, int held)
 {
     if (p->keys == DEV_BAG_KEYS_TITLE) {
@@ -378,12 +388,13 @@ static void DevBagKeys(const DevBagPage *p, int held)
 
         for (int i = 0; i < p->keyCount; ++i) {
             CtrPokeTouchRect r = DevGridTab(3, i);
-            int sunk = DevChosen(i, p->keyChosen, pressKey), faceY = DevKey(&r, DEV_LOOK_KEY, sunk, 5);
+            int sunk = DevChosen(i, p->keyChosen, pressKey), look = DevBagNarrow(p) && !sunk ? DEV_LOOK_FAINT : DEV_LOOK_KEY;
+            int faceY = DevKey(&r, look, sunk, 5);
 
-            DevKeyWord(&r, faceY, DEV_LOOK_KEY, sunk, p->key[i]);
+            DevKeyWord(&r, faceY, look, sunk, p->key[i]);
         }
     }
-    if (p->state != DEV_BAG_LIST)
+    if (p->state == DEV_BAG_MESSAGE)
         DevDim(&kDevGridTitle);                             /* the row's whole band: the title's, over the keys' too */
 }
 
@@ -442,18 +453,19 @@ static void DevBagArrows(const DevBagPage *p, int held, int dim)
     }
 }
 
-/* The description's screen: the selected item's icon and, wide, a TM's type and how many the Bag holds of a mart's item
- * in chips (9 tall) before FireRed's description (the small font, three lines DEV_SMALL_LINE apart: capitals 198, 208,
- * 218), all from DEV_BAG_READ_X; narrow, what the narrow screen reads. */
-static void DevBagDesc(const DevBagPage *p, int narrow)
+/* The footer, the grid's note: the selected item's icon and, in the list (or under a message), a TM's type and how many
+ * the Bag holds of a mart's item in chips (9 tall) before FireRed's description (the small font, three lines
+ * DEV_SMALL_LINE apart: capitals 198, 208, 218), all from DEV_BAG_READ_X; with the item's menu, YES / NO or how many
+ * open, what the page reads there ("... is selected.", the question) from the same x. */
+static void DevBagDesc(const DevBagPage *p)
 {
-    CtrPokeTouchRect paper = DevScreen(narrow ? &kDevBagDescNarrow : &kDevGridNote);
+    CtrPokeTouchRect paper = DevScreen(&kDevGridNote);
     int x = DEV_BAG_READ_X, top = paper.y + 2, right = paper.x + paper.w - 4, first = x;
     char text[48];
 
     if (p->selItem)
         DevItemIcon(p->selItem, kDevBagDescIcon.x, kDevBagDescIcon.y, 0);
-    if (narrow) {
+    if (DevBagNarrow(p)) {
         DevReadText(p->read, &paper, DEV_BAG_READ_X, right, top, DEV_SMALL_LINE);
         return;
     }
@@ -479,7 +491,9 @@ static void DevBagDesc(const DevBagPage *p, int narrow)
     DevSmallWrap(p->desc, first, x, top, right, 3, DEV_SMALL_LINE, DEV_INK);
 }
 
-/* The item's menu (the last key dark) or YES / NO: FireRed's cursor sunk, or the key under a held touch. */
+/* The item's menu or YES / NO (DevBagMenuRect): the actions (YES) cream in the grid's column, their words from x + 10;
+ * FireRed's last row (CANCEL, EXIT: its name in capitals) or NO the dark key in the exit corner. FireRed's cursor sunk,
+ * or the key under a held touch. */
 static void DevBagMenu(const DevBagPage *p, int held)
 {
     int yesNo = p->state == DEV_BAG_YESNO, n = yesNo ? 2 : p->menuCount;
@@ -487,18 +501,18 @@ static void DevBagMenu(const DevBagPage *p, int held)
     char word[DEV_BAG_WORD];
 
     for (int i = 0; i < n; ++i) {
-        CtrPokeTouchRect r = DevBagMenuKey(n, i);
-        int look = !yesNo && i == n - 1 ? DEV_LOOK_DARK : DEV_LOOK_KEY, sunk = DevChosen(i, p->menuCursor, press);
+        CtrPokeTouchRect r = DevBagMenuRect(n, i);
+        int last = i == n - 1, look = last ? DEV_LOOK_DARK : DEV_LOOK_KEY, sunk = DevChosen(i, p->menuCursor, press);
         int faceY = DevKey(&r, look, sunk, 6);
 
         if (yesNo)
             DevUpper(word, CtrUiText(i ? UIS_NO : UIS_YES), sizeof(word));
-        DevKeyWordAt(&r, faceY, look, sunk, yesNo ? word : p->menuName[i], look == DEV_LOOK_KEY ? 12 : 0);
+        DevKeyWordAt(&r, faceY, look, sunk, yesNo ? word : p->menuName[i], last ? 0 : 10);
     }
 }
 
-/* How many: ▲, the count's screen ("×3"; buying or selling, what they come to and the player's money under it), ▼, OK
- * and CANCEL (dark); a key sunk under a held touch. */
+/* How many in the grid's column: ▲, the count's screen ("×3"; buying or selling, what they come to and the player's
+ * money under it), ▼ and OK; CANCEL the dark key in the exit corner; a key sunk under a held touch. */
 static void DevBagQuantity(const DevBagPage *p, int held)
 {
     CtrPokeTouchRect paper;
@@ -520,17 +534,17 @@ static void DevBagQuantity(const DevBagPage *p, int held)
         DevText(count, paper.x + 6, paper.y + 3, right);
         snprintf(text, sizeof(text), "\xC2\xA5%lu", (unsigned long)p->sale);
         DevText(text, right - DevTextWidth(text), paper.y + 3, right);
-        DevSmallText(CTR_TR("MONEY", "DINERO", "GELD"), paper.x + 6, paper.y + 17, DEV_INK2, right);
+        DevSmallText(CTR_TR("MONEY", "DINERO", "GELD"), paper.x + 6, paper.y + 14, DEV_INK2, right);
         snprintf(text, sizeof(text), "\xC2\xA5%lu", (unsigned long)p->held);
-        DevSmallText(text, right - DevSmallTextWidth(text), paper.y + 17, DEV_INK2, right);
+        DevSmallText(text, right - DevSmallTextWidth(text), paper.y + 14, DEV_INK2, right);
     } else
         DevText(count, paper.x + (paper.w - DevTextWidth(count)) / 2, paper.y + (paper.h - 8) / 2, paper.x + paper.w - 6);
     sunk = held == DEV_BAG_HIT_QTY_OK;
     faceY = DevKey(&kDevBagQtyOk, DEV_LOOK_KEY, sunk, 6);
     DevKeyWord(&kDevBagQtyOk, faceY, DEV_LOOK_KEY, sunk, CTR_TR("OK", "OK", "OK"));
     sunk = held == DEV_BAG_HIT_QTY_CANCEL;
-    faceY = DevKey(&kDevBagQtyCancel, DEV_LOOK_DARK, sunk, 6);
-    DevKeyWord(&kDevBagQtyCancel, faceY, DEV_LOOK_DARK, sunk, DevCancelWord());
+    faceY = DevKey(&kDevGridExit, DEV_LOOK_DARK, sunk, 6);
+    DevKeyWord(&kDevGridExit, faceY, DEV_LOOK_DARK, sunk, DevCancelWord());
 }
 
 /* CLOSE, a dark key: sunk by FireRed's cursor on the list's CLOSE row or a held touch; grey under a message. */
@@ -560,18 +574,18 @@ static void DevBagDraw(const DevBagPage *p, int pressed)
         DevWrap(p->read, paper.x + 8, paper.y + 8, paper.w - 28, (paper.h - 16) / DEV_LINE_H, DEV_INK, DEV_INK_SH);
         DevTriangle(paper.x + paper.w - 10, paper.y + paper.h - 8, 1, DEV_INK2);
         DevBagArrows(p, -1, 1);
-        DevBagDesc(p, 0);
+        DevBagDesc(p);
         DevBagClose(p, -1);
         return;
     }
     DevBagRows(p, held);
     if (!DevBagNarrow(p)) {
         DevBagArrows(p, held, 0);
-        DevBagDesc(p, 0);
+        DevBagDesc(p);
         DevBagClose(p, held);
         return;
     }
-    DevBagDesc(p, 1);
+    DevBagDesc(p);
     if (p->state == DEV_BAG_QUANTITY)
         DevBagQuantity(p, held);
     else

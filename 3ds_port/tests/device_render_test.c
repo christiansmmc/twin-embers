@@ -714,6 +714,12 @@ static __attribute__((unused)) int LedAt(CtrPokeTouchRect r)
     return 1;
 }
 
+/* Two rectangles alike. */
+static __attribute__((unused)) int Same(CtrPokeTouchRect a, CtrPokeTouchRect b)
+{
+    return a.x == b.x && a.y == b.y && a.w == b.w && a.h == b.h;
+}
+
 typedef int (*DevHitFn)(const void *view, int x, int y);
 
 static void HitAt(DevHitFn hit, const void *view, int x, int y, int code, int want)
@@ -2655,47 +2661,74 @@ static void SuiteBag(void)
     assert(Count(16, 48, 244, 24, DEV_BEZEL) == 0 && Count(16, 48, 244, 128, DEV_INK2) > 0);            /* no rows: the pocket is empty */
     shot("empty");
     v.bag.count = 9; v.bag.cursor = 1;
-    /* the item menu: USE GIVE TOSS REGISTER CANCEL */
+    /* the item menu (def_bag_menu): USE GIVE TOSS REGISTER CANCEL, FireRed's cursor on USE. The actions in the grid's
+     * column at x 204, CANCEL (FireRed's last row) the dark key in the exit corner; the pocket shown sunk with its LED,
+     * the others beige and not hit; the narrow list's words grey; the footer the grid's note, "... is selected." */
     v.bag.state = PT_BAG_STATE_ACTIONS; v.bag.menuCount = 5; v.bag.menuCursor = 0; DevCheckTouch(&old, &v);
-    for (i = 0; i < 5; ++i) AssertHits(BagHitV, &v, DevBagMenuKey(5, i), PT_BAG_HIT_MENU + i);
-    AssertKey(DevBagMenuKey(5, 4), DEV_LOOK_DARK, 0); assert(CtrPokeTouch_BagHit(&v, 56, 20) == -1 && CtrPokeTouch_BagHit(&v, 196, 56) == -1);
-    assert(at(11, 20) == DevBlend(DEV_SHELL_RED, DEV_SUNK, 128));                                     /* the pockets at half strength */
-    /* the narrow list, its words grey but the cursor's row; USE sunk with its LED; the narrow screen says what is selected */
-    AssertKey(DevBagMenuKey(5, 0), DEV_LOOK_KEY, 1); assert(LedAt(DevBagMenuKey(5, 0)) && BagRowAt(1) == DEV_BEZEL);
+    for (i = 0; i < 4; ++i) AssertHits(BagHitV, &v, DevBagMenuKey(5, i), PT_BAG_HIT_MENU + i);
+    AssertHits(BagHitV, &v, kDevGridExit, PT_BAG_HIT_MENU + 4); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0); AssertKey(DevBagMenuKey(5, 0), DEV_LOOK_KEY, 1);
+    AssertKey(DevGridTab(3, 0), DEV_LOOK_KEY, 1); AssertKey(DevGridTab(3, 1), DEV_LOOK_FAINT, 0); assert(CtrPokeTouch_BagHit(&v, 150, 20) == -1);
+    assert(Count(16, 48, 172, 130, DEV_INK) == 0 && Count(48, 198, 176, 27, DEV_INK) > 0);       /* the list's words grey; "… is selected." */
+    AssertKey(DevGridTab(3, 2), DEV_LOOK_FAINT, 0); assert(LedAt(DevGridTab(3, 0)) && Count(DevGridTab(3, 1).x, 8, 98, 27, DEV_FAINT_INK) > 0);
+    assert(CtrPokeTouch_BagHit(&v, 56, 20) == -1 && CtrPokeTouch_BagHit(&v, 203, 56) == -1 && CtrPokeTouch_BagHit(&v, 204, 187) == -1);
+    assert(Same(DevBagMenuKey(5, 0), (CtrPokeTouchRect){204, 40, 108, 30}) && Same(DevBagMenuKey(5, 3), (CtrPokeTouchRect){204, 148, 108, 30}));
+    /* USE sunk with its LED (301, 46); the words from x + 10 (GIVE's from 214); the narrow list, its words grey but the
+     * cursor's row; the footer's words from x 48, the board's */
+    assert(LedAt(DevBagMenuKey(5, 0)) && at(302, 47) == DEV_LED && BagRowAt(1) == DEV_BEZEL);
+    assert(Count(206, 76, 8, 30, DEV_KEY_INK) == 0 && Count(214, 76, 2, 30, DEV_KEY_INK) > 0);
     assert(Count(16, 48, 172, 24, DEV_INK_DIM) > 0 && Count(16, 48, 172, 128, DEV_INK) == 0);
-    assert(at(195, 100) != DEV_SHELL_RED && at(196, 100) == DEV_SHELL_RED);                          /* the grid's narrow screen */
-    assert(Count(46, 196, 136, 30, DEV_INK) > 0 && Count(244, 190, 68, 40, DEV_DARK_INK) > 0);
-    assert(Count(46, 196, 2, 30, DEV_INK) == 0 && Count(48, 196, 2, 30, DEV_INK) > 0);      /* from x 48, the board's */
+    assert(at(195, 100) != DEV_SHELL_RED && at(196, 100) == DEV_SHELL_RED && at(203, 100) == DEV_SHELL_RED);   /* the grid's narrow screen */
+    assert(Count(46, 196, 180, 30, DEV_INK) > 0 && Count(244, 190, 68, 40, DEV_DARK_INK) > 0);
+    assert(Count(46, 196, 2, 30, DEV_INK) == 0 && Count(48, 196, 2, 30, DEV_INK) > 0 && Count(18, 199, 24, 24, DEV_PAPER) < 24 * 24);
     v.bag.pressed = PT_BAG_HIT_MENU + 2; DevCheckTouch(&old, &v); AssertKey(DevBagMenuKey(5, 2), DEV_LOOK_KEY, 1); AssertKey(DevBagMenuKey(5, 0), DEV_LOOK_KEY, 0);
-    v.bag.pressed = -1; DevCheckTouch(&old, &v);
+    v.bag.pressed = PT_BAG_HIT_MENU + 4; DevCheckTouch(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1); AssertKey(DevBagMenuKey(5, 0), DEV_LOOK_KEY, 0);
+    v.bag.pressed = -1; v.bag.menuCursor = 4; DevCheckTouch(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);   /* FireRed's cursor on CANCEL */
+    v.bag.menuCursor = 0; DevCheckTouch(&old, &v);
     v.bag.pressed = PT_BAG_HIT_ROW + 2; assert(DevCheckTouch(&old, &v).count == 0);                 /* the rows take no touch now */
+    v.bag.pressed = PT_BAG_HIT_TAB + 1; assert(DevCheckTouch(&old, &v).count == 0);                 /* nor the pockets */
     v.bag.pressed = -1; strcpy(v.bag.menuName[5], "X"); assert(DevCheckTouch(&old, &v).count == 0); /* rows past the menu */
     shot("menu");
     v.bag.menuCount = 6; strcpy(v.bag.menuName[4], "CHECK"); strcpy(v.bag.menuName[5], "CANCEL");
-    DevCheckTouch(&old, &v); AssertHits(BagHitV, &v, DevBagMenuKey(6, 5), PT_BAG_HIT_MENU + 5);
-    AssertKey(DevBagMenuKey(6, 5), DEV_LOOK_DARK, 0); AssertKey(DevBagMenuKey(6, 4), DEV_LOOK_KEY, 0);
+    DevCheckTouch(&old, &v); assert(Same(DevBagMenuKey(6, 4), (CtrPokeTouchRect){204, 152, 108, 24})); AssertHits(BagHitV, &v, kDevGridExit, PT_BAG_HIT_MENU + 5);
+    for (i = 0; i < 5; ++i) AssertHits(BagHitV, &v, DevBagMenuKey(6, i), PT_BAG_HIT_MENU + i);
+    AssertKey(kDevGridExit, DEV_LOOK_DARK, 0); AssertKey(DevBagMenuKey(6, 4), DEV_LOOK_KEY, 0); AssertKey(DevBagMenuKey(6, 0), DEV_LOOK_KEY, 1);
     shot("menu6");
     v.bag.state = PT_BAG_STATE_QUANTITY; DevCheckTouch(&old, &v);
-    assert(CtrPokeTouch_BagHit(&v, 256, 55) == PT_BAG_HIT_QTY_UP && CtrPokeTouch_BagHit(&v, 256, 137) == PT_BAG_HIT_QTY_DOWN
-           && CtrPokeTouch_BagHit(&v, 256, 173) == PT_BAG_HIT_QTY_OK && CtrPokeTouch_BagHit(&v, 256, 212) == PT_BAG_HIT_QTY_CANCEL);
-    /* how many: the count on its screen, OK a key, CANCEL dark, the question; a touch sinks its key */
+    AssertHits(BagHitV, &v, kDevBagQtyUp, PT_BAG_HIT_QTY_UP); AssertHits(BagHitV, &v, kDevBagQtyDown, PT_BAG_HIT_QTY_DOWN);
+    AssertHits(BagHitV, &v, kDevBagQtyOk, PT_BAG_HIT_QTY_OK); AssertHits(BagHitV, &v, kDevGridExit, PT_BAG_HIT_QTY_CANCEL);
+    assert(CtrPokeTouch_BagHit(&v, 258, 94) == -1 && CtrPokeTouch_BagHit(&v, 150, 20) == -1);        /* the count's screen, a pocket */
+    /* how many: ▲, the count on its screen, ▼, OK in the column; CANCEL dark in the exit corner; the question in the
+     * footer; the pockets as in the menu; a touch sinks its key */
     v.bag.tossCount = 3; DevCheckTouch(&old, &v);
-    AssertKey(kDevBagQtyUp, DEV_LOOK_KEY, 0); AssertKey(kDevBagQtyOk, DEV_LOOK_KEY, 0); AssertKey(kDevBagQtyCancel, DEV_LOOK_DARK, 0);
-    assert(Count(206, 82, 100, 28, DEV_INK) > 0 && Count(46, 196, 136, 30, DEV_INK) > 0 && at(203, 79) == DEV_BEZEL);
+    AssertKey(kDevBagQtyUp, DEV_LOOK_KEY, 0); AssertKey(kDevBagQtyOk, DEV_LOOK_KEY, 0); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0);
+    AssertKey(DevGridTab(3, 0), DEV_LOOK_KEY, 1); AssertKey(DevGridTab(3, 1), DEV_LOOK_FAINT, 0);
+    assert(Count(210, 82, 96, 24, DEV_INK) > 0 && Count(46, 196, 180, 30, DEV_INK) > 0 && at(207, 79) == DEV_BEZEL && at(203, 79) == DEV_SHELL_RED);
+    assert(Count(244, 190, 68, 40, DEV_DARK_INK) > 0);
     v.bag.pressed = PT_BAG_HIT_QTY_UP; DevCheckTouch(&old, &v); AssertKey(kDevBagQtyUp, DEV_LOOK_KEY, 1);
+    v.bag.pressed = PT_BAG_HIT_QTY_CANCEL; DevCheckTouch(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);
     v.bag.pressed = -1; DevCheckTouch(&old, &v);
     shot("quantity");
-    /* selling: what that many fetch and the money */
-    v.bag.use = PT_BAG_USE_SELL; v.bag.sale = 450; v.bag.money = 3000; DevCheckTouch(&old, &v); assert(Count(206, 96, 100, 12, DEV_INK2) > 0);
+    /* selling: what that many fetch and the money, on the count's paper (82-106) */
+    v.bag.use = PT_BAG_USE_SELL; v.bag.sale = 450; v.bag.money = 3000; DevCheckTouch(&old, &v);
+    assert(Count(210, 96, 96, 7, DEV_INK2) > 0 && Count(210, 104, 96, 2, DEV_INK2) == 0 && Count(210, 82, 96, 12, DEV_INK) > 0);
     v.bag.use = PT_BAG_USE_FIELD; v.bag.sale = 0; v.bag.money = 0;
-    v.bag.state = PT_BAG_STATE_YESNO; DevCheckTouch(&old, &v); assert(CtrPokeTouch_BagHit(&v, 256, 55) == PT_BAG_HIT_MENU && CtrPokeTouch_BagHit(&v, 256, 93) == PT_BAG_HIT_MENU + 1);
-    /* YES / NO: two keys, YES the cursor's; the question on the narrow screen */
+    /* YES / NO: YES cream in the column, NO dark in the exit corner, YES the cursor's; the question in the footer */
+    v.bag.state = PT_BAG_STATE_YESNO; DevCheckTouch(&old, &v);
+    AssertHits(BagHitV, &v, DevGridColumnKey(40, 36, 30, 0), PT_BAG_HIT_MENU); AssertHits(BagHitV, &v, kDevGridExit, PT_BAG_HIT_MENU + 1);
+    assert(CtrPokeTouch_BagHit(&v, 256, 93) == -1 && CtrPokeTouch_BagHit(&v, 150, 20) == -1);
     strcpy(v.bag.prompt, "Throw away 3 of this item?"); DevCheckTouch(&old, &v);
-    AssertKey(DevBagMenuKey(2, 0), DEV_LOOK_KEY, 1); AssertKey(DevBagMenuKey(2, 1), DEV_LOOK_KEY, 0); assert(Count(46, 196, 136, 30, DEV_INK) > 0);
-    /* a question too long for two lines: the small font from x 48, capitals 198, 208 and 218 */
-    strcpy(v.bag.prompt, "Port words for a question that takes three lines here."); DevCheckTouch(&old, &v);
-    assert(Count(48, 198, 134, 1, DEV_INK) > 0 && Count(48, 218, 134, 7, DEV_INK) > 0 && Count(42, 196, 6, 30, DEV_INK) == 0);
-    assert(Count(48, 196, 134, 2, DEV_INK) == 0 && Count(48, 206, 134, 2, DEV_INK) == 0 && Count(48, 216, 134, 2, DEV_INK) == 0);
+    AssertKey(DevGridColumnKey(40, 36, 30, 0), DEV_LOOK_KEY, 1); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0); assert(Count(46, 196, 180, 30, DEV_INK) > 0);
+    AssertKey(DevGridTab(3, 0), DEV_LOOK_KEY, 1); AssertKey(DevGridTab(3, 1), DEV_LOOK_FAINT, 0);
+    assert(Count(204, 76, 108, 108, DEV_KEY) == 0 && Count(244, 190, 68, 40, DEV_DARK_INK) > 0);  /* nothing under YES; NO's word */
+    v.bag.menuCursor = 1; DevCheckTouch(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1); AssertKey(DevGridColumnKey(40, 36, 30, 0), DEV_LOOK_KEY, 0);
+    v.bag.menuCursor = 0; v.bag.pressed = PT_BAG_HIT_MENU + 1; DevCheckTouch(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);
+    v.bag.pressed = -1;
+    /* a question too long for two lines: the small font from x 48, capitals 198, 208 and 218 (each line's top row inked,
+     * the row over it clear; no apostrophe, which rises over its line's capitals) */
+    strcpy(v.bag.prompt, "Port words for a question so long that it takes three lines of the small font."); DevCheckTouch(&old, &v);
+    assert(Count(48, 198, 178, 1, DEV_INK) > 0 && Count(48, 208, 178, 1, DEV_INK) > 0 && Count(48, 218, 178, 1, DEV_INK) > 0);
+    assert(Count(48, 196, 178, 2, DEV_INK) == 0 && Count(48, 207, 178, 1, DEV_INK) == 0 && Count(48, 217, 178, 1, DEV_INK) == 0);
+    assert(Count(42, 196, 6, 30, DEV_INK) == 0 && Count(226, 196, 4, 30, DEV_INK) == 0);
     strcpy(v.bag.prompt, "Throw away 3 of this item?"); DevCheckTouch(&old, &v);
     shot("yesno");
     v.bag.state = PT_BAG_STATE_MESSAGE; DevCheckTouch(&old, &v); assert(CtrPokeTouch_BagHit(&v, 5, 5) == PT_BAG_HIT_MESSAGE && CtrPokeTouch_BagHit(&v, 315, 235) == PT_BAG_HIT_MESSAGE);
@@ -2716,6 +2749,10 @@ static void SuiteBag(void)
     assert(at(48, 198) == UiTypeColor(4) && at(48, 206) == UiTypeColor(4) && at(47, 198) != UiTypeColor(4)
            && at(48, 197) != UiTypeColor(4) && at(48, 207) != UiTypeColor(4));                    /* the chip 9 tall at (48, 198) */
     shot("tmcase");
+    /* a case's item menu: its key stays sunk (it is the list shown), not dimmed */
+    v.bag.state = PT_BAG_STATE_ACTIONS; DevCheckTouch(&old, &v); AssertKey(kDevBagCaseKey, DEV_LOOK_KEY, 1); assert(LedAt(kDevBagCaseKey));
+    AssertHits(BagHitV, &v, kDevGridExit, PT_BAG_HIT_MENU + v.bag.menuCount - 1);
+    v.bag.state = PT_BAG_STATE_LIST; DevCheckTouch(&old, &v);
     BagEveryList(v);
     v.bag.kind = PT_BAG_KIND_POUCH; strcpy(v.bag.title, "BERRY POUCH"); v.bag.moveType = -1;
     for (i = 0; i < PT_BAG_ROWS; ++i) { snprintf(v.bag.row[i].name, sizeof(v.bag.row[i].name), "%s BERRY", i & 1 ? "ORAN" : "CHERI"); v.bag.row[i].qty = (uint16_t)(1 + i); }
@@ -2728,8 +2765,9 @@ static void SuiteBag(void)
     strcpy(v.bag.selName, "SUPER POTION"); v.bag.showOwned = 1; v.bag.owned = 2; strcpy(v.bag.closeName, "Cancel"); DevCheckTouch(&old, &v);
     assert(at(9, 20) == DEV_BEZEL && Count(250, 12, 56, 16, DEV_INK) > 0 && Count(222, 48, 32, 24, DEV_INK) > 0);
     assert(Count(48, 198, 60, 9, DEV_BLUE_INK) > 0 && Count(48, 197, 60, 1, DEV_BLUE_INK) == 0);
-    v.bag.state = PT_BAG_STATE_QUANTITY; v.bag.sale = 1400; DevCheckTouch(&old, &v); AssertKey(kDevBagQtyCancel, DEV_LOOK_DARK, 0);
-    assert(at(11, 20) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, 128));                                   /* the title grey */
+    v.bag.state = PT_BAG_STATE_QUANTITY; v.bag.sale = 1400; DevCheckTouch(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0);
+    assert(at(11, 20) == DEV_BEZEL && Count(250, 12, 56, 16, DEV_INK) > 0);                         /* the title not dimmed */
+    AssertHits(BagHitV, &v, kDevGridExit, PT_BAG_HIT_QTY_CANCEL);
     v.bag.state = PT_BAG_STATE_LIST; v.bag.sale = 0; DevCheckTouch(&old, &v);
     shot("shop");
     BagEveryList(v);
@@ -2770,8 +2808,15 @@ static void SuiteBag(void)
     strcpy(bv.bag.row[0].name, "POTION"); DevCheckBattle(&bo, &bv);
     bv.state = BUI_ACTION; assert(DevWhole(DevCheckBattle(&bo, &bv)));
     bv.state = BUI_BAG; assert(DevWhole(DevCheckBattle(&bo, &bv)));
-    bv.bag.menuCount = 2; DevCheckBattle(&bo, &bv); AssertHits(BatHitV, &bv, DevBagMenuKey(2, 0), BUI_BAG_MENU); AssertHits(BatHitV, &bv, DevBagMenuKey(2, 1), BUI_BAG_MENU + 1);
-    AssertKey(DevBagMenuKey(2, 1), DEV_LOOK_DARK, 0); assert(CtrBattleUi_Hit(&bv, 160, 20) == -1 && CtrBattleUi_Hit(&bv, 50, 60) == -1);
+    /* the battle's menu (USE, CANCEL): USE in the column, CANCEL in the exit corner; ITEMS sunk, BERRIES beige, not hit */
+    bv.bag.menuCount = 2; DevCheckBattle(&bo, &bv); AssertHits(BatHitV, &bv, DevBagMenuKey(2, 0), BUI_BAG_MENU); AssertHits(BatHitV, &bv, kDevGridExit, BUI_BAG_MENU + 1);
+    AssertKey(kDevGridExit, DEV_LOOK_DARK, 0); AssertKey(DevBagMenuKey(2, 0), DEV_LOOK_KEY, 1); assert(LedAt(DevBagMenuKey(2, 0)));
+    AssertKey(DevGridTab(3, 0), DEV_LOOK_KEY, 1); AssertKey(DevGridTab(3, 1), DEV_LOOK_FAINT, 0);
+    assert(CtrBattleUi_Hit(&bv, 160, 20) == -1 && CtrBattleUi_Hit(&bv, 50, 60) == -1 && CtrBattleUi_Hit(&bv, 256, 93) == -1);
+    assert(Count(48, 196, 180, 30, DEV_INK) > 0);                                                    /* "... is selected." */
+    shot("battle_menu");
+    bv.pressed = BUI_BAG_MENU + 1; DevCheckBattle(&bo, &bv); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1); AssertKey(DevBagMenuKey(2, 0), DEV_LOOK_KEY, 0);
+    bv.pressed = -1;
     bv.bag.menuCount = 0; strcpy(bv.bag.message, "..."); DevCheckBattle(&bo, &bv); assert(CtrBattleUi_Hit(&bv, 5, 5) == BUI_BAG_MESSAGE);
     assert(sDevKeyCut == 0);                      /* main prints PASS device bag */
 }

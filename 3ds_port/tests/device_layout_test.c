@@ -331,22 +331,25 @@ static int SummaryFaults(void)
     return faults;
 }
 
-/* The Bag (boards B · BAG and its item menu): the brief's numbers; the pockets (the grid's three tabs) and a case's key
- * above the grid's screen, its five rows (the grid's) on the screen's paper and on the narrow screen's, one under the
- * other, the description's icon on the grid's note; the menu's, YES / NO's and how many's keys right of the narrow
- * screens, above the screen's foot. (The screen, ▲▼, the note and CLOSE are the grid's: GridFaults.) */
+/* The Bag (boards B · BAG and B · BAG: menu do item): the brief's numbers; the pockets (the grid's three tabs) and a
+ * case's key above the grid's screen, its five rows (the grid's) on the screen's paper and on the narrow screen's, one
+ * under the other, the description's icon on the grid's note; the item menu's, YES's and how many's keys in the grid's
+ * column (x 204, right of the narrow screen), their drops ending by the screen's foot and its drop (187); FireRed's last
+ * row, NO and how many's CANCEL in the grid's exit. (The screen, ▲▼, the note and the exit are the grid's: GridFaults.) */
 static int BagFaults(void)
 {
     const CtrPokeTouchRect paper = PaperOf(kDevGridScreen), narrowPaper = PaperOf(kDevGridScreenNarrow);
+    const CtrPokeTouchRect qty[3] = {kDevBagQtyUp, kDevBagQtyDown, kDevBagQtyOk};
+    const int foot = kDevGridScreen.y + kDevGridScreen.h + DEV_DROP;
     int faults = 0;
 
     for (int i = 0; i < 3; ++i)
         assert(Same(DevGridTab(3, i), (CtrPokeTouchRect){(int16_t)(8 + 102 * i), 8, 98, 24}));
-    assert(Same(kDevBagCaseKey, (CtrPokeTouchRect){8, 8, 304, 24}) && Same(kDevBagDescNarrow, (CtrPokeTouchRect){8, 190, 184, 42}));
+    assert(Same(kDevBagCaseKey, (CtrPokeTouchRect){8, 8, 304, 24}) && foot == 187);
     assert(Same(kDevBagDescIcon, (CtrPokeTouchRect){18, 199, 24, 24}) && PT_BAG_ROWS == DEV_GRID_ROWS && BUI_BAG_ROWS == DEV_GRID_ROWS);
-    assert(Same(kDevBagQtyUp, (CtrPokeTouchRect){200, 40, 112, 30}) && Same(kDevBagQtyScreen, (CtrPokeTouchRect){200, 76, 112, 40}));
-    assert(Same(kDevBagQtyDown, (CtrPokeTouchRect){200, 122, 112, 30}) && Same(kDevBagQtyOk, (CtrPokeTouchRect){200, 158, 112, 30}));
-    assert(Same(kDevBagQtyCancel, (CtrPokeTouchRect){200, 194, 112, 36}));
+    assert(Same(kDevBagQtyUp, (CtrPokeTouchRect){204, 40, 108, 30}) && Same(kDevBagQtyScreen, (CtrPokeTouchRect){204, 76, 108, 36}));
+    assert(Same(kDevBagQtyDown, (CtrPokeTouchRect){204, 118, 108, 30}) && Same(kDevBagQtyOk, (CtrPokeTouchRect){204, 154, 108, 30}));
+    assert(Same(DevBagMenuKey(5, 0), DevGridColumnKey(40, 36, 30, 0)) && Same(DevBagMenuKey(6, 4), (CtrPokeTouchRect){204, 152, 108, 24}));
     for (int i = 0; i < PT_BAG_ROWS; ++i) {
         CtrPokeTouchRect r = DevGridRow(i, 0), n = DevGridRow(i, 1);
 
@@ -356,16 +359,21 @@ static int BagFaults(void)
             ++faults;
         }
     }
-    for (int n = 1; n <= 6; ++n)
-        for (int i = 0; i < n; ++i) {
+    for (int n = 2; n <= PT_BAG_MENU_MAX; ++n)  /* a menu of n rows: n - 1 keys in the column, the last row the exit */
+        for (int i = 0; i < n - 1; ++i) {
             CtrPokeTouchRect k = DevBagMenuKey(n, i);
-            int p = n <= 5 ? 38 : 32, h = n <= 5 ? (i == n - 1 ? 38 : 30) : 26;
 
-            assert(Same(k, (CtrPokeTouchRect){200, (int16_t)(40 + p * i), 112, (int16_t)h}));
-            if (k.x < kDevGridScreenNarrow.x + kDevGridScreenNarrow.w || k.x < kDevBagDescNarrow.x + kDevBagDescNarrow.w) {
-                fprintf(stderr, "Bag: menu key %d of %d reaches the narrow screens\n", i, n);
+            assert(Same(k, n - 1 <= 4 ? DevGridColumnKey(40, 36, 30, i) : DevGridColumnKey(40, 28, 24, i)));
+            if (k.x < kDevGridScreenNarrow.x + kDevGridScreenNarrow.w + 8 || k.y + k.h + DEV_DROP > foot) {
+                fprintf(stderr, "Bag: menu key %d of %d reaches the narrow screen, or its drop passes y %d\n", i, n, foot);
                 ++faults;
             }
+        }
+    for (int i = 0; i < 3; ++i)
+        if (qty[i].x != DevGridColumnKey(40, 36, 30, 0).x || qty[i].w != DevGridColumnKey(40, 36, 30, 0).w
+            || qty[i].y + qty[i].h + DEV_DROP > foot) {
+            fprintf(stderr, "Bag: how many's key %d leaves the grid's column, or its drop passes y %d\n", i, foot);
+            ++faults;
         }
     for (int i = 0; i < 3; ++i)
         if (DevGridTab(3, i).y + DevGridTab(3, i).h + DEV_DROP > kDevGridScreen.y) {
@@ -888,8 +896,8 @@ int main(void)
                                         kDevTallBack};
     const CtrPokeTouchRect bagList[] = {DevGridTab(3, 0), DevGridTab(3, 1), DevGridTab(3, 2), kDevGridUp, kDevGridDown, kDevGridExit};
     const CtrPokeTouchRect bagCase[] = {kDevBagCaseKey, kDevGridUp, kDevGridDown, kDevGridExit};
-    const CtrPokeTouchRect bagQty[] = {kDevBagQtyUp, kDevBagQtyDown, kDevBagQtyOk, kDevBagQtyCancel};
-    const CtrPokeTouchRect bagYesNo[] = {DevBagMenuKey(2, 0), DevBagMenuKey(2, 1)};
+    const CtrPokeTouchRect bagQty[] = {kDevBagQtyUp, kDevBagQtyDown, kDevBagQtyOk, kDevGridExit};
+    const CtrPokeTouchRect bagYesNo[] = {DevGridColumnKey(40, 36, 30, 0), kDevGridExit};
     const CtrPokeTouchRect optKeys[] = {DevAcross(4, 0, 8, 24), DevAcross(4, 1, 8, 24), DevAcross(4, 2, 8, 24),
                                         DevAcross(4, 3, 8, 24), kDevGridUp, kDevGridDown, kDevSmallKey[0], kDevSmallKey[1],
                                         kDevGridExit};
@@ -914,9 +922,9 @@ int main(void)
     const CtrPokeTouchRect ecList[] = {kDevEcUp, kDevEcDown, DevEcListKey(0), DevEcListKey(1), DevEcListKey(2)};
     const CtrPokeTouchRect ecAsk[] = {kDevAskYes, kDevAskNo};
     const CtrPokeTouchRect frameKeys[] = {kDevTallBack};
-    CtrPokeTouchRect ptyMenu[8][8], bagMenu[6][6], choiceKeys[3][8][9], nameKeys[2][5 + 32], boxMenu[7][7];
-    CtrPokeTouchRect ecEdit[9][9 + 5], ecGrid[2][26 + 2];
-    DevGroup ptyMenus[8], bagMenus[6], choiceGroups[3][8], nameGroups[2], boxMenus[7], ecEdits[9], ecGrids[2];
+    CtrPokeTouchRect ptyMenu[8][8], bagMenu[PT_BAG_MENU_MAX + 1][PT_BAG_MENU_MAX], choiceKeys[3][8][9], nameKeys[2][5 + 32];
+    CtrPokeTouchRect boxMenu[7][7], ecEdit[9][9 + 5], ecGrid[2][26 + 2];
+    DevGroup ptyMenus[8], bagMenus[PT_BAG_MENU_MAX + 1], choiceGroups[3][8], nameGroups[2], boxMenus[7], ecEdits[9], ecGrids[2];
     static const char *const kEcEditName[9] = {"Easy Chat phrase of 1", "Easy Chat phrase of 2", "Easy Chat phrase of 3",
                                                "Easy Chat phrase of 4", "Easy Chat phrase of 5", "Easy Chat phrase of 6",
                                                "Easy Chat phrase of 7", "Easy Chat phrase of 8", "Easy Chat phrase of 9"};
@@ -924,8 +932,8 @@ int main(void)
                                                 "box menu of 5", "box menu of 6", "box menu of 7"};
     static const char *const kNameGroup[2] = {"naming, 8 columns", "naming, 6 columns (symbols)"};
     static char choiceName[3][8][40];
-    static const char *const kBagMenuName[6] = {"Bag menu of 1", "Bag menu of 2", "Bag menu of 3", "Bag menu of 4",
-                                                "Bag menu of 5", "Bag menu of 6"};
+    static const char *const kBagMenuName[PT_BAG_MENU_MAX + 1] = {NULL, NULL, "Bag menu of 2", "Bag menu of 3",
+                                                                  "Bag menu of 4", "Bag menu of 5", "Bag menu of 6"};
     static const char *const kMenuName[8] = {"Party menu of 1", "Party menu of 2", "Party menu of 3", "Party menu of 4",
                                              "Party menu of 5", "Party menu of 6", "Party menu of 7", "Party menu of 8"};
     const DevNamedRect rects[] = {
@@ -948,10 +956,10 @@ int main(void)
         {"Summary screen", kDevSumScreen}, {"Summary column", kDevSumColumn}, {"Summary picture", kDevSumPic},
         {"Summary switch", kDevSumIvSwitch},
         {"Summary switch's touch", kDevSumIvSwitchHit}, {"Summary row 0", DevSumRow(0)}, {"Summary CANCEL row", DevSumRow(4)},
-        {"Bag case key", kDevBagCaseKey}, {"Bag description's icon", kDevBagDescIcon},
-        {"Bag narrow description", kDevBagDescNarrow}, {"Bag how many: up", kDevBagQtyUp},
+        {"Bag case key", kDevBagCaseKey}, {"Bag description's icon", kDevBagDescIcon}, {"Bag how many: up", kDevBagQtyUp},
         {"Bag how many: count", kDevBagQtyScreen}, {"Bag how many: down", kDevBagQtyDown}, {"Bag how many: OK", kDevBagQtyOk},
-        {"Bag how many: CANCEL", kDevBagQtyCancel}, {"grid tab 1 of 3", DevGridTab(3, 0)}, {"grid narrow row 4", DevGridRow(4, 1)},
+        {"Bag menu key 4 of 5", DevBagMenuKey(5, 3)}, {"Bag menu key 5 of 6", DevBagMenuKey(6, 4)},
+        {"grid tab 1 of 3", DevGridTab(3, 0)}, {"grid narrow row 4", DevGridRow(4, 1)},
         {"grid title", kDevGridTitle}, {"grid screen", kDevGridScreen}, {"grid narrow screen", kDevGridScreenNarrow},
         {"grid wide screen", kDevGridWide}, {"grid up", kDevGridUp}, {"grid down", kDevGridDown}, {"grid note", kDevGridNote},
         {"grid wide note", kDevGridNoteWide}, {"grid exit", kDevGridExit}, {"grid tab 3 of 3", DevGridTab(3, 2)},
@@ -1022,11 +1030,12 @@ int main(void)
         ptyMenus[n - 1] = (DevGroup){kMenuName[n - 1], ptyMenu[n - 1], n};
         faults += GroupFaults(&ptyMenus[n - 1]);
     }
-    for (int n = 1; n <= 6; ++n) {          /* the Bag's item menu of each size */
-        for (int i = 0; i < n; ++i)
-            bagMenu[n - 1][i] = DevBagMenuKey(n, i);
-        bagMenus[n - 1] = (DevGroup){kBagMenuName[n - 1], bagMenu[n - 1], n};
-        faults += GroupFaults(&bagMenus[n - 1]);
+    for (int n = 2; n <= PT_BAG_MENU_MAX; ++n) {    /* the Bag's item menu of each size: its keys and the exit */
+        for (int i = 0; i < n - 1; ++i)
+            bagMenu[n][i] = DevBagMenuKey(n, i);
+        bagMenu[n][n - 1] = kDevGridExit;
+        bagMenus[n] = (DevGroup){kBagMenuName[n], bagMenu[n], n};
+        faults += GroupFaults(&bagMenus[n]);
     }
     for (int c = 0; c < 3; ++c)             /* a choice of each size, in one column and as grids of 2 and 3, with BACK */
         for (int n = 1; n <= 8; ++n) {

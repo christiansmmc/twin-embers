@@ -196,27 +196,23 @@ static inline CtrPokeTouchRect DevSumRow(int i)
  * the item PC, the mailbox). Under them the grid's screen with the list's five rows (DevGridRow: no drop) and the tall
  * ▲▼ beside it (kDevGridScreen, kDevGridUp, kDevGridDown); under that the description on the grid's note (the item's
  * icon in kDevBagDescIcon, the text beside it) and CLOSE, a dark key, in the grid's exit (kDevGridNote, kDevGridExit).
- * With the item's menu, YES / NO or how many open, the list's screen and the description's narrow (kDevGridScreenNarrow
- * and its rows, kDevBagDescNarrow) and the keys stand in a column on the right: the menu's (DevBagMenuKey), YES / NO
- * (DevBagMenuKey(2, i)), or how many (kDevBagQty*). */
+ * With the item's menu, YES / NO or how many open (board B · BAG: menu do item), the list's screen narrows
+ * (kDevGridScreenNarrow and its rows), the note stays the grid's, and the keys stand in the grid's column at x 204: the
+ * menu's actions (DevBagMenuKey), YES (DevGridColumnKey(40, 36, 30, 0)), or how many (kDevBagQty*); FireRed's last row
+ * (CANCEL, EXIT), NO and how many's CANCEL are the dark key in the grid's exit (kDevGridExit). */
 static const CtrPokeTouchRect kDevBagCaseKey __attribute__((unused)) = {8, 8, 304, 24};
-static const CtrPokeTouchRect kDevBagDescNarrow __attribute__((unused)) = {8, 190, 184, 42};
 static const CtrPokeTouchRect kDevBagDescIcon __attribute__((unused)) = {18, 199, 24, 24};
-/* How many: the count's screen between ▲ and ▼, OK and CANCEL under them. */
-static const CtrPokeTouchRect kDevBagQtyUp __attribute__((unused)) = {200, 40, 112, 30};
-static const CtrPokeTouchRect kDevBagQtyScreen __attribute__((unused)) = {200, 76, 112, 40};
-static const CtrPokeTouchRect kDevBagQtyDown __attribute__((unused)) = {200, 122, 112, 30};
-static const CtrPokeTouchRect kDevBagQtyOk __attribute__((unused)) = {200, 158, 112, 30};
-static const CtrPokeTouchRect kDevBagQtyCancel __attribute__((unused)) = {200, 194, 112, 36};
+/* How many, in the grid's column: ▲, the count's screen, ▼ and OK (CANCEL: the grid's exit). */
+static const CtrPokeTouchRect kDevBagQtyUp __attribute__((unused)) = {204, 40, 108, 30};
+static const CtrPokeTouchRect kDevBagQtyScreen __attribute__((unused)) = {204, 76, 108, 36};
+static const CtrPokeTouchRect kDevBagQtyDown __attribute__((unused)) = {204, 118, 108, 30};
+static const CtrPokeTouchRect kDevBagQtyOk __attribute__((unused)) = {204, 154, 108, 30};
 
-/* Key i of a menu of n (1-6): one column, 38 apart up to five keys (the last, a dark one, 38 tall, the others 30), 32
- * apart and 26 tall for six. */
+/* Key i (i < n - 1) of the item's menu of n rows (2-6) in the grid's column: up to four keys 30 tall and 36 apart, five
+ * 24 tall and 28 apart. FireRed's last row (CANCEL, EXIT) is the grid's exit, kDevGridExit. */
 static inline CtrPokeTouchRect DevBagMenuKey(int n, int i)
 {
-    int p = n <= 5 ? 38 : 32, h = n <= 5 ? (i == n - 1 ? 38 : 30) : 26;
-    CtrPokeTouchRect r = {200, (int16_t)(40 + p * i), 112, (int16_t)h};
-
-    return r;
+    return n - 1 <= 4 ? DevGridColumnKey(40, 36, 30, i) : DevGridColumnKey(40, 28, 24, i);
 }
 
 /* ---- The shapes the views without a board share (plan 3) ------------------------------------------------------------
