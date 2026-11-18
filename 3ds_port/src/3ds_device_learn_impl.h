@@ -94,7 +94,7 @@ static void DevLearnDraw(const CtrPokeTouchView *v)
     int pressed = l->pressed - PT_LEARN_HIT_ROW, c = DevLearnCursor(l);
     CtrPokeTouchRect paper, last = DevLearnSlot(PT_LEARN_ROWS - 1);
 
-    DevShell(0);
+    DevShell();
     paper = DevScreen(&kDevGridTitle);
     DevText(l->question, paper.x + 6, paper.y + (paper.h - 8) / 2, paper.x + paper.w - 6);
     DevScreen(&kDevLearnScreen);

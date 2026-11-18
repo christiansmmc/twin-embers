@@ -8,8 +8,8 @@
  * GBA point). With no picture the screen is empty (its paper), never the ember look. Under it the note: the bar's title
  * in the normal font and its two hints in the small font and the secondary ink, one a line (the title alone centred down
  * the paper); BACK beside it (kDevTallBack) while the view shows it, a dark key (sunk under a held touch, grey
- * while it cannot be used), else the note across. The shell has its four screws (the legend rule's exception: the frame
- * and the idle screen). Every rectangle is 3ds_device_layout.h's, so what is drawn is what a touch takes.
+ * while it cannot be used), else the note across. The shell has its four screws, as every view's. Every rectangle is
+ * 3ds_device_layout.h's, so what is drawn is what a touch takes.
  *
  * Words (decision 5): the bar (v0.6.0 title-cased it) through DevUpper.
  *
@@ -56,7 +56,7 @@ static void DevFrameNote(const CtrPokeTouchView *v)
 /* The frame whole (after DevBegin: the dispatcher's). */
 static void DevFrameDraw(const CtrPokeTouchView *v)
 {
-    DevShell(DEV_SCREWS_TOP | DEV_SCREWS_BOTTOM);
+    DevShell();
     DevScreen(&kDevViewScreen);
     if (v->viewport) {
         DevArt(DEV_ART_GBA, PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H);
@@ -95,7 +95,7 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo, uint8_t shell)
 
     sHomeShown = 0;                     /* HOME's region key and FLY are not on the screen */
     DevBegin(canvas, shell);
-    DevShell(DEV_SCREWS_TOP | DEV_SCREWS_BOTTOM);
+    DevShell();
     paper = DevScreen(&kDevIdleScreen);
     DevRect(paper.x, paper.y, paper.w, paper.h, DEV_BEZEL);         /* the screen asleep */
     if (!logo)

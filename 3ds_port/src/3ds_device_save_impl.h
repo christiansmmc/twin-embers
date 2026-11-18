@@ -129,7 +129,7 @@ static void DevSaveDraw(const CtrPokeTouchView *v)
 {
     char value[24];
 
-    DevShell(0);
+    DevShell();
     DevScreen(&kDevHomeScreen);
     for (int i = 0; i < 5; ++i) {
         CtrPokeTouchRect r = DevSaveRow(i);

@@ -552,7 +552,7 @@ static void DevBoxDraw(const CtrPokeTouchView *v)
     int grey = keys || message || b->state == PT_BOX_STATE_CHOOSE;
     CtrPokeTouchRect paper;
 
-    DevShell(0);
+    DevShell();
     paper = DevScreen(&kDevBoxScreen);
     if (b->area == ST_AREA_PARTY)
         DevBoxParty(b, cursor, boxPress);

@@ -40,6 +40,7 @@ ART = {'icon': 'ÍCONE', 'picture': 'FIGURA', 'item': 'ITEM', 'badge': 'INSÍGNI
 # The kit's numbers (3ds_device_layout.h, 3ds_device_kit_impl.h) and the boards' CSS for what it draws.
 SINK = 2                            # DEV_SINK: a chosen key's face, lower
 LED = '#58e070'
+LED_SIZE, LED_IN, LED_TOP = 4, 11, 4   # a sunk key's LED: 4x4 at (x + w - 11, its face's top + 4), whatever its height
 PAPER, BEZEL = '#f8f8f4', '#2a2a30'
 STRIPES = 'repeating-linear-gradient(45deg, #ececec 0 3px, #f6f6f6 3px 6px)'
 KEY_UP = {'key': 'background: #f2ece0; box-shadow: 0 3px 0 rgba(0,0,0,0.38), inset 0 -2px 0 #d6ccb8, inset 0 1px 0 #ffffff',
@@ -127,13 +128,12 @@ def element(item):
         return (f'<div style="{box(item)}; border-radius: 6px; background: {BEZEL}; box-shadow: inset 0 0 0 1px #4a4a54, '
                 f'0 1px 0 rgba(255,255,255,0.25)"></div>\n<div style="{box(paper)}; background: {PAPER}"></div>')
     if op == 'key':
-        sunk, h = item['sunk'], item['h']
+        sunk = item['sunk']
         styles = KEY_SUNK if sunk else KEY_UP
         out = (f'<button type="button" style="{box(item, SINK if sunk else 0)}; padding: 0; border: 0; '
                f'border-radius: {item["radius"]}px; {styles[item["look"]]}"></button>')
         if sunk:
-            size = 5 if h >= 30 else 4
-            out += '\n' + led(item['x'] + item['w'] - 7 - size, item['y'] + SINK + (6 if h >= 40 else 4), size)
+            out += '\n' + led(item['x'] + item['w'] - LED_IN, item['y'] + SINK + LED_TOP, LED_SIZE)
         return out
     if op == 'dim':
         return f'<div style="{box(item)}; background: {{{{shell}}}}; opacity: 0.5"></div>'

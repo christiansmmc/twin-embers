@@ -133,8 +133,7 @@ static void DevRlDesc(const CtrPokeTouchRelearn *l)
         return;
     if (l->row[c].type >= 0)
         x += DevTypeChip(l->row[c].typeName, l->row[c].type, x, top, 9) + 4;
-    snprintf(stats, sizeof(stats), "%s %s  %s %s", CTR_TR("POW", "POT", "ST\xC3\x84"), l->row[c].power[0] ? l->row[c].power : "-",
-             CTR_TR("ACC", "PRE", "GEN"), l->row[c].accuracy[0] ? l->row[c].accuracy : "-");
+    DevPowAcc(stats, sizeof(stats), l->row[c].power, l->row[c].accuracy);
     DevSmallText(stats, x, top, DEV_INK2, right);
     DevSmallWrap(l->desc, x + DevSmallTextWidth(stats) + 6, paper.x + 6, top, right, 3, DEV_SMALL_LINE_TIGHT, DEV_INK);
 }
@@ -224,7 +223,7 @@ static void DevRelearnDraw(const CtrPokeTouchView *v)
     CtrPokeTouchRect paper;
     int press = DevRlPress(l);
 
-    DevShell(0);
+    DevShell();
     paper = DevScreen(&kDevGridTitle);
     DevText(l->question, paper.x + 6, paper.y + (paper.h - 8) / 2, paper.x + paper.w - 6);
     switch (l->panel) {

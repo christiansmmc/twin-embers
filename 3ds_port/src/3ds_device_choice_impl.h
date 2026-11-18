@@ -59,7 +59,7 @@ static void DevChoiceDraw(const CtrPokeTouchView *v)
     CtrPokeTouchRect paper;
     char word[sizeof(c->label[0])];
 
-    DevShell(0);
+    DevShell();
     for (int i = 0; i < DevChoiceCount(c); ++i) {
         CtrPokeTouchRect r = DevChoiceKey(c->count, c->cols, i);
         int sunk = DevChosen(i, c->cursor, c->pressed - PT_CHOICE_HIT_ROW), faceY = DevKey(&r, DEV_LOOK_KEY, sunk, 6);

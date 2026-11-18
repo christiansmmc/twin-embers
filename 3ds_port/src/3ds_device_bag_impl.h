@@ -18,7 +18,7 @@
  * FireRed's arrow, the other keys grey: a tap anywhere goes on. The keys across the top are grey but in the list.
  *
  * The chosen key or row is the one under a held touch, else the game's cursor (DevChosen); a touch on what is not drawn
- * or cannot be used chooses nothing (DevBagPressDrawn). No screws. Words: upper case (decision 5): FireRed's names and
+ * or cannot be used chooses nothing (DevBagPressDrawn). Four screws (DevShell). Words: upper case (decision 5): FireRed's names and
  * the menu's through DevUpper (a mailbox's writers as typed), FireRed's descriptions, questions and messages as they
  * are, the port's words in capitals.
  *
@@ -520,7 +520,7 @@ static void DevBagQuantity(const DevBagPage *p, int held)
     DevKeyWord(&kDevBagQtyOk, faceY, DEV_LOOK_KEY, sunk, CTR_TR("OK", "OK", "OK"));
     sunk = held == DEV_BAG_HIT_QTY_CANCEL;
     faceY = DevKey(&kDevBagQtyCancel, DEV_LOOK_DARK, sunk, 6);
-    DevKeyWord(&kDevBagQtyCancel, faceY, DEV_LOOK_DARK, sunk, CTR_TR("CANCEL", "CANCELAR", "ZUR\xC3\x9C" "CK"));
+    DevKeyWord(&kDevBagQtyCancel, faceY, DEV_LOOK_DARK, sunk, DevCancelWord());
 }
 
 /* CLOSE, a dark key: sunk by FireRed's cursor on the list's CLOSE row or a held touch; grey under a message. */
@@ -542,7 +542,7 @@ static void DevBagDraw(const DevBagPage *p, int pressed)
 {
     int held = DevBagPressDrawn(p, pressed);
 
-    DevShell(0);
+    DevShell();
     DevBagKeys(p, held);
     if (p->state == DEV_BAG_MESSAGE) {
         CtrPokeTouchRect paper = DevScreen(&kDevGridScreen);

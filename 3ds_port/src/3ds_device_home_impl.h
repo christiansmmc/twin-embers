@@ -15,7 +15,6 @@
  * Redraw (decision 7): a change of anything HOME draws redraws it whole; a step of the player or a blink of the cursor
  * redraws the window alone. */
 
-#define DEV_HOME_RULE          UI_RGB(0xD8, 0xD8, 0xD0)   /* the panel's rule */
 #define DEV_HOME_HOLE          UI_RGB(0xC4, 0xC4, 0xC4)   /* an empty party cell's ring */
 #define DEV_HOME_LAMP_ON       UI_RGB(0x48, 0xC0, 0x60)   /* RUN's lamp, on and off: its face and its edge */
 #define DEV_HOME_LAMP_ON_EDGE  UI_RGB(0x1F, 0x6A, 0x32)
@@ -314,7 +313,7 @@ static void DevHomePanel(const CtrPokeTouchView *v)
 
     DevHomeSmallWrap(line, kDevHomeRegion.x, kDevHomeRegion.y + 2 - (two ? DEV_LINE_H : 0), kDevHomeRegion.w, two ? 2 : 1,
                      DEV_INK2);
-    Fill(kDevHomeRule.x, kDevHomeRule.y, kDevHomeRule.w, kDevHomeRule.h, DEV_HOME_RULE);
+    Fill(kDevHomeRule.x, kDevHomeRule.y, kDevHomeRule.w, kDevHomeRule.h, DEV_RULE);
     DevHomeParty(v);
     DevHomeRun(v);
     DevHomeSpeed(v);
@@ -401,7 +400,7 @@ static void DevHomeKey(int id, const CtrPokeTouchView *v)
 static void DevHomeDraw(const CtrPokeTouchView *v)
 {
     DevBegin(sCanvas, v->shell);
-    DevShell(DEV_SCREWS_TOP | DEV_SCREWS_BOTTOM);
+    DevShell();
     DevScreen(&kDevHomeScreen);
     DevHomeWindow(v);
     DevHomePanel(v);

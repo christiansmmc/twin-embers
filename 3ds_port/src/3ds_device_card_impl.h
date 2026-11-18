@@ -197,7 +197,7 @@ static void DevCardDraw(const CtrPokeTouchView *v)
 {
     int sunk = v->card.pressed != 0, faceY;
 
-    DevShell(0);
+    DevShell();
     DevScreen(&kDevTallScreen);
     if (v->card.back)
         DevCardBack(&v->card);

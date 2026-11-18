@@ -443,7 +443,8 @@ static const unsigned kTraceRgb[] = {
     DEV_HP_TRACK, DEV_HP_GREEN, DEV_HP_YELLOW, DEV_HP_RED, DEV_HP_LABEL, DEV_EXP, DEV_EXP_LABEL, DEV_FX_SUPER,
     DEV_FX_NOTVERY, DEV_FX_EFFECTIVE, DEV_FX_NONE, DEV_CAT_SPECIAL, DEV_CAT_PHYSICAL, DEV_PSN, DEV_FX_SUPER_SH,
     DEV_FX_NOTVERY_SH, DEV_FX_EFFECTIVE_SH, DEV_CAT_SPECIAL_SH, DEV_LOW_INK, DEV_PP_QUARTER, DEV_PP_HALF, DEV_BLUE_INK,
-    DEV_STAT_UP, DEV_MALE, DEV_FEMALE, DEV_ARROW_OFF, DEV_BOX_TITLE_SH, DEV_CARD_GOLD,
+    DEV_STAT_UP, DEV_MALE, DEV_FEMALE, DEV_ARROW_OFF, DEV_BOX_TITLE_SH, DEV_CARD_GOLD, DEV_KEY_INK2, DEV_TAG_STAB,
+    DEV_TAG_NEW,
 };
 #pragma pop_macro("UI_RGB")
 
@@ -700,6 +701,19 @@ static __attribute__((unused)) void AssertKey(CtrPokeTouchRect r, int look, int 
     }
 }
 
+/* Sunk key r's LED lit as the kit's rule has it: a 4 px disc at (x + w - 11, its face's top + 4) whatever the key's
+ * height, the corners of its box not lit. */
+static __attribute__((unused)) int LedAt(CtrPokeTouchRect r)
+{
+    int x = r.x + r.w - 11, y = r.y + DEV_SINK + 4;
+
+    for (int j = 0; j < 4; ++j)
+        for (int i = 0; i < 4; ++i)
+            if ((at(x + i, y + j) == DEV_LED) != !((i == 0 || i == 3) && (j == 0 || j == 3)))
+                return 0;
+    return 1;
+}
+
 typedef int (*DevHitFn)(const void *view, int x, int y);
 
 static void HitAt(DevHitFn hit, const void *view, int x, int y, int code, int want)
@@ -950,28 +964,34 @@ static void KitPieces(void)
 
     assert(DevBlend(0xFFFF, 0x0000, 0) == 0xFFFF && DevBlend(0xFFFF, 0x0000, 256) == 0x0000);
     assert(DevBlend(UI_RGB(248, 252, 248), 0x0000, 128) == UI_RGB(128, 128, 128));
-    for (int s = 0; s < 4; ++s) {
-        DevBegin(canvas, (uint8_t)s); DevShell(DEV_SCREWS_TOP | DEV_SCREWS_BOTTOM);
+    for (int s = 0; s < 4; ++s) {                               /* four screws, always */
+        DevBegin(canvas, (uint8_t)s); DevShell();
         assert(at(160, 120) == kShell[s] && at(160, 0) == DevBlend(kShell[s], 0xFFFF, 64) && at(160, 1) == at(160, 0) && at(160, 2) == kShell[s]);
         assert(at(160, 237) == DevBlend(kShell[s], 0, 77) && at(160, 239) == at(160, 237) && at(160, 236) == kShell[s]);
-        assert(at(4, 4) == DevBlend(kShell[s], 0, 90) && at(315, 234) == DevBlend(kShell[s], 0, 90));
+        assert(at(4, 4) == DevBlend(kShell[s], 0, 90) && at(315, 4) == at(4, 4) && at(4, 234) == at(4, 4) && at(315, 234) == at(4, 4));
     }
-    DevBegin(canvas, 0); DevShell(0); assert(at(4, 4) == DEV_SHELL_RED);
+    DevBegin(canvas, 0); DevShell();
     p = DevScreen(&(CtrPokeTouchRect){8, 8, 304, 140});
     assert(p.x == 14 && p.y == 14 && p.w == 292 && p.h == 128 && at(8, 70) == DEV_BEZEL_LINE && at(9, 70) == DEV_BEZEL
            && at(13, 70) == DEV_BEZEL && at(14, 70) == DEV_PAPER && at(8, 8) == DEV_SHELL_RED && at(160, 148) == DevBlend(DEV_SHELL_RED, 0xFFFF, 64));
     k = (CtrPokeTouchRect){8, 156, 96, 36};                     /* HOME's POKeDEX key, on a fresh shell each time */
-    DevShell(0);
+    DevShell();
     assert(DevKey(&k, DEV_LOOK_KEY, 0, 6) == 156 && at(11, 174) == DEV_KEY && at(56, 156) == 0xFFFF && at(56, 190) == DEV_KEY_EDGE
            && at(56, 191) == DEV_KEY_EDGE && at(56, 192) == DevBlend(DEV_SHELL_RED, 0, 97) && at(56, 194) == at(56, 192) && at(56, 195) == DEV_SHELL_RED && at(8, 156) == DEV_SHELL_RED);
-    DevShell(0);
+    DevShell();
     assert(DevKey(&k, DEV_LOOK_KEY, 1, 6) == 158 && at(56, 157) == DEV_SHELL_RED && at(56, 158) == DEV_SUNK_EDGE && at(11, 176) == DEV_SUNK
-           && at(56, 194) == DevBlend(DEV_SHELL_RED, 0, 97) && at(56, 195) == DEV_SHELL_RED && at(94, 164) == DEV_LED);
-    DevShell(0);
+           && at(56, 194) == DevBlend(DEV_SHELL_RED, 0, 97) && at(56, 195) == DEV_SHELL_RED);
+    /* the LED: a 4 px disc (no corner pixels) at (x + w - 11, faceY + 4), whatever the key's height */
+    assert(at(94, 162) == DEV_LED && at(95, 165) == DEV_LED && at(93, 162) != DEV_LED && at(92, 163) != DEV_LED && at(97, 164) != DEV_LED);
+    k = (CtrPokeTouchRect){8, 8, 304, 84}; DevShell(); DevKey(&k, DEV_LOOK_KEY, 1, 6); assert(at(302, 14) == DEV_LED && at(303, 17) == DEV_LED && at(300, 15) != DEV_LED);
+    k = (CtrPokeTouchRect){244, 190, 68, 40}; DevShell(); DevKey(&k, DEV_LOOK_DARK, 1, 6); assert(at(302, 196) == DEV_LED);
+    k = (CtrPokeTouchRect){8, 156, 96, 36};
+    DevShell();
     assert(DevKey(&k, DEV_LOOK_DARK, 0, 6) == 156 && at(11, 174) == DEV_BEZEL && at(56, 156) == DEV_BEZEL_LINE);
-    DevShell(0);
+    DevShell();
     assert(DevKey(&k, DEV_LOOK_FAINT, 0, 6) == 156 && at(11, 174) == DEV_FAINT && at(56, 190) == DEV_FAINT_EDGE);
-    DevShell(0);
+    assert(DevKeyInk(DEV_LOOK_FAINT, 0) == UI_RGB(0x8A, 0x84, 0x78));    /* an unused key's beige ink */
+    DevShell();
     DevKey(&k, DEV_LOOK_KEY, 0, 6); DevDim(&k); assert(at(11, 174) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
     DevHole(&(CtrPokeTouchRect){164, 120, 148, 50}, 6); assert(at(238, 150) == DevBlend(DEV_SHELL_RED, 0, 72));
     assert(at(238, 121) == DevBlend(DevBlend(DEV_SHELL_RED, 0, 72), 0, 90) && at(238, 123) == at(238, 150)
@@ -984,6 +1004,12 @@ static void KitPieces(void)
     clear(0); DevRound(0, 0, 20, 20, 6, 0x1234); assert(at(0, 0) == 0 && at(1, 1) == 0 && at(2, 2) == 0x1234 && at(6, 0) == 0x1234 && at(0, 6) == 0x1234);
     KitWrapLines();
     sDevKeyCut = 0; DevKeyLabel(&(CtrPokeTouchRect){0, 0, 30, 24}, 0, DEV_LOOK_KEY, 0, "A VERY LONG LABEL"); assert(sDevKeyCut == 1); sDevKeyCut = 0;
+    {
+        /* a footer's small text that needs more lines than it is given is cut, and counted */
+        static const char kLongWords[] = "Port-written words, more than one small line of this footer's paper can hold at once.";
+
+        sDevKeyCut = 0; assert(DevSmallFit(kLongWords, 20, 20, 198, 224, 1, DEV_SMALL_LINE, DEV_INK) == 1 && sDevKeyCut == 1); sDevKeyCut = 0;
+    }
 }
 
 /* DevUpper: the boards' and FireRed's capitals; POKé's é stays small; a letter the font has no capital for stays. */
@@ -1044,7 +1070,7 @@ static void KitSheet(void)
     int x, faceY;
 
     DevBegin(canvas, 0);
-    DevShell(DEV_SCREWS_TOP | DEV_SCREWS_BOTTOM);
+    DevShell();
     p = DevScreen(&(CtrPokeTouchRect){8, 8, 304, 92});
     /* Text and rows (x 16..148). */
     DevText("VERMILION", p.x + 4, p.y + 4, p.x + 134);
@@ -1337,7 +1363,7 @@ static void SuiteHome(void)
     v.pressed = PT_POKEMON;
     assert(DevWhole(DevCheckTouch(&old, &v)));
     AssertKey(kDevHomeKey[1], DEV_LOOK_KEY, 1);
-    assert(at(198, 164) == DEV_LED);
+    assert(LedAt(kDevHomeKey[1]));
     v.pressed = PT_NONE;
     v.enabled[PT_SAVE] = 0;
     DevCheckTouch(&old, &v);
@@ -1675,7 +1701,7 @@ static void SuiteBattle(void)
     old = v;
     CtrBattleUi_Draw(canvas, &old);
     v.state = BUI_ACTION; v.cursor = 0; DevCheckBattle(&old, &v);            /* a trainer: three keys */
-    AssertHits(BatHitV, &v, kDevBatFight, BUI_ACT_FIGHT); AssertKey(kDevBatFight, DEV_LOOK_KEY, 1); assert(at(302, 114) == DEV_LED);
+    AssertHits(BatHitV, &v, kDevBatFight, BUI_ACT_FIGHT); AssertKey(kDevBatFight, DEV_LOOK_KEY, 1); assert(LedAt(kDevBatFight));
     AssertHits(BatHitV, &v, kDevBatRow3[0], BUI_ACT_BAG); AssertHits(BatHitV, &v, kDevBatRow3[1], BUI_ACT_POKEMON); AssertHits(BatHitV, &v, kDevBatRow3[2], BUI_ACT_RUN);
     assert(CtrBattleUi_Hit(&v, 108, 200) == -1 && CtrBattleUi_Hit(&v, 160, 50) == -1);
     for (i = 0; i < 3; ++i)
@@ -1915,19 +1941,19 @@ static void SuiteParty(void)
     AssertKey(DevPtyBay(0), DEV_LOOK_KEY, 1); AssertKey(DevPtyBay(3), DEV_LOOK_FAINT, 0); AssertHits(BatHitV, &v, kDevPtyCancel, BUI_PTY_CANCEL);
     /* the board's pieces: the chosen bay's LED; RATICATE's PSN and NIDORINO's FNT at the right; NIDORINO's HP grey;
      * CHARMELEON's bar, ONIX's numbers in the low ink; the screen's words; CANCEL dark */
-    assert(at(146, 18) == DEV_LED && at(128, 105) == DEV_PSN && at(284, 105) == DEV_FNT);
+    assert(LedAt(DevPtyBay(0)) && at(128, 105) == DEV_PSN && at(284, 105) == DEV_FNT);
     assert(at(202, 93) == UI_RGB(0x8A, 0x8A, 0x8A) && at(60, 41) == DEV_HP_FRAME && at(61, 42) == DEV_HP_GREEN);
     assert(Count(100, 145, 48, 9, DEV_LOW_INK) > 0 && Count(120, 33, 28, 9, DEV_LOW_INK) == 0);
     assert(Count(14, 186, 210, 40, DEV_INK) > 0 && Count(46, 19, 90, 8, DEV_SUNK_INK) > 0 && Count(202, 75, 90, 8, DEV_FAINT_INK) > 0);
-    AssertKey(kDevPtyCancel, DEV_LOOK_DARK, 0); assert(Count(238, 180, 74, 50, DEV_DARK_INK) > 0 && at(146, 18 + 56) != DEV_LED);
+    AssertKey(kDevPtyCancel, DEV_LOOK_DARK, 0); assert(Count(238, 180, 74, 50, DEV_DARK_INK) > 0 && Count(8, 64, 148, 53, DEV_LED) == 0);
     for (i = 0; i < 6; ++i)                                                    /* icons at 1:1, not hopping */
         if (i != 5) assert(at(DevPtyBay(i).x + 4 + 2, DevPtyBay(i).y + (i ? 0 : 2) + 9 + 2) != DevKeyFace(i == 3 ? DEV_LOOK_FAINT : DEV_LOOK_KEY, !i));
     shot("bays");
     /* the touch sinks one key of the group: a bay, CANCEL; the cursor on CANCEL (FireRed's slot 7) sinks it */
     v.pressed = BUI_PTY_SLOT + 2; DevCheckBattle(&old, &v); AssertKey(DevPtyBay(2), DEV_LOOK_KEY, 1); AssertKey(DevPtyBay(0), DEV_LOOK_KEY, 0);
-    v.pressed = BUI_PTY_CANCEL; DevCheckBattle(&old, &v); AssertKey(DevPtyBay(0), DEV_LOOK_KEY, 0); assert(at(302, 190) == DEV_LED);
-    v.pressed = -1; v.pty.cursor = -1; v.pty.button = 1; DevCheckBattle(&old, &v); assert(at(302, 190) == DEV_LED);
-    v.pty.cursor = 0; v.pty.button = -1; DevCheckBattle(&old, &v); assert(at(302, 190) != DEV_LED);
+    v.pressed = BUI_PTY_CANCEL; DevCheckBattle(&old, &v); AssertKey(DevPtyBay(0), DEV_LOOK_KEY, 0); assert(LedAt(kDevPtyCancel));
+    v.pressed = -1; v.pty.cursor = -1; v.pty.button = 1; DevCheckBattle(&old, &v); assert(LedAt(kDevPtyCancel));
+    v.pty.cursor = 0; v.pty.button = -1; DevCheckBattle(&old, &v); assert(Count(238, 180, 74, 53, DEV_LED) == 0);
     /* not drawn: the icons' frames, the column layout, the battle's own fields */
     v.pty.iconFrame[1] = 3; v.pty.lead = 2; v.activeFrame = 1; v.cursor = 2; v.move[0].present = 1; v.activeHp = 9;
     v.party[3] = 2; v.bag.count = 3; v.ball = CTR_QUICK_BALL_READY; v.target[1].present = 1; v.showCursor = 1;
@@ -1943,14 +1969,14 @@ static void SuiteParty(void)
     /* FORCED (a Pokemon must be sent out): CANCEL grey, never taken; FireRed's cursor can still be on it (SEND OUT
      * then fails), and then it is the chosen key, sunk with its LED, grey all the same; a touch on a bay is chosen */
     v.pty.mode = BUI_PTY_FORCED; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 275, 205) == -1 && CtrBattleUi_Hit(&v, 302, 190) == -1);
-    assert(at(245, 200) == DevBlend(DEV_SHELL_RED, DevKeyFace(DEV_LOOK_DARK, 0), 128) && at(302, 190) != DevBlend(DEV_SHELL_RED, DEV_LED, 128));
+    assert(at(245, 200) == DevBlend(DEV_SHELL_RED, DevKeyFace(DEV_LOOK_DARK, 0), 128) && at(302, 187) != DevBlend(DEV_SHELL_RED, DEV_LED, 128));
     shot("forced");
     v.pty.cursor = -1; v.pty.button = 1; DevCheckBattle(&old, &v); AssertKey(DevPtyBay(0), DEV_LOOK_KEY, 0);
-    assert(at(245, 200) == DevBlend(DEV_SHELL_RED, DevKeyFace(DEV_LOOK_DARK, 1), 128) && at(302, 190) == DevBlend(DEV_SHELL_RED, DEV_LED, 128));
+    assert(at(245, 200) == DevBlend(DEV_SHELL_RED, DevKeyFace(DEV_LOOK_DARK, 1), 128) && at(302, 187) == DevBlend(DEV_SHELL_RED, DEV_LED, 128));
     assert(CtrBattleUi_Hit(&v, 275, 205) == -1);
     shot("forced_cancel");
     v.pressed = BUI_PTY_SLOT + 1; DevCheckBattle(&old, &v); AssertKey(DevPtyBay(1), DEV_LOOK_KEY, 1);
-    assert(at(302, 190) != DevBlend(DEV_SHELL_RED, DEV_LED, 128));
+    assert(at(302, 187) != DevBlend(DEV_SHELL_RED, DEV_LED, 128));
     v.pressed = -1; v.pty.cursor = 0; v.pty.button = -1; DevCheckBattle(&old, &v);
     v.pty.mode = BUI_PTY_MULTI; v.pty.button = 1; DevCheckBattle(&old, &v);
     AssertHits(BatHitV, &v, kDevPtyConfirm, BUI_PTY_CONFIRM); AssertHits(BatHitV, &v, kDevPtyCancelLow, BUI_PTY_CANCEL); AssertKey(kDevPtyCancelLow, DEV_LOOK_DARK, 1);
@@ -1990,7 +2016,7 @@ static void SuiteParty(void)
         shot("menu8");
         /* a long word on a chosen key clears its LED (a German field move) */
         strcpy(v.pty.menuName[1], "ZERTRUEMMERER"); v.pty.menuCursor = 1; DevCheckBattle(&old, &v);
-        assert(at(209, 44) == DEV_LED && Count(205, 40, 12, 10, DEV_BLUE_INK) == 0 && Count(140, 40, 64, 10, DEV_BLUE_INK) > 0);
+        assert(LedAt(DevPtyMenuKey(8, 1)) && Count(205, 40, 12, 10, DEV_BLUE_INK) == 0 && Count(140, 40, 64, 10, DEV_BLUE_INK) > 0);
         strcpy(v.pty.menuName[1], "CUT");
         v.pty.menuCursor = 0;
     }
@@ -2014,7 +2040,7 @@ static void SuiteParty(void)
         v.pty.lvSlot = 0; v.pty.lvLevel = 37;
         for (i = 0; i < 6; ++i) { v.pty.lvStat[i] = kStat[i]; v.pty.lvGain[i] = (int16_t)(2 + (i & 1)); }
         strcpy(v.pty.message, "CHARMELEON grew to Lv. 37!"); DevCheckBattle(&old, &v);
-        assert(at(302, 190) == DEV_LED && Count(14, 14, 292, 154, DEV_FX_SUPER) > 0 && Count(14, 14, 292, 20, DEV_INK) > 0);
+        assert(LedAt(kDevPtyCancel) && Count(14, 14, 292, 154, DEV_FX_SUPER) > 0 && Count(14, 14, 292, 20, DEV_INK) > 0);
         assert(Count(14, 186, 210, 40, DEV_INK) > 0 && at(20, 20) == DEV_PAPER);
         v.pressed = BUI_PTY_MESSAGE; v.pty.cursor = 3; v.pty.mode = BUI_PTY_TARGET; assert(DevCheckBattle(&old, &v).count == 0);
         v.pressed = -1; v.pty.cursor = 0; v.pty.mode = BUI_PTY_SWITCH; DevCheckBattle(&old, &v);
@@ -2193,7 +2219,7 @@ static void SuiteSummary(void)
     /* INFO, the board's pieces: the chosen tab's LED, the others up; the arrows and BACK dark with their light ink; the
      * left column's paper, the picture in its box, the FIRE chip; the rows' labels and values, the HP bar, the EXP chip
      * and bar; the ability's name and its description on the note */
-    assert(at(54, 15) == DEV_LED);
+    assert(LedAt(kDevSumTab[0]));
     for (i = 1; i < 4; ++i) AssertKey(kDevSumTab[i], DEV_LOOK_KEY, 0);
     AssertKey(kDevSumNext, DEV_LOOK_DARK, 0); AssertKey(kDevTallBack, DEV_LOOK_DARK, 0);
     assert(Count(252, 8, 28, 24, DEV_DARK_INK) > 0 && Count(284, 8, 28, 24, DEV_DARK_INK) > 0 && Count(244, 188, 68, 42, DEV_DARK_INK) > 0);
@@ -2519,7 +2545,7 @@ static void SuiteBag(void)
     DevCheckTouch(&old, &v);
     /* the board's pieces: the pocket's LED, the rows on the paper with their counts at the right, the cursor's row in
      * the paper's ink, ▲ grey and ▼ dark, the item's icon and description, CLOSE dark */
-    assert(at(94, 15) == DEV_LED && at(200, 15) != DEV_LED && at(20, 56) == DEV_PAPER);
+    assert(LedAt(kDevBagPocket[0]) && at(200, 15) != DEV_LED && at(20, 56) == DEV_PAPER);
     assert(Count(232, 48, 22, 16, DEV_INK) > 0 && Count(232, 64, 22, 16, DEV_PAPER) > 0 && Count(40, 64, 60, 16, DEV_PAPER) > 0);
     assert(Count(290, 70, 9, 7, arrowOff) > 0 && Count(290, 144, 9, 7, DEV_KEY_INK) > 0);
     assert(at(22, 51) != DEV_PAPER && Count(18, 199, 24, 24, DEV_PAPER) < 24 * 24 && Count(46, 197, 180, 27, DEV_INK) > 0);
@@ -2552,7 +2578,7 @@ static void SuiteBag(void)
     AssertKey(DevBagMenuKey(5, 4), DEV_LOOK_DARK, 0); assert(CtrPokeTouch_BagHit(&v, 56, 20) == -1 && CtrPokeTouch_BagHit(&v, 196, 56) == -1);
     assert(at(11, 20) == DevBlend(DEV_SHELL_RED, DEV_SUNK, 128));                                     /* the pockets at half strength */
     /* the narrow list, its words grey but the cursor's row; USE sunk with its LED; the narrow screen says what is selected */
-    AssertKey(DevBagMenuKey(5, 0), DEV_LOOK_KEY, 1); assert(at(300 + 2, 46 + 2) == DEV_LED && at(20, 72) == DEV_BEZEL);
+    AssertKey(DevBagMenuKey(5, 0), DEV_LOOK_KEY, 1); assert(LedAt(DevBagMenuKey(5, 0)) && at(20, 72) == DEV_BEZEL);
     assert(Count(16, 48, 168, 16, DEV_INK_DIM) > 0 && Count(16, 48, 168, 128, DEV_INK) == 0 && at(195, 100) == DEV_SHELL_RED);
     assert(Count(46, 196, 136, 30, DEV_INK) > 0 && Count(244, 190, 68, 40, DEV_DARK_INK) > 0);
     assert(Count(46, 196, 2, 30, DEV_INK) == 0 && Count(48, 196, 2, 30, DEV_INK) > 0);      /* from x 48, the board's */

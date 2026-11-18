@@ -15,7 +15,7 @@
  * hatches). Under it the note: the ability and what it does, the chosen move's description, or what the page lets one
  * do; BACK, a dark key.
  *
- * No screws. The chosen key is the one under a held touch, else the page's (DevChosen). Words: upper case (decision 5):
+ * Four screws (DevShell). The chosen key is the one under a held touch, else the page's (DevChosen). Words: upper case (decision 5):
  * FireRed's names through DevUpper, the Pokemon's name in capitals when it is its species' own and as typed when the
  * player gave it; FireRed's descriptions and memo as they are; the port's words written in capitals.
  *
@@ -28,7 +28,6 @@
 
 #define DEV_SUM_BAR        UI_RGB(0x8A, 0x94, 0xA8)   /* STATS' bars and their track (the board's) */
 #define DEV_SUM_BAR_TRACK  UI_RGB(0xE2, 0xE2, 0xDA)
-#define DEV_SUM_RULE       UI_RGB(0xD8, 0xD8, 0xD0)   /* MOVES' rule under the Pokemon */
 #define DEV_SUM_RIGHT      298                        /* the right column, 172 px from x 126 */
 #define DEV_SUM_LEFT       126
 #define DEV_SUM_ROW_TOP    53                         /* INFO's and MEMO's rows: capitals from 53, 16 apart */
@@ -400,7 +399,7 @@ static void DevSumMoveColumn(const CtrSummaryUiView *v)
         DevSmallText(name, 56, 56, DEV_INK, right);
     snprintf(text, sizeof(text), CTR_TR("Lv%s", "Nv%s", "Lv%s"), DevSumLevel(d));
     DevText(text, 56, 69, 112);
-    Fill(20, 90, 92, 1, DEV_SUM_RULE);
+    Fill(20, 90, 92, 1, DEV_RULE);
     if (d->page != SUI_PAGE_MOVES_INFO || i < 0 || i >= 4 || !d->moves[i]) {
         DevSumTypes(d, 97);
         return;
@@ -413,10 +412,9 @@ static void DevSumMoveColumn(const CtrSummaryUiView *v)
         x = DevSumChip(20, 97, 112, 40, text, bg, DevChipShadow(bg));
         if (!DevSumStatusMove(d, i)) {
             if (d->moveTypeIds[i] < 10)
-                DevSumChip(x, 97, 112, 0, CTR_TR("PHYSICAL", "F\xC3\x8DSICO", "PHYSISCH"), DEV_CAT_PHYSICAL,
-                           DevChipShadow(DEV_CAT_PHYSICAL));
+                DevSumChip(x, 97, 112, 0, DevCategoryWord(1), DEV_CAT_PHYSICAL, DevChipShadow(DEV_CAT_PHYSICAL));
             else
-                DevSumChip(x, 97, 112, 0, CTR_TR("SPECIAL", "ESPECIAL", "SPEZIAL"), DEV_CAT_SPECIAL, DEV_CAT_SPECIAL_SH);
+                DevSumChip(x, 97, 112, 0, DevCategoryWord(0), DEV_CAT_SPECIAL, DEV_CAT_SPECIAL_SH);
         }
         DevColumnRow(116, CTR_TR("POWER", "POTENCIA", "ST\xC3\x84RKE"), d->power[i][0] ? d->power[i] : "-", 20, 112);
         DevColumnRow(132, CTR_TR("ACCURACY", "PRECISI\xC3\x93N", "GENAUIGKEIT"),
@@ -607,7 +605,7 @@ static void DevSumMoveRow(const CtrSummaryView *d, int i, int chosen, int framed
     if (i == 4) {
         uint16_t c = chosen ? DEV_PAPER : DEV_INK2;
 
-        DevTextInk(CTR_TR("CANCEL", "CANCELAR", "ZUR\xC3\x9C" "CK"), r.x + 18, top, right, c, c);
+        DevTextInk(DevCancelWord(), r.x + 18, top, right, c, c);
         return;
     }
     if (!d->moves[i]) {
@@ -782,7 +780,7 @@ static void DevSumKeys(const CtrSummaryUiView *v)
 void CtrSummaryUi_Draw(uint16_t *canvas, const CtrSummaryUiView *v)
 {
     DevBegin(canvas, v->shell);
-    DevShell(0);
+    DevShell();
     DevSumKeys(v);
     DevSumScreen(v);
     DevSumNote(v);

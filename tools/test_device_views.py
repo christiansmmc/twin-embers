@@ -162,6 +162,21 @@ class ViewRects(unittest.TestCase):
                 self.assertNotRegex(text, r'\bkDevSum\w+|\bDevSum[A-Z]\w*\(', path.name)
 
 
+class Words(unittest.TestCase):
+    """The words every view shares are the kit's (plan 04a, Task 2)."""
+
+    def test_cancel_word_is_the_kits(self):
+        """CANCEL is DevCancelWord() (German ABBRECHEN, not BACK's ZURÜCK) on every drawer; UIS_CANCEL's German is
+        "Abbrechen" too (the PC box's, the relearner's, a shop Bag's CLOSE)."""
+        for path in sorted((ROOT / '3ds_port/src').glob('3ds_device_*_impl.h')):
+            text = path.read_text(encoding='utf-8')
+            self.assertNotIn('CTR_TR("CANCEL", "CANCELAR", "ZUR', text, path.name)
+        kit = (PORT / 'src/3ds_device_kit_impl.h').read_text(encoding='utf-8')
+        self.assertIn('CTR_TR("CANCEL", "CANCELAR", "ABBRECHEN")', kit)
+        strings = (PORT / 'include/3ds_ui_strings.h').read_text(encoding='utf-8')
+        self.assertIn('[UIS_CANCEL] = CTR_TR("Cancel", "Cancelar", "Abbrechen")', strings)
+
+
 class EmberGone(unittest.TestCase):
     """The ember look is deleted (decision 4, spec 5.6): its shell, skin, backdrop and pieces, the art made for it and its
     generator, the test that pinned it and the bar's title case it drew. Nothing in the port, its tools or CI names what

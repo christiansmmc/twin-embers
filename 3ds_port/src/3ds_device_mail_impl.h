@@ -31,7 +31,7 @@ static void DevMailDraw(const CtrPokeTouchView *v)
     char name[sizeof(m->name)];
     int w;
 
-    DevShell(0);
+    DevShell();
     DevScreen(&kDevTallScreen);
     if (m->item) {
         DevArt(DEV_ART_ITEM, kDevMailIcon.x, kDevMailIcon.y, kDevMailIcon.w, kDevMailIcon.h);

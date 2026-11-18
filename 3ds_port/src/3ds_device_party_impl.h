@@ -16,7 +16,7 @@
  * new level and the six stats with their gains on a tall screen, the message under it, OK.
  *
  * The chosen key is the one under a held touch, else the game's cursor: a slot, CONFIRM or CANCEL (FireRed's slots 6
- * and 7), a menu row. No screws. Words: upper case (decision 5): the menu's names through DevUpper, a Pokemon's name in
+ * and 7), a menu row. Four screws (DevShell). Words: upper case (decision 5): the menu's names through DevUpper, a Pokemon's name in
  * capitals when it is its species' own (the fill compares it, as the battle's does), as typed when the player gave it;
  * FireRed's prompts and messages as they are; the port's words written in capitals.
  *
@@ -274,7 +274,7 @@ static const char *DevPtyModeWords(const CtrBattleParty *p)
  * to it (SEND OUT then fails), and then it is the chosen key all the same. */
 static void DevPtyLeaveKeys(const CtrBattleParty *p, int cursor, int pressed, int dim)
 {
-    const char *cancel = CTR_TR("CANCEL", "CANCELAR", "ZUR\xC3\x9C" "CK");
+    const char *cancel = DevCancelWord();
     int sunk, faceY;
 
     if (p->mode == BUI_PTY_MULTI) {
@@ -381,7 +381,7 @@ static void DevPtyLevelUp(const CtrBattleView *v)
 /* The Party, whole (canvas and shell already set by CtrBattleUi_Draw). */
 static void DevPartyDraw(const CtrBattleView *v)
 {
-    DevShell(0);
+    DevShell();
     if (v->pty.panel == BUI_PTY_LEVELUP)
         DevPtyLevelUp(v);
     else if (DevPtyMenuOpen(&v->pty))

@@ -42,14 +42,20 @@
 #define DEV_SUNK_INK       UI_RGB(0x3A, 0x3A, 0x3A)
 #define DEV_SUNK_INK_SH    UI_RGB(0xF4, 0xEF, 0xE4)
 #define DEV_LED            UI_RGB(0x58, 0xE0, 0x70)
+/* Secondary text on a key: a price, "PP", "STATUS", SPD, a bay's level. */
+#define DEV_KEY_INK2       UI_RGB(0x6A, 0x6A, 0x6A)
+/* A footer's title line (DevNoteTitle). */
+#define DEV_TITLE_INK      UI_RGB(0x3A, 0x3A, 0x3A)
 /* The dark key's label and arrows (its face is DEV_BEZEL, its top line DEV_BEZEL_LINE). */
 #define DEV_DARK_INK       UI_RGB(0xF2, 0xEC, 0xE0)
 /* ▲▼ (or ◀ ▶) with nothing that way (the board's). */
 #define DEV_ARROW_OFF      UI_RGB(0xB8, 0xB0, 0xA0)
-/* A fainted Pokemon's key. */
+/* A key not for use now, beige (a fainted Pokemon's, an unused cream key: the board's OFF), its ink beige too. */
 #define DEV_FAINT          UI_RGB(0xD2, 0xCA, 0xB8)
 #define DEV_FAINT_EDGE     UI_RGB(0xBC, 0xB2, 0x9C)
-#define DEV_FAINT_INK      UI_RGB(0x6E, 0x6E, 0x6E)
+#define DEV_FAINT_INK      UI_RGB(0x8A, 0x84, 0x78)
+/* A rule on the paper (HOME's panel, the Summary's MOVES). */
+#define DEV_RULE           UI_RGB(0xD8, 0xD8, 0xD0)
 /* HOME's paper buttons (RUN, SPD): white with this border. */
 #define DEV_BUTTON_EDGE    UI_RGB(0xB0, 0xB0, 0xA8)
 /* Bars: HP (frame, track, the three levels, the "HP" tag's ink) and experience. */
@@ -70,6 +76,9 @@
 #define DEV_CAT_PHYSICAL   UI_RGB(0xC0, 0x38, 0x28)
 #define DEV_PSN            UI_RGB(0x90, 0x50, 0xA8)
 #define DEV_FNT            UI_RGB(0x7A, 0x7A, 0x7A)
+/* Tags: a move with STAB, a move the Pokemon would learn (NEW). */
+#define DEV_TAG_STAB       UI_RGB(0x5A, 0x64, 0x78)
+#define DEV_TAG_NEW        UI_RGB(0x2A, 0x7A, 0x3E)
 /* The dark shadow of the white text on the chips of a fixed colour (the boards'); a chip whose colour comes from data
  * (a type) takes DevChipShadow. PSN and FNT have none (DEV_WHITE). */
 #define DEV_FX_SUPER_SH    UI_RGB(0x14, 0x5A, 0x28)
@@ -99,8 +108,15 @@
 
 #define DEV_SCREWS_TOP     1
 #define DEV_SCREWS_BOTTOM  2
+/* A sunk key's LED (the board's TECLAS): DEV_LED_SIZE across, its left DEV_LED_IN px in from the key's right, its top
+ * DEV_LED_TOP rows under the face's, whatever the key's height. */
+#define DEV_LED_SIZE       4
+#define DEV_LED_IN         11
+#define DEV_LED_TOP        4
 #define DEV_LINE_H         13       /* DevWrap's lines */
-/* The small font's lines, tight: the board's 9 px (the Bag's description, the frame's hints, OPTIONS, the PC box). */
+/* The small font's lines: a footer's (the board's 10 px), and tight, the board's 9 px (the Bag's description, the
+ * frame's hints, OPTIONS, the PC box). */
+#define DEV_SMALL_LINE     10
 #define DEV_SMALL_LINE_TIGHT 9
 
 enum { DEV_LOOK_KEY, DEV_LOOK_DARK, DEV_LOOK_FAINT };
@@ -113,7 +129,7 @@ static int sDevKeyCut __attribute__((unused));
  * with each piece the kit draws, in draw order, {x, y, w, h} its rectangle; a is a look, a colour or a kind, b sunk, a
  * font or a direction, s a text:
  *   BEGIN   a new whole draw (DevBegin): a the shell colour; what was told before it is gone
- *   SHELL   the shell (the whole screen): a its screws (DEV_SCREWS_*)
+ *   SHELL   the shell (the whole screen): a its screws (DEV_SCREWS_*: all four)
  *   SCREEN  an embedded screen: its outer rectangle (the paper is 6 px in)
  *   KEY     a key's resting face (sunk: drawn DEV_SINK lower, its LED at its top right): a the look, b sunk | its
  *           corners' radius as drawn (DevRadius'd) << 1
@@ -328,22 +344,18 @@ UI_FN void DevScrew(int x, int y)
     Px(x + 1, y + 1, DevBlend(c, DEV_WHITE, DEV_A_SCREW));
 }
 
-/* The whole screen in the shell colour: a light top edge (rows 0-1), a dark bottom edge (rows 237-239) and the screws
- * DEV_SCREWS_TOP / DEV_SCREWS_BOTTOM ask for, 5x5 in the corners. */
-UI_FN void DevShell(int screws)
+/* The whole screen in the shell colour: a light top edge (rows 0-1), a dark bottom edge (rows 237-239) and the four
+ * screws, 5x5 in the corners (every view has them: the Definitiva's rule). */
+UI_FN void DevShell(void)
 {
-    DEV_TRACE(DEV_TRACE_SHELL, 0, 0, W, H, screws, 0, NULL);
+    DEV_TRACE(DEV_TRACE_SHELL, 0, 0, W, H, DEV_SCREWS_TOP | DEV_SCREWS_BOTTOM, 0, NULL);
     Fill(0, 0, W, 2, DevBlend(sDevShell, DEV_WHITE, DEV_A_LIGHT));
     Fill(0, 2, W, H - 5, sDevShell);
     Fill(0, H - 3, W, 3, DevBlend(sDevShell, 0x0000, DEV_A_DARK));
-    if (screws & DEV_SCREWS_TOP) {
-        DevScrew(2, 2);
-        DevScrew(313, 2);
-    }
-    if (screws & DEV_SCREWS_BOTTOM) {
-        DevScrew(2, 232);
-        DevScrew(313, 232);
-    }
+    DevScrew(2, 2);
+    DevScrew(313, 2);
+    DevScrew(2, 232);
+    DevScrew(313, 232);
 }
 
 /* An embedded screen in `outer`: the bezel (radius 6, its outer pixel ring DEV_BEZEL_LINE), a light row under it (so it
@@ -409,8 +421,9 @@ UI_FN void DevLed(int x, int y, int s, uint16_t face)
 /* A key whose resting face is `r` (the boards' numbers). Up: the face at r.y, DEV_DROP rows of drop under it; a KEY has a
  * white top line and two inner bottom rows DEV_KEY_EDGE, a DARK one a DEV_BEZEL_LINE top line, a FAINT one two inner
  * bottom rows DEV_FAINT_EDGE. Sunk (any look): the face DEV_SINK rows lower, two inner top rows (DEV_SUNK_EDGE on a KEY,
- * the face darkened on the others), one row of drop, the LED at its top right; rows r.y..r.y+1 are left to what is
- * under. Paints only DevKeyArea(r). Returns the face's top row. */
+ * the face darkened on the others), one row of drop, the LED (DEV_LED_SIZE at DEV_LED_IN from the right, DEV_LED_TOP
+ * under the face's top); rows r.y..r.y+1 are left to what is under. Paints only DevKeyArea(r). Returns the face's top
+ * row. */
 UI_FN int DevKey(const CtrPokeTouchRect *r, int look, int sunk, int radius)
 {
     int x = r->x, w = r->w, h = r->h, y = r->y + (sunk ? DEV_SINK : 0), rr = DevRadius(w, h, radius);
@@ -422,10 +435,8 @@ UI_FN int DevKey(const CtrPokeTouchRect *r, int look, int sunk, int radius)
     DevOuter(x, y, w, h, rr, sunk ? 1 : DEV_DROP, 0x0000, DEV_A_DROP);
     DevRound(x, y, w, h, rr, face);
     if (sunk) {
-        int s = h >= 30 ? 5 : 4;
-
         DevInset(x, y, w, h, rr, 2, look == DEV_LOOK_KEY ? DEV_SUNK_EDGE : DevBlend(face, 0x0000, DEV_A_DROP), 0);
-        DevLedPixels(x + w - 7 - s, y + (h >= 40 ? 6 : 4), s, face);
+        DevLedPixels(x + w - DEV_LED_IN, y + DEV_LED_TOP, DEV_LED_SIZE, face);
     } else {
         if (look == DEV_LOOK_KEY)
             DevInset(x, y, w, h, rr, 1, DEV_WHITE, 0);
@@ -803,15 +814,22 @@ UI_FN void DevKeyLabel(const CtrPokeTouchRect *r, int faceY, int look, int sunk,
     DevKeyLabelInk(r, faceY, s, DevKeyInk(look, sunk), DevKeyInkShadow(look, sunk));
 }
 
+/* The x a word on sunk key r ends before to keep clear of its LED: 1 px short of the LED's glow (a pixel round its
+ * DEV_LED_SIZE box). */
+UI_FN int DevKeyLedClear(const CtrPokeTouchRect *r)
+{
+    return r->x + r->w - DEV_LED_IN - 2;
+}
+
 /* A key's label in `ink` over `shadow` (DevKeyLabelInk: centred, cut and counted when too wide), clear of the LED a
- * sunk key lights at its top right where the two share rows (keys under 40 tall): moved left of it when it would run
+ * sunk key lights at its top right where the two share rows (keys 30 tall or less): moved left of it when it would run
  * under it; a word too long to fit left of it at all (CONFIRM in German, a German field move on a two-column key, a
  * Summary tab's word in Spanish) in the small font, sunk or not, so it does not change size when chosen. (The Party's
  * and the Summary's.) */
 UI_FN void DevKeyWordInk(const CtrPokeTouchRect *r, int faceY, int sunk, const char *s, uint16_t ink, uint16_t shadow)
 {
     int w = DevTextWidth(s), x = r->x + (r->w - w) / 2, top = faceY + (r->h - UI_TEXT_H) / 2;
-    int ledX = r->x + r->w - 7 - (r->h >= 30 ? 5 : 4) - 2, ledY = faceY + (r->h >= 40 ? 6 : 4);  /* its glow, 1 px apart */
+    int ledX = DevKeyLedClear(r), ledY = faceY + DEV_LED_TOP;
     int room = ledX - (r->x + 4);
 
     if (top > ledY + 6 || top + UI_TEXT_H < ledY - 1) {             /* not in the LED's rows */
@@ -840,7 +858,7 @@ UI_FN void DevKeyWord(const CtrPokeTouchRect *r, int faceY, int look, int sunk, 
 UI_FN void DevKeyWordAtInk(const CtrPokeTouchRect *r, int faceY, int sunk, const char *s, int inset, uint16_t ink,
                            uint16_t shadow)
 {
-    int ledX = r->x + r->w - 7 - (r->h >= 30 ? 5 : 4) - 2;
+    int ledX = DevKeyLedClear(r);
 
     if (inset && DevTextWidth(s) <= ledX - (r->x + inset)) {
         DevTextInk(s, r->x + inset, faceY + (r->h - UI_TEXT_H) / 2, ledX, ink, shadow);
@@ -902,8 +920,18 @@ UI_FN int DevSmallWrap(const char *s, int firstX, int x, int top, int right, int
     return DevSmallWrapRun(s, firstX, x, top, right, maxLines, pitch, ink, 1);
 }
 
+/* DevSmallWrap, and a text that needs more than maxLines lines (the rest left out) counted in sDevKeyCut, as a cut key
+ * label is: a footer's words must fit its paper. Returns the lines drawn. */
+UI_FN int DevSmallFit(const char *s, int firstX, int x, int top, int right, int maxLines, int pitch, uint16_t ink)
+{
+    if (DevSmallWrapRun(s, firstX, x, top, right, maxLines + 1, pitch, ink, 0) > maxLines)
+        ++sDevKeyCut;
+    return DevSmallWrap(s, firstX, x, top, right, maxLines, pitch, ink);
+}
+
 /* Words read on a screen's paper, from x to `right`: the normal font in two lines at most, centred down the paper; a
- * text that needs more, the small font in three from `smallTop`, `pitch` apart. */
+ * text that needs more, the small font in three from `smallTop`, `pitch` apart (DevSmallFit: one that needs more
+ * still is counted). */
 UI_FN void DevReadText(const char *text, const CtrPokeTouchRect *paper, int x, int right, int smallTop, int pitch)
 {
     int width = right - x, lines = DevWrapLines(text, width, 3);
@@ -911,7 +939,22 @@ UI_FN void DevReadText(const char *text, const CtrPokeTouchRect *paper, int x, i
     if (lines <= 2)
         DevWrap(text, x, paper->y + (paper->h - (8 + DEV_LINE_H * (lines - 1))) / 2, width, 2, DEV_INK, DEV_INK_SH);
     else
-        DevSmallWrap(text, x, x, smallTop, right, 3, pitch, DEV_INK);
+        DevSmallFit(text, x, x, smallTop, right, 3, pitch, DEV_INK);
+}
+
+/* A footer's title line on its paper, from x: `s` in the normal font, capitals from paper->y + 2, DEV_TITLE_INK over the
+ * paper's shadow; cut with "..." at paper->x + paper->w - 6 (and then counted in sDevKeyCut). */
+UI_FN void DevNoteTitle(const CtrPokeTouchRect *paper, int x, const char *s)
+{
+    char cut[64];
+    int right = paper->x + paper->w - 6;
+
+    if (DevTextWidth(s) > right - x) {
+        DevCutText(s, right - x, cut, sizeof(cut));
+        s = cut;
+        ++sDevKeyCut;
+    }
+    DevTextInk(s, x, paper->y + 2, right, DEV_TITLE_INK, DEV_INK_SH);
 }
 
 /* ---- Marks, bars, chips, icons ------------------------------------------------------------------------------------- */
@@ -1129,6 +1172,26 @@ UI_FN const char *DevBackWord(void)
 UI_FN const char *DevCloseWord(void)
 {
     return CTR_TR("CLOSE", "CERRAR", "SCHLIE\xC3\x9F" "EN");
+}
+
+/* CANCEL's word, on a key or row that cancels an action (German ABBRECHEN: ZURÜCK is BACK's). */
+UI_FN const char *DevCancelWord(void)
+{
+    return CTR_TR("CANCEL", "CANCELAR", "ABBRECHEN");
+}
+
+/* A move's category on its chip: PHYSICAL (`physical`) or SPECIAL, each within 43 px with its chip's padding at 6 px
+ * (the Summary's and the battle's). */
+UI_FN const char *DevCategoryWord(int physical)
+{
+    return physical ? CTR_TR("PHYSICAL", "F\xC3\x8DSICO", "PHYS.") : CTR_TR("SPECIAL", "ESPEC.", "SPEZIAL");
+}
+
+/* "POW n  ACC n" into out (size bytes): a move's power and accuracy as FireRed gives them, "-" for none. */
+UI_FN void DevPowAcc(char *out, size_t size, const char *power, const char *accuracy)
+{
+    snprintf(out, size, "%s %s  %s %s", CTR_TR("POW", "POT", "ST\xC3\x84"), power && power[0] ? power : "-",
+             CTR_TR("ACC", "PRE", "GEN"), accuracy && accuracy[0] ? accuracy : "-");
 }
 
 /* The key shown sunk: the one under a held touch, else the game's cursor. */

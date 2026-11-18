@@ -294,7 +294,7 @@ static void DevOptSteps(const CtrPokeTouchView *v)
 /* OPTIONS whole (after DevBegin: the dispatcher's). */
 static void DevOptDraw(const CtrPokeTouchView *v)
 {
-    DevShell(0);
+    DevShell();
     DevOptSections(v);
     DevScreen(&kDevGridScreen);
     for (int i = 0; i < DevOptRows(v); ++i)

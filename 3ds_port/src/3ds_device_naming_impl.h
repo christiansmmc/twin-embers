@@ -245,7 +245,7 @@ static void DevNameKeys(const CtrPokeTouchName *n)
 /* The keyboard whole (after DevBegin: the dispatcher's). */
 static void DevNameDraw(const CtrPokeTouchView *v)
 {
-    DevShell(0);
+    DevShell();
     DevNameEntry(&v->name);
     DevNameTops(&v->name);
     DevNameKeys(&v->name);

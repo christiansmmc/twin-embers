@@ -237,8 +237,8 @@ static void DevEcPhrase(const CtrPokeTouchEasy *e)
  * (FireRed's cursor's sunk, or the one held; CANCEL dark). */
 static void DevEcEdit(const CtrPokeTouchEasy *e)
 {
-    static const char *const kButton[3] = {CTR_TR("CLEAR", "BORRAR", "LEEREN"), CTR_TR("CANCEL", "CANCELAR", "ABBRECHEN"),
-                                           CTR_TR("CONFIRM", "CONFIRMAR", "BEST\xC3\x84TIGEN")};
+    const char *const kButton[3] = {CTR_TR("CLEAR", "BORRAR", "LEEREN"), DevCancelWord(),
+                                    CTR_TR("CONFIRM", "CONFIRMAR", "BEST\xC3\x84TIGEN")};
     int mode = DevEcHeld(e, PT_EC_HIT_MODE_GROUPS, 2), button = DevEcHeld(e, PT_EC_HIT_DELETE, 3);
 
     DevEcPhrase(e);
@@ -448,7 +448,7 @@ static void DevEcDraw(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchEasy *e = &v->ec;
 
-    DevShell(0);
+    DevShell();
     if (e->ask)
         DevEcAsk(e);
     else if (e->screen == PT_EC_GROUP || e->screen == PT_EC_LETTER)

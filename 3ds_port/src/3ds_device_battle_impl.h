@@ -9,7 +9,7 @@
  * wild battle the quick ball between BAG and POKeMON (the ball's icon, how many, the arrows to the other balls; grey,
  * saying why, when it cannot throw, and still taken: the game says why too). RUN is grey and takes no touch when there
  * is no running. IDLE: the same screen without the question, the keys grey, nothing taken (in the Safari Zone its own
- * screen and keys, grey). MOVE: the top screws; the
+ * screen and keys, grey). MOVE: the shell with its four screws; the
  * screen with the chosen move (name, type, category, power and accuracy, FireRed's description), the four move keys
  * (name, type, the matchup, the PP) or a hole for each slot without a move, the hint and CANCEL. TARGET: the keys are
  * the battlers the move can be aimed at (name, level, HP, foe or ally, the matchup). SAFARI: BALL, BAIT, ROCK, RUN.
@@ -422,7 +422,7 @@ static void DevBatCommands(const CtrBattleView *v, int idle)
 {
     int cursor = idle ? -1 : v->cursor, pressed = idle ? -1 : DevBatKeyOfHit(v->pressed);
 
-    DevShell(DEV_SCREWS_TOP | DEV_SCREWS_BOTTOM);
+    DevShell();
     DevBatLead(v, !idle);
     for (int i = 0; i < 5; ++i) {
         int act = kDevBatActs[i], sunk = DevChosen(act, cursor, pressed);
@@ -512,7 +512,7 @@ static void DevBatMoveScreen(const CtrBattleView *v)
     DevUpper(type, m->typeName, sizeof(type));
     typeBg = UiTypeColor(m->type);
     if (!DevBatStatusMove(m))
-        cat = m->type < 10 ? CTR_TR("PHYSICAL", "F\xC3\x8DSICO", "PHYSISCH") : CTR_TR("SPECIAL", "ESPECIAL", "SPEZIAL");
+        cat = DevCategoryWord(m->type < 10);
     x = DevBatStat(CTR_TR("ACC", "PRE", "GEN"), m->accuracy[0] ? m->accuracy : "-", 300);
     x = DevBatStat(CTR_TR("POW", "POT", "ST\xC3\x84"), m->power[0] ? m->power : "-", x - 6);
     typeW = DevSmallTextWidth(type) + 8;
@@ -622,12 +622,12 @@ static void DevBatTargetKey(const CtrBattleView *v, int i)
     }
 }
 
-/* MOVE and TARGET: the top screws, the screen, the four keys, the hint and CANCEL. */
+/* MOVE and TARGET: the shell, the screen, the four keys, the hint and CANCEL. */
 static void DevBatMoves(const CtrBattleView *v)
 {
     int sunk = DevChosen(BUI_CANCEL, v->cursor, v->pressed), faceY;
 
-    DevShell(DEV_SCREWS_TOP);
+    DevShell();
     if (v->state == BUI_MOVE)
         DevBatMoveScreen(v);
     else {
@@ -646,7 +646,7 @@ static void DevBatMoves(const CtrBattleView *v)
     DevGlyphs(CTR_TR("A: USE   B: BACK", "A: USAR   B: VOLVER", "A: NUTZEN   B: ZUR\xC3\x9C" "CK"), 12, 218 - 4,
               kDevBatCancel.x - 4, DEV_WHITE, DevBlend(sDevShell, 0x0000, DEV_BAT_SHADOW_A), 1);
     faceY = DevKey(&kDevBatCancel, DEV_LOOK_DARK, sunk, 10);
-    DevKeyLabel(&kDevBatCancel, faceY, DEV_LOOK_DARK, sunk, CTR_TR("CANCEL", "CANCELAR", "ZUR\xC3\x9C" "CK"));
+    DevKeyLabel(&kDevBatCancel, faceY, DEV_LOOK_DARK, sunk, DevCancelWord());
 }
 
 /* SAFARI: FireRed's question and its four, BALL BAIT ROCK RUN, each v0.6.0's art beside the word; `idle` (the Safari
@@ -658,7 +658,7 @@ static void DevBatSafari(const CtrBattleView *v, int idle)
                                  CTR_TR("ROCK", "ROCA", "STEIN"), CTR_TR("RUN", "HUIR", "FLUCHT")};
     CtrPokeTouchRect paper;
 
-    DevShell(DEV_SCREWS_TOP | DEV_SCREWS_BOTTOM);
+    DevShell();
     paper = DevScreen(&kDevBatMoveScreen);
     if (!idle)
         DevText(CTR_TR("What will you do?", "\xC2\xBF" "Qu\xC3\xA9 vas a hacer?", "Was tun?"), 20,

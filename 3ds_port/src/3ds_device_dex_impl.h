@@ -661,7 +661,7 @@ static void DevDexPage(const CtrPokeTouchView *v)
 /* The Pokedex whole (after DevBegin: the dispatcher's); busy with nothing kept yet, the shell. */
 static void DevDexDraw(const CtrPokeTouchView *v)
 {
-    DevShell(0);
+    DevShell();
     if (v->dex.state == PT_DEX_STATE_MENU)
         DevDexMenu(v);
     else if (v->dex.state == PT_DEX_STATE_LIST)

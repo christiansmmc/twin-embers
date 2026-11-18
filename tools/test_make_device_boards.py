@@ -32,6 +32,11 @@ class DeviceBoards(unittest.TestCase):
         for banned in ('data:', 'base64', '<img', '<canvas'):
             self.assertNotIn(banned, html)
 
+    def test_sunk_key_led(self):
+        """A sunk key's LED is 4x4 at (x + w - 11, faceY + 4) whatever the key's height (the Definitiva's TECLAS)."""
+        html = tool.element({'op': 'key', 'x': 8, 'y': 8, 'w': 96, 'h': 40, 'look': 'key', 'sunk': 1, 'radius': 6})
+        self.assertIn('left: 93px; top: 14px; width: 4px; height: 4px; border-radius: 50%; background: #58e070', html)
+
     def test_harness_trace_matches_the_layout(self):    # build() and run() are test_device_views' (synthetic fonts, clean env)
         with tempfile.TemporaryDirectory() as tmp:
             harness = Path(tmp) / ('device_render_test.exe' if os.name == 'nt' else 'device_render_test')
