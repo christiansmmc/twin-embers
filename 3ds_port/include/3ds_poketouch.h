@@ -81,7 +81,7 @@ enum { PT_OPT_TEXT_SPEED, PT_OPT_BATTLE_SCENE, PT_OPT_BATTLE_STYLE, PT_OPT_SOUND
        PT_OPT_FPS, PT_OPT_GAME_COUNT };
 /* The preview OPTIONS shows under the look rows (RED LOOK, LEAF LOOK, RIVAL LOOK) while one is selected: the look chosen for it,
  * its name and its artists, and its walking picture facing down (32x32 at 4 bits, 4x4 tiles of 32 bytes, row by row of tiles)
- * drawn twice as large. `has` is 0 when the choice is the default (no picture, the name says so) or the pack has no picture. */
+ * drawn at its size. `has` is 0 when the choice is the default (no picture, the name says so) or the pack has no picture. */
 #define PT_LOOK_NAME_LEN 12
 #define PT_LOOK_CREDIT_LEN 128
 typedef struct {
@@ -434,10 +434,10 @@ typedef struct {
     char optSectionName[PT_OPT_SECTIONS][PT_OPT_SECTION_LEN];   /* the section keys' words: the shown section's is its page's name */
     int8_t optKey;              /* the key (PT_OPT_KEY_*) under a held touch, or -1 */
     uint8_t optCount;           /* its rows on the current page */
-    uint8_t optSelected;        /* the row the bar describes (within the current page) */
+    uint8_t optSelected;        /* the chosen row, the one the note describes (within the current page) */
     int8_t optPressed;          /* the row under a held touch, or -1, and where on it: PT_OPT_ZONE_* */
     uint8_t optZone;
-    uint8_t optFrameShow;       /* the selected row is FRAME: the bar shows a sample of its type ... */
+    uint8_t optFrameShow;       /* the selected row is FRAME: the page shows a sample of its type ... */
     uint8_t optFrameType;       /* ... 0..9 */
     CtrPokeTouchLook optLook;   /* a look row is selected: the preview panel */
     char optLabel[PT_OPT_MAX][PT_OPT_LABEL_LEN];
@@ -569,7 +569,7 @@ void CtrPokeTouch_Draw(uint16_t *canvas, const CtrPokeTouchView *view);
  * is added to `dirty` to be presented; nothing is added when nothing changed. */
 void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const CtrPokeTouchView *view,
                          CtrDirtyList *dirty);
-/* The lower screen with nothing to show for FireRed's screen above (its title, naming, a shop, an evolution, a trade):
+/* The lower screen with nothing to show for FireRed's screen above (its title, an evolution, a trade):
  * the red device in the shell colour `shell` (0 red, 1 blue, 2 green, 3 grey) with an embedded screen asleep, and the
  * project's logo on it when `logo` (3ds_device_frame_impl.h). */
 void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo, uint8_t shell);

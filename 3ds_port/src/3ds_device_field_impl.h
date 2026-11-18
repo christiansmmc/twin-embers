@@ -4,10 +4,11 @@
  * draws it).
  *
  * A row: when the view is shown, how it draws whole (after DevBegin), whether two views draw the same (the fields it
- * draws, the press as drawn; the shell is the dispatcher's), and its BACK key as drawn now (NULL: none). The rows are in
- * MenuFrame's precedence: Easy Chat, the Pokedex, the card, the move to forget, the relearner, the letter, a choice, the
- * naming screen, the PC box, SAVE, OPTIONS, and the frame round FireRed's picture last; each view's task puts its row at
- * its place. A view drawn here draws whole when it changes (an Update is the full Draw), and nothing else. */
+ * draws, the press as drawn; the shell is the dispatcher's), and its BACK key as drawn now (NULL: none). The first row
+ * whose view is shown draws: Easy Chat, the Pokedex, the card, the move to forget, the relearner, the letter, a choice,
+ * the naming screen, the PC box, SAVE, OPTIONS, and the frame round FireRed's picture last (it takes any view the rows
+ * before it do not); each view's task puts its row at its place. A view drawn here draws whole when it changes (an
+ * Update is the full Draw), and nothing else. */
 
 typedef struct {
     int (*shown)(const CtrPokeTouchView *);

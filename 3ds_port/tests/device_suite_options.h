@@ -201,7 +201,7 @@ static void SuiteOptions(void)
     v.backEnabled = 1; v.backVisible = 0; DevCheckTouch(&old, &v); assert(at(247, 210) == DEV_SHELL_RED && !BackV(&v, 247, 210));
     v.backVisible = 1; DevCheckTouch(&old, &v);
     /* what OPTIONS does not draw presents nothing: the first line of the bar (the row's label), a row past the page's,
-     * FRAME's type with no sample, a look not shown, the column, the map */
+     * FRAME's type with no sample, a look not shown, HOME's keys, the map */
     strcpy(v.bar[0], "Anything"); strcpy(v.optLabel[6], "Seventh"); v.optFrameType = 3; strcpy(v.optLook.name, "ASH");
     v.enabled[PT_BAG] = 1; v.playerX = 3;
     assert(DevCheckTouch(&old, &v).count == 0);

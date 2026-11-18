@@ -650,7 +650,7 @@
   },
   {
    "path": "3ds_port/include/3ds_poketouch.h",
-   "sha256": "1d940f8873fbf8ee1b7c98e4ab3694beaa01ee9b90b4ea783b999e2c1bd91dc2",
+   "sha256": "460729610b895594641b5fcb1e95f5370895feb4700e4b78de7d8be117a7d565",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -873,7 +873,7 @@
    "review_status": "reviewed",
    "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
-   "basis": "Menu silhouette fallback generated in RAM; when available the six game menu icons are decoded at runtime from pack-backed item graphics/palettes, without distributing game pixels."
+   "basis": "Port-authored 12x12 silhouettes for HOME's six START entries without the pack, and storage for the game font's glyphs decoded at runtime from the user's pack; no game pixels or palettes in the header."
   },
   {
    "path": "3ds_port/include/twin_font.h",
@@ -1018,7 +1018,7 @@
   },
   {
    "path": "3ds_port/src/3ds_bottom.c",
-   "sha256": "0d59338a3b3698202a782aeaefd096ff7ccd0529497f8a3ee3f3238e20afda9d",
+   "sha256": "c1590d127c87a4b40a34de8b28481bbad169ba80a5df6a3a81c805a715c3351e",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -1356,7 +1356,7 @@
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
-   "basis": "Pinned technical port adapted for pack-backed PokÃ©Touch item art. Uses verified CtrData_Load, bounded local GBA LZ decoding and existing canvas drawing; no bundled game image/palette data.",
+   "basis": "Pinned technical port adapted for the red device's lower screen. HOME's six START entries' icons are decoded at runtime from the user's pack (verified CtrData_Load, bounded local GBA LZ decoding); no bundled game image/palette data.",
    "source_repository": "alex61194/pokemon-firered-3ds-clean",
    "source_commit": "96f95e015af9f5f38e4a8aefca7cab29a78b030d",
    "source_blob": "b81750787115b9e2fe9bcfed37c494c416bf8484",
@@ -3100,7 +3100,7 @@
   },
   {
    "path": "docs/QUALITY-OF-LIFE.md",
-   "sha256": "e4d9966d469e23ce7fca5e37ecf3533a2a91db2eb4434ea608a42641aa4016e3",
+   "sha256": "caf87c189ff43fb885ffc6f5c675d767b6f7fc2e0472f3a310027e31d7a3b355",
    "review_status": "reviewed",
    "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7297,7 +7297,7 @@
   },
   {
    "path": "3ds_port/include/3ds_device_layout.h",
-   "sha256": "6a03be6b284dbaccbdd74ee2bbf75763329ab2309e034b2f4f81b746863851db",
+   "sha256": "14c69bc64d318734e18f675291a540693bb0dfdc42b655a52747ca2520710f71",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7313,7 +7313,7 @@
   },
   {
    "path": "3ds_port/tests/device_layout_test.c",
-   "sha256": "f1990dc27c03de6e37aecc60e7b55cad67e277a0885c5278f557ffac084f5118",
+   "sha256": "99add19f4c3800505fe66fd972c3c5f35664fc5cca64a290ba394a6b2b22bc32",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7321,7 +7321,7 @@
   },
   {
    "path": "3ds_port/tests/device_render_test.c",
-   "sha256": "8d2a521652ad2efa80a4f4404f7a13b4c56b4db87313df5aeed0b79f3a8d6c67",
+   "sha256": "90ae23664de1c762244b34e63860e43d6dc7f8dc625dd691a15ad5f8450edd6c",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7417,7 +7417,7 @@
   },
   {
    "path": "3ds_port/src/3ds_device_field_impl.h",
-   "sha256": "0e4a6769a171afb91fa21a7f7eb7f91238adc9a7c1c896d45757770e3ae314a4",
+   "sha256": "35955c88c268a99c9d67e28cfaebfa416cd3ef174466cd37ff84c982fff2b372",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7433,7 +7433,7 @@
   },
   {
    "path": "3ds_port/tests/device_suite_options.h",
-   "sha256": "314426187a5a996601277b1b8fe8d126270d6d35833754ee87fc2f6173e9cee0",
+   "sha256": "7d409487fada490b1a2a1aad0b539755ff9d5a9ca4cb6d5f319cefd20c314a94",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7465,7 +7465,7 @@
   },
   {
    "path": "3ds_port/tests/device_suite_card.h",
-   "sha256": "4a37e07c0d3a4fc2a410c2c79364a3578f3c0023ccd36a9b8c655bcc12f6c93e",
+   "sha256": "761d6af4d1e6d92bc9e3e02ed2db5b1df97b2c55ae8beb0652585d6d71a08116",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7473,7 +7473,7 @@
   },
   {
    "path": "3ds_port/tests/device_suite_mail.h",
-   "sha256": "1a03c9cd5f41500d5c7912dda9850722ad4d746d666f87f7a9bc9cdae380595e",
+   "sha256": "72305b8fff5f04103acb3990cf1638633d2832c7f974f191bb8656a564292063",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7481,7 +7481,7 @@
   },
   {
    "path": "3ds_port/tests/device_suite_save.h",
-   "sha256": "4fb3e6e285139f2184df1a1dc6ee1dcbf7a42b4881abb31b62464a80ee945020",
+   "sha256": "ac59c257368e2505aea47e49bcb16dc9cc93b7b3d070ba09f1f4d6b097993c1f",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7593,7 +7593,7 @@
   },
   {
    "path": "3ds_port/tests/device_suite_easychat.h",
-   "sha256": "6a48fded951cbf1769c6552dde932f677a95fe6ca12ac8424a95c7f0911d3cba",
+   "sha256": "e1c7b6fcddc62c3cd3094405092552c3a1fe6d6be803e7228571c17c7e732336",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

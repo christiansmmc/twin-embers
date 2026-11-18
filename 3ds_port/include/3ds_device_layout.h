@@ -363,13 +363,17 @@ static inline CtrPokeTouchRect DevDexSlot(int i)
 static const CtrPokeTouchRect kDevChoiceNote __attribute__((unused)) = {8, 160, 228, 72};
 static const CtrPokeTouchRect kDevChoiceBack __attribute__((unused)) = {244, 160, 68, 70};
 
-/* Key i of a choice of n (1-8): FireRed's one column (cols 0) in one column up to four keys and in two beyond, going
- * down first as FireRed's list does; a grid of `cols` columns across, as FireRed's grid goes. Up to three rows 40 tall,
- * four 32, 4 px apart from the top. */
+/* Key i of a choice of n (1-8): FireRed's one column (cols 0, or a grid of one) in one column up to four keys and in two
+ * beyond, going down first as FireRed's list does; a grid of `cols` columns across, as FireRed's grid goes. Up to three
+ * rows 40 tall, four 32, 4 px apart from the top. */
 static inline CtrPokeTouchRect DevChoiceKey(int n, int cols, int i)
 {
-    int c = cols > 0 ? cols : n > 4 ? 2 : 1, rows = (n + c - 1) / c, h, col, row;
+    int c, rows, h, col, row;
 
+    if (cols < 2)
+        cols = 0;
+    c = cols > 0 ? cols : n > 4 ? 2 : 1;
+    rows = (n + c - 1) / c;
     if (rows < 1)
         rows = 1;
     col = cols > 0 ? i % c : i / rows;

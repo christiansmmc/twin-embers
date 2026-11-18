@@ -132,27 +132,24 @@ player's PC, WITHDRAW ITEM, withdraw and leave, also from a Pokemon Center).
 
 ## The touch screen's ember look (replaced by the red device)
 
-The ember look described here was removed (its art, the sparks and the EMBERS option are gone; the lower screen is
-now the red device with a SHELL COLOUR option, see the README and the CHANGELOG). History: the lower screen's field menus wore the owner's modern design (DS/3DS-era raised buttons on a red ember
-backdrop, from the mockups the owner approved): the START column as cream buttons with an icon
-and FireRed's lettering (amber and glowing for the screen shown), the X and Y tiles with their badge, RUN
-with a switch, the GBA picture and the HOME map in a slate frame, the bar as a note card with BACK (violet)
-and PAGE beside it, OPTIONS as raised rows with the value in a pill (a switch for ON/OFF) and SAVE as a card
-with YES and NO. The battle Summary keeps its layout on the same backdrop. The battle screens are unchanged.
+The lower screen is now the red device, with a SHELL COLOUR option (see the README and the CHANGELOG); the ember look
+was removed with its art, its sparks and its EMBERS option.
 
-- The art is the port's own: the ember skin script and its generated headers (removed) drew the backdrop and the six column icons; the BAG icon is the port's battle Bag reduced. The text is FireRed's font at run time.
-- Embers rise slowly over the backdrop (about twenty sparks; the touch-skin source is removed): one step a frame,
-  drawn only on pixels that show the backdrop, so they pass behind every button and never over the GBA
-  picture; each spark puts back what it painted. OPTIONS, page 2, EMBERS: OFF, LOW or HIGH, shown side
-  by side with the chosen one lit (a touch picks one; Left and Right step through them). LOW keeps 7 of
-  the sparks and moves them once every 3 frames, as fast as before. The default is HIGH on a New 3DS and
-  LOW on an Old 3DS; once the player picks a level it is kept in `sdmc:/3ds/twinembers/settings.cfg`
-  (`embers=0..2`), not in the game save.
-- The old artwork skin (`poketouch_skin*.h`, `tools/make_touch_skin.py`) is removed.
+History. The lower screen's field menus wore the owner's earlier design (DS/3DS-era raised buttons on a red ember
+backdrop, from the mockups the owner approved): the START column as cream buttons with an icon and FireRed's lettering
+(amber and glowing for the screen shown), the X and Y tiles with their badge, RUN with a switch, the GBA picture and the
+HOME map in a slate frame, the bar as a note card with BACK (violet) and PAGE beside it, OPTIONS as raised rows with the
+value in a pill (a switch for ON/OFF) and SAVE as a card with YES and NO. The battle Summary kept its layout on the same
+backdrop; the battle screens were unchanged.
 
-Checked: `tests/poketouch_render_test.c` (new hit geometry, every incremental redraw equal to a full one);
-`tests/poketouch_options_test.c` (the EMBERS row, its default and its values); the ARM build links.
-NEEDS VALIDATION in Azahar and on a console (each field menu, SAVE, OPTIONS, the embers' cost per frame).
+- The art was the port's own: the ember skin script and its generated headers drew the backdrop and the six column
+  icons; the BAG icon was the port's battle Bag reduced. The text was FireRed's font at run time.
+- Embers rose slowly over the backdrop (about twenty sparks): one step a frame, drawn only on pixels that showed the
+  backdrop, so they passed behind every button and never over the GBA picture; each spark put back what it painted.
+  OPTIONS, page 2, EMBERS: OFF, LOW or HIGH (LOW kept 7 of the sparks and moved them once every 3 frames). The default
+  was HIGH on a New 3DS and LOW on an Old 3DS; a level the player picked was kept in
+  `sdmc:/3ds/twinembers/settings.cfg` (`embers=0..2`), not in the game save.
+- The older artwork skin (`poketouch_skin*.h`, `tools/make_touch_skin.py`) had been removed before it.
 
 ## Day and night on the outdoor field
 

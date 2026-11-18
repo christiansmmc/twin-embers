@@ -148,7 +148,7 @@ static void SuiteCard(void)
     cv.backPressed = 1; assert(DevCheckTouch(&co, &cv).count == 0);                    /* a press on a grey BACK: not drawn */
     cv.backEnabled = 1; cv.backPressed = 0; cv.backVisible = 0; DevCheckTouch(&co, &cv);
     assert(at(247, 210) == DEV_SHELL_RED && !BackV(&cv, 247, 210)); AssertKey(kDevCardFlip, DEV_LOOK_KEY, 0);
-    /* what the card does not draw presents nothing: the bar, the column's fields, the map */
+    /* what the card does not draw presents nothing: the bar, HOME's keys, the map */
     cv = CardBoard(); DevCheckTouch(&co, &cv);
     strcpy(cv.bar[0], "Anything"); cv.bar[1][0] = 0; cv.enabled[PT_BAG] = 1; cv.playerX = 3;
     assert(DevCheckTouch(&co, &cv).count == 0);

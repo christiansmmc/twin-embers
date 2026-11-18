@@ -70,7 +70,7 @@ static void SuiteMail(void)
     mv.backPressed = 0; mv.backEnabled = 0; DevCheckTouch(&mo, &mv); assert(at(11, 210) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, 128));
     mv.backEnabled = 1; mv.backVisible = 0; DevCheckTouch(&mo, &mv);
     assert(at(11, 210) == DEV_SHELL_RED && !BackV(&mv, 11, 210) && CtrPokeTouch_MailHit(&mv, 160, 90));
-    /* what the letter does not draw presents nothing: the bar, the column's fields, the map */
+    /* what the letter does not draw presents nothing: the bar, HOME's keys, the map */
     mv = MailBoard(); DevCheckTouch(&mo, &mv);
     strcpy(mv.bar[0], "Anything"); mv.enabled[PT_BAG] = 1; mv.playerX = 3;
     assert(DevCheckTouch(&mo, &mv).count == 0);

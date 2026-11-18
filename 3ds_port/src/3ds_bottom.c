@@ -517,7 +517,7 @@ typedef struct {
     CtrPokeTouchView touch;
     CtrBattleView battle;
     unsigned char battleUi;         /* the battle's design is what the lower screen shows (the battle, or its Bag) */
-    unsigned char idleLogo;         /* nothing to show for a while (IDLE_LOGO_FRAMES): the logo on the backdrop */
+    unsigned char idleLogo;         /* nothing to show for a while (IDLE_LOGO_FRAMES): the idle screen's logo */
 } Snapshot;
 
 static void SummaryFill(CtrSummaryUiView *v);
@@ -2462,8 +2462,8 @@ static void PokeTouchActivate(int id)
             BeginSessionPending(PT_BAG);
         break;
     case PT_CARD:
-        /* The real Trainer Card, opened directly (no START menu). From the native
-         * OPTIONS the bottom keeps showing it until the card is ready. */
+        /* The real Trainer Card, opened directly (no START menu); the lower
+         * screen keeps what it shows until the card is ready. */
         if (!menu && CtrField_TryOpenCard())
             BeginSessionPending(PT_CARD);
         break;
@@ -2486,8 +2486,8 @@ static void PokeTouchActivate(int id)
             OpenSave();
         break;
     case PT_POKEDEX:
-        /* The real Pokedex, opened directly (no START menu); from the native OPTIONS the bottom keeps
-         * showing it until the Pokedex is ready. */
+        /* The real Pokedex, opened directly (no START menu); the lower screen keeps what it shows
+         * until the Pokedex is ready. */
         if (menu)
             CtrPokeTouch_Pick(id);
         else if (CtrField_TryOpenDex())
@@ -4525,8 +4525,8 @@ void CtrBottom_Frame(void)
     sSumViewValid = 0;
     if (!sInitDone)
         return;
-    /* Physical Y and X: the Bicycle and registered-item shortcuts, the same
-     * field requests as the Y and X panels (and kept with the panels off). */
+    /* Physical Y and X: the Bicycle and the registered item, asked of the
+     * field (before the lower screen's own check: with it off too). */
     if (CtrInput_Get()->physicalDown & CTR_KEY_Y)
         CtrPokeTouch_RequestFieldCommand(PT_BIKE);
     if (CtrInput_Get()->physicalDown & CTR_KEY_X)
@@ -4695,7 +4695,7 @@ void CtrBottom_Frame(void)
     /* The shell's colour (a held picture, nav: state is sShown, keeps the one it was built with). */
     if (!nav)
         state.touch.shell = state.battle.shell = state.sum.shell = (uint8_t)CtrOptions_Shell();
-    /* The logo only once nothing has been shown for a while: a screen's few frames of change show the backdrop. */
+    /* The logo only once nothing has been shown for a while: a screen's few frames of change show no logo. */
     sIdleFrames = state.mode == MODE_OFF && !sSession.active ? (sIdleFrames < IDLE_LOGO_FRAMES ? sIdleFrames + 1
                                                                                                  : sIdleFrames) : 0;
     state.idleLogo = (unsigned char)(sIdleFrames >= IDLE_LOGO_FRAMES);

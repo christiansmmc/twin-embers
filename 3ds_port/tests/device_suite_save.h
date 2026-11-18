@@ -124,7 +124,7 @@ static void SuiteSave(void)
     a.saveMoney = 999999; b.saveMoney = 1000000; TouchSamePixels(&a, &b, 1, "999999 and 1000000");
     b = a; b.saveBadges = 10; TouchSamePixels(&a, &b, 0, "8 and 10 badges");   /* the stub's digits look alike: */
     b = a; b.saveDex = 15; TouchSamePixels(&a, &b, 0, "151 and 15 caught");    /* a count of another length */
-    /* what SAVE does not draw presents nothing: BACK's fields, the column's, the map, OPTIONS' */
+    /* what SAVE does not draw presents nothing: BACK's fields, HOME's keys, the map, OPTIONS' */
     v = SaveBoard(); DevCheckTouch(&old, &v);
     v.backVisible = v.backEnabled = v.backPressed = 1; v.enabled[PT_BAG] = 1; v.playerX = 3;
     v.optCount = 2; strcpy(v.optLabel[0], "Text speed");

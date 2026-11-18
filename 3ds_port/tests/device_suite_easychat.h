@@ -225,7 +225,7 @@ static void SuiteEasyChat(void)
 
     /* a list: its title (the group) over the phrase in one line; the selected word's row inverted, or the one held; the
      * rail's thumb where the rows shown are (24 px of 124 for 30 rows: the top, the middle, the bottom); ▲ ▼ grey where
-     * the list goes no further, sunk while held; the strip's lit letter boxed; BACK (dark), the toggle, USE WORD */
+     * the list goes no further, sunk while held; the strip's lit letter boxed; USE WORD, the toggle, BACK (dark) */
     v = EcBoard(); v.ec.screen = PT_EC_LIST; v.ec.word = 3; DevCheckTouch(&old, &v);
     EcRowsInverted(&v, 3);
     assert(CountIn(kEcListLine1, DEV_INK) > 0 && CountIn(kEcListLine1, DEV_INK2) == 0 && CountIn(kEcListLine2, DEV_INK2) > 0);
