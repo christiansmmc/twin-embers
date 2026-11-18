@@ -2207,7 +2207,7 @@ static void SuiteSummary(void)
     CtrSummaryUiView sv = SumBoard(), so = sv;
     CtrPokeTouchRect r, tab[SUI_TABS];
     uint16_t bar = UI_RGB(0x8A, 0x94, 0xA8), fire = UiTypeColor(10), red = GbaColor(SUM_ART_RED), blue = GbaColor(SUM_ART_BLUE);
-    int i;
+    int i, cuts;
 
     for (i = 0; i < SUI_TABS; ++i)
         tab[i] = DevGridTab(4, i);
@@ -2247,7 +2247,21 @@ static void SuiteSummary(void)
     /* two types: the second chip after the first, the number under them */
     sv.data.typeIds[1] = 2; strcpy(sv.data.types[1], "Flying"); DevCheckSummary(&so, &sv); assert(Count(20, 167, 40, 7, DEV_INK2) > 0);
     assert(Count(64, 155, 42, 7, DEV_INK2) == 0 && at(64, 153) == UiTypeColor(2) && Count(106, 152, 4, 12, UiTypeColor(2)) == 0);
-    sv.data.typeIds[1] = 10; strcpy(sv.data.types[1], "FIRE"); DevCheckSummary(&so, &sv);
+    /* the widest data: two 6-letter types (FireRed's names are 6 letters at most) share the column's 86 px, on INFO and
+     * on MOVES; a 12-letter ability and item (FireRed's longest) beside the page's labels: nothing cut, in EN, ES and DE */
+    cuts = sDevKeyCut;
+    sv.data.typeIds[0] = 3; strcpy(sv.data.types[0], "POISON"); sv.data.typeIds[1] = 4; strcpy(sv.data.types[1], "GROUND");
+    strcpy(sv.data.ability, "COMPOUNDEYES"); strcpy(sv.data.item, "SILVERPOWDER"); DevCheckSummary(&so, &sv);
+    assert(sDevKeyCut == cuts && at(21, 153) == UiTypeColor(3) && at(102, 153) == UiTypeColor(4) && Count(106, 152, 4, 12, UiTypeColor(4)) == 0);
+    sv.data.page = SUI_PAGE_MOVES; DevCheckSummary(&so, &sv);
+    assert(sDevKeyCut == cuts && at(102, 85) == UiTypeColor(4) && Count(106, 84, 4, 12, UiTypeColor(4)) == 0);
+    sv.data.page = SUI_PAGE_INFO; sv.data.typeIds[0] = sv.data.typeIds[1] = 10; strcpy(sv.data.types[0], "FIRE"); strcpy(sv.data.types[1], "FIRE");
+    strcpy(sv.data.ability, "BLAZE"); strcpy(sv.data.item, "NONE"); DevCheckSummary(&so, &sv);
+    /* a value too wide for its row is cut and counted, as a cut key label is (the label-fit builds see it) */
+    DevSumRowText(0, CTR_TR("ABILITY", "HABILIDAD", "F\xC3\x84HIGKEIT"), "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW");
+    assert(sDevKeyCut == cuts + 1);
+    sDevKeyCut = cuts;
+    CtrSummaryUi_Draw(canvas, &so);
 
     sv.data.page = SUI_PAGE_SKILLS; DevCheckSummary(&so, &sv); assert(CtrSummaryUi_Hit(&sv, 221, 55) == SUI_HIT_IVTOGGLE); AssertKey(tab[1], DEV_LOOK_KEY, 1);
     /* STATS: the switch hit round where it is drawn, its STATS half shown; the nature's name; ATTACK raised (red, ▲),

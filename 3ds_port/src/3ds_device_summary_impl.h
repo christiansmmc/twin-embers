@@ -439,8 +439,9 @@ static void DevSumMoveColumn(const CtrSummaryUiView *v)
 }
 
 /* Row k of INFO or MEMO, capitals from DEV_SUM_ROW_TOP + k * DEV_SUM_ROW_DY: its label small in the secondary ink at the
- * page's left (capitals 1 px lower), the value ending at its right in the paper's ink, cut to the room the label
- * leaves. */
+ * page's left (capitals 1 px lower), the value ending at its right in the paper's ink, cut with "..." to the room the
+ * label leaves and then counted in sDevKeyCut, as a cut key label is (FireRed's longest names, 12 letters, fit beside
+ * the ES and DE labels). */
 static void DevSumRowText(int k, const char *label, const char *value)
 {
     char cut[64];
@@ -450,6 +451,7 @@ static void DevSumRowText(int k, const char *label, const char *value)
     if (DevTextWidth(value) > room) {
         DevCutText(value, room, cut, sizeof(cut));
         value = cut;
+        ++sDevKeyCut;
     }
     DevText(value, DEV_SUM_RIGHT - DevTextWidth(value), top, DEV_SUM_RIGHT);
 }

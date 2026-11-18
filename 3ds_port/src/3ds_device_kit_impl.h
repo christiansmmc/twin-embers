@@ -719,13 +719,6 @@ UI_FN int DevWrapFirst(const char *s, int x, int top, int firstWidth, int width,
     return DevWrapRun(s, x, x, top, firstWidth, width, maxLines, ink, shadow, 1);
 }
 
-/* Text wrapped in lines `width` wide from x (DevWrapFirst), its first line going on from firstX, after what is drawn
- * before it on that line (the Summary's ability name before its description). */
-UI_FN int DevWrapAfter(const char *s, int firstX, int x, int top, int width, int maxLines, uint16_t ink, uint16_t shadow)
-{
-    return DevWrapRun(s, firstX, x, top, x + width - firstX, width, maxLines, ink, shadow, 1);
-}
-
 /* DevWrapFirst with every line `width` wide. */
 UI_FN int DevWrap(const char *s, int x, int top, int width, int maxLines, uint16_t ink, uint16_t shadow)
 {
