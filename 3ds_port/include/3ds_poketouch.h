@@ -590,9 +590,9 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo, uint8_t shell);
 /*
  * The battle screen (3ds_device_battle_impl.h, CtrBattleUi_*): the whole lower screen while FireRed's battle is on
  * the upper one, drawn as the red device. While the player's controller waits at the action menu: a screen with the
- * lead and the party's six balls, FIGHT across, BAG, POKeMON and RUN below; at the move list, the chosen move on the
- * screen (type, category, power, accuracy, description) and the four move keys and CANCEL; at any other moment the
- * action screen with its keys grey.
+ * lead and the party's six balls, FIGHT across, BAG, POKeMON and RUN below; at the move list, the four move keys, the
+ * chosen move in the footer (type, category, STAB, power, accuracy, description) and BACK (BUI_CANCEL); at any other
+ * moment the action screen with its keys grey.
  * Everything shown is what the controller reports: the screen has no state of its own. In a wild battle a fourth button
  * between BAG and POKeMON throws a ball at once (the quick ball: the ball's own icon and count, arrows or a swipe
  * across it for the others, CTR_ACTION_BALL as the controller's cursor). In the battle Bag (BUI_BAG, the Bag FireRed

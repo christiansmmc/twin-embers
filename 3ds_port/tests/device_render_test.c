@@ -1737,14 +1737,18 @@ static void BatNames(CtrBattleView v)
 /* The plan's suite (each key hit where it is drawn, the touch or else the cursor sinks one key, the quick ball's arrows
  * and its grey states, RUN when there is no running, holes for missing moves, nothing hit while idle), the boards'
  * pieces where the boards put them, then the states for the eye. The commands are def_fight's (owner O1): FIGHT across,
- * under it a trainer's three keys of 96 (the board) or a wild battle's four of 73 with the quick ball, at y 168. */
+ * under it a trainer's three keys of 96 (the board) or a wild battle's four of 73 with the quick ball, at y 168. The
+ * moves are def_moves': four keys of 148x84 from the top, the chosen move in the grid's footer, BACK in its exit corner;
+ * the targets the same keys and BACK, Safari's four over the footer across. */
 static void SuiteBattle(void)
 {
     static const int kWild[4] = {BUI_ACT_BAG, BUI_ACT_BALL, BUI_ACT_POKEMON, BUI_ACT_RUN};
     static const int kTrainer[3] = {BUI_ACT_BAG, BUI_ACT_POKEMON, BUI_ACT_RUN};
+    static uint8_t keepSmall[256];
     CtrBattleView v = BatBoard(), old;
     CtrPokeTouchRect prev, next;
-    int i, x, y, fightX;
+    char stats[48];
+    int i, x, y, fightX, cat, stab, end, w;
 
     old = v;
     CtrBattleUi_Draw(canvas, &old);
@@ -1824,50 +1828,109 @@ static void SuiteBattle(void)
     v.state = BUI_BAG; assert(DevWhole(DevCheckBattle(&old, &v)));
     v.state = BUI_ACTION; assert(DevWhole(DevCheckBattle(&old, &v)));
 
+    /* MOVE (def_moves): the four keys of 148x84 from the top, the chosen move in the footer, BACK in the exit corner */
     v.state = BUI_MOVE; v.cursor = 1; assert(DevWhole(DevCheckBattle(&old, &v)));
     v.activeHp = 50; v.party[5] = 1; v.ballQty = 3; v.runBlocked = 1; assert(DevCheckBattle(&old, &v).count == 0);   /* the lead: not drawn here */
     v.activeHp = 112; v.party[5] = 0; v.ballQty = 21; v.runBlocked = 0; DevCheckBattle(&old, &v);
     for (i = 0; i < 4; ++i) AssertHits(BatHitV, &v, kDevBatMove[i], i);
-    AssertHits(BatHitV, &v, kDevBatCancel, BUI_CANCEL); AssertKey(kDevBatMove[1], DEV_LOOK_KEY, 1);
-    AssertKey(kDevBatMove[0], DEV_LOOK_KEY, 0); AssertKey(kDevBatCancel, DEV_LOOK_DARK, 0);
-    v.pressed = BUI_CANCEL; DevCheckBattle(&old, &v); AssertKey(kDevBatCancel, DEV_LOOK_DARK, 1); AssertKey(kDevBatMove[1], DEV_LOOK_KEY, 0);
+    AssertHits(BatHitV, &v, kDevGridExit, BUI_CANCEL); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0); assert(Count(8, 210, 236, 12, DEV_WHITE) == 0);   /* no hint */
+    AssertKey(kDevBatMove[1], DEV_LOOK_KEY, 1); assert(LedAt(kDevBatMove[1])); AssertKey(kDevBatMove[0], DEV_LOOK_KEY, 0);
+    assert(CtrBattleUi_Hit(&v, 160, 50) == -1 && CtrBattleUi_Hit(&v, 80, 96) == -1 && CtrBattleUi_Hit(&v, 120, 210) == -1);   /* between the keys; the footer */
+    v.pressed = BUI_CANCEL; DevCheckBattle(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1); AssertKey(kDevBatMove[1], DEV_LOOK_KEY, 0);
     v.pressed = -1;
-    /* the board's state: the cursor on FLAMETHROWER */
-    v.cursor = 0; DevCheckBattle(&old, &v);
-    assert(at(19, 100) == UiTypeColor(10) && at(62, 100) == DEV_FX_SUPER);                    /* sunk: 2 px lower */
-    assert(at(175, 98) == UiTypeColor(0) && at(218, 98) == DEV_FX_EFFECTIVE && at(218, 168) == DEV_FX_NOTVERY);
-    assert(at(62, 168) == DEV_KEY && Count(62, 166, 40, 10, DEV_INK2) > 0);                   /* GROWL: "STATUS", no chip */
-    assert(Count(164, 114, 148, 14, DEV_PP_HALF) > 0 && Count(164, 184, 148, 14, DEV_PP_QUARTER) > 0);   /* 15/35, 3/15 */
-    assert(Count(14, 14, 292, 16, DEV_CAT_SPECIAL) > 0 && Count(14, 14, 292, 16, DEV_CAT_PHYSICAL) == 0);
-    assert(Count(20, 31, 280, 26, DEV_INK2) > 0 && Count(12, 214, 120, 12, DEV_WHITE) > 0);   /* the description; the hint */
+    /* the board's state: the cursor on FLAMETHROWER, sunk (its face at 10, its LED at (145, 14)) */
+    v.cursor = 0; DevCheckBattle(&old, &v); assert(LedAt(kDevBatMove[0]));
+    /* the keys: the type chip at (x + 10, faceY + 28), the matchup 4 px after it, GROWL's "STATUS" (capitals faceY + 29) in
+     * its place, the pips at (x + 10, faceY + 64), the PP's numbers capitals faceY + 63 in FireRed's PP colours */
+    assert(at(19, 39) == UiTypeColor(10) && at(19, 37) == DEV_SUNK && at(63, 39) == DEV_FX_SUPER);
+    assert(at(175, 37) == UiTypeColor(0) && at(175, 35) == DEV_KEY && at(219, 37) == DEV_FX_EFFECTIVE && at(219, 127) == DEV_FX_NOTVERY);
+    assert(at(63, 126) == DEV_KEY && Count(62, 127, 40, 7, DEV_KEY_INK2) > 0 && Count(62, 120, 40, 7, DEV_KEY_INK2) == 0);
+    assert(at(18, 74) == DEV_HP_GREEN && at(18, 73) == DEV_SUNK && at(174, 72) == UI_RGB(0xE0, 0xB0, 0x20) && at(174, 71) == DEV_KEY);
+    assert(Count(164, 71, 148, 8, DEV_PP_HALF) > 0 && Count(164, 161, 148, 8, DEV_PP_QUARTER) > 0);   /* 15/35, 3/15 */
+    assert(Count(164, 8, 148, 60, DEV_PP_HALF) == 0 && Count(164, 98, 148, 60, DEV_PP_QUARTER) == 0);   /* above their glyphs */
+    /* the footer [8,190,228,42]: FIRE, SPECIAL and STAB, chips 10 tall at 198 from x 20, 4 apart; POW / ACC small, right
+     * at 226 on their line, after the chips; FireRed's description in two small lines, capitals 209 and 219 */
+    cat = 20 + DevTypeChipWidth("FIRE") + 4;
+    stab = cat + DevSmallTextWidth(DevCategoryWord(0)) + 8 + 4;
+    end = stab + DevSmallTextWidth("STAB") + 8;
+    DevPowAcc(stats, sizeof(stats), "95", "100");
+    w = DevSmallTextWidth(stats);
+    assert(at(21, 198) == UiTypeColor(10) && at(21, 207) == UiTypeColor(10) && at(21, 197) == DEV_PAPER && at(21, 208) == DEV_PAPER);
+    assert(at(cat - 1, 200) == DEV_PAPER && at(cat + 1, 198) == DEV_CAT_SPECIAL && at(stab + 1, 207) == DEV_TAG_STAB && at(end, 200) == DEV_PAPER);
+    assert(Count(226 - w, 198, w, 7, DEV_INK) > 0 && Count(end, 196, 226 - w - end, 12, DEV_INK) == 0 && Count(226, 196, 4, 30, DEV_INK) == 0);
+    assert(Count(14, 196, 216, 12, DEV_INK2) == 0 && Count(20, 209, 204, 7, DEV_INK2) > 0 && Count(20, 219, 204, 7, DEV_INK2) > 0);
+    assert(Count(14, 196, 216, 12, DEV_TAG_STAB) > 0);
     shot("moves");
-    v.cursor = 3; DevCheckBattle(&old, &v);
-    assert(Count(14, 14, 292, 16, DEV_CAT_PHYSICAL) > 0 && Count(14, 14, 292, 16, DEV_CAT_SPECIAL) == 0);
-    v.cursor = 2; DevCheckBattle(&old, &v);                                                     /* no power: no category */
-    assert(Count(14, 14, 292, 16, DEV_CAT_PHYSICAL) == 0 && Count(14, 14, 292, 16, DEV_CAT_SPECIAL) == 0);
-    v.cursor = 0; v.move[0].desc[0] = 0; DevCheckBattle(&old, &v);                            /* no description: STAB, the effect */
-    assert(Count(20, 31, 280, 14, DEV_INK2) > 0);
+    v.move[0].stab = 0; DevCheckBattle(&old, &v); assert(Count(14, 196, 216, 12, DEV_TAG_STAB) == 0 && Count(20, 209, 204, 17, DEV_INK2) > 0);
+    v.move[0].stab = 1; DevCheckBattle(&old, &v); assert(Count(14, 196, 216, 12, DEV_TAG_STAB) > 0);
+    v.cursor = 3; DevCheckBattle(&old, &v);                                                     /* BRICK BREAK: physical */
+    assert(Count(14, 196, 216, 12, DEV_CAT_PHYSICAL) > 0 && Count(14, 196, 216, 12, DEV_CAT_SPECIAL) == 0);
+    v.cursor = 2; DevCheckBattle(&old, &v);                                                     /* GROWL: no power, no category */
+    assert(Count(14, 196, 216, 12, DEV_CAT_PHYSICAL) == 0 && Count(14, 196, 216, 12, DEV_CAT_SPECIAL) == 0 && Count(14, 196, 216, 12, DEV_INK) > 0);
+    v.pressed = 0; DevCheckBattle(&old, &v); assert(Count(14, 196, 216, 12, DEV_CAT_SPECIAL) > 0);   /* a held touch: its move */
+    v.pressed = -1;
+    v.cursor = 0; v.move[0].desc[0] = 0; DevCheckBattle(&old, &v);                            /* no description: the effect's chance */
+    assert(Count(20, 209, 204, 7, DEV_INK2) > 0 && Count(20, 219, 204, 7, DEV_INK2) == 0);
     v.move[0] = BatBoard().move[0];
+    /* a physical STAB move, the widest chips (drawn in the ES / DE runs too): POW / ACC clear of them, nothing cut */
+    v.move[3].stab = 1; strcpy(v.move[3].desc, "Port words in one line."); v.cursor = 3; DevCheckBattle(&old, &v);
+    end = 20 + DevTypeChipWidth("FIGHT") + 4 + DevSmallTextWidth(DevCategoryWord(1)) + 8 + 4 + DevSmallTextWidth("STAB") + 8;
+    assert(Count(14, 196, 216, 12, DEV_TAG_STAB) > 0 && Count(14, 196, 216, 12, DEV_CAT_PHYSICAL) > 0);
+    assert(Count(20, 198, end - 20, 7, DEV_INK) == 0 && Count(20, 196, 206, 30, DEV_INK) > 0 && sDevKeyCut == 0);   /* the chips' capitals' rows */
+    shot("moves_stab");
+    /* POW / ACC wider than the room the chips leave (digits and spaces 8 px, as the game's widths may make it in ES / DE):
+     * the first small line, from x 20 at capitals 209; the description one line under it (a second line cut, counted) */
+    memcpy(keepSmall, smallWidths, sizeof(keepSmall));
+    smallWidths[0] = 8;                                 /* the space */
+    for (unsigned c = 0xa1; c <= 0xaa; ++c)             /* 0..9 */
+        smallWidths[c] = 8;
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    CtrBattleUi_Draw(canvas, &v);
+    assert(Count(20, 196, 206, 9, DEV_INK) == 0 && Count(20, 209, 206, 7, DEV_INK) > 0 && Count(14, 196, 216, 12, DEV_TAG_STAB) > 0);
+    assert(Count(20, 209, 204, 7, DEV_INK2) == 0 && Count(20, 219, 204, 7, DEV_INK2) > 0 && sDevKeyCut == 0);
+    strcpy(v.move[3].desc, BatBoard().move[0].desc); CtrBattleUi_Draw(canvas, &v);
+    assert(Count(20, 219, 204, 7, DEV_INK2) > 0 && sDevKeyCut == 1);
+    sDevKeyCut = 0;
+    memcpy(smallWidths, keepSmall, sizeof(keepSmall));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    v.move[3] = BatBoard().move[3];
+    v.cursor = 0; DevCheckBattle(&old, &v);
+    /* the footer is the chosen move's alone: the other moves' accuracy, description, STAB and effect are not drawn */
+    strcpy(v.move[1].accuracy, "90"); strcpy(v.move[2].desc, "Other words."); v.move[3].stab = 1; v.move[1].effectChance = 30;
+    v.move[0].priority = 1; assert(DevCheckBattle(&old, &v).count == 0);
+    v.move[0].stab = 0; assert(DevWhole(DevCheckBattle(&old, &v)));
+    for (i = 0; i < 4; ++i)
+        v.move[i] = BatBoard().move[i];
+    v.cursor = BUI_CANCEL; DevCheckBattle(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);   /* on BACK: an empty footer */
+    assert(Count(14, 196, 216, 30, DEV_INK) == 0 && Count(14, 196, 216, 30, DEV_INK2) == 0 && Count(14, 196, 216, 30, DEV_PAPER) == 216 * 30);
     v.cursor = 1; DevCheckBattle(&old, &v);
     BatUpperCase(v);
     BatNames(v);
     CtrBattleUi_Draw(canvas, &old);
-    v.move[2].present = v.move[3].present = 0; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 82, 173) == -1);   /* two moves: holes */
-    assert(CtrBattleUi_Hit(&v, 238, 173) == -1 && at(82, 173) == DevBlend(DEV_SHELL_RED, 0, DEV_A_HOLE));
+    v.move[2].present = v.move[3].present = 0; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 82, 140) == -1);   /* two moves: holes */
+    assert(CtrBattleUi_Hit(&v, 238, 140) == -1 && at(82, 140) == DevBlend(DEV_SHELL_RED, 0, DEV_A_HOLE));
     shot("moves_two");
     v.move[2] = BatBoard().move[2];
     v.move[3] = BatBoard().move[3];
 
-    v.state = BUI_TARGET; /* target[0], target[1] foes, target[2] the ally */ DevCheckBattle(&old, &v); AssertHits(BatHitV, &v, kDevBatMove[1], 1); AssertHits(BatHitV, &v, kDevBatCancel, BUI_CANCEL);
-    AssertHits(BatHitV, &v, kDevBatMove[0], 0); AssertHits(BatHitV, &v, kDevBatMove[2], 2);
-    assert(CtrBattleUi_Hit(&v, 238, 173) == -1);                                              /* no fourth: a hole */
-    assert(at(19, 98) == DEV_STAT_UP && at(19, 168) == DEV_BLUE_INK && at(218, 100) == DEV_FX_SUPER);   /* FOE, ALLY; RATICATE */
-    assert(at(18, 72 + 46) == DEV_HP_FRAME && Count(80, 184, 76, 14, DEV_KEY_INK) > 0);    /* the bar; the ally's hp/max */
+    /* TARGET: the same keys and BACK, the question in the footer */
+    v.state = BUI_TARGET; /* target[0], target[1] foes, target[2] the ally */ DevCheckBattle(&old, &v);
+    for (i = 0; i < 3; ++i) AssertHits(BatHitV, &v, kDevBatMove[i], i);
+    AssertHits(BatHitV, &v, kDevGridExit, BUI_CANCEL); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0); AssertKey(kDevBatMove[1], DEV_LOOK_KEY, 1);
+    assert(CtrBattleUi_Hit(&v, 238, 140) == -1);                                              /* no fourth: a hole */
+    /* FOE, ALLY at faceY + 28, RATICATE's matchup 4 px after (sunk: its face at 10); the HP bar at (x + 10, faceY + 64);
+     * the ally's numbers right at x + w - 10, capitals faceY + 63 */
+    assert(at(19, 37) == DEV_STAT_UP && at(19, 35) == DEV_KEY && at(19, 127) == DEV_BLUE_INK && at(219, 39) == DEV_FX_SUPER);
+    assert(at(18, 72) == DEV_HP_FRAME && at(18, 71) == DEV_KEY && at(18, 162) == DEV_HP_FRAME && Count(91, 161, 65, 8, DEV_KEY_INK) > 0);
+    assert(Count(14, 196, 216, 30, DEV_INK) > 0 && Count(8, 210, 236, 12, DEV_WHITE) == 0);   /* the question; no hint */
     shot("target");
+    v.target[1].present = 0; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 238, 50) == -1);
+    v.target[1].present = 1;
 
+    /* SAFARI: its four on the same keys, the question across the footer, no exit key */
     v.state = BUI_SAFARI; v.cursor = 2; DevCheckBattle(&old, &v); for (i = 0; i < 4; ++i) AssertHits(BatHitV, &v, kDevBatMove[i], i);
     AssertKey(kDevBatMove[2], DEV_LOOK_KEY, 1); AssertKey(kDevBatMove[0], DEV_LOOK_KEY, 0);
-    assert(CtrBattleUi_Hit(&v, 200, 222) == -1 && Count(14, 14, 292, 44, DEV_INK) > 0);       /* no CANCEL; the prompt */
+    assert(CtrBattleUi_Hit(&v, 278, 210) == -1 && Count(14, 196, 292, 30, DEV_INK) > 0 && at(300, 200) == DEV_PAPER);
     shot("safari");
 
     v.state = BUI_IDLE; v.ball = CTR_QUICK_BALL_READY; v.ballCount = 4; v.ballItem = 4; v.ballQty = 21;   /* a wild battle */
@@ -1888,8 +1951,8 @@ static void SuiteBattle(void)
     v.safari = 1; assert(DevWhole(DevCheckBattle(&old, &v)));                              /* the Safari Zone: its own keys */
     for (y = 0; y < 240; y += 3) for (x = 0; x < 320; x += 3) assert(CtrBattleUi_Hit(&v, x, y) == -1);
     for (i = 0; i < 4; ++i)
-        assert(at(kDevBatMove[i].x + 3, kDevBatMove[i].y + 31) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
-    assert(Count(14, 14, 292, 44, DEV_INK) == 0 && at(11, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
+        assert(at(kDevBatMove[i].x + 3, kDevBatMove[i].y + 42) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128) && !LedAt(kDevBatMove[i]));
+    assert(Count(14, 196, 292, 30, DEV_INK) == 0 && at(300, 200) == DEV_PAPER);             /* no question */
     shot("idle_safari");
     assert(sDevKeyCut == 0);
 }

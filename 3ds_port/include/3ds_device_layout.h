@@ -103,23 +103,23 @@ static inline CtrPokeTouchRect DevHomeCell(int i)
     return r;
 }
 
-/* ---- The battle (boards def_fight and B · Golpes, 3ds_device_battle_impl.h) ---------------------------------------------
+/* ---- The battle (boards def_fight and def_moves, 3ds_device_battle_impl.h) ---------------------------------------------
  * The commands (def_fight; ACTION, IDLE shows them dimmed): the screen with the lead, FIGHT across, and under it at y 168
  * a row of three keys of 96 (BAG, POKeMON, RUN: a trainer, the board) or of four of 73 (BAG, the quick ball, POKeMON,
- * RUN: a wild battle, owner O1), 62 tall; no exit key (B does nothing there). The moves (MOVE),
- * a double battle's targets (TARGET) and the Safari Zone's BALL BAIT ROCK RUN (SAFARI): the short screen and four keys
- * in the controller's 2x2 order; MOVE and TARGET add CANCEL, a dark pill. The quick ball's arrows are on its key. */
+ * RUN: a wild battle, owner O1), 62 tall; no exit key (B does nothing there). The moves (MOVE, def_moves), a double
+ * battle's targets (TARGET) and the Safari Zone's BALL BAIT ROCK RUN (SAFARI): four keys of 148x84 from the top in the
+ * controller's 2x2 order, the lower two's drops ending by 186; under them the grid's footer: the note with BACK in the
+ * exit corner for MOVE and TARGET (kDevGridNote, kDevGridExit), the note across for Safari (kDevGridNoteWide). The
+ * quick ball's arrows are on its key. */
 static const CtrPokeTouchRect kDevBatScreen __attribute__((unused)) = {8, 8, 304, 92};
-static const CtrPokeTouchRect kDevBatMoveScreen __attribute__((unused)) = {8, 8, 304, 56};
 static const CtrPokeTouchRect kDevBatFight __attribute__((unused)) = {8, 108, 304, 48};
 static const CtrPokeTouchRect kDevBatRow3[3] __attribute__((unused)) = {{8, 168, 96, 62}, {112, 168, 96, 62}, {216, 168, 96, 62}};
 static const CtrPokeTouchRect kDevBatRow4[4] __attribute__((unused)) = {     /* DevAcross(4, i, 168, 62) */
     {8, 168, 73, 62}, {85, 168, 73, 62}, {162, 168, 73, 62}, {239, 168, 73, 62},
 };
-static const CtrPokeTouchRect kDevBatMove[4] __attribute__((unused)) = {
-    {8, 72, 148, 62}, {164, 72, 148, 62}, {8, 142, 148, 62}, {164, 142, 148, 62},
+static const CtrPokeTouchRect kDevBatMove[4] __attribute__((unused)) = {     /* DevAcross(2, i % 2, 8 + 90 * (i / 2), 84) */
+    {8, 8, 148, 84}, {164, 8, 148, 84}, {8, 98, 148, 84}, {164, 98, 148, 84},
 };
-static const CtrPokeTouchRect kDevBatCancel __attribute__((unused)) = {236, 212, 76, 20};
 #define DEV_BAT_ARROW_SLOP 3    /* the quick ball's arrows answer this much round themselves (on their key) */
 
 /* The quick ball's arrow (previous, or `next`) on its key r: the key's lower corners, under the ball (on the 62-tall key,
@@ -253,7 +253,7 @@ static inline CtrPokeTouchRect DevTallRow(int i, int narrow)
 }
 
 /* Key i of n (1-8) across x 8..312, at y and h tall: 8 px apart up to three keys, 4 beyond. (n 3 at y 8 are the
- * Pokedex's tabs, DevDexTabKey; n 4 at y 168 the battle's wild row, n 2 at y 72 its moves' top row.) */
+ * Pokedex's tabs, DevDexTabKey; n 4 at y 168 the battle's wild row, n 2 at y 8 and 98, 84 tall, its moves' keys.) */
 static inline CtrPokeTouchRect DevAcross(int n, int i, int y, int h)
 {
     int g = n <= 3 ? 8 : 4, w = (304 - g * (n - 1)) / n;

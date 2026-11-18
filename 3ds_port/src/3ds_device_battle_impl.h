@@ -1,4 +1,4 @@
-/* The battle's lower screen as the red device (style B; boards B · Comandos and B · Golpes), included by
+/* The battle's lower screen as the red device (style B; boards def_fight and def_moves), included by
  * 3ds_poketouch.c after the kit, HOME, the Party and the Bag. It owns CtrBattleUi_Draw / Update / Hit: the Party (the
  * field's and the battle's, BUI_PARTY) is 3ds_device_party_impl.h's (DevPartyDraw / DevPartyHit / DevPartyUndrawn), the
  * battle's Bag (BUI_BAG) 3ds_device_bag_impl.h's (DevBagBattleDraw / DevBagBattleHit / DevBagBattleSame). Every
@@ -9,10 +9,12 @@
  * wild battle the quick ball between BAG and POKeMON (the ball's icon, how many, the arrows to the other balls; grey,
  * saying why, when it cannot throw, and still taken: the game says why too). RUN is grey and takes no touch when there
  * is no running. IDLE: the same screen without the question, the keys grey, nothing taken (in the Safari Zone its own
- * screen and keys, grey). MOVE: the shell with its four screws; the
- * screen with the chosen move (name, type, category, power and accuracy, FireRed's description), the four move keys
- * (name, type, the matchup, the PP) or a hole for each slot without a move, the hint and CANCEL. TARGET: the keys are
- * the battlers the move can be aimed at (name, level, HP, foe or ally, the matchup). SAFARI: BALL, BAIT, ROCK, RUN.
+ * keys, grey, and its footer without the question). MOVE (def_moves): the shell with its four screws; the four move keys
+ * from the top (name, type, the matchup or STATUS, the PP's pips and numbers) or a hole for each slot without a move; in
+ * the footer the chosen move (type, category, STAB, power and accuracy, FireRed's description); BACK in the exit
+ * corner. TARGET: the keys are the battlers the move can be aimed at (name, level, foe or ally, the matchup, HP), the
+ * footer asks which, BACK beside it. SAFARI: BALL, BAIT, ROCK, RUN on the same keys, FireRed's question in the footer
+ * across, no exit key.
  *
  * The chosen key is the one under a held touch, else the game's cursor: the cursor always counts (showCursor is not
  * drawn). Words: upper case, as the boards and FireRed write them; the game's names through DevUpper, and a Pokemon's
@@ -36,7 +38,6 @@
 #define DEV_BAT_LINE        14                          /* a line of the board's text (its capitals 3 px in) */
 #define DEV_BAT_LEAD_X      20                          /* the lead's icon: {20, 18, 48, 48}, at 2x from its frame's (4, 8) */
 #define DEV_BAT_LEAD_Y      18
-#define DEV_BAT_SHADOW_A    115                         /* the hint's shadow on the shell (the board's 0.45 black) */
 #define DEV_BAT_SWORDS      22                          /* FIGHT's crossed swords, and the gap to its word (def_fight) */
 #define DEV_BAT_SWORDS_GAP  6
 
@@ -257,17 +258,13 @@ int CtrBattleUi_Hit(const CtrBattleView *v, int x, int y)
         return -1;
     }
     if (v->state == BUI_MOVE || v->state == BUI_TARGET || v->state == BUI_SAFARI) {
-        CtrPokeTouchRect a;
-
         for (int i = 0; i < 4; ++i) {
             int here = v->state == BUI_MOVE ? v->move[i].present : v->state == BUI_TARGET ? v->target[i].present : 1;
 
-            a = DevKeyArea(&kDevBatMove[i]);
-            if (here && UiIn(&a, x, y))
+            if (here && DevOnKey(&kDevBatMove[i], x, y))
                 return i;
         }
-        a = DevKeyArea(&kDevBatCancel);
-        if (v->state != BUI_SAFARI && UiIn(&a, x, y))
+        if (v->state != BUI_SAFARI && DevOnKey(&kDevGridExit, x, y))     /* BACK; Safari has none */
             return BUI_CANCEL;
     }
     return -1;
@@ -294,7 +291,7 @@ static uint16_t DevBatInkShadow(int sunk)
     return sunk ? DEV_SUNK_INK_SH : DEV_WHITE;
 }
 
-/* ---- The commands (board B · Comandos) and IDLE ---------------------------------------------------------------------- */
+/* ---- The commands (board def_fight) and IDLE ------------------------------------------------------------------------- */
 
 /* The lead's icon at 2x: its frame 0's 24x24 from (4, 8), where FireRed's icons sit in their 32x32. */
 static void DevBatLeadIcon(const CtrBattleView *v)
@@ -447,7 +444,7 @@ static void DevBatCommands(const CtrBattleView *v, int idle)
     }
 }
 
-/* ---- The moves (board B · Golpes), the targets, Safari ------------------------------------------------------------------ */
+/* ---- The moves (board def_moves), the targets, Safari ------------------------------------------------------------------- */
 
 /* A move's effectiveness against the foe as a chip at (x, y), in v0.6.0's words; none for CTR_FX_NONE. Returns whether
  * there is one. */
@@ -484,62 +481,58 @@ static int DevBatStatusMove(const CtrBattleMove *m)
     return !m->power[0] || m->power[0] == '-';
 }
 
-/* "LABEL value" (the label small in the secondary ink, the value in the paper's ink) ending at `right`, on the move
- * screen's first line; returns where it starts. */
-static int DevBatStat(const char *label, const char *value, int right)
+/* The move MOVE's footer shows: the one under a held touch, else the cursor's; -1 for none (BACK, a slot without a
+ * move). */
+static int DevBatNoteMove(const CtrBattleView *v)
 {
-    int x = right - DevTextWidth(value);
+    int chosen = v->pressed >= 0 && v->pressed < 4 ? v->pressed : v->cursor;
 
-    DevTextInk(value, x, 18, right, DEV_INK, DEV_INK_SH);
-    x -= 3 + DevSmallTextWidth(label);
-    DevSmallText(label, x, 19, DEV_INK2, right);
-    return x;
+    return chosen >= 0 && chosen < 4 && v->move[chosen].present ? chosen : -1;
 }
 
-/* The move screen: the chosen move's name, type and category chips, its power and accuracy; under them FireRed's
- * description in two lines, or without one STAB and the chance of its extra effect. */
-static void DevBatMoveScreen(const CtrBattleView *v)
+/* MOVE's footer (def_moves' [8,190,228,42]): the chosen move's chips, 10 tall at paper.y + 2 and 4 px apart (its type
+ * from x 20, its category (none for a status move), STAB when it has it), and "POW n  ACC n" small, right at
+ * paper.x + paper.w - 4 on their line; where it would come within 6 px of the chips (Spanish or German words with a
+ * physical STAB move) it is the first small line under them instead (Pre-flight ruling 9). Then FireRed's description
+ * small from capitals paper.y + 13 in the lines left (two, or one), 10 apart, or without one the chance of its extra
+ * effect there. Empty on BACK. */
+static void DevBatMoveNote(const CtrBattleView *v)
 {
-    int chosen = v->pressed >= 0 && v->pressed < 4 ? v->pressed : v->cursor, x, room, typeW, catW = 0, nameW;
+    CtrPokeTouchRect paper = DevScreen(&kDevGridNote);
+    int chosen = DevBatNoteMove(v), x = paper.x + 6, top = paper.y + 13, right = paper.x + paper.w - 4, lines = 2, w;
     const CtrBattleMove *m;
-    const char *cat = NULL;
-    char name[BUI_NAME_LEN + 8], type[24], line[48];
-    uint16_t typeBg;
+    char text[48];
 
-    DevScreen(&kDevBatMoveScreen);
-    if (chosen < 0 || chosen > 3 || !v->move[chosen].present)
+    if (chosen < 0)
         return;
     m = &v->move[chosen];
-    DevUpper(name, m->name, sizeof(name));
-    DevUpper(type, m->typeName, sizeof(type));
-    typeBg = UiTypeColor(m->type);
-    if (!DevBatStatusMove(m))
-        cat = DevCategoryWord(m->type < 10);
-    x = DevBatStat(CTR_TR("ACC", "PRE", "GEN"), m->accuracy[0] ? m->accuracy : "-", 300);
-    x = DevBatStat(CTR_TR("POW", "POT", "ST\xC3\x84"), m->power[0] ? m->power : "-", x - 6);
-    typeW = DevSmallTextWidth(type) + 8;
-    if (cat)
-        catW = DevSmallTextWidth(cat) + 8 + 4;
-    room = x - 6 - 20 - (typeW + 4) - catW;
-    nameW = DevTextWidth(name) < room ? DevTextWidth(name) : room > 0 ? room : 0;
-    DevTextInk(name, 20, 18, 20 + nameW, DEV_INK, DEV_INK_SH);
-    x = 20 + nameW + 4;
-    DevChip(x, 16, 0, 12, type, typeBg, DevChipShadow(typeBg));
-    if (cat)
-        DevChip(x + typeW + 4, 16, 0, 12, cat, m->type < 10 ? DEV_CAT_PHYSICAL : DEV_CAT_SPECIAL,
-                m->type < 10 ? DevChipShadow(DEV_CAT_PHYSICAL) : DEV_CAT_SPECIAL_SH);
-    if (m->desc[0]) {
-        DevWrap(m->desc, 20, 34, 280, 2, DEV_INK2, DEV_INK2);
-        return;
+    x += DevTypeChip(m->typeName, m->type, x, paper.y + 2, 10) + 4;
+    if (!DevBatStatusMove(m)) {
+        int physical = m->type < 10;
+        const char *cat = DevCategoryWord(physical);
+
+        DevChip(x, paper.y + 2, 0, 10, cat, physical ? DEV_CAT_PHYSICAL : DEV_CAT_SPECIAL,
+                physical ? DevChipShadow(DEV_CAT_PHYSICAL) : DEV_CAT_SPECIAL_SH);
+        x += DevSmallTextWidth(cat) + 8 + 4;
     }
-    x = 20;
     if (m->stab) {
-        DevText2("STAB", x, 34, 300);
-        x += DevTextWidth("STAB") + 8;
+        DevChip(x, paper.y + 2, 0, 10, "STAB", DEV_TAG_STAB, DevChipShadow(DEV_TAG_STAB));
+        x += DevSmallTextWidth("STAB") + 8 + 4;
     }
-    if (m->effectChance) {
-        snprintf(line, sizeof(line), CTR_TR("EFFECT %u%%", "EFECTO %u%%", "EFFEKT %u%%"), (unsigned)m->effectChance);
-        DevText2(line, x, 34, 300);
+    DevPowAcc(text, sizeof(text), m->power, m->accuracy);
+    w = DevSmallTextWidth(text);
+    if (x - 4 + 6 + w <= right)                     /* x - 4: where the chips end */
+        DevSmallText(text, right - w, paper.y + 2, DEV_INK, right);
+    else {
+        DevSmallText(text, paper.x + 6, top, DEV_INK, right);
+        top += DEV_SMALL_LINE;
+        lines = 1;
+    }
+    if (m->desc[0])
+        DevSmallFit(m->desc, paper.x + 6, paper.x + 6, top, paper.x + paper.w - 6, lines, DEV_SMALL_LINE, DEV_INK2);
+    else if (m->effectChance) {
+        snprintf(text, sizeof(text), CTR_TR("EFFECT %u%%", "EFECTO %u%%", "EFFEKT %u%%"), (unsigned)m->effectChance);
+        DevSmallText(text, paper.x + 6, top, DEV_INK2, paper.x + paper.w - 6);
     }
 }
 
@@ -557,7 +550,8 @@ static void DevBatPips(const CtrBattleMove *m, int x, int y)
         Fill(x + 6 * i, y, 5, 5, i < n ? fill : DEV_KEY_EDGE);
 }
 
-/* "PP n/m" ending at `right`, the numbers in FireRed's PP colours, capitals from `top`. */
+/* "PP n/m" ending at `right`: the numbers in FireRed's PP colours, capitals from `top`; "PP" small in the key's second ink
+ * before them, on their baseline. */
 static void DevBatPp(const CtrBattleMove *m, int right, int top, int sunk)
 {
     char text[16];
@@ -566,17 +560,18 @@ static void DevBatPp(const CtrBattleMove *m, int right, int top, int sunk)
     snprintf(text, sizeof(text), "%u/%u", (unsigned)m->pp, (unsigned)m->maxPp);
     x = right - DevTextWidth(text);
     DevTextInk(text, x, top, right, DevPpInk(m->pp, m->maxPp, DevBatInk(sunk)), DevBatInkShadow(sunk));
-    DevSmallText("PP", x - 3 - DevSmallTextWidth("PP"), top + 1, DEV_INK2, x);
+    DevSmallText("PP", x - 3 - DevSmallTextWidth("PP"), top + 1, DEV_KEY_INK2, x);
 }
 
-/* A move key: its name, type chip, matchup chip (or "STATUS"), PP pips and PP; a hole for a slot without a move. */
+/* A move key (def_moves): its name from x + 10, capitals faceY + 11; its type's chip, 12 tall, at (x + 10, faceY + 28)
+ * and the matchup 4 px after it (a status move with none: "STATUS" small there, capitals faceY + 29); the PP's pips at
+ * (x + 10, faceY + 64) and "PP n/m" right at x + w - 10, capitals faceY + 63; a hole for a slot without a move. */
 static void DevBatMoveKey(const CtrBattleView *v, int i)
 {
     const CtrPokeTouchRect *r = &kDevBatMove[i];
     const CtrBattleMove *m = &v->move[i];
-    int sunk = DevChosen(i, v->cursor, v->pressed), faceY;
-    char name[BUI_NAME_LEN + 8], type[24];
-    uint16_t typeBg = UiTypeColor(m->type);
+    int sunk = DevChosen(i, v->cursor, v->pressed), faceY, x;
+    char name[BUI_NAME_LEN + 8];
 
     if (!m->present) {
         DevHole(r, 6);
@@ -584,17 +579,17 @@ static void DevBatMoveKey(const CtrBattleView *v, int i)
     }
     faceY = DevKey(r, DEV_LOOK_KEY, sunk, 6);
     DevUpper(name, m->name, sizeof(name));
-    DevUpper(type, m->typeName, sizeof(type));
-    DevTextInk(name, r->x + 10, faceY + 11, r->x + r->w - 18, DevBatInk(sunk), DevBatInkShadow(sunk));
-    DevChip(r->x + 10, faceY + 25, 40, 12, type, typeBg, DevChipShadow(typeBg));
-    if (!DevBatMatchup(m->matchup, r->x + 54, faceY + 25) && DevBatStatusMove(m))
-        DevSmallText(CTR_TR("STATUS", "ESTADO", "STATUS"), r->x + 54, faceY + 27, DEV_INK2, r->x + r->w - 10);
-    DevBatPips(m, r->x + 10, faceY + 46);
-    DevBatPp(m, r->x + r->w - 10, faceY + 45, sunk);
+    DevTextInk(name, r->x + 10, faceY + 11, r->x + r->w - 10, DevBatInk(sunk), DevBatInkShadow(sunk));
+    x = r->x + 10 + DevTypeChip(m->typeName, m->type, r->x + 10, faceY + 28, 12) + 4;
+    if (!DevBatMatchup(m->matchup, x, faceY + 28) && DevBatStatusMove(m))
+        DevSmallText(CTR_TR("STATUS", "ESTADO", "STATUS"), x, faceY + 29, DEV_KEY_INK2, r->x + r->w - 10);
+    DevBatPips(m, r->x + 10, faceY + 64);
+    DevBatPp(m, r->x + r->w - 10, faceY + 63, sunk);
 }
 
-/* A target key: the battler's name and level, foe or ally, the move's matchup against it, its HP bar (and the ally's
- * numbers, as FireRed shows them); a hole where the move cannot be aimed. */
+/* A target key, a move key's places: the battler's name and level (capitals faceY + 11), foe or ally on a chip where the
+ * type is, the move's matchup against it 4 px after, its HP bar where the pips are (72x5) and the ally's numbers, as
+ * FireRed shows them, where the PP is; a hole where the move cannot be aimed. */
 static void DevBatTargetKey(const CtrBattleView *v, int i)
 {
     const CtrPokeTouchRect *r = &kDevBatMove[i];
@@ -613,46 +608,46 @@ static void DevBatTargetKey(const CtrBattleView *v, int i)
     DevTextInk(text, r->x + r->w - 20 - lvW, faceY + 11, r->x + r->w - 20, DevBatInk(sunk), DevBatInkShadow(sunk));
     DevTextInk(DevMonName(t->name, t->nameIsSpecies, name, sizeof(name)), r->x + 10, faceY + 11, r->x + r->w - 24 - lvW,
                DevBatInk(sunk), DevBatInkShadow(sunk));
-    DevChip(r->x + 10, faceY + 25, 40, 12, t->side ? CTR_TR("ALLY", "ALIADO", "PARTNER") : CTR_TR("FOE", "RIVAL", "GEGNER"),
+    DevChip(r->x + 10, faceY + 28, 40, 12, t->side ? CTR_TR("ALLY", "ALIADO", "PARTNER") : CTR_TR("FOE", "RIVAL", "GEGNER"),
             side, DevChipShadow(side));
-    DevBatMatchup(t->matchup, r->x + 54, faceY + 25);
-    DevHpBar(r->x + 10, faceY + 46, 72, 5, t->hp, t->maxHp);
+    DevBatMatchup(t->matchup, r->x + 54, faceY + 28);
+    DevHpBar(r->x + 10, faceY + 64, 72, 5, t->hp, t->maxHp);
     if (t->side) {
         snprintf(text, sizeof(text), "%u/%u", (unsigned)t->hp, (unsigned)t->maxHp);
-        DevTextInk(text, r->x + r->w - 10 - DevTextWidth(text), faceY + 45, r->x + r->w - 10, DevBatInk(sunk),
+        DevTextInk(text, r->x + r->w - 10 - DevTextWidth(text), faceY + 63, r->x + r->w - 10, DevBatInk(sunk),
                    DevBatInkShadow(sunk));
     }
 }
 
-/* MOVE and TARGET: the shell, the screen, the four keys, the hint and CANCEL. */
+/* MOVE and TARGET: the shell, the four keys, the footer (the chosen move; or which battler to aim at) and BACK, a dark
+ * key in the exit corner. */
 static void DevBatMoves(const CtrBattleView *v)
 {
     int sunk = DevChosen(BUI_CANCEL, v->cursor, v->pressed), faceY;
 
     DevShell();
-    if (v->state == BUI_MOVE)
-        DevBatMoveScreen(v);
-    else {
-        DevScreen(&kDevBatMoveScreen);
-        DevText(CTR_TR("TARGET", "OBJETIVO", "ZIEL"), 20, 18, 300);
-        DevWrap(CTR_TR("Which POK\xC3\xA9MON should the move hit?", "\xC2\xBF" "A qu\xC3\xA9 POK\xC3\xA9MON ataca?",
-                       "Welches POK\xC3\xA9MON angreifen?"), 20, 34, 280, 2, DEV_INK2, DEV_INK2);
-    }
     for (int i = 0; i < 4; ++i) {
         if (v->state == BUI_MOVE)
             DevBatMoveKey(v, i);
         else
             DevBatTargetKey(v, i);
     }
-    /* the hint: the small font in white on the shell, its capitals at 218 (glyph row 0 four rows above them) */
-    DevGlyphs(CTR_TR("A: USE   B: BACK", "A: USAR   B: VOLVER", "A: NUTZEN   B: ZUR\xC3\x9C" "CK"), 12, 218 - 4,
-              kDevBatCancel.x - 4, DEV_WHITE, DevBlend(sDevShell, 0x0000, DEV_BAT_SHADOW_A), 1);
-    faceY = DevKey(&kDevBatCancel, DEV_LOOK_DARK, sunk, 10);
-    DevKeyLabel(&kDevBatCancel, faceY, DEV_LOOK_DARK, sunk, DevCancelWord());
+    if (v->state == BUI_MOVE)
+        DevBatMoveNote(v);
+    else {
+        CtrPokeTouchRect paper = DevScreen(&kDevGridNote);
+
+        DevReadText(CTR_TR("Which POK\xC3\xA9MON should the move hit?", "\xC2\xBF" "A qu\xC3\xA9 POK\xC3\xA9MON ataca?",
+                           "Welches POK\xC3\xA9MON angreifen?"),
+                    &paper, paper.x + 6, paper.x + paper.w - 6, paper.y + 2, DEV_SMALL_LINE);
+    }
+    faceY = DevKey(&kDevGridExit, DEV_LOOK_DARK, sunk, 6);
+    DevKeyWord(&kDevGridExit, faceY, DEV_LOOK_DARK, sunk, DevBackWord());
 }
 
-/* SAFARI: FireRed's question and its four, BALL BAIT ROCK RUN, each v0.6.0's art beside the word; `idle` (the Safari
- * Zone's IDLE): no question, the keys grey and none chosen. */
+/* SAFARI: its four, BALL BAIT ROCK RUN, on the moves' keys, each v0.6.0's art beside the word, and FireRed's question in
+ * the footer across (no exit key: B does nothing there); `idle` (the Safari Zone's IDLE): the footer without the
+ * question, the keys grey and none chosen. */
 static void DevBatSafari(const CtrBattleView *v, int idle)
 {
     static const int kArt[4] = {BX_BALL, BX_BAIT, BX_ROCK, BX_SHOE};
@@ -661,10 +656,10 @@ static void DevBatSafari(const CtrBattleView *v, int idle)
     CtrPokeTouchRect paper;
 
     DevShell();
-    paper = DevScreen(&kDevBatMoveScreen);
+    paper = DevScreen(&kDevGridNoteWide);
     if (!idle)
-        DevText(CTR_TR("What will you do?", "\xC2\xBF" "Qu\xC3\xA9 vas a hacer?", "Was tun?"), 20,
-                paper.y + (paper.h - UI_TEXT_H) / 2, 300);
+        DevReadText(CTR_TR("What will you do?", "\xC2\xBF" "Qu\xC3\xA9 vas a hacer?", "Was tun?"), &paper, paper.x + 6,
+                    paper.x + paper.w - 6, paper.y + 2, DEV_SMALL_LINE);
     for (int i = 0; i < 4; ++i) {
         const CtrPokeTouchRect *r = &kDevBatMove[i];
         int sunk = !idle && DevChosen(i, v->cursor, v->pressed), faceY = DevKey(r, DEV_LOOK_KEY, sunk, 6), aw, ah, ww, x0;
@@ -702,11 +697,12 @@ void CtrBattleUi_Draw(uint16_t *canvas, const CtrBattleView *v)
  * change of what it draws redraws (the plan's rule). Never drawn: the icon's bounce, showCursor, the party's HP and
  * conditions (a ball tells able, a status or fainted), the lead's types, the quick ball's name and place, a move's
  * priority, a target's battler, the Party and the Bag. The lead, the balls and the quick ball only in ACTION and IDLE
- * (not the Safari Zone's), RUN's block only in ACTION, the moves only in MOVE, the targets only in TARGET, the cursor and
+ * (not the Safari Zone's), RUN's block only in ACTION, the moves only in MOVE (what only the footer tells, the accuracy,
+ * the description, STAB and the effect's chance, only of the move it shows), the targets only in TARGET, the cursor and
  * the touch nowhere in IDLE, `safari` only in IDLE. The state itself is compared: another state draws whole. */
 static void DevBatUndrawn(CtrBattleView *still, const CtrBattleView *v)
 {
-    int lead = v->state == BUI_ACTION || (v->state == BUI_IDLE && !v->safari);
+    int lead = v->state == BUI_ACTION || (v->state == BUI_IDLE && !v->safari), note = DevBatNoteMove(v);
 
     still->activeFrame = v->activeFrame;
     still->showCursor = v->showCursor;
@@ -741,6 +737,14 @@ static void DevBatUndrawn(CtrBattleView *still, const CtrBattleView *v)
         still->runBlocked = v->runBlocked;
     if (v->state != BUI_MOVE)
         memcpy(still->move, v->move, sizeof(still->move));
+    else
+        for (int i = 0; i < 4; ++i)
+            if (i != note) {
+                memcpy(still->move[i].accuracy, v->move[i].accuracy, sizeof(still->move[i].accuracy));
+                memcpy(still->move[i].desc, v->move[i].desc, sizeof(still->move[i].desc));
+                still->move[i].stab = v->move[i].stab;
+                still->move[i].effectChance = v->move[i].effectChance;
+            }
     if (v->state != BUI_TARGET)
         memcpy(still->target, v->target, sizeof(still->target));
     if (v->state == BUI_IDLE) {

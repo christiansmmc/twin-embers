@@ -159,20 +159,20 @@ static int HomeFaults(void)
     return faults;
 }
 
-/* The battle (boards def_fight and B · Golpes): the brief's numbers (the commands def_fight's, owner O1: a trainer's three
- * keys of 96, a wild battle's four of 73, at y 168 and 62 tall); each screen with its light row above the keys under it;
- * the quick ball's arrows on its key's face. */
+/* The battle (boards def_fight and def_moves): the brief's numbers (the commands def_fight's, owner O1: a trainer's three
+ * keys of 96, a wild battle's four of 73, at y 168 and 62 tall; the moves' four keys of 148x84 from the top); the
+ * commands' screen with its light row above FIGHT; the moves' lower keys with their drops clear of the grid's footer; the
+ * quick ball's arrows on its key's face. */
 static int BattleFaults(void)
 {
     int faults = 0;
 
-    assert(Same(kDevBatScreen, (CtrPokeTouchRect){8, 8, 304, 92}) && Same(kDevBatMoveScreen, (CtrPokeTouchRect){8, 8, 304, 56}));
-    assert(Same(kDevBatFight, (CtrPokeTouchRect){8, 108, 304, 48}) && Same(kDevBatCancel, (CtrPokeTouchRect){236, 212, 76, 20}));
+    assert(Same(kDevBatScreen, (CtrPokeTouchRect){8, 8, 304, 92}) && Same(kDevBatFight, (CtrPokeTouchRect){8, 108, 304, 48}));
     for (int i = 0; i < 3; ++i)
         assert(Same(kDevBatRow3[i], (CtrPokeTouchRect){(int16_t)(8 + 104 * i), 168, 96, 62}));
     for (int i = 0; i < 4; ++i) {
         assert(Same(kDevBatRow4[i], (CtrPokeTouchRect){(int16_t)(8 + 77 * i), 168, 73, 62}));
-        assert(Same(kDevBatMove[i], (CtrPokeTouchRect){(int16_t)(i & 1 ? 164 : 8), (int16_t)(i < 2 ? 72 : 142), 148, 62}));
+        assert(Same(kDevBatMove[i], (CtrPokeTouchRect){(int16_t)(i & 1 ? 164 : 8), (int16_t)(i < 2 ? 8 : 98), 148, 84}));
     }
     for (int next = 0; next < 2; ++next) {
         const CtrPokeTouchRect *k = &kDevBatRow4[1];
@@ -184,10 +184,15 @@ static int BattleFaults(void)
             ++faults;
         }
     }
-    if (kDevBatScreen.y + kDevBatScreen.h + 1 > kDevBatFight.y || kDevBatMoveScreen.y + kDevBatMoveScreen.h + 1 > kDevBatMove[0].y) {
-        fprintf(stderr, "battle: a screen (with its light row) reaches its keys\n");
+    if (kDevBatScreen.y + kDevBatScreen.h + 1 > kDevBatFight.y) {
+        fprintf(stderr, "battle: the commands' screen (with its light row) reaches FIGHT\n");
         ++faults;
     }
+    for (int i = 2; i < 4; ++i)         /* their drops end by 186, 4 px over the grid's footer (y 190) */
+        if (kDevBatMove[i].y + kDevBatMove[i].h + DEV_DROP > 186) {
+            fprintf(stderr, "battle: the moves' lower key %d ends past 186 with its drop\n", i);
+            ++faults;
+        }
     return faults;
 }
 
@@ -441,7 +446,7 @@ static int LearnFaults(void)
 }
 
 /* The shapes the views without a board share (plan 3): DevAcross gives the boarded rows back (the battle's wild row
- * and its moves' top row) and fits n keys of 1-8 across; the tall rows (DevTallRow: the Pokedex's list, the relearner's)
+ * and its moves' keys) and fits n keys of 1-8 across; the tall rows (DevTallRow: the Pokedex's list, the relearner's)
  * on the list's paper and a narrow one; the small note with its two keys and CLOSE beside it, the tall screen over the
  * wide key, the question's note beside YES / NO. */
 static int SharedFaults(void)
@@ -451,8 +456,8 @@ static int SharedFaults(void)
 
     for (int i = 0; i < 4; ++i)
         assert(Same(DevAcross(4, i, 168, 62), kDevBatRow4[i]));
-    for (int i = 0; i < 2; ++i)
-        assert(Same(DevAcross(2, i, 72, 62), kDevBatMove[i]));
+    for (int i = 0; i < 4; ++i)
+        assert(Same(DevAcross(2, i % 2, 8 + 90 * (i / 2), 84), kDevBatMove[i]));
     for (int n = 1; n <= 8; ++n) {
         CtrPokeTouchRect last = DevAcross(n, n - 1, 8, 24);
 
@@ -848,7 +853,8 @@ int main(void)
                                          kDevHomeKey[5], kDevHomeRun, kDevHomeSpeed};
     const CtrPokeTouchRect batTrainer[] = {kDevBatFight, kDevBatRow3[0], kDevBatRow3[1], kDevBatRow3[2]};
     const CtrPokeTouchRect batWild[] = {kDevBatFight, kDevBatRow4[0], kDevBatRow4[1], kDevBatRow4[2], kDevBatRow4[3]};
-    const CtrPokeTouchRect batMoves[] = {kDevBatMove[0], kDevBatMove[1], kDevBatMove[2], kDevBatMove[3], kDevBatCancel};
+    const CtrPokeTouchRect batMoves[] = {kDevBatMove[0], kDevBatMove[1], kDevBatMove[2], kDevBatMove[3], kDevGridExit};
+    const CtrPokeTouchRect batSafari[] = {kDevBatMove[0], kDevBatMove[1], kDevBatMove[2], kDevBatMove[3]};
     const CtrPokeTouchRect ptyBays[] = {DevPtyBay(0), DevPtyBay(1), DevPtyBay(2), DevPtyBay(3), DevPtyBay(4), DevPtyBay(5),
                                         kDevGridExit};
     const CtrPokeTouchRect ptyMulti[] = {DevPtyBay(0), DevPtyBay(1), DevPtyBay(2), DevPtyBay(3), DevPtyBay(4), DevPtyBay(5),
@@ -905,11 +911,11 @@ int main(void)
         {"HOME name", kDevHomeName}, {"HOME region line", kDevHomeRegion}, {"HOME rule", kDevHomeRule},
         {"HOME region key", kDevHomeMapKey}, {"HOME FLY", kDevHomeFly}, {"HOME TIME", kDevHomeTime},
         {"HOME cell 0", DevHomeCell(0)}, {"HOME cell 5", DevHomeCell(5)},
-        {"battle screen", kDevBatScreen}, {"battle moves' screen", kDevBatMoveScreen}, {"battle FIGHT", kDevBatFight},
+        {"battle screen", kDevBatScreen}, {"battle FIGHT", kDevBatFight},
         {"battle BAG (3)", kDevBatRow3[0]}, {"battle POKeMON (3)", kDevBatRow3[1]}, {"battle RUN (3)", kDevBatRow3[2]},
         {"battle BAG (4)", kDevBatRow4[0]}, {"battle BALL", kDevBatRow4[1]}, {"battle POKeMON (4)", kDevBatRow4[2]},
         {"battle RUN (4)", kDevBatRow4[3]}, {"battle move 0", kDevBatMove[0]}, {"battle move 1", kDevBatMove[1]},
-        {"battle move 2", kDevBatMove[2]}, {"battle move 3", kDevBatMove[3]}, {"battle CANCEL", kDevBatCancel},
+        {"battle move 2", kDevBatMove[2]}, {"battle move 3", kDevBatMove[3]},
         {"Party CONFIRM", kDevPtyConfirm}, {"Party slim bay 5", DevPtySlim(5)}, {"Party menu key 5", DevPtyMenuKey(5)},
         {"Party level-up screen", kDevPtyLevelScreen}, {"Party bay 0", DevPtyBay(0)}, {"Party bay 5", DevPtyBay(5)},
         {"Summary column", kDevSumColumn}, {"Summary picture", kDevSumPic}, {"Summary switch", kDevSumIvSwitch},
@@ -963,6 +969,7 @@ int main(void)
     };
     const DevGroup groups[] = {DEV_GROUP("HOME", homeKeys), DEV_GROUP("battle, a trainer", batTrainer),
                                DEV_GROUP("battle, wild", batWild), DEV_GROUP("battle moves", batMoves),
+                               DEV_GROUP("Safari", batSafari),
                                DEV_GROUP("Party", ptyBays), DEV_GROUP("Party, several", ptyMulti),
                                DEV_GROUP("Party level up", ptyOk), DEV_GROUP("Party menu", ptyMenu),
                                DEV_GROUP("Summary", sumKeys),
