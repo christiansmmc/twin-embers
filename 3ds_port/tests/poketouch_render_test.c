@@ -212,6 +212,13 @@ static unsigned llChanged(int x,int y,int w,int h,int grow,const char *name)
     }
     return inside;
 }
+/* The Llama sheets' button label: centred across [x, x + w) on a face from fy, fh tall (the ember buttons' EmLabel, gone
+ * with Easy Chat's ember screen, its last user). */
+static void llLabel(const char *s,int x,int w,int fy,int fh,const EmPal *p)
+{
+    int left=x+(w-UiTextWidth(s,1))/2;
+    UiText(s,left<x+2?x+2:left,fy+(fh-UI_TEXT_H)/2,p->ink,p->inkSh,1,x+w);
+}
 #endif
 static void decoder(void)
 {
@@ -351,100 +358,13 @@ int main(int argc, char **argv)
             uint16_t c=at(x,y); fwrite(&c,2,1,viewports);
         }
     }
-    /* Ascuas 2: the screens the owner's mockup draws, each through the incremental path first (every press, selection and value
-     * change must equal a full redraw) and then, with PT_PREVIEW_DIR, written as a PPM (PT_PREVIEW_FONT and PT_PREVIEW_WIDTHS: the
-     * game's glyphs and widths, local viewing aids). */
+    /* PT_PREVIEW_DIR with PT_PREVIEW_FONT and PT_PREVIEW_WIDTHS: the game's glyphs and widths for the sheets below (local
+     * viewing aids). (The screens of the owner's ember mockup, Easy Chat last, are the red device's: device_render_test.c.) */
     {
         const char *dir=getenv("PT_PREVIEW_DIR"), *fp=getenv("PT_PREVIEW_FONT"), *wp=getenv("PT_PREVIEW_WIDTHS");
         if(dir && fp) { FILE *ff=fopen(fp,"rb"); assert(ff); assert(fread(font,1,sizeof(font),ff)==sizeof(font)); fclose(ff); memset(sPtFontReady,0,sizeof(sPtFontReady)); }
         if(dir && wp) { FILE *ff=fopen(wp,"rb"); assert(ff); assert(fread(fontWidths,1,sizeof(fontWidths),ff)==sizeof(fontWidths)); fclose(ff); memset(sPtFontReady,0,sizeof(sPtFontReady)); }
-        CtrPokeTouchView s={0}; s.selected=s.pressed=PT_NONE; s.optPressed=-1;
-        for(int i=0;i<PT_COUNT;++i) s.enabled[i]=1;
-        s.registeredItem=1; s.bikeItem=2; strcpy(s.playerName,"Rick"); s.playerX=s.playerY=-1;
-        #define SHOT(name) do { update(&old,&s); if(dir) ppm(dir,name); } while(0)
         memset(&old,0,sizeof(old)); old.selected=old.pressed=PT_NONE;
-        /* Easy Chat (Llama): the phrase, the groups, the letters, a list with its rail and strip, and the three questions; every change goes through the
-         * incremental path (update compares it with the whole draw), and the hit tests are the mockup's rectangles. */
-        {
-            static const char *const w9[9]={"Hola","Eres","muy","fuerte","Vamos","a","luchar","otra","vez"};
-            static const char *const gn[21]={"Pokemon","Trainer","Status","Battle","Greetings","People","Voices","Speech","Endings","Feelings","Conditions","Actions","Lifestyle","Hobbies","Time","Misc.","Adjectives","Events","Move 1","Move 2","Trendy"};
-            static const char *const lw[12]={"Attack","Attract","Battle","Well done","Champion","Combat","Defeat","Dodge","Won","Hit","Leader","Fight"};
-            CtrPokeTouchEasy *e=&s.ec;
-            s.options=0; s.backVisible=0; s.viewport=0; memset(e,0,sizeof(*e)); e->on=1; e->pressed=-1; e->cursor=-1; e->footer=-1; e->cell=-1; e->letter=255;
-            e->numWords=9; strcpy(e->title,"Write your message");
-            for(int i=0;i<9;++i) strcpy(e->chip[i],w9[i]);
-            e->cursor=6; SHOT("ec_edit");
-            for(int c=0;c<9;++c) { e->cursor=(int8_t)c; update(&old,&s); e->pressed=(int16_t)(PT_EC_HIT_CHIP+c); update(&old,&s); e->pressed=-1; update(&old,&s); }
-            strcpy(e->chip[3],"Hitmonchan Electabuzz"); e->chip[8][0]=0; e->cursor=3; SHOT("ec_edit_long");
-            e->cursor=8; update(&old,&s); e->cursor=-1; e->footer=0; update(&old,&s);
-            for(int f=0;f<3;++f) { e->footer=(int8_t)f; update(&old,&s); e->pressed=(int16_t)(PT_EC_HIT_DELETE+f); update(&old,&s); e->pressed=-1; update(&old,&s); }
-            e->wantAlpha=1; e->pressed=PT_EC_HIT_MODE_ALPHA; update(&old,&s); e->pressed=-1; update(&old,&s); e->wantAlpha=0; update(&old,&s);
-            strcpy(e->chip[8],"vez"); e->footer=-1; e->cursor=6; SHOT("ec_edit2");
-            assert(CtrPokeTouch_EasyHit(&s,20,60)==PT_EC_HIT_CHIP && CtrPokeTouch_EasyHit(&s,20,85)==PT_EC_HIT_CHIP+5);
-            assert(CtrPokeTouch_EasyHit(&s,12+4*59+3,85)==-1);   /* the tenth place has no chip */
-            assert(CtrPokeTouch_EasyHit(&s,10,120)==PT_EC_HIT_MODE_GROUPS && CtrPokeTouch_EasyHit(&s,200,120)==PT_EC_HIT_MODE_ALPHA);
-            assert(CtrPokeTouch_EasyHit(&s,10,215)==PT_EC_HIT_DELETE && CtrPokeTouch_EasyHit(&s,150,215)==PT_EC_HIT_CANCEL && CtrPokeTouch_EasyHit(&s,250,215)==PT_EC_HIT_CONFIRM);
-            assert(CtrPokeTouch_EasyHit(&s,2,2)==-1 && CtrPokeTouch_EasyHit(&s,160,180)==-1);
-            e->numWords=4; update(&old,&s); SHOT("ec_edit4");
-            assert(CtrPokeTouch_EasyHit(&s,20,60)==PT_EC_HIT_CHIP && CtrPokeTouch_EasyHit(&s,250,60)==PT_EC_HIT_CHIP+1 && CtrPokeTouch_EasyHit(&s,20,90)==PT_EC_HIT_CHIP+2);
-            e->numWords=9;
-            /* the group menu: fourteen groups early in the game, then all 21 */
-            e->screen=PT_EC_GROUP; e->groupCount=14; e->cursor=-1;
-            for(int i=0;i<21;++i) strcpy(e->group[i],gn[i]);
-            e->cell=3; SHOT("ec_groups14");
-            e->groupCount=21; e->cell=20; update(&old,&s);
-            for(int c=0;c<21;++c) { e->cell=(int8_t)c; update(&old,&s); e->pressed=(int16_t)(PT_EC_HIT_CELL+c); update(&old,&s); e->pressed=-1; update(&old,&s); }
-            e->cell=3; SHOT("ec_groups");
-            e->cell=PT_EC_CELL_TOGGLE; update(&old,&s); e->cell=PT_EC_CELL_BACK; e->pressed=PT_EC_HIT_CELL+PT_EC_CELL_BACK; update(&old,&s); e->pressed=-1; update(&old,&s);
-            assert(CtrPokeTouch_EasyHit(&s,10,35)==PT_EC_HIT_CELL && CtrPokeTouch_EasyHit(&s,10,178)==PT_EC_HIT_CELL+20);
-            assert(CtrPokeTouch_EasyHit(&s,90,178)==PT_EC_HIT_CELL+PT_EC_CELL_TOGGLE && CtrPokeTouch_EasyHit(&s,200,178)==PT_EC_HIT_CELL+PT_EC_CELL_BACK);
-            e->groupCount=14; update(&old,&s); assert(CtrPokeTouch_EasyHit(&s,165,120)==-1 && CtrPokeTouch_EasyHit(&s,165,95)==PT_EC_HIT_CELL+10);
-            /* the A-Z order: the letters as the game's keys lie (6, 6, 7, 7) */
-            e->screen=PT_EC_LETTER; e->alpha=1; e->cell=7; SHOT("ec_letters");
-            for(int c=0;c<26;++c) { e->cell=(int8_t)c; update(&old,&s); e->pressed=(int16_t)(PT_EC_HIT_CELL+c); update(&old,&s); e->pressed=-1; update(&old,&s); }
-            assert(CtrPokeTouch_EasyHit(&s,10,35)==PT_EC_HIT_CELL && CtrPokeTouch_EasyHit(&s,10,64)==PT_EC_HIT_CELL+6 && CtrPokeTouch_EasyHit(&s,280,120)==PT_EC_HIT_CELL+25);
-            assert(CtrPokeTouch_EasyHit(&s,100,35)==PT_EC_HIT_CELL+2 && CtrPokeTouch_EasyHit(&s,280,64)==-1);
-            /* a group's words: 100 of them, six rows (twelve words) shown, the rail and the strip */
-            e->screen=PT_EC_LIST; e->alpha=0; strcpy(e->listTitle,"Battle"); e->listCount=100; e->first=0; e->word=4; e->letter=0;
-            for(int k=0;k<12;++k) strcpy(e->list[k],lw[k]);
-            SHOT("ec_list");
-            for(int first=0; first<=44; first+=11) {
-                e->first=(uint16_t)first; e->word=(int16_t)(2*first+3); e->letter=(uint8_t)(first/4); update(&old,&s);
-                e->pressed=PT_EC_HIT_RAIL; update(&old,&s); e->pressed=PT_EC_HIT_DOWN; update(&old,&s); e->pressed=PT_EC_HIT_STRIP; update(&old,&s); e->pressed=-1; update(&old,&s);
-            }
-            e->first=44; e->word=88; e->letter=25; SHOT("ec_list_end");
-            strcpy(e->list[0],"Hitmonchan Electabuzz"); e->first=0; e->word=0; e->letter=0; SHOT("ec_list_long");
-            e->listCount=5; e->first=0; e->word=2; for(int k=6;k<12;++k) e->list[k][0]=0; update(&old,&s); SHOT("ec_list_short");
-            e->alpha=1; strcpy(e->listTitle,"C"); e->listCount=100; for(int k=0;k<12;++k) strcpy(e->list[k],lw[k]); e->letter=255; SHOT("ec_list_alpha");
-            e->pressed=PT_EC_HIT_BACK; update(&old,&s); e->pressed=PT_EC_HIT_TOGGLE; update(&old,&s); e->pressed=PT_EC_HIT_PLACE; update(&old,&s); e->pressed=-1; update(&old,&s);
-            e->alpha=0; e->listCount=100; update(&old,&s);
-            assert(CtrPokeTouch_EasyHit(&s,10,35)==PT_EC_HIT_ROW && CtrPokeTouch_EasyHit(&s,140,35)==PT_EC_HIT_ROW+1 && CtrPokeTouch_EasyHit(&s,10,28+24*5+3)==PT_EC_HIT_ROW+10);
-            assert(CtrPokeTouch_EasyHit(&s,265,35)==PT_EC_HIT_UP && CtrPokeTouch_EasyHit(&s,265,160)==PT_EC_HIT_DOWN && CtrPokeTouch_EasyHit(&s,265,100)==PT_EC_HIT_RAIL);
-            assert(CtrPokeTouch_EasyHit(&s,300,100)==PT_EC_HIT_STRIP && CtrPokeTouch_EasyHit(&s,10,215)==PT_EC_HIT_BACK);
-            assert(CtrPokeTouch_EasyHit(&s,100,215)==PT_EC_HIT_TOGGLE && CtrPokeTouch_EasyHit(&s,250,215)==PT_EC_HIT_PLACE);
-            e->alpha=1; assert(CtrPokeTouch_EasyHit(&s,300,100)==-1); e->alpha=0;     /* the strip is for the groups' lists */
-            /* the rail is a slider: 50 rows, six shown, so 44 can scroll; the thumb is 14 tall in the 100 px */
-            assert(CtrPokeTouch_EasyRailTarget(e,48)==0 && CtrPokeTouch_EasyRailTarget(e,147)==44 && CtrPokeTouch_EasyRailTarget(e,0)==0 && CtrPokeTouch_EasyRailTarget(e,239)==44);
-            {   int mid=CtrPokeTouch_EasyRailTarget(e,98); assert(mid>=21&&mid<=23);
-                int prev=-1; for(int y=40;y<160;++y) { int t=CtrPokeTouch_EasyRailTarget(e,y); assert(t>=prev&&t>=0&&t<=44); prev=t; } }
-            e->listCount=10; assert(CtrPokeTouch_EasyRailTarget(e,100)==-1); e->listCount=100;   /* nothing to scroll */
-            assert(CtrPokeTouch_EasyStripLetter(290,35)==0 && CtrPokeTouch_EasyStripLetter(305,35)==13 && CtrPokeTouch_EasyStripLetter(290,152)==12);
-            assert(CtrPokeTouch_EasyStripLetter(305,152)==25 && CtrPokeTouch_EasyStripLetter(270,100)==-1 && CtrPokeTouch_EasyStripLetter(290,10)==-1);
-            {   int prev=-1; for(int y=28;y<168;++y) { int l=CtrPokeTouch_EasyStripLetter(290,y); assert(l>=0&&l<=12&&l>=prev); prev=l; } }
-            /* the game's three questions over the dimmed phrase, the game's cursor on NO (or YES) */
-            e->screen=PT_EC_EDIT; e->cursor=-1; e->footer=1; update(&old,&s);
-            for(int a=PT_EC_ASK_QUIT;a<=PT_EC_ASK_CONFIRM;++a) {
-                e->ask=(uint8_t)a; strcpy(e->ask1,a==PT_EC_ASK_QUIT?"Quit editing?":a==PT_EC_ASK_DELETE?"All the text being edited will":"Your message");
-                strcpy(e->ask2,a==PT_EC_ASK_DELETE?"be deleted. Is that okay?":a==PT_EC_ASK_CONFIRM?"is as shown. Okay?":"");
-                e->askCursor=(uint8_t)(a!=PT_EC_ASK_CONFIRM); if(a==PT_EC_ASK_QUIT) SHOT("ec_ask"); else update(&old,&s);
-                e->pressed=PT_EC_HIT_YES; update(&old,&s); e->pressed=-1; e->askCursor^=1; update(&old,&s);
-            }
-            assert(CtrPokeTouch_EasyHit(&s,60,130)==PT_EC_HIT_YES && CtrPokeTouch_EasyHit(&s,180,130)==PT_EC_HIT_NO && CtrPokeTouch_EasyHit(&s,5,5)==-1 && CtrPokeTouch_EasyHit(&s,20,60)==-1);
-            strcpy(e->ask1,"Stop giving the Mail to this one and that one?"); e->ask2[0]=0; SHOT("ec_ask_long");
-            e->ask=0; update(&old,&s);
-            e->on=0; update(&old,&s);          /* the screen closes: what was under it is drawn whole again */
-        }
-        s.options=0; s.backVisible=1; s.backEnabled=1; memset(s.bar,0,sizeof(s.bar));
     }
     v.home=1; v.backVisible=1; update(&old,&v);
     v.backEnabled=1; update(&old,&v); v.backPressed=1; update(&old,&v);
@@ -689,7 +609,7 @@ int main(int argc, char **argv)
             LlHpBar(8+82+13,36+32+20,136,319,319);
             UiText("319/319",8+82+156,36+32+18,EM_DARK,EM_DARK_SH,1,300);
             { const EmPal *ps[4]={&kEmBlue,&kEmGold,&kEmGreen,&kEmPurple}; const char *nm[4]={"MOCHILA","POKE BALL","POKEMON","HUIR"};
-              for(int i=0;i<4;++i) { int x=8+77*i; EmButton(x,120,73,108,ps[i],3,0); EmLabel(nm[i],x,73,120+61-3+3,9,ps[i]); LlSubPill(x+7,120+85,59,15); UiText("OBJETOS",x+13,120+88,EM_WHITE,ps[i]->inkSh,1,x+66); } }
+              for(int i=0;i<4;++i) { int x=8+77*i; EmButton(x,120,73,108,ps[i],3,0); llLabel(nm[i],x,73,120+61-3+3,9,ps[i]); LlSubPill(x+7,120+85,59,15); UiText("OBJETOS",x+13,120+88,EM_WHITE,ps[i]->inkSh,1,x+66); } }
             ppm(dir,"llama_battle");
             TsBackdrop();
             /* panel 2: the tray, four move cards (the first chosen), a window with a rule and a ribbon, CANCEL with the back disc */
@@ -710,7 +630,7 @@ int main(int argc, char **argv)
             LlRule(8+12,154+25,202);
             UiText("Un terremoto que golpea a",8+12,154+31,EM_DIM,EM_DARK_SH,1,230);
             EmButton(240,154,72,75+3,&kEmSlate,3,0); LlBackDisc(240+24,154+14-1);
-            EmLabel("CANCELAR",240,72,154+46,9,&kEmSlate);
+            llLabel("CANCELAR",240,72,154+46,9,&kEmSlate);
             ppm(dir,"llama_moves");
             TsBackdrop();
             /* panel 4: the party's six cards (blue, the last fainted, one empty), the note and CANCEL */
@@ -730,7 +650,7 @@ int main(int argc, char **argv)
             UiText("Elige un POKEMON.",8+12,170+9,EM_DARK,EM_DARK_SH,1,220);
             LlRule(8+12,170+25,202);
             EmButton(240,170,72,60+3,&kEmSlate,3,0); LlBackDisc(240+24,170+8-1);
-            EmLabel("CANCELAR",240,72,170+36,9,&kEmSlate);
+            llLabel("CANCELAR",240,72,170+36,9,&kEmSlate);
             ppm(dir,"llama_party");
         }
         #undef PIECE

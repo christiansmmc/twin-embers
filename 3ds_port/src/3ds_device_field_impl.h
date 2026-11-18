@@ -17,6 +17,7 @@ typedef struct {
 } DevFieldView;
 
 static const DevFieldView kDevFieldViews[] = {
+    {DevEcShown, DevEcDraw, DevEcSame, DevEcBackKey},               /* Easy Chat (3ds_device_easychat_impl.h) */
     {DevDexShown, DevDexDraw, DevDexSame, DevDexBackKey},           /* the Pokedex (3ds_device_dex_impl.h) */
     {DevCardShown, DevCardDraw, DevCardSame, DevCardBackKey},       /* the Trainer Card (3ds_device_card_impl.h) */
     {DevLearnShown, DevLearnDraw, DevLearnSame, DevLearnBackKey},   /* the move to forget (3ds_device_learn_impl.h) */

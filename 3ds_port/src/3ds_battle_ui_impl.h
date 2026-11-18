@@ -99,16 +99,3 @@ static void BItemDraw(unsigned item, int x, int y, int scale)
     if (slot >= 0)
         UiImage(sBIcon[slot].pixels, sBIcon[slot].pal, 24, 24, 24, x, y, scale, 1);
 }
-
-/* The ember surface: PokeTouch's red theme with the shadows and outlines of the light pieces (the field's ember views'). */
-static UiSurface sUiEmber;
-
-static void EmSurface(void)
-{
-    sUiEmber = sUiRed;
-    sUiEmber.textSh = EM_DARK_SH;
-    sUiEmber.textDim = EM_DIM;
-    sUiEmber.outline = UI_RGB(64, 72, 104);
-    sUiEmber.track = UI_RGB(64, 72, 104);
-    sUiS = &sUiEmber;
-}

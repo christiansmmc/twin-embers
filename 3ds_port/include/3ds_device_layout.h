@@ -442,4 +442,86 @@ static inline CtrPokeTouchRect DevBoxMenuKey(int n, int i)
     return r;
 }
 
+/* ---- Easy Chat (no board; 3ds_device_easychat_impl.h) ----------------------------------------------------------------
+ * The phrase: FireRed's title and the count on the phrase's screen (kDevEcPhrase), the phrase's n slots as keys in two
+ * rows (DevEcChip), BY GROUP and A TO Z across under them (DevEcMode), CLEAR, CANCEL (dark) and CONFIRM across the
+ * bottom (DevEcFooter). The groups: the title on the Bag's title, the groups' names as keys four across (DevEcCell); the
+ * letters: A..Z as keys in FireRed's rows of 6, 6, 7 and 7 (DevEcLetter); both with the toggle and BACK (dark) across the
+ * bottom (DevEcToggle). A list: its title over the phrase on two lines (kDevEcListTitle), the words two a row
+ * (DevEcRow: rows) on the list's paper (kDevEcList) with the rail on the same paper (kDevEcRail), ▲ ▼ (kDevEcUp,
+ * kDevEcDown), the letter strip (kDevEcStrip, a screen; its letters in DevEcStripCell), BACK (dark), the toggle and USE
+ * WORD across the bottom (DevEcListKey). A question: the phrase's screen and slots dimmed, the question's note, YES and
+ * NO (kDevAskNote, kDevAskYes, kDevAskNo). */
+static const CtrPokeTouchRect kDevEcPhrase __attribute__((unused)) = {8, 8, 304, 36};
+static const CtrPokeTouchRect kDevEcListTitle __attribute__((unused)) = {8, 6, 304, 40};
+static const CtrPokeTouchRect kDevEcList __attribute__((unused)) = {8, 52, 236, 136};
+static const CtrPokeTouchRect kDevEcRail __attribute__((unused)) = {220, 58, 18, 124};
+static const CtrPokeTouchRect kDevEcUp __attribute__((unused)) = {252, 52, 28, 64};
+static const CtrPokeTouchRect kDevEcDown __attribute__((unused)) = {252, 120, 28, 64};
+static const CtrPokeTouchRect kDevEcStrip __attribute__((unused)) = {284, 52, 28, 136};
+
+/* Slot i of a phrase of n slots (1-9): (n + 1) / 2 across, two rows. */
+static inline CtrPokeTouchRect DevEcChip(int n, int i)
+{
+    int per = (n + 1) / 2;
+
+    return DevAcross(per, i % per, 52 + 40 * (i / per), 34);
+}
+
+/* The phrase's mode keys: 0 BY GROUP, 1 A TO Z. */
+static inline CtrPokeTouchRect DevEcMode(int i)
+{
+    return DevAcross(2, i, 136, 30);
+}
+
+/* The phrase's buttons: 0 CLEAR, 1 CANCEL, 2 CONFIRM. */
+static inline CtrPokeTouchRect DevEcFooter(int i)
+{
+    return DevAcross(3, i, 178, 52);
+}
+
+/* Group i (0-20): four across, six rows at most. */
+static inline CtrPokeTouchRect DevEcCell(int i)
+{
+    return DevAcross(4, i % 4, 40 + 27 * (i / 4), 24);
+}
+
+/* Letter i (0-25, A..Z) where FireRed's A-Z keys lie: rows of 6, 6, 7 and 7 (from letters 0, 6, 12, 19), seven places
+ * across. */
+static inline CtrPokeTouchRect DevEcLetter(int i)
+{
+    int r = i < 6 ? 0 : i < 12 ? 1 : i < 19 ? 2 : 3;
+
+    return DevAcross(7, i - (6 * r + (r == 3)), 40 + 32 * r, 28);
+}
+
+/* The groups' and the letters' bottom keys: 0 the toggle to the other order, 1 BACK. */
+static inline CtrPokeTouchRect DevEcToggle(int i)
+{
+    return DevAcross(2, i, 206, 26);
+}
+
+/* Row place k (0-11) of the list: two words a row, six rows, left of the rail. */
+static inline CtrPokeTouchRect DevEcRow(int k)
+{
+    CtrPokeTouchRect r = {(int16_t)(16 + 102 * (k % 2)), (int16_t)(60 + 20 * (k / 2)), 100, 20};
+
+    return r;
+}
+
+/* A list's bottom keys: 0 BACK, 1 the toggle, 2 USE WORD. */
+static inline CtrPokeTouchRect DevEcListKey(int i)
+{
+    return DevAcross(3, i, 196, 36);
+}
+
+/* Letter i (0-25) of the strip, thirteen down in two columns: its place, the lit letter's box; the letter's capitals
+ * from 1 px in (x 291 + 8 * column, y 60 + 9 * row). */
+static inline CtrPokeTouchRect DevEcStripCell(int i)
+{
+    CtrPokeTouchRect r = {(int16_t)(290 + 8 * (i / 13)), (int16_t)(59 + 9 * (i % 13)), 8, 9};
+
+    return r;
+}
+
 #endif

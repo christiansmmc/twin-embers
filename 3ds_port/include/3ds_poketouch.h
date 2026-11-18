@@ -234,7 +234,7 @@ typedef struct {
     char name[32], from[24];        /* from: as typed, "" when unknown */
 } CtrPokeTouchMail;
 
-/* Easy Chat (3ds_field_easychat_impl.h), drawn by the port over the whole lower screen (the upper one keeps FireRed's own): a remote
+/* Easy Chat (3ds_device_easychat_impl.h), drawn by the port over the whole lower screen (the upper one keeps FireRed's own): a remote
  * for the game's screen. The phrase as chips, the group menu (or the letters of the A-Z order), a group's word list with its rail and
  * a letter strip, and the game's Yes/No questions over the dimmed phrase. Everything is the game's state (CtrBottomEasyChat_*); the
  * touches are walked to with its own keys (3ds_bottom_easychat_impl.h). */

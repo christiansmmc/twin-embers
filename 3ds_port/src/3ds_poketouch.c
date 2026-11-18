@@ -617,13 +617,9 @@ static int FrameShown(const CtrPokeTouchView *v)
     return v->viewport;
 }
 
-/* Easy Chat, over the whole screen (3ds_field_easychat_impl.h, included at the end). */
-static void FEasyDraw(const CtrPokeTouchView *v);
-static void FEasyUpdate(uint16_t *canvas, const CtrPokeTouchView *old, const CtrPokeTouchView *v, CtrDirtyList *dirty);
-
 /* The frame's area: the window frame round the GBA picture (HOME, the Bag, OPTIONS, SAVE, the Trainer Card, the letter,
- * the Pokedex, the move to forget, the relearner, a choice, the naming keyboard and the PC box are the red device's:
- * 3ds_device_home_impl.h, 3ds_device_bag_impl.h and the field dispatcher's views). */
+ * the Pokedex, the move to forget, the relearner, a choice, the naming keyboard, the PC box and Easy Chat are the red
+ * device's: 3ds_device_home_impl.h, 3ds_device_bag_impl.h and the field dispatcher's views). */
 static void MenuFrame(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchRect *r = &sMenuFrame;
@@ -804,10 +800,6 @@ void CtrPokeTouch_Draw(uint16_t *canvas, const CtrPokeTouchView *v)
     }
     if (DevFieldDraw(v))
         return;
-    if (v->ec.on) {
-        FEasyDraw(v);
-        return;
-    }
     Frame();
     MenuFrame(v);
     Bar(v);
@@ -855,10 +847,6 @@ void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const Ct
     }
     if (DevFieldUpdate(old, v, dirty))
         return;
-    if (v->ec.on || old->ec.on) {
-        FEasyUpdate(canvas, old, v, dirty);
-        return;
-    }
     if (old->viewport != v->viewport || old->home != v->home) {
         MenuFrame(v);
         Mark(dirty, &sMenuFrame);
@@ -928,5 +916,5 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
 #include "3ds_device_choice_impl.h"  /* a choice of the field (a view of the field dispatcher) */
 #include "3ds_device_naming_impl.h"  /* the naming keyboard (a view of the field dispatcher; FireRed's codes as text) */
 #include "3ds_device_box_impl.h"  /* the PC box (a view of the field dispatcher; the wallpaper, the icons) */
-#include "3ds_field_easychat_impl.h"
+#include "3ds_device_easychat_impl.h"  /* Easy Chat (the field dispatcher's first row; the whole screen) */
 #include "3ds_device_field_impl.h"  /* the field dispatcher: the field's views without a board (last: it names them all) */

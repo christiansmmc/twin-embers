@@ -12,7 +12,7 @@
  *   DEVICE_FONT_W=n           the stub glyph width
  *
  * usage: device_render_test <suite>   (kit, home, battle, party, summary, bag, options, save, card, mail, dex, choice,
- *        learn, relearn, naming, box, or all; prints PASS device <suite>) */
+ *        learn, relearn, naming, box, easychat, or all; prints PASS device <suite>) */
 #include <assert.h>
 #ifndef PT_SOURCE
 #define PT_SOURCE "3ds_poketouch.c"
@@ -2326,6 +2326,7 @@ static void SuiteBag(void)
 #include "device_suite_relearn.h"
 #include "device_suite_naming.h"
 #include "device_suite_box.h"
+#include "device_suite_easychat.h"
 
 /* ---- main --------------------------------------------------------------------------------------------------------- */
 
@@ -2346,6 +2347,7 @@ static const struct { const char *name; void (*run)(void); } kSuites[] = {
     {"relearn", SuiteRelearn},
     {"naming", SuiteNaming},
     {"box", SuiteBox},
+    {"easychat", SuiteEasyChat},
 };
 
 int main(int argc, char **argv)
@@ -2355,7 +2357,7 @@ int main(int argc, char **argv)
 
     if (argc != 2) {
         fprintf(stderr, "usage: device_render_test <suite> (kit, home, battle, party, summary, bag, options, save, card, "
-                        "mail, dex, choice, learn, relearn, naming, all)\n");
+                        "mail, dex, choice, learn, relearn, naming, box, easychat, all)\n");
         return 2;
     }
     gOut = getenv("DEVICE_OUT");

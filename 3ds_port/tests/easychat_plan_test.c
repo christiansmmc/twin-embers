@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <string.h>
 #include "3ds_input.h"
-#include "3ds_text_case.h"
 #include "3ds_poketouch.h"
 
 #define MODE_GBAVIEW 18
@@ -92,10 +91,10 @@ void CtrBottomEasyChat_Title(char *out, int size) { snprintf(out, (size_t)size, 
 void CtrBottomEasyChat_Question(int which, int line, char *out, int size) { snprintf(out, (size_t)size, line ? "" : "Q%d?", which); }
 
 /* The stubs of the renderer's side: what is under the finger is the test's to say. */
-static int gHitCode = -1, gRail = -1, gStrip = -1;
+static int gHitCode = -1, gRail = -1, gStrip = -1, gStripX = -1, gStripY = -1;
 int CtrPokeTouch_EasyHit(const CtrPokeTouchView *v, int x, int y) { (void)v; (void)x; (void)y; return gHitCode; }
 int CtrPokeTouch_EasyRailTarget(const CtrPokeTouchEasy *e, int y) { (void)e; (void)y; return gRail; }
-int CtrPokeTouch_EasyStripLetter(int x, int y) { (void)x; (void)y; return gStrip; }
+int CtrPokeTouch_EasyStripLetter(int x, int y) { gStripX = x; gStripY = y; return gStrip; }   /* where it is asked */
 
 #include "../src/3ds_bottom_easychat_impl.h"
 
@@ -356,7 +355,11 @@ static void test_cancel_and_limits(void)
     assert(sEcPlan.kind == EP_NONE && keys <= EC_STALL_LIMIT + 2);   /* a game that does not answer: given up */
     G.open = 0; sInjected = 0; RunEasyPlan(1); assert(sEcPlan.kind == EP_NONE && sEcPref == -1);
 }
-static void touch(int down, int active) { sIn.touchDown = down; sIn.touchActive = active; sIn.touchX = 100; sIn.touchY = 100; }
+static void touch_at(int down, int active, int x, int y)
+{
+    sIn.touchDown = down; sIn.touchActive = active; sIn.touchX = (uint16_t)x; sIn.touchY = (uint16_t)y;
+}
+static void touch(int down, int active) { touch_at(down, active, 100, 100); }
 static void shown(void)
 {
     memset(&sShown, 0, sizeof(sShown));
@@ -443,6 +446,28 @@ static void test_touch(void)
         assert(w[0] < 'M');
     }
     gHitCode = -1; gStrip = -1;
+    /* Review Focus 4: the strip's and the rail's ends give the list's first and last rows (100 words, 50 rows: 44 the
+     * last first row; Z's first word is 97, row 48, past it); a scrub off the strip's top or left edge is read at that
+     * edge of the strip (kDevEcStrip), as v0.6.0 read its old strip's, so it keeps scrolling */
+    game_open(14, 100, 0); G.state = 3; G.wrows = 49; G.wabove = 20;
+    shown(); gHitCode = PT_EC_HIT_STRIP; gStrip = 0; touch_at(1, 1, 300, 100); ProcessEasyTouch(&sIn);
+    assert(gStripX == 300 && gStripY == 100 && sEcPlan.kind == EP_FIRST && sEcPlan.target == 0);
+    touch_at(0, 1, 300, kDevEcStrip.y - 20); ProcessEasyTouch(&sIn); assert(gStripX == 300 && gStripY == kDevEcStrip.y);
+    touch_at(0, 1, kDevEcStrip.x - 30, 100); ProcessEasyTouch(&sIn); assert(gStripX == kDevEcStrip.x && gStripY == 100);
+    for (int i = 0; i < 300 && sEcPlan.kind; ++i) frame();
+    assert(G.wabove == 0);                                                              /* A: the first row */
+    gStrip = 25; touch_at(0, 1, 305, kDevEcStrip.y + kDevEcStrip.h - 1); ProcessEasyTouch(&sIn);
+    assert(sEcPlan.kind == EP_FIRST && sEcPlan.target == 97 / 2);
+    for (int i = 0; i < 300 && sEcPlan.kind; ++i) frame();
+    assert(G.wabove == 50 - PT_EC_ROWS);                                                /* Z: the last row */
+    gHitCode = -1; touch_at(0, 0, 0, 0); ProcessEasyTouch(&sIn); gStrip = -1;
+    shown(); gHitCode = PT_EC_HIT_RAIL; gRail = 0; touch_at(1, 1, 228, 58); ProcessEasyTouch(&sIn);
+    for (int i = 0; i < 300 && sEcPlan.kind; ++i) frame();
+    assert(G.wabove == 0);                                                              /* the rail's top: the first row */
+    gRail = 50 - PT_EC_ROWS; touch_at(0, 1, 228, 181); ProcessEasyTouch(&sIn);
+    for (int i = 0; i < 300 && sEcPlan.kind; ++i) frame();
+    assert(G.wabove == 50 - PT_EC_ROWS);                                                /* its bottom: the last */
+    gHitCode = -1; touch_at(0, 0, 0, 0); ProcessEasyTouch(&sIn); gRail = -1;
 }
 static void test_fill(void)
 {
@@ -473,7 +498,7 @@ int main(void)
 
         memset(&snap, 0, sizeof(snap));
         assert(EasySnapshot(&snap) && snap.touch.ec.on && !snap.touch.viewport && !snap.touch.backVisible);
-        assert(snap.touch.ec.chip[1][0] == 'W' && snap.touch.ec.chip[1][1] == 'o');      /* the game's ALL CAPS words, cased for the lower screen */
+        assert(!strcmp(snap.touch.ec.chip[1], "WORD1") && !strcmp(snap.touch.ec.title, "TITLE"));   /* FireRed's words as it has them */
     }
     test_fill();
     test_chips();
