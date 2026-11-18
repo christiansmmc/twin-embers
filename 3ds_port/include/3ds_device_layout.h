@@ -449,8 +449,8 @@ static inline CtrPokeTouchRect DevBoxMenuKey(int n, int i)
  * letters: A..Z as keys in FireRed's rows of 6, 6, 7 and 7 (DevEcLetter); both with the toggle and BACK (dark) across the
  * bottom (DevEcToggle). A list: its title over the phrase on two lines (kDevEcListTitle), the words two a row
  * (DevEcRow: rows) on the list's paper (kDevEcList) with the rail on the same paper (kDevEcRail), ▲ ▼ (kDevEcUp,
- * kDevEcDown), the letter strip (kDevEcStrip, a screen; its letters in DevEcStripCell), BACK (dark), the toggle and USE
- * WORD across the bottom (DevEcListKey). A question: the phrase's screen and slots dimmed, the question's note, YES and
+ * kDevEcDown), the letter strip (kDevEcStrip, a screen; its letters in DevEcStripCell), USE WORD, the toggle and BACK
+ * (dark, at the right) across the bottom (DevEcListKey). A question: the phrase's screen and slots dimmed, the question's note, YES and
  * NO (kDevAskNote, kDevAskYes, kDevAskNo). */
 static const CtrPokeTouchRect kDevEcPhrase __attribute__((unused)) = {8, 8, 304, 36};
 static const CtrPokeTouchRect kDevEcListTitle __attribute__((unused)) = {8, 6, 304, 40};
@@ -509,7 +509,7 @@ static inline CtrPokeTouchRect DevEcRow(int k)
     return r;
 }
 
-/* A list's bottom keys: 0 BACK, 1 the toggle, 2 USE WORD. */
+/* A list's bottom keys: 0 USE WORD, 1 the toggle, 2 BACK (at the right, as every view's and the groups' BACK). */
 static inline CtrPokeTouchRect DevEcListKey(int i)
 {
     return DevAcross(3, i, 196, 36);

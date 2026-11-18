@@ -699,6 +699,7 @@ static int EasyChatFaults(void)
     assert(Same(kDevEcList, (CtrPokeTouchRect){8, 52, 236, 136}) && Same(kDevEcRail, (CtrPokeTouchRect){220, 58, 18, 124}));
     assert(Same(kDevEcUp, (CtrPokeTouchRect){252, 52, 28, 64}) && Same(kDevEcDown, (CtrPokeTouchRect){252, 120, 28, 64}));
     assert(Same(kDevEcStrip, (CtrPokeTouchRect){284, 52, 28, 136}));
+    assert(DevEcListKey(2).x + DevEcListKey(2).w == 312 && DevEcToggle(1).x + DevEcToggle(1).w == 312);   /* BACK at the right */
     for (int n = 1; n <= 9; ++n)
         for (int i = 0; i < n; ++i)
             assert(Same(DevEcChip(n, i), DevAcross((n + 1) / 2, i % ((n + 1) / 2), 52 + 40 * (i / ((n + 1) / 2)), 34)));
@@ -852,7 +853,8 @@ int main(void)
         {"Easy Chat group 20", DevEcCell(20)}, {"Easy Chat letter Z", DevEcLetter(25)}, {"Easy Chat BACK", DevEcToggle(1)},
         {"Easy Chat list title", kDevEcListTitle}, {"Easy Chat list", kDevEcList}, {"Easy Chat row place 11", DevEcRow(11)},
         {"Easy Chat rail", kDevEcRail}, {"Easy Chat up", kDevEcUp}, {"Easy Chat down", kDevEcDown},
-        {"Easy Chat strip", kDevEcStrip}, {"Easy Chat strip's Z", DevEcStripCell(25)}, {"Easy Chat USE WORD", DevEcListKey(2)},
+        {"Easy Chat strip", kDevEcStrip}, {"Easy Chat strip's Z", DevEcStripCell(25)}, {"Easy Chat USE WORD", DevEcListKey(0)},
+        {"Easy Chat list BACK", DevEcListKey(2)},
     };
     const DevGroup groups[] = {DEV_GROUP("HOME", homeKeys), DEV_GROUP("battle, a trainer", batTrainer),
                                DEV_GROUP("battle, wild", batWild), DEV_GROUP("battle moves", batMoves),

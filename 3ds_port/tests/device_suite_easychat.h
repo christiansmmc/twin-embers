@@ -96,15 +96,15 @@ static void EcArrows(int up, int down)
     assert(EcKeyCount(kDevEcDown, down ? DEV_KEY_INK : DEV_BAG_ARROW_OFF) == 25);
 }
 
-/* Upper case (decision 5): FireRed's title, the phrase's words, the groups, the list's words and title and the question
- * are drawn in capitals however they arrive (FireRed's as it writes them, or v0.6.0's title case): with small letters
- * wider than capitals, each drawn the same as in capitals; POKeMON's e stays small. */
+/* Words (decision 5), with small letters wider than capitals: the phrase's words, the groups and the list's words and
+ * title (FireRed's ALL CAPS, which v0.6.0 title-cased) are drawn in capitals however they arrive, POKeMON's e small;
+ * FireRed's title and question are drawn as it writes them (each drawn differently in capitals). */
 static void EcWords(CtrPokeTouchView v)
 {
     CtrPokeTouchView cased = v;
 
     strcpy(cased.ec.title, "PORT TITLE");
-    TouchSamePixels(&cased, &v, 1, "FireRed's title, in capitals");
+    TouchSamePixels(&cased, &v, 0, "FireRed's title, as it writes it");
     cased = v; strcpy(cased.ec.chip[0], "Hello"); strcpy(cased.ec.chip[6], "Stones");
     TouchSamePixels(&cased, &v, 1, "the phrase's words, in capitals");
     v.ec.screen = PT_EC_GROUP; cased = v;
@@ -113,9 +113,11 @@ static void EcWords(CtrPokeTouchView v)
     v.ec.screen = PT_EC_LIST; cased = v;
     strcpy(cased.ec.list[0], "Acorn"); strcpy(cased.ec.list[11], "Hill"); strcpy(cased.ec.listTitle, "Stones");
     TouchSamePixels(&cased, &v, 1, "the list's words and title, in capitals");
-    v.ec.screen = PT_EC_EDIT; v.ec.ask = PT_EC_ASK_DELETE; strcpy(v.ec.ask1, "PORT WORDS FOR"); strcpy(v.ec.ask2, "THIS TEST?");
-    cased = v; strcpy(cased.ec.ask1, "Port words for"); strcpy(cased.ec.ask2, "this test?");
-    TouchSamePixels(&cased, &v, 1, "the question, in capitals");
+    v.ec.screen = PT_EC_EDIT; v.ec.ask = PT_EC_ASK_DELETE; strcpy(v.ec.ask1, "Port words for"); strcpy(v.ec.ask2, "this test?");
+    cased = v; strcpy(cased.ec.ask1, "PORT WORDS FOR"); strcpy(cased.ec.ask2, "THIS TEST?");
+    TouchSamePixels(&cased, &v, 0, "the question, as FireRed writes it");
+    v.ec.screen = PT_EC_GROUP; v.ec.ask = 0; cased = v; strcpy(cased.ec.title, "PORT TITLE");
+    TouchSamePixels(&cased, &v, 0, "the groups' title, as FireRed writes it");
 }
 
 /* The plan's suite (Review Focus 4: the list at its first and last rows, the rail and the strip at both ends, the last
@@ -144,7 +146,7 @@ static void SuiteEasyChat(void)
     assert(CtrPokeTouch_EasyRailTarget(&v.ec, 58) == 0 && CtrPokeTouch_EasyRailTarget(&v.ec, 181) == 24);
     assert(CtrPokeTouch_EasyStripLetter(291, 60) == 0 && CtrPokeTouch_EasyStripLetter(305, 181) == 25 && CtrPokeTouch_EasyStripLetter(311, 187) == 25
            && CtrPokeTouch_EasyStripLetter(284, 52) == 0 && CtrPokeTouch_EasyStripLetter(283, 60) == -1);
-    for (i = 0; i < 3; ++i) AssertHits(EcHitV, &v, DevAcross(3, i, 196, 36), i == 0 ? PT_EC_HIT_BACK : i == 1 ? PT_EC_HIT_TOGGLE : PT_EC_HIT_PLACE);
+    for (i = 0; i < 3; ++i) AssertHits(EcHitV, &v, DevAcross(3, i, 196, 36), i == 0 ? PT_EC_HIT_PLACE : i == 1 ? PT_EC_HIT_TOGGLE : PT_EC_HIT_BACK);
     AssertHits(EcHitV, &v, kDevEcUp, PT_EC_HIT_UP); AssertHits(EcHitV, &v, kDevEcDown, PT_EC_HIT_DOWN); AssertRowHits(EcHitV, &v, kDevEcRail, PT_EC_HIT_RAIL); AssertRowHits(EcHitV, &v, kDevEcStrip, PT_EC_HIT_STRIP);
     v.ec.first = 24; DevCheckTouch(&old, &v); AssertRowHits(EcHitV, &v, DevEcRow(11), PT_EC_HIT_ROW + 11);
     v.ec.listCount = 5; v.ec.first = 0; DevCheckTouch(&old, &v); assert(CtrPokeTouch_EasyHit(&v, DevEcRow(5).x + 3, DevEcRow(5).y + 3) == -1);
@@ -229,10 +231,13 @@ static void SuiteEasyChat(void)
     assert(CountIn(kEcListLine1, DEV_INK) > 0 && CountIn(kEcListLine1, DEV_INK2) == 0 && CountIn(kEcListLine2, DEV_INK2) > 0);
     EcThumb(58, 81); assert(at(EC_TRACK_X, 100) == DEV_INK_DIM && at(EC_TRACK_X + 3, 181) == DEV_INK_DIM && at(EC_TRACK_X + 4, 100) == DEV_PAPER);
     EcArrows(0, 1);
-    EcDark(DevEcListKey(0), 0); AssertKey(DevEcListKey(1), DEV_LOOK_KEY, 0); AssertKey(DevEcListKey(2), DEV_LOOK_KEY, 0);
+    AssertKey(DevEcListKey(0), DEV_LOOK_KEY, 0); AssertKey(DevEcListKey(1), DEV_LOOK_KEY, 0); EcDark(DevEcListKey(2), 0);
+    assert(DevEcListKey(2).x + DevEcListKey(2).w == DevEcToggle(1).x + DevEcToggle(1).w);   /* BACK at the right */
     v.ec.pressed = PT_EC_HIT_ROW + 6; DevCheckTouch(&old, &v); EcRowsInverted(&v, 6);
-    v.ec.pressed = PT_EC_HIT_PLACE; DevCheckTouch(&old, &v); EcRowsInverted(&v, 3); AssertKey(DevEcListKey(2), DEV_LOOK_KEY, 1);
-    v.ec.pressed = PT_EC_HIT_BACK; DevCheckTouch(&old, &v); EcDark(DevEcListKey(0), 1); AssertKey(DevEcListKey(2), DEV_LOOK_KEY, 0);
+    v.ec.pressed = PT_EC_HIT_PLACE; DevCheckTouch(&old, &v); EcRowsInverted(&v, 3); AssertKey(DevEcListKey(0), DEV_LOOK_KEY, 1);
+    EcDark(DevEcListKey(2), 0);
+    v.ec.pressed = PT_EC_HIT_TOGGLE; DevCheckTouch(&old, &v); AssertKey(DevEcListKey(1), DEV_LOOK_KEY, 1); AssertKey(DevEcListKey(0), DEV_LOOK_KEY, 0);
+    v.ec.pressed = PT_EC_HIT_BACK; DevCheckTouch(&old, &v); EcDark(DevEcListKey(2), 1); AssertKey(DevEcListKey(0), DEV_LOOK_KEY, 0);
     v.ec.pressed = PT_EC_HIT_UP; DevCheckTouch(&old, &v); AssertKey(kDevEcUp, DEV_LOOK_KEY, 1); AssertKey(kDevEcDown, DEV_LOOK_KEY, 0);
     assert(EcKeyCount(kDevEcUp, DEV_BAG_ARROW_OFF) == 25);                   /* held where it goes no further: still taken */
     v.ec.pressed = PT_EC_HIT_DOWN; DevCheckTouch(&old, &v); AssertKey(kDevEcDown, DEV_LOOK_KEY, 1); assert(EcKeyCount(kDevEcDown, DEV_SUNK_INK) == 25);
@@ -306,5 +311,10 @@ static void SuiteEasyChat(void)
     DevCheckTouch(&old, &v); shot("list_alpha");
     v = EcBoard(); v.ec.ask = PT_EC_ASK_QUIT; v.ec.askCursor = 1; strcpy(v.ec.ask1, "Port question for this test?");
     DevCheckTouch(&old, &v); shot("ask");
+    /* CLEAR's question, FireRed's longest (two lines of 30 and 25 characters, as it writes them): port words of the same
+     * lengths, within the note's three lines */
+    v.ec.ask = PT_EC_ASK_DELETE; v.ec.askCursor = 1; strcpy(v.ec.ask1, "Port words for this test, they"); strcpy(v.ec.ask2, "run on. Is that all fine?");
+    assert(strlen(v.ec.ask1) == 30 && strlen(v.ec.ask2) == 25 && DevWrapLines("Port words for this test, they run on. Is that all fine?", kEcAskPaper.w - 12, 9) <= 3);
+    DevCheckTouch(&old, &v); assert(CountIn(kEcAskPaper, DEV_INK) > 0 && CountIn(kEcAskPaper, DEV_INK2) == 0); shot("ask_delete");
     assert(sDevKeyCut == 0);                      /* main prints PASS device easychat */
 }

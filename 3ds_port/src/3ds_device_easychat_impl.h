@@ -10,7 +10,7 @@
  *    the words two a row in six rows, the selected inverted; the rail on the list's paper (a 4 px track, the thumb where
  *    the rows shown are: a slider); ▲ ▼ (FireRed's UP and DOWN, always taken: the arrow grey while the list goes no
  *    further that way); the letter strip (a slider: the first word of a letter; a group's list only, grey under A-Z, its
- *    first row's letter boxed); BACK (dark), the toggle and USE WORD;
+ *    first row's letter boxed); USE WORD, the toggle and BACK (dark, at the right as on every B view);
  *  - a question (QUIT, CLEAR, CONFIRM): the phrase's screen and slots grey, FireRed's question (and v0.6.0's line after
  *    QUIT's) on the question's note, YES and NO.
  * A key is sunk by FireRed's cursor (a slot, a button, a group or letter, YES / NO; the word's row inverted) or, among
@@ -18,8 +18,8 @@
  * (3ds_bottom_easychat_impl.h ProcessEasyTouch); the hit codes are v0.6.0's (PT_EC_HIT_*). Every rectangle is
  * 3ds_device_layout.h's, so what is drawn is what a touch takes. No BACK of the view's: Easy Chat's keys are its own.
  *
- * Words (decision 5): FireRed's title, groups, words and questions through DevUpper (v0.6.0 title-cased them); the
- * port's words in capitals.
+ * Words (decision 5): FireRed's words and groups (ALL CAPS: v0.6.0 title-cased them) through DevUpper; its title and
+ * questions as it writes them ("Quit editing?", "PROFILE", "Interview"); the port's words in capitals.
  *
  * Redraw: the screen whole when the Easy Chat view differs (DevEcSame: the ec struct), and nothing else. */
 
@@ -98,6 +98,9 @@ int CtrPokeTouch_EasyStripLetter(int x, int y)
     return 13 * (col < 0 ? 0 : col > 1 ? 1 : col) + (row < 0 ? 0 : row > 12 ? 12 : row);
 }
 
+/* The codes of a list's bottom keys (DevEcListKey): USE WORD, the toggle, BACK. */
+static const int16_t kDevEcListCode[3] = {PT_EC_HIT_PLACE, PT_EC_HIT_TOGGLE, PT_EC_HIT_BACK};
+
 int CtrPokeTouch_EasyHit(const CtrPokeTouchView *v, int x, int y)
 {
     const CtrPokeTouchEasy *e = &v->ec;
@@ -160,7 +163,7 @@ int CtrPokeTouch_EasyHit(const CtrPokeTouchView *v, int x, int y)
         CtrPokeTouchRect r = DevEcListKey(i);
 
         if (DevBagOnKey(&r, x, y))
-            return PT_EC_HIT_BACK + i;              /* BACK, the toggle, USE WORD */
+            return kDevEcListCode[i];
     }
     return -1;
 }
@@ -187,17 +190,15 @@ static void DevEcKey(const CtrPokeTouchRect *r, int look, int sunk, const char *
     DevKeyWord(r, faceY, look, sunk, word);
 }
 
-/* On screen s's paper, one line centred down it: `left` (FireRed's, in capitals) in the paper's ink, `right` small in
- * the secondary ink at its right. */
+/* On screen s's paper, one line centred down it: `left` (FireRed's title, as it writes it) in the paper's ink, `right`
+ * small in the secondary ink at its right. */
 static void DevEcTitle(const CtrPokeTouchRect *s, const char *left, const char *right)
 {
     CtrPokeTouchRect paper = DevScreen(s);
     int top = paper.y + (paper.h - 8) / 2, end = paper.x + paper.w - 6, rw = DevSmallTextWidth(right);
-    char word[PT_EC_ASK_LEN];
 
     DevSmallText(right, end - rw, top, DEV_INK2, end);
-    DevUpper(word, left, sizeof(word));
-    DevText(word, paper.x + 6, top, end - rw - 8);
+    DevText(left, paper.x + 6, top, end - rw - 8);
 }
 
 /* How many of the phrase's slots hold a word, of how many. */
@@ -374,7 +375,7 @@ static void DevEcStrip(const CtrPokeTouchEasy *e)
 }
 
 /* A list: its title (the group, or the letter with A-Z small at the right) over the phrase; the words (the selected
- * row inverted, or the one held); the rail; ▲ ▼; the strip; BACK (dark), the toggle and USE WORD, sunk while held. */
+ * row inverted, or the one held); the rail; ▲ ▼; the strip; USE WORD, the toggle and BACK (dark), sunk while held. */
 static void DevEcList(const CtrPokeTouchEasy *e)
 {
     static const char *const kAz = "A-Z";
@@ -405,20 +406,20 @@ static void DevEcList(const CtrPokeTouchEasy *e)
     for (int i = 0; i < 3; ++i) {
         CtrPokeTouchRect r = DevEcListKey(i);
 
-        DevEcKey(&r, i ? DEV_LOOK_KEY : DEV_LOOK_DARK, e->pressed == PT_EC_HIT_BACK + i,
-                 i == 0 ? DevBackWord() : i == 1 ? DevEcToggleWord(e->alpha) : CTR_TR("USE WORD", "PONER PALABRA", "WORT SETZEN"));
+        DevEcKey(&r, i == 2 ? DEV_LOOK_DARK : DEV_LOOK_KEY, e->pressed == kDevEcListCode[i],
+                 i == 0 ? CTR_TR("USE WORD", "PONER PALABRA", "WORT SETZEN") : i == 1 ? DevEcToggleWord(e->alpha) : DevBackWord());
     }
 }
 
-/* A question over the phrase: its screen and slots grey; FireRed's question (its two lines as one text) in capitals on
- * the question's note, v0.6.0's line after QUIT's (FireRed's has no second line) in the secondary ink, all centred down
- * the paper; YES and NO, FireRed's cursor's sunk, or the one held. */
+/* A question over the phrase: its screen and slots grey; FireRed's question (its two lines as one text, as it writes
+ * it) on the question's note, v0.6.0's line after QUIT's (FireRed's has no second line; the port's words, in capitals)
+ * in the secondary ink, all centred down the paper; YES and NO, FireRed's cursor's sunk, or the one held. */
 static void DevEcAsk(const CtrPokeTouchEasy *e)
 {
     const char *after = !e->ask2[0] && e->ask == PT_EC_ASK_QUIT
         ? CTR_TR("YOUR CHANGES WILL BE LOST.", "SE PERDER\xC3\x81N LOS CAMBIOS.", "\xC3\x84NDERUNGEN GEHEN VERLOREN.") : "";
     int n = DevEcSlots(e), held = DevEcHeld(e, PT_EC_HIT_YES, 2), width, a, b, top;
-    char question[2 * PT_EC_ASK_LEN], upper[2 * PT_EC_ASK_LEN], word[24];
+    char question[2 * PT_EC_ASK_LEN], word[24];
     CtrPokeTouchRect paper;
 
     DevEcPhrase(e);
@@ -431,11 +432,10 @@ static void DevEcAsk(const CtrPokeTouchEasy *e)
     paper = DevScreen(&kDevAskNote);
     width = paper.w - 12;
     snprintf(question, sizeof(question), "%s%s%s", e->ask1, e->ask1[0] && e->ask2[0] ? " " : "", e->ask2);
-    DevUpper(upper, question, sizeof(upper));
-    a = DevWrapLines(upper, width, 3);
+    a = DevWrapLines(question, width, 3);
     b = DevWrapLines(after, width, 4 - a);
     top = paper.y + (paper.h - (8 + DEV_LINE_H * (a + b - 1))) / 2;
-    DevWrap(upper, paper.x + 6, top, width, a, DEV_INK, DEV_INK_SH);
+    DevWrap(question, paper.x + 6, top, width, a, DEV_INK, DEV_INK_SH);
     DevWrap(after, paper.x + 6, top + DEV_LINE_H * a, width, b, DEV_INK2, DEV_INK2);
     for (int i = 0; i < 2; ++i) {
         DevUpper(word, CtrUiText(i ? UIS_NO : UIS_YES), sizeof(word));
