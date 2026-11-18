@@ -40,6 +40,8 @@ doubled (blocky) with a plus-shaped primitive for FIGHT. Now:
 
 ## Side menu icons and RUN
 
+(History: the 12x12 menu icon samples described here, and the side menu they served, were deleted when the field screens became the red device.)
+
 The font stays the game's. The six side-menu icons (POKeDEX, POKeMON, BAG, the Trainer Card, SAVE,
 OPTIONS) were the pack's 24x24 item art cut to 12x12 by taking the first opaque pixel of each 2x2,
 which lost shading and rounded shapes. They are now reduced by area to 16x16 with alpha: each

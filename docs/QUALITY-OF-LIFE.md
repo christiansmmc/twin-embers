@@ -130,18 +130,18 @@ returns each time and finishes once the copy completes; the GBA build is unchang
 ARM build links. NOT reproduced in an emulator or on a console: NEEDS HARDWARE VALIDATION (open the
 player's PC, WITHDRAW ITEM, withdraw and leave, also from a Pokemon Center).
 
-## The touch screen's ember look
+## The touch screen's ember look (replaced by the red device)
 
-The lower screen's field menus wear the owner's modern design (DS/3DS-era raised buttons on a red ember
+The ember look described here was removed (its art, the sparks and the EMBERS option are gone; the lower screen is
+now the red device with a SHELL COLOUR option, see the README and the CHANGELOG). History: the lower screen's field menus wore the owner's modern design (DS/3DS-era raised buttons on a red ember
 backdrop, from the mockups the owner approved): the START column as cream buttons with an icon
 and FireRed's lettering (amber and glowing for the screen shown), the X and Y tiles with their badge, RUN
 with a switch, the GBA picture and the HOME map in a slate frame, the bar as a note card with BACK (violet)
 and PAGE beside it, OPTIONS as raised rows with the value in a pill (a switch for ON/OFF) and SAVE as a card
 with YES and NO. The battle Summary keeps its layout on the same backdrop. The battle screens are unchanged.
 
-- The art is the port's own: `tools/make_ember_skin.py` draws the backdrop and the six column icons
-  (`ember_skin*.h`); the BAG icon is the port's battle Bag reduced. The text is FireRed's font at run time.
-- Embers rise slowly over the backdrop (about twenty sparks, `3ds_touch_skin_impl.h`): one step a frame,
+- The art is the port's own: the ember skin script and its generated headers (removed) drew the backdrop and the six column icons; the BAG icon is the port's battle Bag reduced. The text is FireRed's font at run time.
+- Embers rise slowly over the backdrop (about twenty sparks; the touch-skin source is removed): one step a frame,
   drawn only on pixels that show the backdrop, so they pass behind every button and never over the GBA
   picture; each spark puts back what it painted. OPTIONS, page 2, EMBERS: OFF, LOW or HIGH, shown side
   by side with the chosen one lit (a touch picks one; Left and Right step through them). LOW keeps 7 of

@@ -98,7 +98,7 @@ behaviour state machine, sprite loading.
   is negligible. Scan regions once on map load. Old 3DS is tight (52-59 fps):
   default cap 2 there.
 - **Dual screen**: the top is the game; the bottom could show the facing mon's
-  name/level with LlWindow/LlRibbon (3ds_ember2_impl.h). Optional, needs a
+  name/level with LlWindow/LlRibbon (the former ember look's helpers, since removed). Optional, needs a
   mockup first.
 - Triggers must not fire during scripts, cutscenes, or trainer sight.
 

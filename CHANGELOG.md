@@ -4,8 +4,17 @@ Twin Embers is a port of Pokémon FireRed (pret/pokefirered) to the Nintendo 3DS
 
 ## Unreleased
 
+### Changed
+
+- **The lower screen is now "the red device".** Every view (HOME, battle, Party, Summary, Bag, OPTIONS, SAVE, the Pokédex, the Trainer Card, the mail, the PC box, naming, Easy Chat and the rest) is drawn as a console shell with the screen embedded in it, cream keys that sink with a green light and dark keys to leave. FireRed's own picture (the AREA map and the screens the GBA draws) sits inside an embedded screen too. HOME has six keys: POKéDEX, POKéMON, BAG, your name for the Trainer Card, SAVE and OPTION.
+- **OPTIONS has a Shell colour row** (red, blue, green or grey) in place of EMBERS.
+- **HEAL and REMEMBER leave the Party's menu.** Their code stays behind the build switch `CTR_PARTY_EXTRAS` (recipe 0264).
+- **The Summary marks the nature's raised and lowered stats** (recipe 0265).
+
 ### Removed
 
+- The ember look (backdrop, rising embers and the EMBERS option), the START column, and the jumps from one view to another: leave a view with its dark key, then pick from HOME.
+- The on-screen X and Y tiles. The X and Y buttons still work.
 - Removed the optional Facets battle backgrounds from both Builders (the desktop app and command line `--battle-backgrounds`, and the web page's switch). The optional HD battle scenes are unchanged. A data pack made earlier with them keeps working.
 
 ## v0.6.0
