@@ -2263,6 +2263,7 @@ static CtrSummaryUiView SumBoard(void)
         strcpy(d->power[i], kPower[i]);
         strcpy(d->accuracy[i], "100");
     }
+    d->contact = 0x0A;                                         /* SCRATCH and BRICK BREAK make contact */
     memcpy(d->iv, kIv, sizeof(kIv));
     memcpy(d->ev, kEv, sizeof(kEv));
     d->hpType = 12;
@@ -2328,6 +2329,28 @@ static void SumUpperCase(CtrSummaryUiView v)
     proper = v;
     strcpy(proper.data.nickname, "Sparky");
     SumSamePixels(&v, &proper, 0);
+}
+
+/* The details' CONTACT value box (x 70 to 104, the row from y 134: capitals 137) holds `word`, inked: its pixels are
+ * the word's as a column row draws it alone on the column's paper (SÍ and NO are both 12 px in Spanish, so the word's
+ * width alone would not tell them apart). The canvas is left as it was. */
+static int SumContactIs(const char *word)
+{
+    static uint16_t keep[W * H];
+    uint16_t drawn[35][16], paper = at(70, 134);
+    int same = Count(70, 134, 35, 16, DEV_INK) > 0;
+
+    for (int x = 0; x < 35; ++x)
+        for (int y = 0; y < 16; ++y)
+            drawn[x][y] = at(70 + x, 134 + y);
+    memcpy(keep, canvas, sizeof(keep));
+    DevRect(70, 134, 35, 16, paper);
+    DevColumnRow(134, "", word, DEV_SUM_COL_X, DEV_SUM_COL_VALUE);
+    for (int x = 0; x < 35; ++x)
+        for (int y = 0; y < 16; ++y)
+            same &= drawn[x][y] == at(70 + x, 134 + y);
+    memcpy(canvas, keep, sizeof(keep));
+    return same;
 }
 
 /* The plan's suite (the tabs, ▲▼, BACK, the switch and the move rows hit where they are drawn; the chosen tab; ▲▼ grey
@@ -2475,12 +2498,14 @@ static void SuiteSummary(void)
     sv.data.contact ^= 1; assert(DevWhole(DevCheckSummary(&so, &sv))); sv.data.contact ^= 1; DevCheckSummary(&so, &sv);
     shot("details");
     sv.data.cursor = 2; DevCheckSummary(&so, &sv); assert(Count(20, 137, 84, 8, DEV_INK) > 0);
+    assert(SumContactIs(CTR_TR("NO", "NO", "NEIN")));                           /* GROWL does not */
     sv.data.contact ^= 4; assert(DevWhole(DevCheckSummary(&so, &sv))); sv.data.contact ^= 4;
     sv.data.cursor = 0; DevCheckSummary(&so, &sv);
     sv.data.cursor = 2; strcpy(sv.data.moveDesc, "Port words for one move."); DevCheckSummary(&so, &sv);   /* GROWL: no category */
     assert(at(130, 102) == DEV_BEZEL && Count(60, 84, 50, 12, DEV_CAT_SPECIAL) == 0 && Count(60, 84, 50, 12, DEV_CAT_PHYSICAL) == 0);
     sv.data.cursor = 3; strcpy(sv.data.moveDesc, "Port words for another move's text."); DevCheckSummary(&so, &sv);   /* FIGHT: physical */
     assert(Count(60, 84, 46, 12, DEV_CAT_PHYSICAL) > 0 && Count(106, 84, 4, 12, DEV_CAT_PHYSICAL) == 0);
+    assert(SumContactIs(CTR_TR("YES", "S\xC3\x8D", "JA")));                     /* BRICK BREAK makes contact */
     sv.data.moveDesc[0] = 0;                                                    /* CANCEL: no description */
     /* Review Focus 5: the details — ▲▼ grey, not hit; the CANCEL row chosen; the rows hit */
     sv.data.page = SUI_PAGE_MOVES_INFO; sv.data.cursor = 4; DevCheckSummary(&so, &sv);
@@ -2690,6 +2715,7 @@ static void BagUpperCase(CtrPokeTouchView v)
 {
     CtrPokeTouchView other;
 
+    strcpy(v.bag.selDesc, "Port words for an item.");     /* drawn as it comes; short, as the small letters are wider */
     v.bag.state = PT_BAG_STATE_ACTIONS;
     v.bag.menuCount = 5;
     other = v;
@@ -2843,7 +2869,7 @@ static void SuiteBag(void)
     v.bag.pressed = PT_BAG_HIT_UP; assert(DevCheckTouch(&old, &v).count == 0);
     v.bag.pressed = -1; strcpy(v.bar[0], "Items"); v.enabled[PT_BAG] = 1; v.backVisible = 1;
     v.bag.regX = 13; v.bag.tossMax = 99; v.bag.titleItem = 7; strcpy(v.bag.prompt, "?"); v.bag.money = 500;
-    assert(DevCheckTouch(&old, &v).count == 0);
+    v.mapGroup ^= 1; v.speed ^= 1; assert(DevCheckTouch(&old, &v).count == 0);
     v.bag.prompt[0] = 0;
     v.shell = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && at(1, 100) == DEV_SHELL_BLUE);
     v.shell = 0; DevCheckTouch(&old, &v);
@@ -2880,6 +2906,14 @@ static void SuiteBag(void)
     v.bag.pressed = PT_BAG_HIT_ROW + 2; assert(DevCheckTouch(&old, &v).count == 0);                 /* the rows take no touch now */
     v.bag.pressed = PT_BAG_HIT_TAB + 1; assert(DevCheckTouch(&old, &v).count == 0);                 /* nor the pockets */
     v.bag.pressed = -1; strcpy(v.bag.menuName[5], "X"); assert(DevCheckTouch(&old, &v).count == 0); /* rows past the menu */
+    {   /* nor what only the list draws (the description, its chips, CLOSE's word), nor HOME's fields */
+        CtrPokeTouchBag keep = v.bag;
+
+        strcpy(v.bag.selDesc, "Other port words."); v.bag.moveType = 4; strcpy(v.bag.typeName, "GROUND");
+        v.bag.showOwned = 1; v.bag.owned = 3; strcpy(v.bag.closeName, "CANCEL"); v.mapGroup ^= 1; v.speed ^= 1;
+        assert(DevCheckTouch(&old, &v).count == 0);
+        v.bag = keep; assert(DevCheckTouch(&old, &v).count == 0);
+    }
     shot("menu");
     v.bag.menuCount = 6; strcpy(v.bag.menuName[4], "CHECK"); strcpy(v.bag.menuName[5], "CANCEL");
     DevCheckTouch(&old, &v); assert(Same(DevBagMenuKey(6, 4), (CtrPokeTouchRect){204, 152, 108, 24})); AssertHits(BagHitV, &v, kDevGridExit, PT_BAG_HIT_MENU + 5);
@@ -3007,6 +3041,7 @@ static void SuiteBag(void)
     AssertKey(DevGridTab(3, 0), DEV_LOOK_KEY, 1); AssertKey(DevGridTab(3, 1), DEV_LOOK_FAINT, 0);
     assert(CtrBattleUi_Hit(&bv, 160, 20) == -1 && CtrBattleUi_Hit(&bv, 50, 60) == -1 && CtrBattleUi_Hit(&bv, 256, 93) == -1);
     assert(Count(48, 196, 180, 30, DEV_INK) > 0);                                                    /* "... is selected." */
+    strcpy(bv.bag.selDesc, "Other words."); assert(DevCheckBattle(&bo, &bv).count == 0);   /* the list's footer only */
     shot("battle_menu");
     bv.pressed = BUI_BAG_MENU + 1; DevCheckBattle(&bo, &bv); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1); AssertKey(DevBagMenuKey(2, 0), DEV_LOOK_KEY, 0);
     bv.pressed = -1;

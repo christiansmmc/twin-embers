@@ -28,6 +28,16 @@ def additions(name, path):
     return ''.join(op['port'] for op in row['lines'] if 'port' in op)
 
 
+# A C string literal on one line: from its quote to the quote that ends it, an escape (a backslash and the character
+# after it, an escaped quote too) taken whole.
+C_LITERAL = r'"(?:[^"\\]|\\.)*"'
+
+
+def raw_non_ascii(line):
+    """The string literals on a line of C that hold a raw non-ASCII character."""
+    return [lit for lit in re.findall(C_LITERAL, line) if any(ord(c) > 127 for c in lit)]
+
+
 class FieldPresentation(unittest.TestCase):
     def run_c(self, source):
         with tempfile.TemporaryDirectory() as tmp:
@@ -601,10 +611,18 @@ int main(void) {
             text = path.read_text(encoding='utf-8')
             text = re.sub(r'/\*.*?\*/', lambda m: re.sub(r'[^\n]', ' ', m.group(0)), text, flags=re.S)
             for n, line in enumerate(text.split('\n'), 1):
-                for lit in re.findall(r'"(?:[^"\\n]|\.)*"', line):
-                    if any(ord(c) > 127 for c in lit):
-                        found.append('%s:%d' % (path.name, n))
+                if raw_non_ascii(line):
+                    found.append('%s:%d' % (path.name, n))
         self.assertEqual(found, [])
+
+    def test_non_ascii_guard_reads_every_literal(self):
+        """The guard above reads a literal whole whatever it holds (its first pattern skipped every literal with an n or
+        a backslash, so a raw "Contraseña" passed): a raw letter in a word with an n, a raw letter after an escape, an
+        escaped quote inside; escapes alone, and text outside the quotes, pass."""
+        self.assertEqual(raw_non_ascii('CTR_TR("PASSWORD", "Contrase\u00f1a", "KENNWORT")'), ['"Contrase\u00f1a"'])
+        self.assertEqual(raw_non_ascii('CTR_TR("YES", "S\\xC3\\x8D o S\u00ed", "JA")'), ['"S\\xC3\\x8D o S\u00ed"'])
+        self.assertEqual(raw_non_ascii('f("say \\"\u00f1\\" now", "n")'), ['"say \\"\u00f1\\" now"'])
+        self.assertEqual(raw_non_ascii('CTR_TR("YES", "S\\xC3\\x8D", "JA"), S\u00ed'), [])
 
     def test_party_menu_marks(self):
         """The B Party's action menu: a field move's name in blue (FireRed's own colour for them, ids from
@@ -932,7 +950,7 @@ int main(void) {
 
     memset(&in, 0, sizeof(in));
     sShown.mode = MODE_BAG; sShown.battleUi = 1; sShown.battle.state = BUI_BAG;
-    b->bagState = BAG_LIST; b->count = 7; b->cursor = 0; b->first = 0;          /* a long Items pocket */
+    b->bagState = BAG_LIST; b->count = 6; b->cursor = 0; b->first = 0;          /* a long Items pocket */
     /* a finger on row 2; within the slop it is still a tap */
     hitCode = BUI_BAG_ROW + 2; in.touchActive = in.touchDown = 1; in.touchY = 150; ProcessBattleBagTouch(&in);
     in.touchDown = 0; in.touchY = 150 - (LIST_DRAG_SLOP - 1); ProcessBattleBagTouch(&in);
@@ -949,7 +967,7 @@ int main(void) {
     BagPlanClear(); gCursor = 4; in.touchY = 0; ProcessBattleBagTouch(&in);
     assert(sBagPlan.kind == BAGPLAN_LIST && sBagPlan.target == b->count - 1);
     /* back near where it began: still a drag, to the touch-down's item; past the top, the first */
-    BagPlanClear(); gCursor = 6; in.touchY = 150 + 3; ProcessBattleBagTouch(&in);
+    BagPlanClear(); gCursor = 5; in.touchY = 150 + 3; ProcessBattleBagTouch(&in);
     assert(sBagPlan.kind == BAGPLAN_LIST && sBagPlan.target == 0 && !sBat.inside);
     BagPlanClear(); gCursor = 0; in.touchY = 239; ProcessBattleBagTouch(&in);
     assert(sBagPlan.kind == BAGPLAN_NONE);
