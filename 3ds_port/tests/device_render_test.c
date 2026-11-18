@@ -1709,7 +1709,7 @@ static void BatNames(CtrBattleView v)
     memcpy(first, canvas, sizeof(first));
     CtrBattleUi_Draw(canvas, &other);
     assert(memcmp(first, canvas, sizeof(first)));                  /* a nickname: Sparky, as typed */
-    assert(Count(76, 17, 140, 12, DEV_INK) > 0 && Count(20, 71, 280, 15, DEV_INK) > 0);
+    assert(Count(76, 17, 140, 12, DEV_INK) > 0 && Count(20, 76, 280, 15, DEV_INK) > 0);
     v.state = other.state = BUI_TARGET;
     v.cursor = other.cursor = -1;
     strcpy(v.target[0].name, "PIDGEOTTO");
@@ -1736,54 +1736,66 @@ static void BatNames(CtrBattleView v)
 
 /* The plan's suite (each key hit where it is drawn, the touch or else the cursor sinks one key, the quick ball's arrows
  * and its grey states, RUN when there is no running, holes for missing moves, nothing hit while idle), the boards'
- * pieces where the boards put them, then the states for the eye. */
+ * pieces where the boards put them, then the states for the eye. The commands are def_fight's (owner O1): FIGHT across,
+ * under it a trainer's three keys of 96 (the board) or a wild battle's four of 73 with the quick ball, at y 168. */
 static void SuiteBattle(void)
 {
+    static const int kWild[4] = {BUI_ACT_BAG, BUI_ACT_BALL, BUI_ACT_POKEMON, BUI_ACT_RUN};
+    static const int kTrainer[3] = {BUI_ACT_BAG, BUI_ACT_POKEMON, BUI_ACT_RUN};
     CtrBattleView v = BatBoard(), old;
     CtrPokeTouchRect prev, next;
-    int i, x, y, hpW, fightX;
+    int i, x, y, fightX;
 
     old = v;
     CtrBattleUi_Draw(canvas, &old);
     v.state = BUI_ACTION; v.cursor = 0; DevCheckBattle(&old, &v);            /* a trainer: three keys */
     AssertHits(BatHitV, &v, kDevBatFight, BUI_ACT_FIGHT); AssertKey(kDevBatFight, DEV_LOOK_KEY, 1); assert(LedAt(kDevBatFight));
-    AssertHits(BatHitV, &v, kDevBatRow3[0], BUI_ACT_BAG); AssertHits(BatHitV, &v, kDevBatRow3[1], BUI_ACT_POKEMON); AssertHits(BatHitV, &v, kDevBatRow3[2], BUI_ACT_RUN);
-    assert(CtrBattleUi_Hit(&v, 108, 200) == -1 && CtrBattleUi_Hit(&v, 160, 50) == -1);
+    for (i = 0; i < 3; ++i) AssertHits(BatHitV, &v, kDevBatRow3[i], kTrainer[i]);
+    assert(CtrBattleUi_Hit(&v, 108, 200) == -1 && CtrBattleUi_Hit(&v, 160, 50) == -1 && CtrBattleUi_Hit(&v, 160, 163) == -1);
     for (i = 0; i < 3; ++i)
         AssertKey(kDevBatRow3[i], DEV_LOOK_KEY, 0);
     /* the screen: the lead's icon at 2x (its frame 0 from (4, 8)), the balls, HP, the prompt */
     assert(BPartyIcon(0, v.activeIcon) && at(20, 18) == sBPIcon[0].pal[sBPIcon[0].pixels[8 * 32 + 4]] && at(21, 19) == at(20, 18));
     assert(at(40, 30) == DEV_PAPER);                                          /* the stub icon's hole */
-    assert(at(232, 24) == UI_RGB(0x62, 0x62, 0x62) && at(244, 24) == at(232, 24) && at(256, 24) == UI_RGB(0xE0, 0xB0, 0x20)
-           && at(268, 24) == UI_RGB(0xC8, 0xC8, 0xC0) && at(280, 24) == at(232, 24));
-    assert(at(292, 20) == UI_RGB(0xB0, 0xB0, 0xA8) && at(292, 24) == DEV_PAPER);   /* none: a ring */
-    hpW = DevSmallTextWidth("HP") + 2;
-    assert(at(76, 52) == DEV_HP_FRAME && at(76 + hpW + 3, 53) == DEV_HP_FRAME && at(76 + hpW + 3 + 75, 55) == DEV_HP_GREEN
-           && at(76 + hpW + 3 + 149, 58) == DEV_HP_FRAME && at(76 + hpW + 3 + 150, 55) == DEV_PAPER);
-    assert(Count(20, 71, 280, 15, DEV_INK) > 0 && Count(76, 17, 140, 12, DEV_INK) > 0);   /* the prompt; the name */
+    /* the board's balls, 9 across at (230 + 12i, 20): able, able, a status, fainted, able, none (a ring) */
+    assert(at(234, 24) == DEV_INK && at(246, 24) == DEV_INK && at(258, 24) == UI_RGB(0xE0, 0xB0, 0x20)
+           && at(270, 24) == UI_RGB(0xC8, 0xC8, 0xC0) && at(282, 24) == DEV_INK && at(230, 24) == DEV_INK && at(229, 24) == DEV_PAPER);
+    assert(at(294, 20) == UI_RGB(0xB0, 0xB0, 0xA8) && at(294, 24) == DEV_PAPER);   /* none: a ring */
+    /* HP: the label (76..87), a pixel of paper, the bar [89,54,160,6] (the board's) */
+    assert(at(76, 52) == DEV_HP_FRAME && at(87, 60) == DEV_HP_FRAME && Count(88, 52, 1, 9, DEV_HP_FRAME) == 0 && Count(89, 54, 160, 6, DEV_HP_FRAME) > 0 && at(89, 54) == DEV_HP_FRAME && at(89, 53) == DEV_PAPER
+           && at(89 + 80, 57) == DEV_HP_GREEN && at(89 + 159, 59) == DEV_HP_FRAME && at(89 + 160, 57) == DEV_PAPER && at(169, 60) == DEV_PAPER);
+    /* the prompt, its capitals at 79 (the board's line at 76); the name */
+    assert(Count(20, 79, 280, 1, DEV_INK) > 0 && Count(20, 64, 280, 13, DEV_INK) == 0 && Count(20, 76, 280, 15, DEV_INK) > 0);
+    assert(Count(76, 17, 140, 12, DEV_INK) > 0);
     assert(Count(76, 33, 8, 10, DEV_MALE) > 0);                                           /* the gender mark */
-    /* FIGHT's crossed swords: 24x24, 10 px left of the word, the pair centred on the key (sunk: face at 106); blended
-     * at their edges, nothing between them and the word */
-    fightX = 8 + (304 - (24 + 10 + UiTextWidth(CTR_TR("FIGHT", "LUCHAR", "KAMPF"), 2))) / 2;
-    assert(Count(fightX, 122, 24, 24, UI_RGB(0xA0, 0x2A, 0x20)) > 20 && Count(fightX + 24, 106, 10, 56, UI_RGB(0xA0, 0x2A, 0x20)) == 0);
-    assert(Count(fightX, 122, 24, 24, DEV_SUNK) + Count(fightX, 122, 24, 24, UI_RGB(0xA0, 0x2A, 0x20)) < 24 * 24);
-    assert(Count(fightX + 34, 125, 40, 18, UI_RGB(0xA0, 0x2A, 0x20)) > 0 && Count(8, 106, fightX - 8, 56, UI_RGB(0xA0, 0x2A, 0x20)) == 0);
-    assert(at(fightX + 5, 127) == UI_RGB(0xA0, 0x2A, 0x20) && at(fightX + 18, 127) == UI_RGB(0xA0, 0x2A, 0x20));   /* the blades */
+    /* FIGHT [8,108,304,48]: the crossed swords, 22x22, 6 px left of the word, the pair centred on the key (sunk: face at
+     * 110); blended at their edges, nothing between them and the word */
+    fightX = 8 + (304 - (22 + 6 + UiTextWidth(CTR_TR("FIGHT", "LUCHAR", "KAMPF"), 2))) / 2;
+    assert(Count(fightX, 123, 22, 22, UI_RGB(0xA0, 0x2A, 0x20)) > 20 && Count(fightX + 22, 110, 6, 48, UI_RGB(0xA0, 0x2A, 0x20)) == 0);
+    assert(Count(fightX, 123, 22, 22, DEV_SUNK) + Count(fightX, 123, 22, 22, UI_RGB(0xA0, 0x2A, 0x20)) < 22 * 22);
+    assert(Count(fightX + 28, 125, 40, 18, UI_RGB(0xA0, 0x2A, 0x20)) > 0 && Count(8, 110, fightX - 8, 48, UI_RGB(0xA0, 0x2A, 0x20)) == 0);
+    assert(at(fightX + 4, 127) == UI_RGB(0xA0, 0x2A, 0x20) && at(fightX + 17, 127) == UI_RGB(0xA0, 0x2A, 0x20));   /* the blades */
     shot("action");
-    v.runBlocked = 1; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 264, 200) == -1 && at(219, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
+    v.runBlocked = 1; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 260, 200) == -1 && at(219, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
     shot("action_runblocked");
-    v.runBlocked = 0; v.ball = CTR_QUICK_BALL_READY; v.ballCount = 4; v.ballItem = 4; v.ballQty = 21; DevCheckBattle(&old, &v);   /* wild: four keys */
-    assert(CtrBattleUi_Hit(&v, 121, 180) == BUI_ACT_BALL && CtrBattleUi_Hit(&v, 97, 218) == BUI_ACT_BALL_PREV && CtrBattleUi_Hit(&v, 151, 218) == BUI_ACT_BALL_NEXT
-           && CtrBattleUi_Hit(&v, 44, 200) == BUI_ACT_BAG && CtrBattleUi_Hit(&v, 198, 200) == BUI_ACT_POKEMON && CtrBattleUi_Hit(&v, 275, 200) == BUI_ACT_RUN);
-    AssertHits(BatHitV, &v, kDevBatRow4[0], BUI_ACT_BAG); AssertHits(BatHitV, &v, kDevBatRow4[1], BUI_ACT_BALL);
-    AssertHits(BatHitV, &v, kDevBatRow4[2], BUI_ACT_POKEMON); AssertHits(BatHitV, &v, kDevBatRow4[3], BUI_ACT_RUN);
+    v.runBlocked = 0; v.ball = CTR_QUICK_BALL_READY; v.ballCount = 4; v.ballItem = 4; v.ballQty = 21; DevCheckBattle(&old, &v);   /* wild: four keys of 73 */
+    AssertHits(BatHitV, &v, kDevBatFight, BUI_ACT_FIGHT);
+    for (i = 0; i < 4; ++i) if (i != 1) AssertHits(BatHitV, &v, kDevBatRow4[i], kWild[i]);
+    AssertHits(BatHitV, &v, kDevBatRow4[1], kWild[1]);         /* the ball's lower corner is under its arrow's slop */
     prev = DevBatBallArrow(&kDevBatRow4[1], 0);
     next = DevBatBallArrow(&kDevBatRow4[1], 1);
+    assert(CtrBattleUi_Hit(&v, prev.x + 10, prev.y + 10) == BUI_ACT_BALL_PREV && CtrBattleUi_Hit(&v, next.x + 10, next.y + 10) == BUI_ACT_BALL_NEXT);
+    assert(CtrBattleUi_Hit(&v, 121, 180) == BUI_ACT_BALL && CtrBattleUi_Hit(&v, 160, 233) == -1);
+    assert(CtrBattleUi_Hit(&v, 97, 218) == BUI_ACT_BALL_PREV && CtrBattleUi_Hit(&v, 151, 218) == BUI_ACT_BALL_NEXT
+           && CtrBattleUi_Hit(&v, 44, 200) == BUI_ACT_BAG && CtrBattleUi_Hit(&v, 198, 200) == BUI_ACT_POKEMON && CtrBattleUi_Hit(&v, 275, 200) == BUI_ACT_RUN);
     /* an arrow answers 3 px round itself, on its key */
     assert(CtrBattleUi_Hit(&v, prev.x - 2, prev.y - 3) == BUI_ACT_BALL_PREV && CtrBattleUi_Hit(&v, next.x + next.w + 1, next.y + next.h + 2) == BUI_ACT_BALL_NEXT);
     assert(CtrBattleUi_Hit(&v, prev.x + prev.w + 3, prev.y) == BUI_ACT_BALL && CtrBattleUi_Hit(&v, prev.x, prev.y - 4) == BUI_ACT_BALL);
     assert(Count(prev.x, prev.y, prev.w, prev.h, DEV_KEY_INK) > 0 && Count(next.x, next.y, next.w, next.h, DEV_KEY_INK) > 0);
     shot("action_ball");
+    v.runBlocked = 1; DevCheckBattle(&old, &v);                                  /* wild, no running: RUN of 73 grey, not hit */
+    assert(CtrBattleUi_Hit(&v, 275, 200) == -1 && at(242, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128) && at(211, 200) == DEV_KEY);
+    v.runBlocked = 0;
     v.ballCount = 1; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 97, 218) == BUI_ACT_BALL);
     assert(Count(prev.x, prev.y, prev.w, prev.h, DEV_KEY_INK) == 0 && Count(next.x, next.y, next.w, next.h, DEV_KEY_INK) == 0);
     v.ball = CTR_QUICK_BALL_FULL; v.ballCount = 4; DevCheckBattle(&old, &v);       /* grey: dimmed, the throw still hit (the game says why), no arrows */
@@ -1806,7 +1818,7 @@ static void SuiteBattle(void)
     v.target[1].hp = 7; v.bag.count = 7; v.pty.cursor = 2; v.safari = 1;
     assert(DevCheckBattle(&old, &v).count == 0);
     v.safari = 0; v.move[1].pp = 15; v.target[1].hp = 80; assert(DevCheckBattle(&old, &v).count == 0);
-    v.shell = 1; assert(DevWhole(DevCheckBattle(&old, &v)) && at(160, 100) == DEV_SHELL_BLUE);
+    v.shell = 1; assert(DevWhole(DevCheckBattle(&old, &v)) && at(160, 104) == DEV_SHELL_BLUE);
     v.shell = 0; DevCheckBattle(&old, &v);
     /* to the Bag and back: the whole screen each way */
     v.state = BUI_BAG; assert(DevWhole(DevCheckBattle(&old, &v)));
@@ -1862,11 +1874,17 @@ static void SuiteBattle(void)
     DevCheckBattle(&old, &v); for (y = 0; y < 240; y += 3) for (x = 0; x < 320; x += 3) assert(CtrBattleUi_Hit(&v, x, y) == -1);
     assert(at(11, 132) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128) && at(11, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
     assert(at(108, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));                         /* the quick ball's key, grey */
-    assert(Count(20, 71, 280, 15, DEV_INK) == 0 && Count(76, 17, 140, 12, DEV_INK) > 0);   /* no prompt; the lead still */
+    /* every key dimmed and up (none sunk): an up face's middle row, no LED */
+    assert(at(kDevBatFight.x + 3, kDevBatFight.y + 24) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128) && !LedAt(kDevBatFight));
+    for (i = 0; i < 4; ++i)
+        assert(at(kDevBatRow4[i].x + 3, kDevBatRow4[i].y + 31) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128) && !LedAt(kDevBatRow4[i]));
+    assert(Count(20, 76, 280, 15, DEV_INK) == 0 && Count(76, 17, 140, 12, DEV_INK) > 0);   /* no prompt; the lead still */
     shot("idle");
     v.cursor = 3; v.pressed = 2; assert(DevCheckBattle(&old, &v).count == 0);             /* idle: no key chosen */
     v.ball = CTR_QUICK_BALL_NONE; v.ballCount = 0; DevCheckBattle(&old, &v);                /* a trainer: three keys */
     assert(at(108, 200) == DEV_SHELL_RED && at(219, 200) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
+    for (i = 0; i < 3; ++i)
+        assert(at(kDevBatRow3[i].x + 3, kDevBatRow3[i].y + 31) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
     v.safari = 1; assert(DevWhole(DevCheckBattle(&old, &v)));                              /* the Safari Zone: its own keys */
     for (y = 0; y < 240; y += 3) for (x = 0; x < 320; x += 3) assert(CtrBattleUi_Hit(&v, x, y) == -1);
     for (i = 0; i < 4; ++i)

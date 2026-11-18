@@ -32,13 +32,13 @@
 #define DEV_BAT_PIP_HALF    UI_RGB(0xE0, 0xB0, 0x20)   /* a move's PP pips, at half and at a quarter (the board's) */
 #define DEV_BAT_PIP_QUARTER UI_RGB(0xE0, 0x6A, 0x1E)
 #define DEV_BAT_ICON        18                          /* a row key's art (the board's), the gap to its word */
-#define DEV_BAT_ICON_GAP    6
+#define DEV_BAT_ICON_GAP    5
 #define DEV_BAT_LINE        14                          /* a line of the board's text (its capitals 3 px in) */
 #define DEV_BAT_LEAD_X      20                          /* the lead's icon: {20, 18, 48, 48}, at 2x from its frame's (4, 8) */
 #define DEV_BAT_LEAD_Y      18
 #define DEV_BAT_SHADOW_A    115                         /* the hint's shadow on the shell (the board's 0.45 black) */
-#define DEV_BAT_SWORDS      24                          /* FIGHT's crossed swords, and the gap to its word */
-#define DEV_BAT_SWORDS_GAP  10
+#define DEV_BAT_SWORDS      22                          /* FIGHT's crossed swords, and the gap to its word (def_fight) */
+#define DEV_BAT_SWORDS_GAP  6
 
 /* ---- The keys' art: v0.6.0's battle icons (its BDiscIcon's, without the disc) ------------------------------------------
  * BAG is FireRed's own bag from the user's pack (the port's art without it), the Poke Ball and the shoe the flat icons of
@@ -310,17 +310,18 @@ static void DevBatLeadIcon(const CtrBattleView *v)
         }
 }
 
-/* The screen of the commands: the lead (its icon, name, gender and level, HP) when there is one, the party's six balls
- * (able, a status, fainted, a ring for none) and, when `prompt`, FireRed's question. */
+/* The screen of the commands (def_fight's [8,8,304,92]): the lead (its icon, name, gender and level, HP: the bar
+ * [89,54,160,6]) when there is one, the party's six balls (9 across at (230 + 12i, 20): able, a status, fainted, a ring
+ * for none) and, when `prompt`, FireRed's question, its capitals at 79. */
 static void DevBatLead(const CtrBattleView *v, int prompt)
 {
     char text[64], name[BUI_NAME_LEN + 8];
     const char *shown = DevMonName(v->activeName, v->activeNameIsSpecies, name, sizeof(name));
-    int x = 76, w;
+    int x = 76;
 
     DevScreen(&kDevBatScreen);
     for (int i = 0; i < 6; ++i) {
-        int bx = 228 + 12 * i;
+        int bx = 230 + 12 * i;
 
         if (!v->party[i])
             DevRing(bx, 20, 9, DEV_BAT_BALL_NONE);
@@ -337,8 +338,8 @@ static void DevBatLead(const CtrBattleView *v, int prompt)
     }
     snprintf(text, sizeof(text), CTR_TR("Lv%u", "Nv%u", "Lv%u"), (unsigned)v->activeLevel);
     DevText(text, x, 34, 224);
-    w = DevLabelChip(76, 52, "HP", DEV_HP_FRAME, DEV_HP_LABEL);
-    DevHpBar(76 + w + 3, 53, 150, 6, v->activeHp, v->activeMaxHp);
+    DevLabelChip(76, 52, "HP", DEV_HP_FRAME, DEV_HP_LABEL);
+    DevHpBar(89, 54, 160, 6, v->activeHp, v->activeMaxHp);
     if (v->activeMaxHp) {
         snprintf(text, sizeof(text), "%u/%u", (unsigned)v->activeHp, (unsigned)v->activeMaxHp);
         DevTextInk(text, 300 - DevTextWidth(text), 51, 300, DEV_INK, DEV_INK_SH);
@@ -346,7 +347,7 @@ static void DevBatLead(const CtrBattleView *v, int prompt)
     if (prompt) {
         snprintf(text, sizeof(text), CTR_TR("What will %s do?", "\xC2\xBF" "Qu\xC3\xA9 har\xC3\xA1 %s?", "Was soll %s tun?"),
                  shown);
-        DevText(text, 20, 74, 300);
+        DevText(text, 20, 79, 300);
     }
 }
 
@@ -358,7 +359,8 @@ static const int8_t kDevBatSwords[8][4] = {
 static uint16_t sDevBatSwords[DEV_BAT_SWORDS * DEV_BAT_SWORDS];   /* their alpha, made once */
 static int sDevBatSwordsReady;
 
-/* FIGHT: the crossed swords, 10 px, the word at twice the size, both FireRed's red, the pair centred on the key. */
+/* FIGHT: the crossed swords (22 px), 6 px to the word at twice the size, both FireRed's red, the pair centred on the
+ * key. */
 static void DevBatFightKey(int sunk)
 {
     const CtrPokeTouchRect *r = &kDevBatFight;

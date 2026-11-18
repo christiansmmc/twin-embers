@@ -159,18 +159,19 @@ static int HomeFaults(void)
     return faults;
 }
 
-/* The battle (boards B · Comandos and B · Golpes): the brief's numbers; each screen with its light row above the keys
- * under it; the quick ball's arrows on its key's face. */
+/* The battle (boards def_fight and B · Golpes): the brief's numbers (the commands def_fight's, owner O1: a trainer's three
+ * keys of 96, a wild battle's four of 73, at y 168 and 62 tall); each screen with its light row above the keys under it;
+ * the quick ball's arrows on its key's face. */
 static int BattleFaults(void)
 {
     int faults = 0;
 
-    assert(Same(kDevBatScreen, (CtrPokeTouchRect){8, 8, 304, 88}) && Same(kDevBatMoveScreen, (CtrPokeTouchRect){8, 8, 304, 56}));
-    assert(Same(kDevBatFight, (CtrPokeTouchRect){8, 104, 304, 56}) && Same(kDevBatCancel, (CtrPokeTouchRect){236, 212, 76, 20}));
+    assert(Same(kDevBatScreen, (CtrPokeTouchRect){8, 8, 304, 92}) && Same(kDevBatMoveScreen, (CtrPokeTouchRect){8, 8, 304, 56}));
+    assert(Same(kDevBatFight, (CtrPokeTouchRect){8, 108, 304, 48}) && Same(kDevBatCancel, (CtrPokeTouchRect){236, 212, 76, 20}));
     for (int i = 0; i < 3; ++i)
-        assert(Same(kDevBatRow3[i], (CtrPokeTouchRect){(int16_t)(8 + 104 * i), 170, 96, 60}));
+        assert(Same(kDevBatRow3[i], (CtrPokeTouchRect){(int16_t)(8 + 104 * i), 168, 96, 62}));
     for (int i = 0; i < 4; ++i) {
-        assert(Same(kDevBatRow4[i], (CtrPokeTouchRect){(int16_t)(8 + 77 * i), 170, 73, 60}));
+        assert(Same(kDevBatRow4[i], (CtrPokeTouchRect){(int16_t)(8 + 77 * i), 168, 73, 62}));
         assert(Same(kDevBatMove[i], (CtrPokeTouchRect){(int16_t)(i & 1 ? 164 : 8), (int16_t)(i < 2 ? 72 : 142), 148, 62}));
     }
     for (int next = 0; next < 2; ++next) {
@@ -449,7 +450,7 @@ static int SharedFaults(void)
     int faults = 0;
 
     for (int i = 0; i < 4; ++i)
-        assert(Same(DevAcross(4, i, 170, 60), kDevBatRow4[i]));
+        assert(Same(DevAcross(4, i, 168, 62), kDevBatRow4[i]));
     for (int i = 0; i < 2; ++i)
         assert(Same(DevAcross(2, i, 72, 62), kDevBatMove[i]));
     for (int n = 1; n <= 8; ++n) {
