@@ -7297,7 +7297,7 @@
   },
   {
    "path": "3ds_port/include/3ds_device_layout.h",
-   "sha256": "2a9405eccb2ee9d2af705860fa01b0f27c18de2849571a22a1bce3f58db15e8f",
+   "sha256": "c224f5ae5a6100505641c4e1d683a4424c5784622371c0c960e16bc27d9f3077",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7313,7 +7313,7 @@
   },
   {
    "path": "3ds_port/tests/device_layout_test.c",
-   "sha256": "1954f61d58053b70147298620a1251b74c3602ec207c8fd703c476e7a3f11c8f",
+   "sha256": "1e3be3227c40fab95eadc5803246dbb4f9d295450cc2c867aa045278dc7ed9d8",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7513,7 +7513,7 @@
   },
   {
    "path": "3ds_port/src/3ds_device_learn_impl.h",
-   "sha256": "584369f3adedec8796c81ea1db0910addb6cab3768545b3f62ef6156724d0f13",
+   "sha256": "ef1322a044d704a22bd62d72af002bca0877261a343fc7127ead0a7afb364d6e",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7537,7 +7537,7 @@
   },
   {
    "path": "3ds_port/tests/device_suite_learn.h",
-   "sha256": "ecd4b8e5b50268dda144ed3223920f3b0c347251dbdc1ec6598490a87049c857",
+   "sha256": "53a1dc7b8fcf6f3191d26d6957d761452089095dbdeddb045fbc697627be0670",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

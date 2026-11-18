@@ -359,8 +359,8 @@ static int BagFaults(void)
 /* The grid (def_spec): TOPO y 8-32 (the tabs, DevGridTab, or the title, kDevGridTitle), MEIO y 40-184 (the screen with
  * ▲▼ beside it, the wide screen, or a narrow screen with the key column at x 204: DevGridColumnKey), RODAPÉ y 190-232
  * (the note with the exit beside it, or the wide note); a list's five rows, 24 tall and 26 apart, on its screen's
- * paper. The tall note and BACK (the frame's, the Trainer Card's, the Pokedex page's and the move to forget's until
- * their tasks) keep their numbers. */
+ * paper. The tall note and BACK (the frame's, the Trainer Card's and the Pokedex page's until their tasks) keep their
+ * numbers. */
 static int GridFaults(void)
 {
     const CtrPokeTouchRect paper = PaperOf(kDevGridScreen), narrowPaper = PaperOf(kDevGridScreenNarrow);
@@ -411,30 +411,37 @@ static int GridFaults(void)
     return faults;
 }
 
-/* The move to forget's and the relearner's own rectangles: today's numbers, which were the Summary's and the Bag's (the
- * move to forget's slots right of its column on its screen's paper, one under the other; the relearner's YES and NO
- * right of its narrow screens). */
+/* The move to forget (def_learn) on the grid's wide screen (kDevGridWide): its column and the picture in it on the
+ * paper, the four moves' slots and the new one's right of the column, 22 tall and 24 apart (the board's exception to
+ * the list rule), the rule between the fourth and the new one, as wide as the slots. The relearner's own rectangles:
+ * today's numbers, which were the Bag's (its YES and NO right of its narrow screens). */
 static int LearnFaults(void)
 {
-    const CtrPokeTouchRect paper = PaperOf(kDevLearnScreen);
+    const CtrPokeTouchRect paper = PaperOf(kDevGridWide);
     int faults = 0;
 
-    assert(Same(kDevLearnScreen, (CtrPokeTouchRect){8, 40, 304, 140}) && Same(kDevLearnColumn, (CtrPokeTouchRect){14, 46, 104, 128}));
-    assert(Same(kDevLearnPic, (CtrPokeTouchRect){34, 82, 64, 64}));
+    assert(Same(kDevLearnColumn, (CtrPokeTouchRect){14, 46, 104, 132}) && Same(kDevLearnPic, (CtrPokeTouchRect){34, 76, 64, 64}));
+    assert(Same(kDevLearnRule, (CtrPokeTouchRect){124, 146, 176, 1}) && Same(DevLearnSlot(4), (CtrPokeTouchRect){124, 150, 176, 22}));
     assert(Same(kDevRlNarrow, (CtrPokeTouchRect){8, 40, 184, 144}) && Same(kDevRlDescNarrow, (CtrPokeTouchRect){8, 190, 184, 42}));
     assert(Same(DevRlKey(0), (CtrPokeTouchRect){200, 40, 112, 30}) && Same(DevRlKey(1), (CtrPokeTouchRect){200, 78, 112, 38}));
     for (int i = 0; i < 5; ++i) {
         CtrPokeTouchRect r = DevLearnSlot(i);
 
-        assert(Same(r, (CtrPokeTouchRect){124, (int16_t)(52 + 24 * i), 176, 22}));
-        if (!Within(r, paper, 0) || r.x < kDevLearnColumn.x + kDevLearnColumn.w || (i > 0 && r.y < DevLearnSlot(i - 1).y + 22)) {
-            fprintf(stderr, "the move to forget: slot %d leaves the paper right of the column, or meets the one above\n", i);
+        if (i < 4)
+            assert(Same(r, (CtrPokeTouchRect){124, (int16_t)(48 + 24 * i), 176, 22}));
+        if (!Within(r, paper, 0) || r.x < kDevLearnColumn.x + kDevLearnColumn.w + 6 || r.h != 22
+            || (i > 0 && r.y < DevLearnSlot(i - 1).y + 24)) {
+            fprintf(stderr, "the move to forget: slot %d leaves the paper right of the column, is not 22 tall, or comes "
+                            "within 2 px of the one above\n", i);
             ++faults;
         }
     }
-    if (!Within(kDevLearnColumn, paper, 0) || !Within(kDevLearnPic, kDevLearnColumn, 0)
-        || kDevLearnScreen.y + kDevLearnScreen.h + 1 > kDevTallNote.y) {
-        fprintf(stderr, "the move to forget: the column leaves the paper, the picture the column, or the screen meets the note\n");
+    if (!Within(kDevLearnColumn, paper, 0) || !Within(kDevLearnPic, kDevLearnColumn, 0) || !Within(kDevLearnRule, paper, 0)
+        || kDevLearnColumn.y != paper.y || kDevLearnColumn.y + kDevLearnColumn.h != paper.y + paper.h
+        || kDevLearnRule.y < DevLearnSlot(3).y + DevLearnSlot(3).h + 2 || kDevLearnRule.y + kDevLearnRule.h + 2 > DevLearnSlot(4).y
+        || kDevLearnRule.x != DevLearnSlot(4).x || kDevLearnRule.w != DevLearnSlot(4).w) {
+        fprintf(stderr, "the move to forget: the column leaves the paper or does not run its height, the picture leaves "
+                        "the column, or the rule is not between the fourth slot and the new one, as wide as they are\n");
         ++faults;
     }
     for (int i = 0; i < 2; ++i)
@@ -881,7 +888,7 @@ int main(void)
     const CtrPokeTouchRect dexCategory[] = {DevDexSlot(0), DevDexSlot(1), DevDexSlot(2), DevDexSlot(3), kDevSmallKey[0],
                                             kDevSmallKey[1], kDevGridExit};
     const CtrPokeTouchRect dexPage[] = {kDevDexArea, kDevDexCry, kDevTallBack}, dexAdded[] = {kDevWideKey};
-    const CtrPokeTouchRect learnKeys[] = {kDevTallBack};
+    const CtrPokeTouchRect learnKeys[] = {kDevGridExit};
     const CtrPokeTouchRect relearnList[] = {kDevGridUp, kDevGridDown, kDevGridExit};
     const CtrPokeTouchRect relearnYesNo[] = {DevRlKey(0), DevRlKey(1)};
     const CtrPokeTouchRect boxKeys[] = {kDevBoxPrev, kDevBoxNext, kDevBoxParty, kDevBoxClose};
@@ -945,8 +952,9 @@ int main(void)
         {"Pokedex slot 3", DevDexSlot(3)}, {"Pokedex picture", kDevDexPic}, {"Pokedex data", kDevDexData},
         {"Pokedex footprint", kDevDexFoot}, {"Pokedex rule", kDevDexRule}, {"Pokedex entry", kDevDexEntry},
         {"Pokedex AREA", kDevDexArea}, {"Pokedex CRY", kDevDexCry},
-        {"move to forget's screen", kDevLearnScreen}, {"move to forget's column", kDevLearnColumn},
-        {"move to forget's picture", kDevLearnPic}, {"move to forget's slot 4", DevLearnSlot(4)},
+        {"move to forget's column", kDevLearnColumn}, {"move to forget's picture", kDevLearnPic},
+        {"move to forget's slot 0", DevLearnSlot(0)}, {"move to forget's rule", kDevLearnRule},
+        {"move to forget's slot 4", DevLearnSlot(4)},
         {"relearner's narrow screen", kDevRlNarrow}, {"relearner's narrow description", kDevRlDescNarrow},
         {"relearner's YES", DevRlKey(0)}, {"relearner's NO", DevRlKey(1)},
         {"choice YES", DevChoiceKey(2, 0, 0)}, {"choice NO", DevChoiceKey(2, 0, 1)}, {"choice key 7 of 8", DevChoiceKey(8, 0, 7)},

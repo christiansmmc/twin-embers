@@ -1,5 +1,5 @@
-/* ---- learn: the move to forget for a new one as the red device, through the field dispatcher (no board; plan 3
- * Task 4) ---------------------------------------------------------------------------------------------------------
+/* ---- learn: the move to forget for a new one as the red device (board def_learn; plan 04a Task 14), through the field
+ * dispatcher ----------------------------------------------------------------------------------------------------------
  * Included by device_render_test.c before its kSuites. Also the harness's species picture: CtrPokeTouch_DexMonPic
  * gives a 48x48 square in STUB_PIC (a clear border of 8) while a suite sets picArt (none otherwise, as the other art
  * stubs); a suite that sets it forgets the pictures kept (sFDPic). */
@@ -26,23 +26,33 @@ static void ForgetPictures(void)
     sFDPicNext = 0;
 }
 
-/* The papers it writes on: the Bag's title, the Summary's note (each screen's paper is 6 px in). */
-static const CtrPokeTouchRect kLearnTitlePaper = {14, 12, 292, 16}, kSumNotePaper = {14, 194, 216, 32};
+/* The grid's title's paper (kDevGridTitle 6 px in), where FireRed's question is. */
+static const CtrPokeTouchRect kLearnTitlePaper = {14, 12, 292, 16};
+
+/* The hints the footer gives for the cursor's row, the board's words: an old move, an HM, the new one. */
+static const char *const kLearnForget = CTR_TR("TAP AGAIN TO FORGET IT.", "TOCA OTRA VEZ PARA OLVIDARLO.",
+                                               "NOCHMAL TIPPEN ZUM VERGESSEN.");
+static const char *const kLearnHm = CTR_TR("HM MOVES CAN'T BE FORGOTTEN.", "LAS MO NO SE PUEDEN OLVIDAR.",
+                                           "VM K\xC3\x96NNEN NICHT VERGESSEN WERDEN.");
+static const char *const kLearnSkip = CTR_TR("TAP AGAIN TO SKIP IT.", "TOCA OTRA VEZ PARA NO APRENDERLO.",
+                                             "NOCHMAL TIPPEN ZUM AUSLASSEN.");
 
 static int LearnHitV(const void *view, int x, int y)
 {
     return CtrPokeTouch_LearnHit((const CtrPokeTouchView *)view, x, y);
 }
 
+/* The board's four moves and the new one (row 4), FireRed's names and types. */
 static const struct { const char *name, *type, *pp, *power, *accuracy; int8_t t; } kLearnMove[PT_LEARN_ROWS] = {
-    {"FLAMETHROWER", "FIRE", "15/15", "95", "100", 10}, {"WING ATTACK", "FLYING", "35/35", "60", "100", 2},
-    {"DRAGON CLAW", "DRAGON", "15/15", "80", "100", 16}, {"SLASH", "NORMAL", "20/20", "70", "100", 0},
-    {"FIRE SPIN", "FIRE", "15/15", "15", "70", 10},
+    {"FLAMETHROWER", "FIRE", "15/15", "95", "100", 10}, {"SCRATCH", "NORMAL", "15/35", "40", "100", 0},
+    {"GROWL", "NORMAL", "40/40", "", "100", 0}, {"BRICK BREAK", "FIGHT", "3/15", "75", "100", 1},
+    {"SLASH", "NORMAL", "20/20", "70", "100", 0},
 };
 
-/* The move to forget as 3ds_bottom.c gives it (FieldLearnFill): four moves and the new one in row 4 (FireRed's names
- * and types in capitals), the cursor on the new one, the Pokemon called by its species' name (recipe 0251's title
- * case: nameDefault), its level the number alone (recipe 0222's CtrBottomLearn_Name), port-written stand-ins for the question and the description; BACK shown and usable. */
+/* The move to forget as 3ds_bottom.c gives it (FieldLearnFill), the board's: four moves and SLASH new in row 4 (FireRed's
+ * names and types in capitals), the cursor on SCRATCH (row 1), the Pokemon called by its species' name (recipe 0251's
+ * title case: nameDefault), its level the number alone (recipe 0222's CtrBottomLearn_Name), port-written stand-ins for
+ * the question and the description; BACK shown and usable. */
 static CtrPokeTouchView LearnBoard(void)
 {
     CtrPokeTouchView v;
@@ -51,11 +61,11 @@ static CtrPokeTouchView LearnBoard(void)
     memset(&v, 0, sizeof(v));
     v.pressed = PT_NONE;
     l->on = 1;
-    l->cursor = 4;
+    l->cursor = 1;
     l->pressed = -1;
-    l->species = 6;
+    l->species = 5;
     l->nameDefault = 1;
-    strcpy(l->nickname, "Charizard");
+    strcpy(l->nickname, "Charmeleon");
     strcpy(l->level, "36");                                     /* the fill gives the number */
     strcpy(l->question, "Port-written question for this test?");
     for (int i = 0; i < PT_LEARN_ROWS; ++i) {
@@ -67,10 +77,49 @@ static CtrPokeTouchView LearnBoard(void)
         strcpy(l->row[i].power, kLearnMove[i].power);
         strcpy(l->row[i].accuracy, kLearnMove[i].accuracy);
     }
-    strcpy(l->desc, "Port-written words for this test. They stand in for what a move does here.");
+    strcpy(l->desc, "Port-written words in place of what a move does.");
     snprintf(v.bar[0], PT_BAR_LEN, "Move / item");             /* the bar: not drawn by the move to forget */
     v.backVisible = v.backEnabled = 1;
     return v;
+}
+
+/* The footer's hint as drawn: `hint` small in the secondary ink from x 20, capitals 218, as wide as its words and the
+ * only secondary ink on the paper's lower rows; NULL: none. */
+static void LearnHint(const char *hint)
+{
+    int w = hint ? DevSmallTextWidth(hint) : 0;
+
+    if (!hint) {
+        assert(Count(14, 196, 216, 30, DEV_INK2) == 0);
+        return;
+    }
+    assert(w <= 204 && Count(20, 218, w, 7, DEV_INK2) > 0 && Count(20 + w - 5, 218, 5, 7, DEV_INK2) > 0);
+    assert(Count(14, 196, 216, 20, DEV_INK2) == 0 && Count(14, 196, 6, 30, DEV_INK2) == 0);   /* the game's ' reaches 216 */
+    assert(Count(20 + w, 196, 210 - w, 30, DEV_INK2) == 0 && Count(20, 225, 204, 1, DEV_INK2) == 0);
+}
+
+/* While `on`: every small glyph with a descender, an ink pixel at its left in glyph row 11, under the capitals' rows
+ * 4-10 (where the game's g, p, q, y and comma have theirs; the stubs have none), the worst a footer line can meet. The
+ * pixel is set, not added to (the pack's glyphs fill their background with 3, which is drawn as nothing). Off puts the
+ * glyphs back as they were. */
+static void LearnDescenders(int on)
+{
+    static uint8_t keep[sizeof(smallFont)];
+
+    if (on) {
+        memcpy(keep, smallFont, sizeof(keep));
+        for (unsigned code = 1; code < 256; ++code) {
+            uint8_t *row = smallFont + code * 32u + 16 + (11 % 8) * 2;      /* the second tile's row 3 */
+            unsigned bits = ((unsigned)row[1] << 8 | row[0]) & ~(3u << 14);  /* x 0: the top two bits */
+
+            bits |= 1u << 14;
+            row[0] = (uint8_t)bits;
+            row[1] = (uint8_t)(bits >> 8);
+        }
+    } else {
+        memcpy(smallFont, keep, sizeof(keep));
+    }
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
 }
 
 /* Upper case (owner decision 5): FireRed's move and type names, which v0.6.0 title-cased, in capitals; the name its
@@ -85,7 +134,7 @@ static void LearnUpperCase(CtrPokeTouchView v)
     }
     TouchSamePixels(&cased, &v, 1, "the moves and types in v0.6.0's case and as FireRed writes them");
     cased = v;
-    strcpy(cased.learn.nickname, "CHARIZARD");
+    strcpy(cased.learn.nickname, "CHARMELEON");
     TouchSamePixels(&cased, &v, 1, "its species' name in title case and in capitals");
     v.learn.nameDefault = cased.learn.nameDefault = 0;
     strcpy(v.learn.nickname, "Blaze");
@@ -99,71 +148,144 @@ static void LearnUpperCase(CtrPokeTouchView v)
     TouchSamePixels(&cased, &v, 0, "the description, as FireRed writes it");
 }
 
-/* The plan's suite (every row hit where drawn, the new one inverted, BACK; an empty row neither drawn nor hit; what the
- * view does not draw, the HM lock among it, presents nothing), then the column, the rows, the rule, the note, a touch,
- * BACK's states, the ways in and out, upper case and the states for the eye. */
+/* The plan's suite (every row hit where drawn, the new one's chip and the rule, BACK in the exit corner, the hint; the
+ * cursor's row's HM lock drawn, another's not), then def_learn's pieces where the board puts them: the title, the wide
+ * screen, the column, the rows, the footer and its hint for each kind of row, a name too long for the normal font, a
+ * touch, BACK's states, the ways in and out, upper case and the states for the eye. */
 static void SuiteLearn(void)
 {
     CtrPokeTouchView lv = LearnBoard(), lo = lv, other;
     CtrPokeTouchRect r;
-    int i;
+    int i, w, x;
 
     picArt = 1;
     ForgetPictures();
     CtrPokeTouch_Draw(canvas, &lo);
-    /* the plan's suite */
+    /* the plan's suite (the board: four moves and SLASH new, the cursor on row 1) */
     lv = LearnBoard(); DevCheckTouch(&lo, &lv); assert(DrawnBy(&lv, DevLearnShown));
     /* learn */ for (i = 0; i < 5; ++i) AssertRowHits(LearnHitV, &lv, DevLearnSlot(i), PT_LEARN_HIT_ROW + i);
-    assert(at(DevLearnSlot(4).x + 1, DevLearnSlot(4).y + 11) == DEV_BEZEL); AssertHits(BackV, &lv, kDevTallBack, 1);   /* before the name */
-    lv.learn.row[2].move = lv.learn.row[3].move = 0; DevCheckTouch(&lo, &lv); assert(CtrPokeTouch_LearnHit(&lv, 130, DevLearnSlot(2).y + 5) == -1);
-    lv.learn.row[0].locked ^= 1; lv.mapGroup ^= 1; lv.speed ^= 1; assert(DevCheckTouch(&lo, &lv).count == 0);
+    AssertHits(BackV, &lv, kDevGridExit, 1); assert(at(160, 146) == DEV_RULE && Count(130, 155, 30, 12, DEV_TAG_NEW) > 0);
+    assert(Count(216, DevLearnSlot(0).y + 5, 40, 12, UiTypeColor(lv.learn.row[0].type)) > 0 && Count(20, 218, 204, 7, DEV_INK2) > 0);
+    lv.learn.row[1].locked = 1; assert(DevWhole(DevCheckTouch(&lo, &lv)));
+    lv.learn.row[2].locked ^= 1; lv.mapGroup ^= 1; lv.speed ^= 1; assert(DevCheckTouch(&lo, &lv).count == 0);
+    /* an empty row neither drawn nor hit; between the rows, on the rule and on the column nothing is */
+    lv = LearnBoard(); lv.learn.row[2].move = lv.learn.row[3].move = 0; DevCheckTouch(&lo, &lv);
+    assert(CtrPokeTouch_LearnHit(&lv, 130, DevLearnSlot(2).y + 5) == -1);
+    assert(CtrPokeTouch_LearnHit(&lv, 130, 70) == -1 && CtrPokeTouch_LearnHit(&lv, 130, 146) == -1 && CtrPokeTouch_LearnHit(&lv, 60, 100) == -1);
+    for (i = 2; i < 4; ++i) {
+        r = DevLearnSlot(i);
+        assert(Count(r.x, r.y, r.w, r.h, DEV_PAPER) == r.w * r.h);
+    }
 
-    /* the title: the question in the paper's ink; the column (the paper's second tone): the name, the level small in the
-     * secondary ink with the Summary's prefix ("Lv36": the fill gives the number), the picture in the Summary's place, the
-     * cursor's move's POWER and ACCURACY at its foot */
+    /* the title: FireRed's question on the grid's title, capitals 16; the grid's wide screen (its paper 14..305 x
+     * 46..177), nothing of the old tall note over the grid's (the shell at 188) */
     lv = LearnBoard(); DevCheckTouch(&lo, &lv);
-    assert(CountIn(kLearnTitlePaper, DEV_INK) > 0);
-    assert(at(15, 47) == DEV_PAPER2 && at(116, 172) == DEV_PAPER2);
-    assert(Count(20, 49, 92, 12, DEV_INK) > 0 && Count(20, 63, 92, 10, DEV_INK2) > 0 && Count(20, 63, 92, 10, DEV_INK) == 0);
+    assert(Count(20, 16, 280, 8, DEV_INK) > 0 && Count(kLearnTitlePaper.x, kLearnTitlePaper.y, kLearnTitlePaper.w, 2, DEV_INK) == 0);
+    assert(at(300, 177) == DEV_PAPER && at(300, 178) == DEV_BEZEL && at(305, 100) == DEV_PAPER && at(306, 100) == DEV_BEZEL);
+    assert(at(100, 188) == DEV_SHELL_RED && at(100, 189) == DEV_SHELL_RED);
+    /* the column (the paper's second tone, kDevLearnColumn): the name capitals 52, the level small capitals 66 in the
+     * secondary ink with the Summary's prefix ("Lv36": the fill gives the number), the picture in kDevLearnPic, the
+     * cursor's move's POWER and ACCURACY small (capitals 150 and 164) with its numbers ending at 110 (capitals 149 and
+     * 163) */
+    assert(at(14, 46) == DEV_PAPER2 && at(117, 177) == DEV_PAPER2 && at(118, 177) == DEV_PAPER && at(14, 45) == DEV_BEZEL);
+    assert(Count(20, 52, 90, 8, DEV_INK) > 0 && Count(20, 46, 90, 6, DEV_INK) == 0 && Count(20, 60, 90, 16, DEV_INK) == 0);
+    assert(Count(20, 66, 90, 7, DEV_INK2) > 0 && Count(20, 60, 90, 6, DEV_INK2) == 0);
     {
         char level[16];
         int bare = DevSmallTextWidth(lv.learn.level), full;
 
         snprintf(level, sizeof(level), CTR_TR("Lv%s", "Nv%s", "Lv%s"), lv.learn.level);
         full = DevSmallTextWidth(level);
-        assert(full > bare && Count(20 + bare, 63, full - bare, 10, DEV_INK2) > 0 && Count(20 + full, 63, 92 - full, 10, DEV_INK2) == 0);
+        assert(full > bare && Count(20 + bare, 66, full - bare, 7, DEV_INK2) > 0 && Count(20 + full, 60, 90 - full, 16, DEV_INK2) == 0);
     }
     assert(Count(kDevLearnPic.x, kDevLearnPic.y, kDevLearnPic.w, kDevLearnPic.h, STUB_PIC) == 48 * 48);
-    assert(Count(20, 148, 92, 26, DEV_INK2) > 0 && Count(20, 148, 92, 26, DEV_INK) > 0);
-    /* the rows: the cursor's inverted, the others the paper's; each its name, its type's chip and its PP; the rule over
-     * the new one; the description on the note */
+    assert(Count(kDevLearnPic.x + 8, kDevLearnPic.y + 8, 48, 48, STUB_PIC) == 48 * 48);
+    assert(Count(20, 150, 50, 7, DEV_INK2) > 0 && Count(20, 164, 50, 7, DEV_INK2) > 0);
+    w = DevTextWidth("40"); assert(Count(110 - w, 149, w, 8, DEV_INK) > 0 && Count(110 - w, 141, w, 6, DEV_INK) == 0);
+    w = DevTextWidth("100"); assert(Count(110 - w, 163, w, 8, DEV_INK) > 0 && Count(110, 140, 8, 38, DEV_INK) == 0);
+    /* the rows, 22 tall and 24 apart (the board's), the new one under the rule: the cursor's (SCRATCH) inverted; each its
+     * name from x 130 (capitals r.y + 7, its shadow off the cursor's row) cut before 212, its type's chip 12 tall at
+     * (216, r.y + 5), its PP ending at 298 (capitals r.y + 7, no shadow; the game's digits and / reach 2 rows over the
+     * capitals, so the probe over them stops short) */
+    assert(at(124, 71) == DEV_PAPER && at(124, 72) == DEV_BEZEL && at(299, 93) == DEV_BEZEL && at(299, 94) == DEV_PAPER);
+    assert(at(123, 80) == DEV_PAPER && at(300, 80) == DEV_PAPER);
     for (i = 0; i < PT_LEARN_ROWS; ++i) {
+        uint16_t bg = i == 1 ? DEV_BEZEL : DEV_PAPER, ink = DevRowInk(i == 1), type = UiTypeColor(kLearnMove[i].t);
+        int pp = DevTextWidth(kLearnMove[i].pp);
+
         r = DevLearnSlot(i);
-        assert(at(r.x + 1, r.y + 1) == (i == 4 ? DEV_BEZEL : DEV_PAPER));
-        assert(Count(r.x + r.w - 90, r.y, 90, r.h, UiTypeColor(kLearnMove[i].t)) > 0);
-        assert(Count(r.x, r.y, 80, r.h, i == 4 ? DEV_PAPER : DEV_INK) > 0 && Count(r.x + r.w - 40, r.y, 40, r.h, i == 4 ? DEV_PAPER : DEV_INK) > 0);
+        assert(at(r.x + 1, r.y + 1) == bg && at(r.x + r.w - 1, r.y + r.h - 1) == bg);
+        assert(at(216, r.y + 5) == type && at(255, r.y + 16) == type && at(215, r.y + 10) == bg && at(256, r.y + 10) == bg);
+        assert(at(216, r.y + 4) == bg && at(216, r.y + 17) == bg);
+        assert(Count(130, r.y + 7, 80, 8, ink) > 0 && Count(130, r.y, 80, 7, ink) == 0 && Count(212, r.y, 4, r.h, ink) == 0);
+        assert(Count(298 - pp, r.y + 7, pp, 8, ink) > 0 && Count(298 - pp, r.y, pp, 5, ink) == 0 && Count(298, r.y, 2, r.h, ink) == 0);
+        assert(Count(260, r.y, 40, r.h, DEV_INK_SH) == 0 && (i == 1) == (Count(130, r.y + 15, 80, 1, DEV_INK_SH) == 0));
     }
-    r = DevLearnSlot(4); assert(Count(r.x, r.y - 2, r.w, 1, DEV_INK_SH) == r.w);
-    assert(CountIn(kSumNotePaper, DEV_INK) > 0);
-    /* a touch inverts the row under it, not the cursor's; the cursor's move's numbers follow it */
-    lv.learn.pressed = PT_LEARN_HIT_ROW + 1; DevCheckTouch(&lo, &lv);
-    r = DevLearnSlot(1); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL); r = DevLearnSlot(4); assert(at(r.x + 1, r.y + 1) == DEV_PAPER);
-    lv.learn.pressed = -1; lv.learn.cursor = 1; DevCheckTouch(&lo, &lv);
+    /* the new one: NEW on its chip 12 tall at (130, 155), the name 3 px after it; the rule over it (kDevLearnRule) */
+    r = DevLearnSlot(4); w = DevSmallTextWidth(CTR_TR("NEW", "NUEVO", "NEU")) + 8;
+    assert(at(130, r.y + 5) == DEV_TAG_NEW && at(130 + w - 1, r.y + 16) == DEV_TAG_NEW && at(130 + w, r.y + 10) == DEV_PAPER);
+    assert(at(130, r.y + 4) == DEV_PAPER && at(130, r.y + 17) == DEV_PAPER && Count(130, r.y + 5, w, 12, DEV_WHITE) > 0);
+    assert(Count(130 + w, r.y, 3, r.h, DEV_INK) == 0 && Count(130 + w + 3, r.y + 7, 5, 8, DEV_INK) > 0);
+    assert(Count(124, 146, 176, 1, DEV_RULE) == 176 && at(123, 146) == DEV_PAPER && at(300, 146) == DEV_PAPER);
+    assert(Count(124, 145, 176, 1, DEV_PAPER) == 176 && Count(124, 147, 176, 1, DEV_PAPER) == 176);
+    /* the footer (the grid's note, its paper 14..229 x 196..225): the cursor's move's description small in the paper's
+     * ink in two lines from x 20, capitals 198 and 208; the hint for the cursor's row small in the secondary ink,
+     * capitals 218 */
+    assert(Count(20, 198, 204, 7, DEV_INK) > 0 && Count(20, 208, 204, 7, DEV_INK) > 0 && Count(14, 196, 216, 2, DEV_INK) == 0);
+    assert(Count(14, 196, 6, 30, DEV_INK) == 0 && Count(224, 196, 6, 30, DEV_INK) == 0 && Count(14, 215, 216, 11, DEV_INK) == 0);
+    LearnHint(kLearnForget);
+    /* the hint follows the cursor's row: an HM cannot be forgotten, the new one is skipped, another old move forgotten;
+     * a held touch inverts the row under it, not the cursor's, and leaves the hint; no row, no description and no hint */
+    lv.learn.row[1].locked = 1; DevCheckTouch(&lo, &lv); LearnHint(kLearnHm);
+    lv.learn.pressed = PT_LEARN_HIT_ROW + 4; DevCheckTouch(&lo, &lv); LearnHint(kLearnHm);
+    r = DevLearnSlot(4); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL); r = DevLearnSlot(1); assert(at(r.x + 1, r.y + 1) == DEV_PAPER);
+    lv.learn.pressed = -1; lv.learn.cursor = 4; DevCheckTouch(&lo, &lv); LearnHint(kLearnSkip);
+    lv.learn.cursor = 0; DevCheckTouch(&lo, &lv); LearnHint(kLearnForget);
+    lv.learn.cursor = 3; lv.learn.row[3].locked = 1; DevCheckTouch(&lo, &lv); LearnHint(kLearnHm);
+    lv.learn.cursor = -1; DevCheckTouch(&lo, &lv); LearnHint(NULL);
+    assert(Count(14, 196, 216, 30, DEV_INK) == 0 && Count(20, 140, 92, 38, DEV_INK2) == 0);
+    other = lv; other.learn.row[1].locked ^= 1; other.learn.row[3].locked ^= 1;
+    assert(DevCheckTouch(&lo, &other).count == 0);                  /* no row: no lock drawn */
+    /* the hint is the footer's last line: with a descender on every small glyph (the game's g, p, q, y and comma have
+     * theirs in glyph row 11) it ends on the paper's last row, 225, and none reaches the bezel under it; the
+     * description's second line keeps its own off the hint */
+    lv = LearnBoard(); DevCheckTouch(&lo, &lv);
+    LearnDescenders(1); CtrPokeTouch_Draw(canvas, &lv);
+    assert(Count(20, 225, 204, 1, DEV_INK2) > 0 && Count(14, 226, 216, 5, DEV_INK2) == 0 && Count(14, 226, 216, 5, DEV_INK) == 0);
+    assert(Count(20, 215, 204, 1, DEV_INK) > 0 && Count(14, 216, 216, 10, DEV_INK) == 0);
+    LearnDescenders(0); CtrPokeTouch_Draw(canvas, &lo);
+    /* the cursor's move's numbers follow it; another move's do not show */
     other = lv; strcpy(other.learn.row[1].power, "1000"); TouchSamePixels(&lv, &other, 0, "the cursor's move's power");
     other = lv; strcpy(other.learn.row[1].accuracy, "1000"); TouchSamePixels(&lv, &other, 0, "the cursor's move's accuracy");
     other = lv; strcpy(other.learn.row[0].power, "1000"); TouchSamePixels(&lv, &other, 1, "another move's power");
+    other = lv; other.learn.row[0].locked = 1; TouchSamePixels(&lv, &other, 1, "another move's HM lock");
+    other = lv; other.learn.row[1].locked = 1; TouchSamePixels(&lv, &other, 0, "the cursor's move's HM lock");
     CtrPokeTouch_Draw(canvas, &lo);
-    /* two moves and the new one: the empty rows not drawn (the paper), not hit */
-    lv = LearnBoard(); lv.learn.row[2].move = lv.learn.row[3].move = 0; DevCheckTouch(&lo, &lv);
-    for (i = 2; i < 4; ++i) {
-        r = DevLearnSlot(i);
-        assert(Count(r.x, r.y, r.w, r.h, DEV_PAPER) == r.w * r.h && CtrPokeTouch_LearnHit(&lv, r.x + 10, r.y + 10) == -1);
+    /* a name the normal font does not fit before 212 (a long new move after its chip, with capitals 7 px wide): the small
+     * font, capitals r.y + 8, still ending before the chip at 216 */
+    {
+        static uint8_t keepWidths[256];
+
+        lv = LearnBoard(); strcpy(lv.learn.row[4].name, "SMOKESCREEN"); DevCheckTouch(&lo, &lv);
+        memcpy(keepWidths, fontWidths, sizeof(keepWidths));
+        for (unsigned c = 0xbb; c <= 0xd4; ++c)         /* A..Z */
+            fontWidths[c] = 7;
+        memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        CtrPokeTouch_Draw(canvas, &lv);
+        r = DevLearnSlot(4); x = 130 + DevSmallTextWidth(CTR_TR("NEW", "NUEVO", "NEU")) + 8 + 3;
+        assert(Count(x, r.y + 7, 212 - x, 1, DEV_INK) == 0 && Count(x, r.y + 8, 212 - x, 7, DEV_INK) > 0);
+        assert(Count(212, r.y, 4, r.h, DEV_INK) == 0 && Count(x, r.y + 15, 212 - x, 1, DEV_INK_SH) == 0);
+        memcpy(fontWidths, keepWidths, sizeof(keepWidths));
+        memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        CtrPokeTouch_Draw(canvas, &lo);
     }
-    /* BACK: dark in the Summary's place, sunk under a touch, grey while it cannot be used, gone while not shown */
-    AssertKey(kDevTallBack, DEV_LOOK_DARK, 0); assert(Count(244, 188, 68, 45, DEV_LED) == 0);
-    lv.backPressed = 1; DevCheckTouch(&lo, &lv); assert(Count(244, 188, 68, 45, DEV_LED) > 0);
-    lv.backPressed = 0; lv.backEnabled = 0; DevCheckTouch(&lo, &lv); assert(at(247, 209) == DIM_DARK);
-    lv.backEnabled = 1; lv.backVisible = 0; DevCheckTouch(&lo, &lv); assert(at(247, 209) == DEV_SHELL_RED && !BackV(&lv, 247, 209));
+
+    /* BACK: dark in the exit corner, sunk under a touch, grey while it cannot be used, gone while not shown */
+    lv = LearnBoard(); DevCheckTouch(&lo, &lv);
+    AssertKey(kDevGridExit, DEV_LOOK_DARK, 0); assert(Count(244, 190, 68, 43, DEV_LED) == 0 && Count(244, 190, 68, 40, DEV_DARK_INK) > 0);
+    lv.backPressed = 1; DevCheckTouch(&lo, &lv); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);
+    lv.backPressed = 0; lv.backEnabled = 0; DevCheckTouch(&lo, &lv); assert(at(247, 210) == DIM_DARK);
+    lv.backEnabled = 1; lv.backVisible = 0; DevCheckTouch(&lo, &lv); assert(at(247, 210) == DEV_SHELL_RED && !BackV(&lv, 247, 210));
     lv.backVisible = 1; DevCheckTouch(&lo, &lv);
 
     /* what the move to forget does not draw presents nothing; the shell's colour whole; the ways in and out (HOME; the
@@ -183,8 +305,9 @@ static void SuiteLearn(void)
     LearnUpperCase(LearnBoard());
     CtrPokeTouch_Draw(canvas, &lo);
 
-    /* The states for the eye, each through Update first. */
-    lv = LearnBoard(); lv.learn.cursor = 1; DevCheckTouch(&lo, &lv); shot("move");
+    /* The states for the eye, each through Update first: the board (SCRATCH), the new one, two moves and the new one. */
+    lv = LearnBoard(); lv.learn.cursor = 0; DevCheckTouch(&lo, &lv);
+    lv.learn.cursor = 1; DevCheckTouch(&lo, &lv); shot("move");
     lv.learn.cursor = 4; DevCheckTouch(&lo, &lv); shot("new");
     lv.learn.row[2].move = lv.learn.row[3].move = 0; lv.learn.row[2].name[0] = lv.learn.row[3].name[0] = 0;
     DevCheckTouch(&lo, &lv); shot("two");

@@ -224,9 +224,8 @@ static inline CtrPokeTouchRect DevBagMenuKey(int n, int i)
  * battle's rows); a list's rows h tall on the grid's screen's paper (DevListRow; DevTallRow: the Pokedex's list, the
  * relearner's); the small note (a screen) with two small keys and the grid's exit beside it (the Party picking several:
  * its CONFIRM, kDevPtyConfirm, in the keys' place); a tall screen over a wide
- * key; the tall note with BACK beside it (kDevTallNote, kDevTallBack: the frame's, the move to forget's, the Trainer
- * Card's and the Pokedex page's BACK until their boards' tasks); a question's note beside YES and
- * NO. */
+ * key; the tall note with BACK beside it (kDevTallNote, kDevTallBack: the frame's, the Trainer Card's and the Pokedex
+ * page's BACK until their boards' tasks); a question's note beside YES and NO. */
 static const CtrPokeTouchRect kDevSmallNote __attribute__((unused)) = {8, 190, 152, 42};
 static const CtrPokeTouchRect kDevSmallKey[2] __attribute__((unused)) = {{168, 190, 32, 40}, {204, 190, 32, 40}};
 static const CtrPokeTouchRect kDevTallScreen __attribute__((unused)) = {8, 8, 304, 172};
@@ -393,25 +392,28 @@ static inline CtrPokeTouchRect DevDexSlot(int i)
     return r;
 }
 
-/* ---- The field's choices (boards def_choice_*), the move to forget, the relearner (3ds_device_choice_impl.h,
- * _learn_impl.h, _relearn_impl.h) ------------------------------------------------------------------------------------
+/* ---- The field's choices (boards def_choice_*), the move to forget (def_learn), the relearner
+ * (3ds_device_choice_impl.h, _learn_impl.h, _relearn_impl.h) -------------------------------------------------------
  * A choice: FireRed's rows as keys above the footer (DevChoiceKey), the message box's question on the grid's note and
- * BACK in its exit (kDevGridNote, kDevGridExit). The move to forget: FireRed's question on the grid's title, its screen
- * (kDevLearnScreen: the Pokemon in its column, kDevLearnColumn, its picture in kDevLearnPic; the four moves and the new
- * one in DevLearnSlot(0..4)), the tall note (the description) and BACK. The relearner is the grid's list page: the
- * question on the title, five tall rows with ▲ ▼, the description on the note and CANCEL (FireRed's CANCEL row) in the
- * exit; YES / NO beside the narrow screens (kDevRlNarrow, kDevRlDescNarrow) in DevRlKey(i). Each its own copy of the
- * numbers it drew with (the Summary's and the Bag's), so neither moves with them. */
-static const CtrPokeTouchRect kDevLearnScreen __attribute__((unused)) = {8, 40, 304, 140};
-static const CtrPokeTouchRect kDevLearnColumn __attribute__((unused)) = {14, 46, 104, 128};
-static const CtrPokeTouchRect kDevLearnPic __attribute__((unused)) = {34, 82, 64, 64};
+ * BACK in its exit (kDevGridNote, kDevGridExit). The move to forget: FireRed's question on the grid's title; the grid's
+ * wide screen (kDevGridWide) with the Pokemon in its column (kDevLearnColumn, its picture in kDevLearnPic) and the four
+ * moves and the new one in DevLearnSlot(0..4), rows 22 tall and 24 apart (the board's exception to the list rule), a
+ * rule over the new one (kDevLearnRule); the description and the cursor's row's hint on the grid's note, BACK in its
+ * exit (kDevGridNote, kDevGridExit). The relearner is the grid's list page: the question on the title, five tall rows
+ * with ▲ ▼, the description on the note and CANCEL (FireRed's CANCEL row) in the exit; YES / NO beside the narrow
+ * screens (kDevRlNarrow, kDevRlDescNarrow) in DevRlKey(i), its own copy of the numbers it drew with (the Bag's), so
+ * they do not move with the Bag. */
+static const CtrPokeTouchRect kDevLearnColumn __attribute__((unused)) = {14, 46, 104, 132};
+static const CtrPokeTouchRect kDevLearnPic __attribute__((unused)) = {34, 76, 64, 64};
+static const CtrPokeTouchRect kDevLearnRule __attribute__((unused)) = {124, 146, 176, 1};
 static const CtrPokeTouchRect kDevRlNarrow __attribute__((unused)) = {8, 40, 184, 144};
 static const CtrPokeTouchRect kDevRlDescNarrow __attribute__((unused)) = {8, 190, 184, 42};
 
-/* Slot i (0-3 a move, 4 the new one) of the move to forget. */
+/* Slot i of the move to forget: 0-3 its moves, 22 tall and 24 apart from the paper's top + 2; 4 the new one, under the
+ * rule. */
 static inline CtrPokeTouchRect DevLearnSlot(int i)
 {
-    CtrPokeTouchRect r = {124, (int16_t)(52 + 24 * i), 176, 22};
+    CtrPokeTouchRect r = {124, (int16_t)(i < 4 ? 48 + 24 * i : 150), 176, 22};
 
     return r;
 }
