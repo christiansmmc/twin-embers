@@ -413,8 +413,8 @@ static int GridFaults(void)
 
 /* The move to forget (def_learn) on the grid's wide screen (kDevGridWide): its column and the picture in it on the
  * paper, the four moves' slots and the new one's right of the column, 22 tall and 24 apart (the board's exception to
- * the list rule), the rule between the fourth and the new one, as wide as the slots. The relearner's own rectangles:
- * today's numbers, which were the Bag's (its YES and NO right of its narrow screens). */
+ * the list rule), the rule between the fourth and the new one, as wide as the slots. (The relearner, def_relearn, has
+ * no rectangle of its own: the grid's list page, and YES / NO in the grid's column beside its narrow screen.) */
 static int LearnFaults(void)
 {
     const CtrPokeTouchRect paper = PaperOf(kDevGridWide);
@@ -422,8 +422,6 @@ static int LearnFaults(void)
 
     assert(Same(kDevLearnColumn, (CtrPokeTouchRect){14, 46, 104, 132}) && Same(kDevLearnPic, (CtrPokeTouchRect){34, 76, 64, 64}));
     assert(Same(kDevLearnRule, (CtrPokeTouchRect){124, 146, 176, 1}) && Same(DevLearnSlot(4), (CtrPokeTouchRect){124, 150, 176, 22}));
-    assert(Same(kDevRlNarrow, (CtrPokeTouchRect){8, 40, 184, 144}) && Same(kDevRlDescNarrow, (CtrPokeTouchRect){8, 190, 184, 42}));
-    assert(Same(DevRlKey(0), (CtrPokeTouchRect){200, 40, 112, 30}) && Same(DevRlKey(1), (CtrPokeTouchRect){200, 78, 112, 38}));
     for (int i = 0; i < 5; ++i) {
         CtrPokeTouchRect r = DevLearnSlot(i);
 
@@ -444,17 +442,12 @@ static int LearnFaults(void)
                         "the column, or the rule is not between the fourth slot and the new one, as wide as they are\n");
         ++faults;
     }
-    for (int i = 0; i < 2; ++i)
-        if (DevRlKey(i).x < kDevRlNarrow.x + kDevRlNarrow.w || DevRlKey(i).x < kDevRlDescNarrow.x + kDevRlDescNarrow.w) {
-            fprintf(stderr, "the relearner: key %d reaches the narrow screens\n", i);
-            ++faults;
-        }
     return faults;
 }
 
 /* The shapes the views without a board share (plan 3): DevAcross gives the boarded rows back (the battle's wild row
- * and its moves' keys) and fits n keys of 1-8 across; the tall rows (DevTallRow: the Pokedex's list, the relearner's)
- * on the list's paper and a narrow one; the small note with its two keys and CLOSE beside it, the tall screen over the
+ * and its moves' keys) and fits n keys of 1-8 across; the tall rows (DevTallRow: the Pokedex's list) on the list's
+ * paper and a narrow one; the small note with its two keys and CLOSE beside it, the tall screen over the
  * wide key, the question's note beside YES / NO. */
 static int SharedFaults(void)
 {
@@ -660,7 +653,7 @@ static int DexFaults(void)
  * FireRed's one column (YES / NO two tall keys; up to four across the screen, 38 tall and 44 apart; five to eight in two
  * columns going down first, the left one always four) or FireRed's grid of 2 or 3 columns across; every key's drop ends
  * above the footer (the grid's note and its exit, BACK); a grid of one column is the one column's layout. (The move to
- * forget's and the relearner's own rectangles: LearnFaults.) */
+ * forget's own rectangles: LearnFaults.) */
 static int ChoiceFaults(void)
 {
     static const int kCols[4] = {0, 1, 2, 3};
@@ -890,7 +883,7 @@ int main(void)
     const CtrPokeTouchRect dexPage[] = {kDevDexArea, kDevDexCry, kDevTallBack}, dexAdded[] = {kDevWideKey};
     const CtrPokeTouchRect learnKeys[] = {kDevGridExit};
     const CtrPokeTouchRect relearnList[] = {kDevGridUp, kDevGridDown, kDevGridExit};
-    const CtrPokeTouchRect relearnYesNo[] = {DevRlKey(0), DevRlKey(1)};
+    const CtrPokeTouchRect relearnYesNo[] = {DevGridColumnKey(40, 36, 30, 0), DevGridColumnKey(40, 36, 30, 1)};
     const CtrPokeTouchRect boxKeys[] = {kDevBoxPrev, kDevBoxNext, kDevBoxParty, kDevBoxClose};
     const CtrPokeTouchRect boxYesNo[] = {DevBoxMenuKey(2, 0), DevBoxMenuKey(2, 1)};
     const CtrPokeTouchRect boxChooser[] = {kDevBoxPrev, kDevBoxNext, kDevBoxChoose, kDevBoxCancel};
@@ -955,8 +948,6 @@ int main(void)
         {"move to forget's column", kDevLearnColumn}, {"move to forget's picture", kDevLearnPic},
         {"move to forget's slot 0", DevLearnSlot(0)}, {"move to forget's rule", kDevLearnRule},
         {"move to forget's slot 4", DevLearnSlot(4)},
-        {"relearner's narrow screen", kDevRlNarrow}, {"relearner's narrow description", kDevRlDescNarrow},
-        {"relearner's YES", DevRlKey(0)}, {"relearner's NO", DevRlKey(1)},
         {"choice YES", DevChoiceKey(2, 0, 0)}, {"choice NO", DevChoiceKey(2, 0, 1)}, {"choice key 7 of 8", DevChoiceKey(8, 0, 7)},
         {"choice grid key 7 of 8", DevChoiceKey(8, 3, 7)},
         {"naming screen", kDevNameScreen}, {"naming OK", DevNameTop(4)}, {"naming key 3,7", DevNameKey(8, 3, 7)},

@@ -221,8 +221,8 @@ static inline CtrPokeTouchRect DevBagMenuKey(int n, int i)
 
 /* ---- The shapes the views without a board share (plan 3) ------------------------------------------------------------
  * No board draws these views: they draw on the grid's names and these few. Keys across the screen (DevAcross: the
- * battle's rows); a list's rows h tall on the grid's screen's paper (DevListRow; DevTallRow: the Pokedex's list, the
- * relearner's); the small note (a screen) with two small keys and the grid's exit beside it (the Party picking several:
+ * battle's rows); a list's rows h tall on the grid's screen's paper (DevListRow; DevTallRow: the Pokedex's list); the
+ * small note (a screen) with two small keys and the grid's exit beside it (the Party picking several:
  * its CONFIRM, kDevPtyConfirm, in the keys' place); a tall screen over a wide
  * key; the tall note with BACK beside it (kDevTallNote, kDevTallBack: the frame's, the Trainer Card's and the Pokedex
  * page's BACK until their boards' tasks); a question's note beside YES and NO. */
@@ -236,8 +236,7 @@ static const CtrPokeTouchRect kDevAskNote __attribute__((unused)) = {8, 156, 200
 static const CtrPokeTouchRect kDevAskYes __attribute__((unused)) = {216, 156, 96, 36};
 static const CtrPokeTouchRect kDevAskNo __attribute__((unused)) = {216, 198, 96, 34};
 
-/* Row i of a list h tall a row on kDevGridScreen's paper, or (`narrow`) on the paper of a screen 184 wide (the
- * relearner's kDevRlNarrow). */
+/* Row i of a list h tall a row on kDevGridScreen's paper, or (`narrow`) on the paper of a screen 184 wide. */
 static inline CtrPokeTouchRect DevListRow(int i, int narrow, int h)
 {
     CtrPokeTouchRect r = {16, (int16_t)(48 + h * i), (int16_t)(narrow ? 168 : 244), (int16_t)h};
@@ -245,7 +244,7 @@ static inline CtrPokeTouchRect DevListRow(int i, int narrow, int h)
     return r;
 }
 
-/* Row i (0-4) of a list of tall rows (24 px, no gap) on the same papers: the Pokedex's list, the relearner's. */
+/* Row i (0-4) of a list of tall rows (24 px, no gap) on the same papers: the Pokedex's list. */
 static inline CtrPokeTouchRect DevTallRow(int i, int narrow)
 {
     return DevListRow(i, narrow, 24);
@@ -399,29 +398,20 @@ static inline CtrPokeTouchRect DevDexSlot(int i)
  * wide screen (kDevGridWide) with the Pokemon in its column (kDevLearnColumn, its picture in kDevLearnPic) and the four
  * moves and the new one in DevLearnSlot(0..4), rows 22 tall and 24 apart (the board's exception to the list rule), a
  * rule over the new one (kDevLearnRule); the description and the cursor's row's hint on the grid's note, BACK in its
- * exit (kDevGridNote, kDevGridExit). The relearner is the grid's list page: the question on the title, five tall rows
- * with ▲ ▼, the description on the note and CANCEL (FireRed's CANCEL row) in the exit; YES / NO beside the narrow
- * screens (kDevRlNarrow, kDevRlDescNarrow) in DevRlKey(i), its own copy of the numbers it drew with (the Bag's), so
- * they do not move with the Bag. */
+ * exit (kDevGridNote, kDevGridExit). The relearner (def_relearn) is the grid's list page and has no rectangle of its
+ * own: the question on the title, the moves in the list's rows (DevGridRow) with ▲ ▼, the cursor's move on the note
+ * and CANCEL (FireRed's CANCEL row) in the exit; a question on the narrow screen (kDevGridScreenNarrow) with YES and NO
+ * in the column beside it (DevGridColumnKey(40, 36, 30, i): the Decision, no key in the exit corner), the move on the
+ * note. */
 static const CtrPokeTouchRect kDevLearnColumn __attribute__((unused)) = {14, 46, 104, 132};
 static const CtrPokeTouchRect kDevLearnPic __attribute__((unused)) = {34, 76, 64, 64};
 static const CtrPokeTouchRect kDevLearnRule __attribute__((unused)) = {124, 146, 176, 1};
-static const CtrPokeTouchRect kDevRlNarrow __attribute__((unused)) = {8, 40, 184, 144};
-static const CtrPokeTouchRect kDevRlDescNarrow __attribute__((unused)) = {8, 190, 184, 42};
 
 /* Slot i of the move to forget: 0-3 its moves, 22 tall and 24 apart from the paper's top + 2; 4 the new one, under the
  * rule. */
 static inline CtrPokeTouchRect DevLearnSlot(int i)
 {
     CtrPokeTouchRect r = {124, (int16_t)(i < 4 ? 48 + 24 * i : 150), 176, 22};
-
-    return r;
-}
-
-/* The relearner's YES (0) and NO (1) beside its narrow screens. */
-static inline CtrPokeTouchRect DevRlKey(int i)
-{
-    CtrPokeTouchRect r = {200, (int16_t)(i ? 78 : 40), 112, (int16_t)(i ? 38 : 30)};
 
     return r;
 }
