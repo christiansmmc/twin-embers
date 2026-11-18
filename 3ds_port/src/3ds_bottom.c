@@ -741,12 +741,12 @@ static void PartyEchoMode(int mode)
 }
 
 /* Dragging a list: a finger on a row that moves this far up or down scrolls instead of tapping, one row per
- * LIST_DRAG_ROW pixels (the Pokedex's tall rows, DevTallRow; the Bag's rows are BAG_DRAG_ROW apart), the content
- * following the finger. */
+ * LIST_DRAG_ROW pixels (the Pokedex's tall rows, DevTallRow; the Bag-page lists' rows are the grid's, BAG_DRAG_ROW
+ * apart: DEV_GRID_ROW_PITCH), the content following the finger. */
 #define LIST_DRAG_SLOP 8
 #define BALL_SWIPE_STEP 18      /* pixels across the quick ball for one ball */
 #define LIST_DRAG_ROW 24
-#define BAG_DRAG_ROW 16
+#define BAG_DRAG_ROW 26
 
 /* The field's choice's touch (ProcessChoiceTouch), as the Bag's. */
 static struct {

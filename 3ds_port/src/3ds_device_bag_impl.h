@@ -7,15 +7,16 @@
  *
  * Across the top the keys: the Bag's three pockets (FireRed's pocket sunk, or the one a touched pocket key asked for
  * while the Bag walks there), a case's one key with its name, or a title on a screen (a mart's with the player's money);
- * the battle's ITEMS and, when the Bag holds the Berry Pouch, BERRIES. The list's screen: up to eight rows (the item's
- * icon at half size, its name, how many at the right; a mart's price; a key item's X or Y button), FireRed's cursor
- * inverted; ▲ and ▼ beside it, tall keys, their triangle grey when the list goes no further that way. Under it the
- * description's screen (the item's icon, a TM's type, how many the Bag holds of a mart's item, FireRed's description)
- * and CLOSE, a dark key, sunk while FireRed's cursor is on the list's CLOSE row. The item's menu: the list narrows and
- * its words go grey, and the actions stand as keys on the right (the last, CANCEL or EXIT, dark); the narrow screen says
- * what is selected. YES / NO: two keys and the question. How many: ▲, the count's screen (with what that many cost or
- * fetch and the money, buying or selling), ▼, OK and CANCEL, and the question. A message is on the list's screen with
- * FireRed's arrow, the other keys grey: a tap anywhere goes on. The keys across the top are grey but in the list.
+ * the battle's ITEMS and, when the Bag holds the Berry Pouch, BERRIES. The list's screen: the grid's five rows (the
+ * item's icon at half size, its name, how many at the right; a mart's price; a key item's X or Y button), FireRed's
+ * cursor inverted; ▲ and ▼ beside it, tall keys, their triangle grey when the list goes no further that way. Under it
+ * the description's screen (the item's icon, a TM's type, how many the Bag holds of a mart's item, FireRed's
+ * description) and CLOSE, a dark key, sunk while FireRed's cursor is on the list's CLOSE row. The item's menu: the list
+ * narrows and its words go grey, and the actions stand as keys on the right (the last, CANCEL or EXIT, dark); the narrow
+ * screen says what is selected. YES / NO: two keys and the question. How many: ▲, the count's screen (with what that
+ * many cost or fetch and the money, buying or selling), ▼, OK and CANCEL, and the question. A message is on the list's
+ * screen with FireRed's arrow, the other keys grey: a tap anywhere goes on. The keys across the top are grey but in the
+ * list.
  *
  * The chosen key or row is the one under a held touch, else the game's cursor (DevChosen); a touch on what is not drawn
  * or cannot be used chooses nothing (DevBagPressDrawn). Four screws (DevShell). Words: upper case (decision 5): FireRed's names and
@@ -28,12 +29,16 @@
 #define DEV_BAG_WORD        24                              /* a name as the page keeps it (in capitals, or as typed) */
 #define DEV_BAG_TEXT        112                             /* a description, a question, a message */
 #define DEV_BAG_MENU        PT_BAG_MENU_MAX
-#define DEV_BAG_READ_X      48                              /* the narrow screen's words (the board's x) */
+#define DEV_BAG_READ_X      48                              /* the description's and the narrow screen's words */
 #define DEV_BAG_ICON_X      5                               /* a row's icon (12x12) and name, from the row's left */
 #define DEV_BAG_NAME_X      22
+#define DEV_BAG_ICON_Y      6                               /* a row's icon, from the row's top */
+#define DEV_BAG_CAPS_Y      8                               /* a row's capitals (name, count, price), from its top */
+#define DEV_BAG_CHIP_Y      7                               /* a key item's X / Y chip (10 tall), from the row's top */
 #define DEV_BAG_PAD         6                               /* a row's right margin, and the gap before its count */
 
 _Static_assert(PT_BAG_ROWS == BUI_BAG_ROWS, "the field's Bag and the battle's show as many rows");
+_Static_assert(PT_BAG_ROWS == DEV_GRID_ROWS, "the Bag's lists show the grid's rows");
 
 /* The pockets' words, in the game's pocket order (FireRed's 0 Items, 1 Key Items, 2 Poke Balls; test_bag_pockets.py). */
 static const CtrUiString kDevBagPocketLabel[3] = {UIS_BAG_ITEMS, UIS_BAG_KEY_ITEMS, UIS_BAG_BALLS};
@@ -56,7 +61,7 @@ typedef struct {
     uint32_t money;
     uint8_t state;                      /* DEV_BAG_* */
     int16_t count, cursor, first;       /* the list: its items, FireRed's cursor (count: CLOSE), the first row's item */
-    uint8_t rows;                       /* the rows drawn: the items from `first`, 8 at most */
+    uint8_t rows;                       /* the rows drawn: the items from `first`, PT_BAG_ROWS at most */
     struct {
         uint16_t item;
         char name[DEV_BAG_WORD];
@@ -324,9 +329,12 @@ static int DevBagHit(const DevBagPage *p, int x, int y)
                 return DEV_BAG_HIT_QTY_UP + i;
         return -1;
     default:
-        for (int i = 0; i < p->keyCount; ++i)
-            if (((p->keyTouch >> i) & 1) && DevOnKey(&kDevBagPocket[i], x, y))
+        for (int i = 0; i < p->keyCount; ++i) {
+            CtrPokeTouchRect r = DevGridTab(3, i);
+
+            if (((p->keyTouch >> i) & 1) && DevOnKey(&r, x, y))
                 return DEV_BAG_HIT_KEY + i;
+        }
         if (DevOnKey(&kDevGridUp, x, y))
             return DevBagUpOn(p) ? DEV_BAG_HIT_UP : -1;
         if (DevOnKey(&kDevGridDown, x, y))
@@ -334,7 +342,7 @@ static int DevBagHit(const DevBagPage *p, int x, int y)
         if (DevOnKey(&kDevGridExit, x, y))
             return DEV_BAG_HIT_CLOSE;
         for (int i = 0; i < p->rows; ++i) {
-            CtrPokeTouchRect r = DevBagRow(i, 0);
+            CtrPokeTouchRect r = DevGridRow(i, 0);
 
             if (UiIn(&r, x, y))
                 return DEV_BAG_HIT_ROW + i;
@@ -369,37 +377,38 @@ static void DevBagKeys(const DevBagPage *p, int held)
         int pressKey = held >= DEV_BAG_HIT_KEY && held < DEV_BAG_HIT_KEY + 3 ? held - DEV_BAG_HIT_KEY : -1;
 
         for (int i = 0; i < p->keyCount; ++i) {
-            const CtrPokeTouchRect *r = &kDevBagPocket[i];
-            int sunk = DevChosen(i, p->keyChosen, pressKey), faceY = DevKey(r, DEV_LOOK_KEY, sunk, 5);
+            CtrPokeTouchRect r = DevGridTab(3, i);
+            int sunk = DevChosen(i, p->keyChosen, pressKey), faceY = DevKey(&r, DEV_LOOK_KEY, sunk, 5);
 
-            DevKeyWord(r, faceY, DEV_LOOK_KEY, sunk, p->key[i]);
+            DevKeyWord(&r, faceY, DEV_LOOK_KEY, sunk, p->key[i]);
         }
     }
     if (p->state != DEV_BAG_LIST)
         DevDim(&kDevGridTitle);                             /* the row's whole band: the title's, over the keys' too */
 }
 
-/* The list's rows on its screen (wide, or narrow beside a column of keys). In the list the chosen row is the one under a
- * held touch, else FireRed's cursor's; beside the keys FireRed's cursor's row stays inverted and the words go grey. An
- * empty pocket says so. */
+/* The list's rows on its screen (the grid's, or its narrow one beside a column of keys). In the list the chosen row is
+ * the one under a held touch, else FireRed's cursor's; beside the keys FireRed's cursor's row stays inverted and the
+ * words go grey. A row as the board's: its icon at half size, its name in capitals, how many (or a price) ending at the
+ * right margin, a key item's X / Y chip there instead. An empty pocket says so. */
 static void DevBagRows(const DevBagPage *p, int held)
 {
     int narrow = DevBagNarrow(p), list = p->state == DEV_BAG_LIST, cursor = -1;
     int pressed = held == DEV_BAG_HIT_CLOSE || (held >= DEV_BAG_HIT_ROW && held < DEV_BAG_HIT_ROW + PT_BAG_ROWS) ? held : -1;
-    CtrPokeTouchRect paper = DevScreen(narrow ? &kDevBagListNarrow : &kDevGridScreen);
+    CtrPokeTouchRect paper = DevScreen(narrow ? &kDevGridScreenNarrow : &kDevGridScreen);
 
     if (p->cursor >= p->count)
         cursor = DEV_BAG_HIT_CLOSE;
     else if (p->cursor - p->first >= 0 && p->cursor - p->first < p->rows)
         cursor = DEV_BAG_HIT_ROW + p->cursor - p->first;
     for (int i = 0; i < p->rows; ++i) {
-        CtrPokeTouchRect r = DevBagRow(i, narrow);
+        CtrPokeTouchRect r = DevGridRow(i, narrow);
         int chosen = list ? DevChosen(DEV_BAG_HIT_ROW + i, cursor, pressed) : cursor == DEV_BAG_HIT_ROW + i;
         uint16_t ink = chosen ? DEV_PAPER : list ? DEV_INK : DEV_INK_DIM, shadow = chosen || !list ? ink : DEV_INK_SH;
-        int top = r.y + (r.h - UI_TEXT_H) / 2, right = r.x + r.w - DEV_BAG_PAD, nameRight = right;
+        int top = r.y + DEV_BAG_CAPS_Y, right = r.x + r.w - DEV_BAG_PAD, nameRight = right;
 
         DevRow(&r, chosen);
-        DevItemIcon(p->row[i].item, r.x + DEV_BAG_ICON_X, r.y + 2, 1);
+        DevItemIcon(p->row[i].item, r.x + DEV_BAG_ICON_X, r.y + DEV_BAG_ICON_Y, 1);
         if (p->row[i].right[0]) {
             int w = DevTextWidth(p->row[i].right);
 
@@ -409,7 +418,7 @@ static void DevBagRows(const DevBagPage *p, int held)
             char key[2] = {p->row[i].button, 0};
             int w = DevSmallTextWidth(key) + 8;
 
-            DevChip(right - w, r.y + 3, w, 10, key, DEV_BLUE_INK, DevChipShadow(DEV_BLUE_INK));
+            DevChip(right - w, r.y + DEV_BAG_CHIP_Y, w, 10, key, DEV_BLUE_INK, DevChipShadow(DEV_BLUE_INK));
             nameRight = right - w - DEV_BAG_PAD;
         }
         if (DevTextWidth(p->row[i].name) <= nameRight - (r.x + DEV_BAG_NAME_X))
@@ -434,17 +443,18 @@ static void DevBagArrows(const DevBagPage *p, int held, int dim)
 }
 
 /* The description's screen: the selected item's icon and, wide, a TM's type and how many the Bag holds of a mart's item
- * in chips before FireRed's description (the small font, three lines); narrow, what the narrow screen reads. */
+ * in chips (9 tall) before FireRed's description (the small font, three lines DEV_SMALL_LINE apart: capitals 198, 208,
+ * 218), all from DEV_BAG_READ_X; narrow, what the narrow screen reads. */
 static void DevBagDesc(const DevBagPage *p, int narrow)
 {
     CtrPokeTouchRect paper = DevScreen(narrow ? &kDevBagDescNarrow : &kDevGridNote);
-    int x = kDevBagDescText.x, top = kDevBagDescText.y + 2, right = paper.x + paper.w - 4, first = x;
+    int x = DEV_BAG_READ_X, top = paper.y + 2, right = paper.x + paper.w - 4, first = x;
     char text[48];
 
     if (p->selItem)
         DevItemIcon(p->selItem, kDevBagDescIcon.x, kDevBagDescIcon.y, 0);
     if (narrow) {
-        DevReadText(p->read, &paper, DEV_BAG_READ_X, right, kDevBagDescText.y + 2, DEV_SMALL_LINE_TIGHT);
+        DevReadText(p->read, &paper, DEV_BAG_READ_X, right, top, DEV_SMALL_LINE);
         return;
     }
     if (!p->selItem)
@@ -466,7 +476,7 @@ static void DevBagDesc(const DevBagPage *p, int narrow)
         DevChip(first, top, w, 9, text, DEV_BLUE_INK, DevChipShadow(DEV_BLUE_INK));
         first += w + 4;
     }
-    DevSmallWrap(p->desc, first, x, top, right, 3, DEV_SMALL_LINE_TIGHT, DEV_INK);
+    DevSmallWrap(p->desc, first, x, top, right, 3, DEV_SMALL_LINE, DEV_INK);
 }
 
 /* The item's menu (the last key dark) or YES / NO: FireRed's cursor sunk, or the key under a held touch. */

@@ -146,8 +146,8 @@ static void BattleCommon(CtrBattleView *v)
     }
 }
 
-/* The battle Bag as it is now: its pocket, its items from three above the cursor (the save's own), the selected one's
- * detail, the open menu or the message it waits on. */
+/* The battle Bag as it is now: its pocket, its items from two above the cursor (the save's own; CtrPokeTouch_ListFirst),
+ * the selected one's detail, the open menu or the message it waits on. */
 static void BattleBagFill(CtrBattleView *v)
 {
     CtrBattleBag *b = &v->bag;
@@ -159,9 +159,7 @@ static void BattleBagFill(CtrBattleView *v)
     b->bagState = (uint8_t)CtrBottomBag_State();
     b->count = (int16_t)(count = CtrBottomBag_Count());
     b->cursor = (int16_t)CtrBottomBag_Cursor();
-    b->first = (int16_t)(b->cursor - 3 < 0 ? 0 : b->cursor - 3);
-    if (b->first > count - BUI_BAG_ROWS)
-        b->first = (int16_t)(count - BUI_BAG_ROWS < 0 ? 0 : count - BUI_BAG_ROWS);
+    b->first = (int16_t)CtrPokeTouch_ListFirst(b->cursor, count, BUI_BAG_ROWS);
     for (int i = 0; i < BUI_BAG_ROWS && b->first + i < count; ++i) {
         unsigned item = CtrBottomBag_Item(b->first + i);
 

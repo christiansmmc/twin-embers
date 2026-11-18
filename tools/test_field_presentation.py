@@ -772,6 +772,13 @@ static void BagPlanStart(const ListScreen *list, int kind, int target, int activ
         self.assertEqual(int(re.search(r'#define LIST_DRAG_ROW (\d+)', bottom).group(1)), pitch)
         self.assertIn('/ LIST_DRAG_ROW', function(bottom, 'ProcessFieldDexTouch'))
 
+    def test_bag_list_drags_a_row_per_grid_row(self):
+        """The Bag-page lists' rows are the grid's, 26 px apart (3ds_device_layout.h): a drag moves one item per row."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        layout = (ROOT / '3ds_port/include/3ds_device_layout.h').read_text(encoding='utf-8')
+        pitch = int(re.search(r'#define DEV_GRID_ROW_PITCH (\d+)', layout).group(1))
+        self.assertEqual(int(re.search(r'#define BAG_DRAG_ROW (\d+)', bottom).group(1)), pitch)
+
     def run_relearn(self, main):
         """RelearnFill and ProcessRelearnTouch, their state and the game's answers as 3ds_bottom_relearn_impl.h declares
         them, over a synthetic relearner on its list: gCount moves (the list has one more row, FireRed's CANCEL, index
@@ -895,7 +902,7 @@ int main(void) {
 
     memset(&in, 0, sizeof(in));
     sShown.mode = MODE_BAG; sShown.battleUi = 1; sShown.battle.state = BUI_BAG;
-    b->bagState = BAG_LIST; b->count = 10; b->cursor = 0; b->first = 0;         /* a long Items pocket */
+    b->bagState = BAG_LIST; b->count = 7; b->cursor = 0; b->first = 0;          /* a long Items pocket */
     /* a finger on row 2; within the slop it is still a tap */
     hitCode = BUI_BAG_ROW + 2; in.touchActive = in.touchDown = 1; in.touchY = 150; ProcessBattleBagTouch(&in);
     in.touchDown = 0; in.touchY = 150 - (LIST_DRAG_SLOP - 1); ProcessBattleBagTouch(&in);
@@ -912,7 +919,7 @@ int main(void) {
     BagPlanClear(); gCursor = 4; in.touchY = 0; ProcessBattleBagTouch(&in);
     assert(sBagPlan.kind == BAGPLAN_LIST && sBagPlan.target == b->count - 1);
     /* back near where it began: still a drag, to the touch-down's item; past the top, the first */
-    BagPlanClear(); gCursor = 9; in.touchY = 150 + 3; ProcessBattleBagTouch(&in);
+    BagPlanClear(); gCursor = 6; in.touchY = 150 + 3; ProcessBattleBagTouch(&in);
     assert(sBagPlan.kind == BAGPLAN_LIST && sBagPlan.target == 0 && !sBat.inside);
     BagPlanClear(); gCursor = 0; in.touchY = 239; ProcessBattleBagTouch(&in);
     assert(sBagPlan.kind == BAGPLAN_NONE);

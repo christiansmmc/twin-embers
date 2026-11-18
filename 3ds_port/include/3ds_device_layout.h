@@ -191,47 +191,23 @@ static inline CtrPokeTouchRect DevSumRow(int i)
 
 /* ---- The Bag (boards B · BAG and B · BAG: menu do item; 3ds_device_bag_impl.h) -----------------------------------------
  * One page for the field's Bag, its TM Case and Berry Pouch, a mart's BUY, the item PC's WITHDRAW ITEM, the mailbox and
- * the battle's Bag. Across the top the keys: the Bag's three pockets (the battle's: ITEMS and BERRIES), a case's one key
- * (kDevBagCaseKey), or a title on a screen (kDevGridTitle: a mart, the item PC, the mailbox). Under them the grid's
- * screen with the list's rows (DevBagRow: no drop) and the tall ▲▼ beside it (kDevGridScreen, kDevGridUp,
- * kDevGridDown); under that the description on the grid's note (the item's icon in kDevBagDescIcon, the text from
- * kDevBagDescText) and CLOSE, a dark key, in the grid's exit (kDevGridNote, kDevGridExit). With the item's menu, YES /
- * NO or how many open, the list's screen and the description's narrow (kDevBagListNarrow, kDevBagDescNarrow) and the
- * keys stand in a column on the right: the menu's (DevBagMenuKey), YES / NO (DevBagMenuKey(2, i)), or how many
- * (kDevBagQty*). */
-#define DEV_BAG_ROW_H 16
-static const CtrPokeTouchRect kDevBagPocket[3] __attribute__((unused)) = {{8, 8, 96, 24}, {112, 8, 96, 24}, {216, 8, 96, 24}};
+ * the battle's Bag. Across the top the keys: the Bag's three pockets (the grid's tabs, DevGridTab(3, i); the battle's:
+ * ITEMS and BERRIES in the first two), a case's one key (kDevBagCaseKey), or a title on a screen (kDevGridTitle: a mart,
+ * the item PC, the mailbox). Under them the grid's screen with the list's five rows (DevGridRow: no drop) and the tall
+ * ▲▼ beside it (kDevGridScreen, kDevGridUp, kDevGridDown); under that the description on the grid's note (the item's
+ * icon in kDevBagDescIcon, the text beside it) and CLOSE, a dark key, in the grid's exit (kDevGridNote, kDevGridExit).
+ * With the item's menu, YES / NO or how many open, the list's screen and the description's narrow (kDevGridScreenNarrow
+ * and its rows, kDevBagDescNarrow) and the keys stand in a column on the right: the menu's (DevBagMenuKey), YES / NO
+ * (DevBagMenuKey(2, i)), or how many (kDevBagQty*). */
 static const CtrPokeTouchRect kDevBagCaseKey __attribute__((unused)) = {8, 8, 304, 24};
-static const CtrPokeTouchRect kDevBagListNarrow __attribute__((unused)) = {8, 40, 184, 144};
 static const CtrPokeTouchRect kDevBagDescNarrow __attribute__((unused)) = {8, 190, 184, 42};
 static const CtrPokeTouchRect kDevBagDescIcon __attribute__((unused)) = {18, 199, 24, 24};
-static const CtrPokeTouchRect kDevBagDescText __attribute__((unused)) = {46, 197, 180, 27};
 /* How many: the count's screen between ▲ and ▼, OK and CANCEL under them. */
 static const CtrPokeTouchRect kDevBagQtyUp __attribute__((unused)) = {200, 40, 112, 30};
 static const CtrPokeTouchRect kDevBagQtyScreen __attribute__((unused)) = {200, 76, 112, 40};
 static const CtrPokeTouchRect kDevBagQtyDown __attribute__((unused)) = {200, 122, 112, 30};
 static const CtrPokeTouchRect kDevBagQtyOk __attribute__((unused)) = {200, 158, 112, 30};
 static const CtrPokeTouchRect kDevBagQtyCancel __attribute__((unused)) = {200, 194, 112, 36};
-
-/* Row i of a list h tall a row on kDevGridScreen's paper, or (`narrow`) kDevBagListNarrow's. */
-static inline CtrPokeTouchRect DevListRow(int i, int narrow, int h)
-{
-    CtrPokeTouchRect r = {16, (int16_t)(48 + h * i), (int16_t)(narrow ? 168 : 244), (int16_t)h};
-
-    return r;
-}
-
-/* Row i (0-7) of the list, on the wide screen or (`narrow`) the narrow one. */
-static inline CtrPokeTouchRect DevBagRow(int i, int narrow)
-{
-    return DevListRow(i, narrow, DEV_BAG_ROW_H);
-}
-
-/* Row i (0-4) of a list of tall rows (24 px) on the same papers. */
-static inline CtrPokeTouchRect DevTallRow(int i, int narrow)
-{
-    return DevListRow(i, narrow, 24);
-}
 
 /* Key i of a menu of n (1-6): one column, 38 apart up to five keys (the last, a dark one, 38 tall, the others 30), 32
  * apart and 26 tall for six. */
@@ -245,10 +221,11 @@ static inline CtrPokeTouchRect DevBagMenuKey(int n, int i)
 
 /* ---- The shapes the views without a board share (plan 3) ------------------------------------------------------------
  * No board draws these views: they draw on the grid's names and these few. Keys across the screen (DevAcross: the
- * battle's rows); the small note (a screen) with two small keys and the grid's exit beside it; a tall screen over a
- * wide key; the tall note with BACK beside it (kDevTallNote, kDevTallBack: the Summary's until its task, the frame's,
- * the move to forget's, the Trainer Card's and the Pokedex page's BACK by their boards); a question's note beside YES
- * and NO (where HOME's third and sixth keys are). */
+ * battle's rows); a list's rows h tall on the grid's screen's paper (DevListRow; DevTallRow: the Pokedex's list, the
+ * relearner's); the small note (a screen) with two small keys and the grid's exit beside it; a tall screen over a wide
+ * key; the tall note with BACK beside it (kDevTallNote, kDevTallBack: the Summary's until its task, the frame's, the
+ * move to forget's, the Trainer Card's and the Pokedex page's BACK by their boards); a question's note beside YES and
+ * NO (where HOME's third and sixth keys are). */
 static const CtrPokeTouchRect kDevSmallNote __attribute__((unused)) = {8, 190, 152, 42};
 static const CtrPokeTouchRect kDevSmallKey[2] __attribute__((unused)) = {{168, 190, 32, 40}, {204, 190, 32, 40}};
 static const CtrPokeTouchRect kDevTallScreen __attribute__((unused)) = {8, 8, 304, 172};
@@ -259,8 +236,23 @@ static const CtrPokeTouchRect kDevAskNote __attribute__((unused)) = {8, 156, 200
 static const CtrPokeTouchRect kDevAskYes __attribute__((unused)) = {216, 156, 96, 36};
 static const CtrPokeTouchRect kDevAskNo __attribute__((unused)) = {216, 198, 96, 34};
 
-/* Key i of n (1-8) across x 8..312, at y and h tall: 8 px apart up to three keys, 4 beyond. (n 3 at y 8 are the Bag's
- * pockets, n 4 at y 170 the battle's wild row, n 2 at y 72 its moves' top row.) */
+/* Row i of a list h tall a row on kDevGridScreen's paper, or (`narrow`) on the paper of a screen 184 wide (the
+ * relearner's kDevRlNarrow). */
+static inline CtrPokeTouchRect DevListRow(int i, int narrow, int h)
+{
+    CtrPokeTouchRect r = {16, (int16_t)(48 + h * i), (int16_t)(narrow ? 168 : 244), (int16_t)h};
+
+    return r;
+}
+
+/* Row i (0-4) of a list of tall rows (24 px, no gap) on the same papers: the Pokedex's list, the relearner's. */
+static inline CtrPokeTouchRect DevTallRow(int i, int narrow)
+{
+    return DevListRow(i, narrow, 24);
+}
+
+/* Key i of n (1-8) across x 8..312, at y and h tall: 8 px apart up to three keys, 4 beyond. (n 3 at y 8 are the
+ * Pokedex's tabs, DevDexTabKey; n 4 at y 170 the battle's wild row, n 2 at y 72 its moves' top row.) */
 static inline CtrPokeTouchRect DevAcross(int n, int i, int y, int h)
 {
     int g = n <= 3 ? 8 : 4, w = (304 - g * (n - 1)) / n;

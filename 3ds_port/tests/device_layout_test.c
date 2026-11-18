@@ -331,28 +331,27 @@ static int SummaryFaults(void)
     return faults;
 }
 
-/* The Bag (boards B · BAG and its item menu): the brief's numbers; the keys above the grid's screen, the eight rows on
- * its paper one under the other (the narrow ones on the narrow paper), the description's icon and text on the grid's
- * note; the menu's, YES / NO's and how many's keys right of the narrow screens, above the screen's foot. (The screen,
- * ▲▼, the note and CLOSE are the grid's: GridFaults.) */
+/* The Bag (boards B · BAG and its item menu): the brief's numbers; the pockets (the grid's three tabs) and a case's key
+ * above the grid's screen, its five rows (the grid's) on the screen's paper and on the narrow screen's, one under the
+ * other, the description's icon on the grid's note; the menu's, YES / NO's and how many's keys right of the narrow
+ * screens, above the screen's foot. (The screen, ▲▼, the note and CLOSE are the grid's: GridFaults.) */
 static int BagFaults(void)
 {
-    const CtrPokeTouchRect paper = {14, 46, 248, 132}, narrowPaper = {14, 46, 172, 132};
+    const CtrPokeTouchRect paper = PaperOf(kDevGridScreen), narrowPaper = PaperOf(kDevGridScreenNarrow);
     int faults = 0;
 
     for (int i = 0; i < 3; ++i)
-        assert(Same(kDevBagPocket[i], (CtrPokeTouchRect){(int16_t)(8 + 104 * i), 8, 96, 24}));
-    assert(Same(kDevBagCaseKey, (CtrPokeTouchRect){8, 8, 304, 24}) && Same(kDevBagListNarrow, (CtrPokeTouchRect){8, 40, 184, 144}));
-    assert(Same(kDevBagDescNarrow, (CtrPokeTouchRect){8, 190, 184, 42}));
-    assert(Same(kDevBagDescIcon, (CtrPokeTouchRect){18, 199, 24, 24}) && Same(kDevBagDescText, (CtrPokeTouchRect){46, 197, 180, 27}));
+        assert(Same(DevGridTab(3, i), (CtrPokeTouchRect){(int16_t)(8 + 102 * i), 8, 98, 24}));
+    assert(Same(kDevBagCaseKey, (CtrPokeTouchRect){8, 8, 304, 24}) && Same(kDevBagDescNarrow, (CtrPokeTouchRect){8, 190, 184, 42}));
+    assert(Same(kDevBagDescIcon, (CtrPokeTouchRect){18, 199, 24, 24}) && PT_BAG_ROWS == DEV_GRID_ROWS && BUI_BAG_ROWS == DEV_GRID_ROWS);
     assert(Same(kDevBagQtyUp, (CtrPokeTouchRect){200, 40, 112, 30}) && Same(kDevBagQtyScreen, (CtrPokeTouchRect){200, 76, 112, 40}));
     assert(Same(kDevBagQtyDown, (CtrPokeTouchRect){200, 122, 112, 30}) && Same(kDevBagQtyOk, (CtrPokeTouchRect){200, 158, 112, 30}));
     assert(Same(kDevBagQtyCancel, (CtrPokeTouchRect){200, 194, 112, 36}));
-    for (int i = 0; i < 8; ++i) {
-        CtrPokeTouchRect r = DevBagRow(i, 0), n = DevBagRow(i, 1);
+    for (int i = 0; i < PT_BAG_ROWS; ++i) {
+        CtrPokeTouchRect r = DevGridRow(i, 0), n = DevGridRow(i, 1);
 
-        assert(Same(r, (CtrPokeTouchRect){16, (int16_t)(48 + 16 * i), 244, 16}) && Same(n, (CtrPokeTouchRect){16, r.y, 168, 16}));
-        if (!Within(r, paper, 0) || !Within(n, narrowPaper, 0) || (i > 0 && r.y < DevBagRow(i - 1, 0).y + 16)) {
+        assert(Same(r, (CtrPokeTouchRect){16, (int16_t)(48 + 26 * i), 244, 24}) && Same(n, (CtrPokeTouchRect){16, r.y, 172, 24}));
+        if (!Within(r, paper, 0) || !Within(n, narrowPaper, 0) || (i > 0 && r.y < DevGridRow(i - 1, 0).y + 24 + 2)) {
             fprintf(stderr, "Bag: row %d leaves its paper, or meets the row above\n", i);
             ++faults;
         }
@@ -363,20 +362,20 @@ static int BagFaults(void)
             int p = n <= 5 ? 38 : 32, h = n <= 5 ? (i == n - 1 ? 38 : 30) : 26;
 
             assert(Same(k, (CtrPokeTouchRect){200, (int16_t)(40 + p * i), 112, (int16_t)h}));
-            if (k.x < kDevBagListNarrow.x + kDevBagListNarrow.w || k.x < kDevBagDescNarrow.x + kDevBagDescNarrow.w) {
+            if (k.x < kDevGridScreenNarrow.x + kDevGridScreenNarrow.w || k.x < kDevBagDescNarrow.x + kDevBagDescNarrow.w) {
                 fprintf(stderr, "Bag: menu key %d of %d reaches the narrow screens\n", i, n);
                 ++faults;
             }
         }
     for (int i = 0; i < 3; ++i)
-        if (kDevBagPocket[i].y + kDevBagPocket[i].h + DEV_DROP > kDevGridScreen.y) {
+        if (DevGridTab(3, i).y + DevGridTab(3, i).h + DEV_DROP > kDevGridScreen.y) {
             fprintf(stderr, "Bag: pocket key %d reaches the list's screen\n", i);
             ++faults;
         }
     if (kDevBagCaseKey.y + kDevBagCaseKey.h + DEV_DROP > kDevGridScreen.y
-        || !Within(kDevBagDescIcon, PaperOf(kDevGridNote), 0) || !Within(kDevBagDescText, PaperOf(kDevGridNote), 0)
+        || !Within(kDevBagDescIcon, PaperOf(kDevGridNote), 0)
         || kDevBagQtyUp.y + kDevBagQtyUp.h + DEV_DROP > kDevBagQtyScreen.y || kDevBagQtyScreen.y + kDevBagQtyScreen.h + 1 > kDevBagQtyDown.y) {
-        fprintf(stderr, "Bag: the case's key, the description's icon or text, or how many's column out of place\n");
+        fprintf(stderr, "Bag: the case's key, the description's icon, or how many's column out of place\n");
         ++faults;
     }
     return faults;
@@ -470,17 +469,15 @@ static int LearnFaults(void)
     return faults;
 }
 
-/* The shapes the views without a board share (plan 3): DevAcross gives the boarded rows back (the Bag's pockets, the
- * battle's wild row and its moves' top row) and fits n keys of 1-8 across; DevListRow gives the Bag's rows back and the
- * tall ones on the same paper; the small note with its two keys and CLOSE beside it, the tall screen over the wide key,
- * the question's note beside YES / NO (where HOME's third and sixth keys are). */
+/* The shapes the views without a board share (plan 3): DevAcross gives the boarded rows back (the battle's wild row
+ * and its moves' top row) and fits n keys of 1-8 across; the tall rows (DevTallRow: the Pokedex's list, the relearner's)
+ * on the list's paper and a narrow one; the small note with its two keys and CLOSE beside it, the tall screen over the
+ * wide key, the question's note beside YES / NO (where HOME's third and sixth keys are). */
 static int SharedFaults(void)
 {
     const CtrPokeTouchRect paper = {14, 46, 248, 132}, narrowPaper = {14, 46, 172, 132};
     int faults = 0;
 
-    for (int i = 0; i < 3; ++i)
-        assert(Same(DevAcross(3, i, 8, 24), kDevBagPocket[i]));
     for (int i = 0; i < 4; ++i)
         assert(Same(DevAcross(4, i, 170, 60), kDevBatRow4[i]));
     for (int i = 0; i < 2; ++i)
@@ -497,9 +494,6 @@ static int SharedFaults(void)
         for (int i = 1; i < n; ++i)
             assert(!Overlap(DevAcross(n, i - 1, 8, 24), DevAcross(n, i, 8, 24)));
     }
-    for (int i = 0; i < 8; ++i)
-        for (int narrow = 0; narrow < 2; ++narrow)
-            assert(Same(DevBagRow(i, narrow), DevListRow(i, narrow, DEV_BAG_ROW_H)));
     for (int i = 0; i < 5; ++i) {
         CtrPokeTouchRect r = DevTallRow(i, 0), n = DevTallRow(i, 1);
 
@@ -892,7 +886,7 @@ int main(void)
     const CtrPokeTouchRect ptyOk[] = {kDevPtyCancel};
     const CtrPokeTouchRect sumKeys[] = {kDevSumTab[0], kDevSumTab[1], kDevSumTab[2], kDevSumTab[3], kDevSumPrev, kDevSumNext,
                                         kDevTallBack};
-    const CtrPokeTouchRect bagList[] = {kDevBagPocket[0], kDevBagPocket[1], kDevBagPocket[2], kDevGridUp, kDevGridDown, kDevGridExit};
+    const CtrPokeTouchRect bagList[] = {DevGridTab(3, 0), DevGridTab(3, 1), DevGridTab(3, 2), kDevGridUp, kDevGridDown, kDevGridExit};
     const CtrPokeTouchRect bagCase[] = {kDevBagCaseKey, kDevGridUp, kDevGridDown, kDevGridExit};
     const CtrPokeTouchRect bagQty[] = {kDevBagQtyUp, kDevBagQtyDown, kDevBagQtyOk, kDevBagQtyCancel};
     const CtrPokeTouchRect bagYesNo[] = {DevBagMenuKey(2, 0), DevBagMenuKey(2, 1)};
@@ -954,11 +948,10 @@ int main(void)
         {"Summary screen", kDevSumScreen}, {"Summary column", kDevSumColumn}, {"Summary picture", kDevSumPic},
         {"Summary switch", kDevSumIvSwitch},
         {"Summary switch's touch", kDevSumIvSwitchHit}, {"Summary row 0", DevSumRow(0)}, {"Summary CANCEL row", DevSumRow(4)},
-        {"Bag ITEMS", kDevBagPocket[0]}, {"Bag KEY ITEMS", kDevBagPocket[1]}, {"Bag POKe BALLS", kDevBagPocket[2]},
-        {"Bag case key", kDevBagCaseKey}, {"Bag narrow list", kDevBagListNarrow},
+        {"Bag case key", kDevBagCaseKey}, {"Bag description's icon", kDevBagDescIcon},
         {"Bag narrow description", kDevBagDescNarrow}, {"Bag how many: up", kDevBagQtyUp},
         {"Bag how many: count", kDevBagQtyScreen}, {"Bag how many: down", kDevBagQtyDown}, {"Bag how many: OK", kDevBagQtyOk},
-        {"Bag how many: CANCEL", kDevBagQtyCancel}, {"Bag row 0", DevBagRow(0, 0)}, {"Bag row 7", DevBagRow(7, 0)},
+        {"Bag how many: CANCEL", kDevBagQtyCancel}, {"grid tab 1 of 3", DevGridTab(3, 0)}, {"grid narrow row 4", DevGridRow(4, 1)},
         {"grid title", kDevGridTitle}, {"grid screen", kDevGridScreen}, {"grid narrow screen", kDevGridScreenNarrow},
         {"grid wide screen", kDevGridWide}, {"grid up", kDevGridUp}, {"grid down", kDevGridDown}, {"grid note", kDevGridNote},
         {"grid wide note", kDevGridNoteWide}, {"grid exit", kDevGridExit}, {"grid tab 3 of 3", DevGridTab(3, 2)},
