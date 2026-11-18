@@ -2,10 +2,10 @@
 #define CTR_ICONS_H
 /* The lower screen's icons (included by 3ds_poketouch.c and by the battle screen, whose helpers it needs: the pack's LZ
  * loader, UiImage, sCanvas). Port-made 24x24 art (battle_ui_art.h), the game's item icons at full size from the user's
- * pack, and the soft side-menu icons made from them. */
+ * pack, and the soft icons HOME's keys draw made from them. */
 #include "battle_ui_art.h"
 
-/* A pack item icon at its full 24x24 (the menu icons above keep a 12x12 sample): the battle buttons draw it as it is.
+/* A pack item icon at its full 24x24 (HOME's keys draw it reduced: PokeTouch_SoftIcon below).
  * 0 when the pack or the entry is missing or malformed; the caller keeps the port's own art then. */
 static int PokeTouch_PackIcon24(const char *art, uint8_t pixels[24 * 24], uint16_t pal[16])
 {
@@ -43,13 +43,12 @@ static int PokeTouch_PackIcon24(const char *art, uint8_t pixels[24 * 24], uint16
     return 1;
 }
 
-/* The battle's icons: high-resolution native icons imported from the reference mockups,
- * with fallbacks to the game pack or 12x12 samples. */
+/* The battle's icons: high-resolution native icons imported from the reference mockups. */
 enum { BI_BAG, BI_POKEBALL, BI_SHOE, BI_BURST, BI_ROCK, BI_BAIT, BI_COUNT };
 static struct {
     PtImage image;
     uint8_t pixels[48 * 48];
-    int scale;                  /* 1 for full art, 2 for the 12x12 samples used as a fallback */
+    int scale;                  /* how many times its size it is drawn (1: the art as it is) */
 } sBImg[BI_COUNT];
 
 static void BArt(int i, int w, int h, const uint8_t *px, const uint16_t *pal, int n)
@@ -69,7 +68,6 @@ static void BIconsPrepare(void)
     if (ready)
         return;
     ready = 1;
-    TwinIconsPrepare();
     BArt(BI_BAG, SBARTBAG_W, SBARTBAG_H, sBArtBagPx, sBArtBagPal, 16);
     BArt(BI_POKEBALL, SBARTPOKEBALL_W, SBARTPOKEBALL_H, sBArtPokeBallPx, sBArtPokeBallPal, 16);
     BArt(BI_SHOE, SBARTSHOE_W, SBARTSHOE_H, sBArtShoePx, sBArtShoePal, 16);
@@ -95,7 +93,7 @@ typedef struct {
 
 /* The pack's 24x24 icon `art` reduced to PT_SOFT x PT_SOFT by area (each output pixel covers 1.5 x 1.5 source pixels;
  * colours averaged over the pixels that are drawn only, so a dark outline stays dark and a transparent edge does not
- * darken or lighten it). 0 when the icon is missing: the caller keeps the 12x12 sample. */
+ * darken or lighten it). 0 when the icon is missing: HOME draws the port's 12x12 silhouette then. */
 UI_FN int PokeTouch_SoftIcon(const char *art, PtSoft *out)
 {
     uint8_t px[24 * 24];

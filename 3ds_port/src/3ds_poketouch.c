@@ -37,10 +37,8 @@ static inline uint16_t GbaColor(uint16_t c)
 }
 
 
-/* Native menu icons: the six themed item graphics already reconstructed from
- * the user's FireRed ROM into classicfirered3ds.pak. No game pixels or palettes are
- * compiled into the port. Running Shoes keeps the port-authored shoe symbol:
- * the supported ROM has no corresponding item-icon entry. */
+/* HOME's six START entries' icons: these item graphics of the user's FireRed ROM, read from classicfirered3ds.pak
+ * (3ds_device_home_impl.h draws their soft 16x16). No game pixels or palettes are compiled into the port. */
 static const char *const sMenuItemArt[6] = {
     "fame_checker", "poke_ball", "berry_pouch",
     "card_key", "coin_case", "teachy_tv"
@@ -99,60 +97,6 @@ static int PokeTouch_LoadLz(const char *path, uint8_t *out, uint32_t cap)
         free(packed);
     }
     return unpacked;
-}
-
-static int CtrPokeTouch_PackMenuIcon(unsigned icon, uint8_t pixels[12 * 12], uint16_t pal[16])
-{
-    char path[96];
-    uint8_t tiles[512], colors[32], scaled[12 * 12];
-    uint16_t converted[16];
-    int pitch, n, visible = 0;
-    if (icon >= 6)
-        return 0;
-
-    n = snprintf(path, sizeof(path), "graphics/items/icons/%s.4bpp.lz", sMenuItemArt[icon]);
-    if (n < 0 || (size_t)n >= sizeof(path))
-        return 0;
-    n = PokeTouch_LoadLz(path, tiles, sizeof(tiles));
-    /* FireRed icons are 24x24 (3x3 tiles), with some packed into 32x32.
-     * Decode the upper 24x24 exactly in GBA 4bpp tile order. */
-    if (n != 9 * 32 && n != 16 * 32)
-        return 0;
-    pitch = n == 9 * 32 ? 3 : 4;
-
-    n = snprintf(path, sizeof(path), "graphics/items/icon_palettes/%s.gbapal.lz", sMenuItemArt[icon]);
-    if (n < 0 || (size_t)n >= sizeof(path) ||
-        PokeTouch_LoadLz(path, colors, sizeof(colors)) != 32)
-        return 0;
-    converted[0] = 0;
-    for (int i = 1; i < 16; ++i) {
-        uint16_t c = (uint16_t)colors[i * 2] | (uint16_t)(colors[i * 2 + 1] << 8);
-        /* Replicate the high green bit into RGB565's sixth bit (white stays
-         * white); transparency is an index, never a colour-key test. */
-        unsigned g = (c >> 5) & 31;
-        converted[i] = (uint16_t)((c & 31) << 11 | (g << 1 | g >> 4) << 5 | (c >> 10 & 31));
-    }
-    for (int y = 0; y < 12; ++y)
-        for (int x = 0; x < 12; ++x) {
-            /* A fixed 2x2 coverage sample preserves one-pixel outlines that
-             * top-left-only sampling could discard. Prefer the first opaque
-             * pixel, with no averaging, blur or invented palette colours. */
-            uint8_t v = 0;
-            for (int oy = 0; oy < 2 && !v; ++oy)
-                for (int ox = 0; ox < 2 && !v; ++ox) {
-                    int sx = x * 2 + ox, sy = y * 2 + oy;
-                    int tile = (sy / 8 * pitch + sx / 8) * 32 + sy % 8 * 4 + sx % 8 / 2;
-                    uint8_t packed = tiles[tile];
-                    v = (sx & 1) ? packed >> 4 : packed & 15;
-                }
-            scaled[y * 12 + x] = v;
-            visible |= v != 0;
-        }
-    if (!visible)
-        return 0;
-    memcpy(pixels, scaled, sizeof(scaled));
-    memcpy(pal, converted, sizeof(converted));
-    return 1;
 }
 
 /* The canvas being drawn: the red device's kit (3ds_device_kit_impl.h) and the old theme's few components
@@ -248,10 +192,8 @@ static unsigned GlyphCode(const char **s)
  * cover glyph rows 3-11, so a line drawn at `top` has its capitals there. */
 static const PtGlyph *Glyph(const char **s)
 {
-    unsigned code;
+    unsigned code = GlyphCode(s);
 
-    TwinIconsPrepare();
-    code = GlyphCode(s);
     if (!sPtFontReady[code]) {
         static uint8_t jp[64];
         const uint8_t *src = code & 0x100u ? CtrTwinJapaneseGlyph(code & 0xffu, jp) : CtrTwinFontData() + code * 64;

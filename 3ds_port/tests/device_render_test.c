@@ -141,14 +141,14 @@ static void ReadWidths(const char *path, uint8_t widths[256])
 static struct {
     int on, fail;
     unsigned size;
-    uint8_t tiles[512], colors[32];
+    uint8_t tiles[288], colors[32];
 } gIconFile;
 
 /* The pack's files with FIRERED_TEST_PAK; else the two item icons, synthesised: a literal-only GBA LZ stream of 24x24
  * 4bpp tiles (3x3) and of a palette, so the full-size icon path runs without game data. */
 void *CtrData_Load(const char *path, uint32_t *len)
 {
-    uint8_t raw[512];
+    uint8_t raw[288];
     int palette = strstr(path, "icon_palettes/") != NULL;
     unsigned size = palette ? 32u : 288u;
     uint8_t *out;
@@ -1105,10 +1105,9 @@ static void IconFiles(unsigned size)
 }
 
 /* The decoders of FireRed's item icons. The pack's LZ77 (0x10): a known block decodes to its bytes (literals, a
- * back-reference), a block cut short, too big for the room or referring outside what is decoded is refused. HOME's six
- * entries' icons as 12x12 samples (CtrPokeTouch_PackMenuIcon): a pixel at an odd place across both tile edges is kept,
- * black stays an opaque index, a missing or malformed icon leaves the caller's own. The soft 16x16 of HOME's keys
- * (PokeTouch_SoftIcon): coverage by area, the colour of the drawn pixels only. With FIRERED_TEST_PAK the pack's six. */
+ * back-reference), a block cut short, too big for the room or referring outside what is decoded is refused. The soft
+ * 16x16 of HOME's keys (PokeTouch_SoftIcon): coverage by area, the colour of the drawn pixels only; none for an icon
+ * missing, malformed or with nothing drawn. With FIRERED_TEST_PAK the pack's six HOME icons. */
 static void KitDecoders(void)
 {
     static const uint8_t literals[] = {0x10, 3, 0, 0, 0, 1, 2, 3};
@@ -1116,8 +1115,7 @@ static void KitDecoders(void)
     static const uint8_t before[] = {0x10, 3, 0, 0, 0x80, 0, 0};              /* 1 back with nothing decoded */
     static const uint8_t overrun[] = {0x10, 2, 0, 0, 0x40, 1, 0, 0};          /* 3 bytes where 1 is left */
     static PtSoft soft;
-    uint8_t out[512], pixels[144], saved[144];
-    uint16_t pal[16];
+    uint8_t out[512];
 
     assert(PokeTouch_Lz77(literals, sizeof(literals), out, 3) == 3 && !memcmp(out, "\1\2\3", 3));
     for (unsigned n = 0; n < sizeof(literals); ++n)
@@ -1127,25 +1125,10 @@ static void KitDecoders(void)
     assert(!PokeTouch_Lz77(before, sizeof(before), out, sizeof(out)));
     assert(!PokeTouch_Lz77(overrun, sizeof(overrun), out, sizeof(out)));
     assert(!strcmp(sMenuItemArt[3], "card_key") && !strcmp(sMenuItemArt[5], "teachy_tv"));
-    for (int pitch = 3; pitch <= 4; ++pitch) {                                 /* 3x3 tiles, and 24x24 packed in 4x4 */
-        IconFiles(pitch == 3 ? 288 : 512);
-        gIconFile.colors[2] = 0xff;                                            /* index 1: white */
-        gIconFile.colors[3] = 0x7f;
-        gIconFile.tiles[(9 / 8 * pitch + 9 / 8) * 32 + 9 % 8 * 4 + 9 % 8 / 2] = 0x10;   /* (9, 9) alone */
-        assert(CtrPokeTouch_PackMenuIcon(0, pixels, pal));
-        assert(pixels[4 * 12 + 4] == 1 && pixels[0] == 0 && pal[0] == 0 && pal[1] == 0xffff);
-        gIconFile.colors[2] = gIconFile.colors[3] = 0;                         /* black */
-        assert(CtrPokeTouch_PackMenuIcon(0, pixels, pal) && pal[1] == 0);
-        memcpy(saved, pixels, sizeof(saved));
-        gIconFile.fail = 1;
-        assert(!CtrPokeTouch_PackMenuIcon(0, pixels, pal) && !memcmp(saved, pixels, sizeof(saved)));
-    }
     IconFiles(287);
-    assert(!CtrPokeTouch_PackMenuIcon(0, pixels, pal));                       /* neither 3x3 nor 4x4 tiles */
+    assert(!PokeTouch_SoftIcon("fame_checker", &soft));                       /* neither 3x3 nor 4x4 tiles */
     IconFiles(288);
-    assert(!CtrPokeTouch_PackMenuIcon(0, pixels, pal));                       /* nothing drawn */
-    assert(!CtrPokeTouch_PackMenuIcon(6, pixels, pal));                       /* HOME has six */
-    gIconFile.colors[2] = 0xff;
+    gIconFile.colors[2] = 0xff;                                                /* index 1: white */
     gIconFile.colors[3] = 0x7f;
     memset(gIconFile.tiles, 0x11, 288);
     assert(PokeTouch_SoftIcon("fame_checker", &soft) && soft.ok);
@@ -1163,12 +1146,12 @@ static void KitDecoders(void)
     assert(soft.alpha[5] == 255 && soft.alpha[7] > 70 && soft.alpha[7] < 100 && soft.alpha[8] == 0 && soft.alpha[15] == 0);
     assert(soft.rgb[7] == 0xffff);                                            /* the colour, not a darker mix */
     memset(gIconFile.tiles, 0, 288);
-    assert(!PokeTouch_SoftIcon("fame_checker", &soft));
+    assert(!PokeTouch_SoftIcon("fame_checker", &soft));                       /* nothing drawn */
     gIconFile.fail = 1;
-    assert(!PokeTouch_SoftIcon("fame_checker", &soft));
+    assert(!PokeTouch_SoftIcon("fame_checker", &soft));                       /* missing */
     memset(&gIconFile, 0, sizeof(gIconFile));
     for (unsigned i = 0; realPack && i < 6; ++i)
-        assert(CtrPokeTouch_PackMenuIcon(i, pixels, pal));
+        assert(PokeTouch_SoftIcon(sMenuItemArt[i], &soft) && soft.ok);
 }
 
 static void SuiteKit(void)
