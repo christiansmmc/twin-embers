@@ -28,6 +28,33 @@
 14. DE CANCEL: `DevCancelWord()` and `UIS_CANCEL`'s German both "Abbrechen", so the PC box's CANCEL follows (a word only).
 15. Learn hints for the NEW and HM rows (words in Task 14); MEMO rows: NATURE, RIBBONS, then FireRed's memo.
 16. `DevShell` takes no argument: four screws on every view, kept so by the compiler.
+17. STATS' switch keeps today's 70 px, ending at 256: `kDevSumIvSwitch {186,49,70,13}` (the board's starts at 196, auto width).
+18. The move to forget: two description lines (capitals 198, 208) and the hint at 218, as Call 13 (the board: one line at 199, the hint at 211).
+
+## Pre-flight rulings (2026-11-18)
+
+From `.superpowers/sdd/2026-11-18-rework2-04a-definitive-kit-field-battle/preflight.md`, all accepted:
+
+1. `DevBagOnKey` moves to the kit as `DevOnKey` (naming, save added to Files); the borrow test's regex exempts `DevBagShown(` — Task 1.
+2. The Pokédex's tab rect is `DevDexTabKey(int i)` (the drawer's `DevDexTab` stays) — Task 1.
+3. `test_battle_bag_drags_its_rows`: `b->count = 7`, `gCursor = 6` for 26 px rows — Task 3.
+4. The bag suite's row loops run to `PT_BAG_ROWS` / `BUI_BAG_ROWS`, the HM row is `row[4]` — Task 3.
+5. The layout test's SharedFaults / BattleFaults lines are named, and L's DevAcross comment follows — Tasks 3, 12, 13.
+6. The dex suite leaves `kDevBagPocket` and the Bag's names in Task 1 — Task 1.
+7. The Summary's category chip ends by 106 with words that fit (`DevCategoryWord`) — Task 5 (and 13).
+8. The priced cut is forced by widened stub glyphs — Task 11.
+9. POW / ACC never overlap the footer's chips: past them, or the first small line — Task 13.
+10. Easy Chat's `kButton` loses `static` to take `DevCancelWord()` — Task 2.
+11. The relearner's description keeps capitals 199 (`paper.y + 3`) — Task 1.
+12. "Bag how many" group: ▲, ▼, OK and the exit — Task 4.
+13. Calls 17 (STATS' switch) and 18 (the move to forget's footer) — Tasks 5, 14.
+14. The party grid keeps `Count`, `Cols`, `Move`; `DevPtyMenuFirst` uses `DEV_PTY_MENU_ROWS` — Task 8.
+15. The Bag-narrow and learn fixtures fit three small lines once `DevReadText` counts — Task 2.
+16. The move to forget draws on `kDevGridWide` (`kDevLearnScreen` goes); its 22 / 24 rows are the board's exception — Task 14, Global Constraints.
+17. The relearner's YES / NO cites the Decision, not "def_bag_menu's pattern" — Task 15.
+18. Kit `DevCategoryWord` and `DevPowAcc`, used by the Summary, the battle's footer and the relearner — Tasks 2, 5, 13, 15.
+19. The grid rule names SAVE's `kDevHomeScreen` (04b's) and the dispatcher's `…Shown` predicates — Global Constraints.
+20. Wording: Task 7's test reads `3ds_bottom_battle_fill_impl.h`; naming's LED needs no change (Task 2); the recipe hints say "every recipe" — Tasks 2, 6, 7, 11.
 
 ## Global Constraints
 
@@ -35,8 +62,8 @@
 - Before every commit: `python tools/manifest_update.py && python tools/source_audit.py && python tools/source_audit.py --history-since 0afd7a2bdb75a7d1ec2d4d10fb9a84f6f23e08ab` → exit 0; every file ≤ 262,144 bytes; `3ds_video.c` (258,680) is not edited; `device_render_test.c` (149,963) may move a suite it rewrites into its own `device_suite_<view>.h` (plan 3's pattern) rather than grow past ~200 KB.
 - Nothing ROM-derived committed: renders stay under `build/`; test fixtures carry port-written sentences, not FireRed's descriptions.
 - `-Werror`: what a task orphans (a rect, a static function, a colour, a view field) it deletes; `device_render_test.c` includes all of `3ds_poketouch.c` and compiles at every commit.
-- The legend (def_spec + Decisions): a cream key is chosen (sunk 2 px, its LED 4x4 at (x + w − 11, faceY + 4)); one reads an embedded screen; one leaves by the dark key in the exit corner (BACK a level, CLOSE an app, CANCEL an action); an unused cream key is beige (`DEV_LOOK_FAINT`, ink `#8A8478`), a disabled dark exit key is dimmed (`DevDim`); a lone OK is up, sunk only under a touch; four screws on every view; a list's rows 24 tall, 26 apart, five shown, the chosen inverted; ▲▼ grey (`DEV_ARROW_OFF`) at the ends and then not hit.
-- The grid (def_spec): TOPO y 8-32 (`DevGridTab`, `kDevGridTitle`), MEIO y 40-184 (`kDevGridScreen` + `kDevGridUp`/`kDevGridDown`, or `kDevGridWide`, or a narrow screen with the key column at x 204), RODAPÉ y 190-232 (`kDevGridNote` + `kDevGridExit`, or `kDevGridNoteWide`). Every drawn or hit rectangle is the layout header's; a view never draws with another view's rect or helper (`test_views_borrow_no_view_rects`, Task 1); keys hit on `DevKeyArea`, rows and screens on themselves.
+- The legend (def_spec + Decisions): a cream key is chosen (sunk 2 px, its LED 4x4 at (x + w − 11, faceY + 4)); one reads an embedded screen; one leaves by the dark key in the exit corner (BACK a level, CLOSE an app, CANCEL an action); an unused cream key is beige (`DEV_LOOK_FAINT`, ink `#8A8478`), a disabled dark exit key is dimmed (`DevDim`); a lone OK is up, sunk only under a touch; four screws on every view; a list's rows 24 tall, 26 apart, five shown, the chosen inverted (the move to forget: the board's 22 / 24); ▲▼ grey (`DEV_ARROW_OFF`) at the ends and then not hit.
+- The grid (def_spec): TOPO y 8-32 (`DevGridTab`, `kDevGridTitle`), MEIO y 40-184 (`kDevGridScreen` + `kDevGridUp`/`kDevGridDown`, or `kDevGridWide`, or a narrow screen with the key column at x 204), RODAPÉ y 190-232 (`kDevGridNote` + `kDevGridExit`, or `kDevGridNoteWide`). Every drawn or hit rectangle is the layout header's; a view never draws with another view's rect or helper (`test_views_borrow_no_view_rects`, Task 1; SAVE's `kDevHomeScreen` until 04b's SAVE task; the dispatcher's `…Shown` predicates are not borrowing); keys hit on `DevKeyArea`, rows and screens on themselves.
 - Words (decision 5): port words UPPER CASE in all three `CTR_TR` languages with the board's wording; FireRed's strings as FireRed has them (`DevUpper` for those that arrive title-cased); key words in the normal font (no 14 px); exits `DevBackWord()`, `DevCloseWord()`, `DevCancelWord()` (DE "ABBRECHEN"). Type colours: FireRed's (`UiTypeColor`).
 - Redraw (decision 5): a view draws whole when a field it draws changes; `Update` == `Draw` pixel for pixel; a change of an undrawn field presents nothing (each suite asserts it: `v.mapGroup ^= 1; v.speed ^= 1;` on touch views, the view's own undrawn fields on battle and Summary views).
 - Every key ≥ 28x20 and the keys of one state apart with their drops (`device_layout_test.c`); every suite ends `assert(sDevKeyCut == 0)` and passes in the ES and DE label-fit builds (`test_german_labels_fit`, `test_spanish_labels_fit`).
@@ -63,7 +90,7 @@ O1 battle row 4 keys wild / 3 trainer, y 168 h 62 — Task 12. O2 Party menu one
 ### Task 1: The grid's names, and every borrowed rect and helper moved (no pixel changes)
 
 **Files:**
-- Modify: `3ds_port/include/3ds_device_layout.h`, `3ds_port/src/3ds_device_kit_impl.h`, `3ds_device_{bag,summary,dex,options,relearn,learn,frame,card,mail,box,choice,easychat}_impl.h`
+- Modify: `3ds_port/include/3ds_device_layout.h`, `3ds_port/src/3ds_device_kit_impl.h`, `3ds_device_{bag,summary,dex,options,relearn,learn,frame,card,mail,box,choice,easychat,naming,save}_impl.h`
 - Test: `3ds_port/tests/device_layout_test.c`, `device_render_test.c` (`kit`, `summary`, `bag`), `device_suite_{dex,options,relearn,learn,frame,card,easychat}.h`, `tools/test_device_views.py`
 
 **Interfaces:**
@@ -74,11 +101,12 @@ O1 battle row 4 keys wild / 3 trainer, y 168 h 62 — Task 12. O2 Party menu one
   - `static inline CtrPokeTouchRect DevGridRow(int i, int narrow)` = {16, 48 + 26i, narrow ? 172 : 244, 24}, i 0-4.
   - `static inline CtrPokeTouchRect DevGridColumnKey(int top, int pitch, int h, int i)` = {204, top + pitch·i, 108, h}.
   - Renamed, same values: `kDevTallNote {8,188,228,44}` and `kDevTallBack {244,188,68,42}` (were `kDevSumNote` / `kDevSumBack`: the card's and the Pokédex page's BACK by their boards; the frame, the move to forget and the Summary until their tasks).
-  - Own copies with today's values: the move to forget `kDevLearnScreen {8,40,304,140}`, `kDevLearnColumn {14,46,104,128}`, `kDevLearnPic {34,82,64,64}`, `DevLearnSlot(int i)` = {124, 52 + 24i, 176, 22}; the relearner `kDevRlNarrow {8,40,184,144}`, `kDevRlDescNarrow {8,190,184,42}`, `DevRlKey(int i)` = i ? {200,78,112,38} : {200,40,112,30}; the Pokédex `DevDexTab(int i)` = `DevAcross(3, i, 8, 24)`.
+  - Own copies with today's values: the move to forget `kDevLearnScreen {8,40,304,140}`, `kDevLearnColumn {14,46,104,128}`, `kDevLearnPic {34,82,64,64}`, `DevLearnSlot(int i)` = {124, 52 + 24i, 176, 22}; the relearner `kDevRlNarrow {8,40,184,144}`, `kDevRlDescNarrow {8,190,184,42}`, `DevRlKey(int i)` = i ? {200,78,112,38} : {200,40,112,30}, and `DevRlDesc`'s top `paper.y + 3` (was `kDevBagDescText.y + 2`, capitals 199); the Pokédex `DevDexTabKey(int i)` = `DevAcross(3, i, 8, 24)` (the drawer's `DevDexTab(const CtrPokeTouchDex *)`, which tab is shown, keeps its name).
   - Deleted (every user on a grid name): `kDevBagTitle`, `kDevBagList`, `kDevBagUp`, `kDevBagDown`, `kDevBagDesc`, `kDevBagClose`, `kDevSumNote`, `kDevSumBack`. The Bag's own stay the Bag's (`kDevBagPocket`, `kDevBagCaseKey`, `kDevBagListNarrow`, `kDevBagDescNarrow`, `kDevBagDescIcon`, `kDevBagDescText`, `kDevBagQty*`, `DevBagRow`, `DevBagMenuKey`, `DEV_BAG_ROW_H`); the Summary's own (`kDevSumTab`, `kDevSumPrev/Next`, `kDevSumScreen/Column/Pic`, `kDevSumIvSwitch*`, `DevSumRow`) the Summary's. `kDevAskNote/Yes/No` keep their literal values (no longer equal to `kDevHomeKey` by test).
 - Produces (kit, moved from the view files, bodies and pixels unchanged; callers pass today's values):
   - `#define DEV_ARROW_OFF UI_RGB(0xB8, 0xB0, 0xA0)` (was `DEV_BAG_ARROW_OFF`); `#define DEV_SMALL_LINE_TIGHT 9` (was `DEV_BAG_SMALL_LINE`: the frame's hints, OPTIONS and the PC box keep it).
   - `UI_FN const char *DevCloseWord(void)` (was `DevBagCloseWord`); `UI_FN void DevItemIcon(unsigned item, int x, int y, int half)` (was `DevBagIcon`).
+  - `UI_FN int DevOnKey(const CtrPokeTouchRect *r, int x, int y)` (was `DevBagOnKey`: `UiIn` of `DevKeyArea(r)`; its callers in bag, box, card, choice, dex, easychat, naming, options, relearn, save).
   - `UI_FN int DevSmallWrapRun(const char *s, int firstX, int x, int top, int right, int maxLines, int pitch, uint16_t ink, int draw)` and `UI_FN int DevSmallWrap(const char *s, int firstX, int x, int top, int right, int maxLines, int pitch, uint16_t ink)` (were `DevBagSmallWrap(Run)` at pitch 9: callers pass `DEV_SMALL_LINE_TIGHT`).
   - `UI_FN void DevReadText(const char *text, const CtrPokeTouchRect *paper, int x, int right, int smallTop, int pitch)` (was `DevBagRead`: two normal lines centred down the paper, else three small lines from `smallTop`; the Bag passes `kDevBagDescText.y + 2`, the move to forget `paper.y + 5`, both `DEV_SMALL_LINE_TIGHT`).
   - `UI_FN void DevKeyWordAtInk(const CtrPokeTouchRect *r, int faceY, int sunk, const char *s, int inset, uint16_t ink, uint16_t shadow)` and `UI_FN void DevKeyWordAt(const CtrPokeTouchRect *r, int faceY, int look, int sunk, const char *s, int inset)`: inset 0 is `DevKeyWord(Ink)`; else the word from r->x + inset when it fits before the LED's box, else `DevKeyWord(Ink)` (was `DevBagWord(…, left)` with x + 12: callers pass 12).
@@ -92,24 +120,25 @@ O1 battle row 4 keys wild / 3 trainer, y 168 h 62 — Task 12. O2 Party menu one
 ```python
 def test_views_borrow_no_view_rects(self):
     """A view draws with the grid's names, the shared shapes, the kit or its own: the Bag's and the Summary's rects and
-    helpers are theirs alone, so one view's task cannot move another view (plan 04a, Task 1)."""
+    helpers are theirs alone, so one view's task cannot move another view (plan 04a, Task 1). The dispatcher's question
+    "is the Bag shown" (DevBagShown) is not a rect or a drawing helper."""
     for path in sorted((ROOT / '3ds_port/src').glob('3ds_device_*_impl.h')):
         text = path.read_text(encoding='utf-8')
         if path.name != '3ds_device_bag_impl.h':
-            self.assertNotRegex(text, r'\bkDevBag\w+|\bDevBag(?!Battle)[A-Z]\w*\(|\bDEV_BAG_\w+', path.name)
+            self.assertNotRegex(text, r'\bkDevBag\w+|\bDevBag(?!Battle|Shown\()[A-Z]\w*\(|\bDEV_BAG_\w+', path.name)
         if path.name != '3ds_device_summary_impl.h':
             self.assertNotRegex(text, r'\bkDevSum\w+|\bDevSum[A-Z]\w*\(', path.name)
 ```
 
 - [ ] **Step 3: Run** — `python tools/dev.py test test_device_views` → FAIL (compile errors on the new names; the source test).
-- [ ] **Step 4: Implement** the names and moves above: rename each user in the drawers and suites (bag, dex, options, relearn on the grid names; learn on its own rects, `kDevGridTitle`, `kDevTallNote`/`kDevTallBack`, `DevColumnRow`, `DevReadText`, `DevTypeChip`; frame, card, dex page on `kDevTall*`; box, mail, choice, easychat, relearn on the moved kit helpers; the dex tabs on `DevDexTab`). The suites' expectations change by name only.
+- [ ] **Step 4: Implement** the names and moves above: rename each user in the drawers and suites (bag, dex, options, relearn on the grid names; learn on its own rects, `kDevGridTitle`, `kDevTallNote`/`kDevTallBack`, `DevColumnRow`, `DevReadText`, `DevTypeChip`; frame, card, dex page on `kDevTall*`; box, mail, choice, easychat, relearn on the moved kit helpers; every `DevBagOnKey` on `DevOnKey`, naming and save included; the dex tabs on `DevDexTabKey`). The suites' expectations change by name only; `device_suite_dex.h` leaves the Bag's names now (`kDevBagPocket[i]` → `DevDexTabKey(i)`, `kDevBagClose/Up/Down` → `kDevGridExit/Up/Down`, `DEV_BAG_ARROW_OFF` → `DEV_ARROW_OFF`), so Task 3 can delete `kDevBagPocket`.
 - [ ] **Step 5: Run** — `python tools/dev.py test` → all PASS; `python tools/dev.py render` and `sha256sum -c <scratchpad>/renders-before.txt` → every PNG unchanged.
 - [ ] **Step 6: Task close** — renders: none differ (Step 5); Azahar: open the Bag, OPTIONS, the Pokédex, a relearner, a move to forget, FireRed's picture; all as before. Commit `refactor: the grid's names, and no view borrows another's rects`.
 
 ### Task 2: The Definitiva's kit rules
 
 **Files:**
-- Modify: `3ds_device_kit_impl.h`, every drawer calling `DevShell` (bag, battle, box, card, choice, dex, easychat, frame, home, learn, mail, naming, options, party, relearn, save, summary), `3ds_device_naming_impl.h` (its page-key LED, ~213), `3ds_device_home_impl.h` / `_summary_impl.h` (`DEV_HOME_RULE`, `DEV_SUM_RULE` → `DEV_RULE`), the CANCEL literals in `_bag_impl.h` (how many), `_battle_impl.h`, `_party_impl.h`, `_summary_impl.h`, `_easychat_impl.h`, `3ds_port/include/3ds_ui_strings.h` (`UIS_CANCEL`), `tools/make_device_boards.py`
+- Modify: `3ds_device_kit_impl.h`, every drawer calling `DevShell` (bag, battle, box, card, choice, dex, easychat, frame, home, learn, mail, naming, options, party, relearn, save, summary), `3ds_device_naming_impl.h` (its page-key LED, ~214: already 4 px at (x + w − 11, faceY + 4), no change; only its suite's probe is checked), `3ds_device_home_impl.h` / `_summary_impl.h` (`DEV_HOME_RULE`, `DEV_SUM_RULE` → `DEV_RULE`), the CANCEL literals in `_bag_impl.h` (how many), `_battle_impl.h`, `_party_impl.h`, `_summary_impl.h`, `_easychat_impl.h`, `3ds_port/include/3ds_ui_strings.h` (`UIS_CANCEL`), `tools/make_device_boards.py`
 - Test: `device_render_test.c` (`kit`; every suite probing an LED pixel, a corner, `DEV_FAINT_INK` or a DE CANCEL), `device_suite_*.h` likewise, `tools/test_make_device_boards.py`, `tools/test_device_views.py`
 
 **Interfaces:**
@@ -118,7 +147,8 @@ def test_views_borrow_no_view_rects(self):
   - `DevKey`: a sunk key's LED is 4x4 at (x + w − 11, faceY + 4) whatever its height; `DevKeyWordInk` / `DevKeyWordAtInk` keep clear of that box (LED x + w − 11 … + 3, its glow one more each side); the naming page key's lone LED and the boards tool's sunk-key LED (`make_device_boards.py`: size 4 at x + w − 11, y + SINK + 4) the same.
   - `UI_FN void DevShell(void)`: the four screws always; its trace `a` is `DEV_SCREWS_TOP | DEV_SCREWS_BOTTOM`.
   - Colours: `DEV_FAINT_INK UI_RGB(0x8A, 0x84, 0x78)`; `DEV_RULE UI_RGB(0xD8, 0xD8, 0xD0)`; `DEV_TAG_STAB UI_RGB(0x5A, 0x64, 0x78)`; `DEV_TAG_NEW UI_RGB(0x2A, 0x7A, 0x3E)`; `DEV_KEY_INK2 UI_RGB(0x6A, 0x6A, 0x6A)` (secondary text on a key: a price, "PP", "STATUS", SPD, a bay's level); `DEV_TITLE_INK UI_RGB(0x3A, 0x3A, 0x3A)` (a footer's title line); `#define DEV_SMALL_LINE 10`.
-  - `UI_FN const char *DevCancelWord(void)` = `CTR_TR("CANCEL", "CANCELAR", "ABBRECHEN")`, replacing every `CTR_TR("CANCEL", "CANCELAR", "ZUR\xC3\x9C" "CK")` and Easy Chat's literal; `UIS_CANCEL`'s German becomes `"Abbrechen"`.
+  - `UI_FN const char *DevCancelWord(void)` = `CTR_TR("CANCEL", "CANCELAR", "ABBRECHEN")`, replacing every `CTR_TR("CANCEL", "CANCELAR", "ZUR\xC3\x9C" "CK")` and Easy Chat's literal (Easy Chat's `kButton` loses `static` to take `DevCancelWord()`: CTR_TR is compile-time, a call is not); `UIS_CANCEL`'s German becomes `"Abbrechen"`.
+  - Words more than one drawer builds: `UI_FN const char *DevCategoryWord(int physical)` = physical ? `CTR_TR("PHYSICAL", "F\xC3\x8DSICO", "PHYS.")` : `CTR_TR("SPECIAL", "ESPEC.", "SPEZIAL")` (each ≤ 43 px with its chip's padding at 6 px), replacing the Summary's and the battle's literals; `UI_FN void DevPowAcc(char *out, size_t size, const char *power, const char *accuracy)` = `"%s %s  %s %s"` of `CTR_TR("POW", "POT", "ST\xC3\x84")`, power (or "-"), `CTR_TR("ACC", "PRE", "GEN")`, accuracy (or "-"), replacing the relearner's `snprintf` (Tasks 5, 13, 15 use both).
   - Footer text: `UI_FN void DevNoteTitle(const CtrPokeTouchRect *paper, int x, const char *s)` — `s` in the normal font, capitals from paper->y + 2, `DEV_TITLE_INK` over `DEV_INK_SH`, cut with "..." at paper->x + paper->w − 6 and counted in `sDevKeyCut`; `UI_FN int DevSmallFit(const char *s, int firstX, int x, int top, int right, int maxLines, int pitch, uint16_t ink)` — `DevSmallWrap`, and when the text needs more than `maxLines` lines `++sDevKeyCut`; returns the lines drawn. `DevReadText`'s small branch uses `DevSmallFit` (counts, same pixels).
 
 - [ ] **Step 1: Write the failing tests.** `kit` suite (replacing the `DevShell(0)` corner check and the 5x5 LED probes):
@@ -138,7 +168,7 @@ sDevKeyCut = 0; assert(DevSmallFit(kLongWords, 20, 20, 198, 224, 1, DEV_SMALL_LI
 
 `test_make_device_boards.py`: a traced sunk key `{'op': 'key', 'x': 8, 'y': 8, 'w': 96, 'h': 40, 'look': 'key', 'sunk': 1, 'radius': 6}` gives its LED span at left 93, top 14, 4x4. `test_device_views.py` `test_cancel_word_is_the_kits`: no drawer holds `CTR_TR("CANCEL", "CANCELAR", "ZUR`; the kit holds `CTR_TR("CANCEL", "CANCELAR", "ABBRECHEN")`; `3ds_ui_strings.h` has `[UIS_CANCEL] = CTR_TR("Cancel", "Cancelar", "Abbrechen")`.
 - [ ] **Step 2: Run** — `python tools/dev.py test test_device_views test_make_device_boards` → FAIL.
-- [ ] **Step 3: Implement** as in Interfaces. Then every suite that probes an LED, a corner or a DE CANCEL follows the kit (known: HOME (198,164), battle (302,114), Party (146,18) and its menu (209,44), Bag (94,15) and (302,48), the naming page key, and the corner pixels of views that had no screws); a suite assertion that fails because of a real drawing bug is fixed in the code, not the test.
+- [ ] **Step 3: Implement** as in Interfaces. Then every suite that probes an LED, a corner or a DE CANCEL follows the kit (known: HOME (198,164), battle (302,114), Party (146,18) and its menu (209,44), Bag (94,15) and (302,48), the naming page key, and the corner pixels of views that had no screws); a suite assertion that fails because of a real drawing bug is fixed in the code, not the test. `DevReadText` now counts a cut: check that the Bag-narrow and move-to-forget fixtures' texts fit three small lines (shorten a port-written fixture that does not).
 - [ ] **Step 4: Run** — `python tools/dev.py test` → all PASS (ES and DE builds too).
 - [ ] **Step 5: Task close** — `python tools/dev.py render` (every view): four screws on every PNG; every LED 4x4; beige keys' words `#8A8478`; compare `kit/*.png` with `def_spec.txt` (TECLAS: NORMAL, ESCOLHIDA's LED at [455,24,4,4], BACK, OFF). Azahar: HOME, a battle's moves (four screws now), the Bag, a DE build's Party CANCEL reads ABBRECHEN. Commit `feat: the Definitiva's kit: 4 px LED, screws everywhere, beige ink, footer text, CANCEL`.
 
@@ -146,7 +176,7 @@ sDevKeyCut = 0; assert(DevSmallFit(kLongWords, 20, 20, 198, 224, 1, DEV_SMALL_LI
 
 **Files:**
 - Modify: `3ds_port/include/3ds_poketouch.h` (`PT_BAG_ROWS 5`, `BUI_BAG_ROWS 5`, `CtrPokeTouch_ListFirst`), `3ds_device_layout.h` (delete `kDevBagPocket`, `kDevBagListNarrow`, `kDevBagDescText`, `DevBagRow`, `DEV_BAG_ROW_H`), `3ds_device_bag_impl.h`, `3ds_bottom_field_fill_impl.h` (~174), `3ds_bottom_battle_fill_impl.h` (~162), `3ds_bottom.c` (`BAG_DRAG_ROW 26`)
-- Test: `device_render_test.c` (`bag`), `device_layout_test.c` (`BagFaults`, rects, groups), `tools/test_field_presentation.py`
+- Test: `device_render_test.c` (`bag`), `device_layout_test.c` (`BagFaults`, `SharedFaults`, rects, groups), `tools/test_field_presentation.py` (a new test; `test_battle_bag_drags_its_rows`'s fixture)
 
 **Interfaces:**
 - Consumes: `DevGridTab`, `DevGridRow`, `kDevGridScreen(Narrow)`, `kDevGridUp/Down`, `kDevGridNote`, `kDevGridExit`, `DevArrowKeys`, `DevSmallWrap`, `DevReadText`, `DEV_SMALL_LINE`.
@@ -176,9 +206,11 @@ def test_bag_list_drags_a_row_per_grid_row(self):
     self.assertEqual(int(re.search(r'#define BAG_DRAG_ROW (\d+)', bottom).group(1)), pitch)
 ```
 
-Layout: `BagFaults` pins the pockets to `DevGridTab(3, i)` (its line 391 `DevAcross(3) == kDevBagPocket` goes) and the narrow rows inside `kDevGridScreenNarrow`'s paper; the group "Bag list" is {3 tabs, `kDevGridUp`, `kDevGridDown`, `kDevGridExit`}.
+`test_battle_bag_drags_its_rows`: its fixture's `b->count = 10` becomes `7` and the later `gCursor = 9` becomes `6` (from y 150 a drag to y 0 is six rows of 26, so "far past the end" still reaches `count - 1`); its other numbers are in `BAG_DRAG_ROW` and stay.
+
+Layout: `BagFaults` pins the pockets to `DevGridTab(3, i)` and the narrow rows inside `kDevGridScreenNarrow`'s paper; in `SharedFaults` the line 391 `DevAcross(3, i, 8, 24) == kDevBagPocket[i]` and the loop `DevBagRow(i, narrow) == DevListRow(i, narrow, DEV_BAG_ROW_H)` (~409) go; the group "Bag list" is {3 tabs, `kDevGridUp`, `kDevGridDown`, `kDevGridExit`}. `3ds_device_layout.h`'s `DevAcross` comment stops calling n 3 at y 8 the Bag's pockets (the Pokédex's tabs, `DevDexTabKey`).
 - [ ] **Step 2: Run** — `python tools/dev.py test test_device_views test_field_presentation` → FAIL.
-- [ ] **Step 3: Implement** per Interfaces; the struct sizes shrink with the constants (`CtrPokeTouchBag.row`, `CtrBattleBag.row`, `DevBagPage.row`).
+- [ ] **Step 3: Implement** per Interfaces; the struct sizes shrink with the constants (`CtrPokeTouchBag.row`, `CtrBattleBag.row`, `DevBagPage.row`), and so do the bag suite's fixtures: every loop over `row[]` (`BagBoard` ~2398, `BagBattle` ~2423, the TM Case 2597, the pouch 2603, the mart 2608, the item PC 2617, the rows' hits 2515) runs to `PT_BAG_ROWS` / `BUI_BAG_ROWS` and the TM Case's HM row is `row[4]` (`kBagItem`'s eight names still cover the five rows) — at `-O1` nothing warns when rows 5-7 overwrite `typed`, `selItem`, ….
 - [ ] **Step 4: Run** — Step 2 → PASS; `python tools/dev.py test` → all PASS.
 - [ ] **Step 5: Task close** — renders `bag_{items,tmcase,pouch,shop,itempc,mailbox,battle,battle_berries,empty,close,message}` vs `def_bag.txt` (rows [16,48+26i,244,24], icon [21,54,12,12], name x 38, count right 254, description 48 / 198 / 208 / 218). Azahar: each list — the Bag's three pockets, the TM Case, the Berry Pouch, a mart's BUY, the item PC's WITHDRAW ITEM, the mailbox, the battle's Bag: tap rows, ▲▼, drag (one item per 26 px), CLOSE at the end. Commit `feat: the Bag's lists show five 24 px rows on the grid`.
 
@@ -205,7 +237,7 @@ assert(Count(16, 48, 172, 130, DEV_INK) == 0 && Count(48, 198, 176, 27, DEV_INK)
 /* the battle's menu (USE, CANCEL) */ AssertHits(BatHitV, &bv, DevBagMenuKey(2, 0), BUI_BAG_MENU); AssertHits(BatHitV, &bv, kDevGridExit, BUI_BAG_MENU + 1);
 ```
 
-Layout: groups "Bag menu of n" (n 2-6: its keys and `kDevGridExit`), "Bag YES / NO", "Bag how many" ({4 keys, `kDevGridExit`}); every column key's drop ends ≤ 187.
+Layout: groups "Bag menu of n" (n 2-6: its keys and `kDevGridExit`), "Bag YES / NO", "Bag how many" ({`kDevBagQtyUp`, `kDevBagQtyDown`, `kDevBagQtyOk`, `kDevGridExit`}); every column key's drop ends ≤ 187.
 - [ ] **Step 2: Run** — `python tools/dev.py test test_device_views` → FAIL.
 - [ ] **Step 3: Implement** per Interfaces (`DevBagMenu`, `DevBagQuantity`, `DevBagKeys`, `DevBagDesc`, `DevBagHit`).
 - [ ] **Step 4: Run** — Step 2 → PASS; `python tools/dev.py test` → all PASS.
@@ -218,14 +250,14 @@ Layout: groups "Bag menu of n" (n 2-6: its keys and `kDevGridExit`), "Bag YES / 
 - Test: `device_render_test.c` (`summary`), `device_layout_test.c` (`SummaryFaults`, rects, group)
 
 **Interfaces:**
-- Consumes: `DevGridTab`, `kDevGridScreen`, `kDevGridUp/Down`, `kDevGridNote`, `kDevGridExit`, `DevArrowKeys`, `DevColumnRow`, `DevNoteTitle`, `DevSmallFit`, `DevReadText`, `DevCancelWord`, `DEV_RULE`.
-- Produces (layout): tabs `DevGridTab(4, i)`; ▲ ▼ `kDevGridUp` / `kDevGridDown` (cream, `DevArrowKeys`; grey and not hit while `DevSumArrowsOn` is 0: the move details, an egg's …); screen `kDevGridScreen`; `kDevSumColumn {14,46,96,132}`; `kDevSumPic {30,80,64,64}` (the 80x80 picture centred on it); `kDevSumIvSwitch {186,49,70,13}`, `kDevSumIvSwitchHit {182,46,78,20}`; `DevSumRow(int i)` = {114, 48 + 26i, 146, 24}, i 0-4 (4 the details' CANCEL); the note `kDevGridNote`; BACK `kDevGridExit`.
+- Consumes: `DevGridTab`, `kDevGridScreen`, `kDevGridUp/Down`, `kDevGridNote`, `kDevGridExit`, `DevArrowKeys`, `DevColumnRow`, `DevNoteTitle`, `DevSmallFit`, `DevReadText`, `DevCancelWord`, `DevCategoryWord`, `DEV_RULE`.
+- Produces (layout): tabs `DevGridTab(4, i)`; ▲ ▼ `kDevGridUp` / `kDevGridDown` (cream, `DevArrowKeys`; grey and not hit while `DevSumArrowsOn` is 0: the move details, an egg's …); screen `kDevGridScreen`; `kDevSumColumn {14,46,96,132}`; `kDevSumPic {30,80,64,64}` (the 80x80 picture centred on it); `kDevSumIvSwitch {186,49,70,13}` (Call 17), `kDevSumIvSwitchHit {182,46,78,20}`; `DevSumRow(int i)` = {114, 48 + 26i, 146, 24}, i 0-4 (4 the details' CANCEL); the note `kDevGridNote`; BACK `kDevGridExit`.
 - Produces (drawer): `DEV_SUM_LEFT 116`, `DEV_SUM_RIGHT 256`, `DEV_SUM_ROW_TOP 53`, `DEV_SUM_ROW_DY 15`, `DEV_SUM_STAT_Y 69` (rows 13 tall, 14 apart).
   - Column (INFO, STATS, MEMO): the name capitals 52 from x 20 (to 106), the gender and "Lv" capitals 66, the picture, type chips 40x12 at (20, 152) (`DevSumTypes`, ending by 106); "No.%s" small `DEV_INK2` at (64, capitals 155) beside a single chip, at (20, capitals 167) under two.
   - INFO (values right at 256, capitals 53 + 15k; labels small at 116, capitals + 1): SPECIES (the species, upper), OT, `CTR_TR("IDNo.", "N.\xC2\xBA ID", "ID-Nr.")` (`d->id`), ITEM, NATURE, ABILITY, HP; `DevHpBar(116, 157, 140, 5, …)`; `DevSumExp(d, 116, 165, 0)`. An egg: the hatch text from (116, 53), 140 wide.
   - STATS: the nature small at (116, capitals 52), the switch; six rows from 69 (labels at 116, bar at 116 + col with col ≥ 48, `barW = min(64, 256 − 28 − barX)`, IV view `− 46`); `DevSumExp(d, 116, 158, 74)`, "NEXT n" small right at 256 capitals 158; the IV view's Hidden Power line at capitals 158.
   - MEMO: NATURE, RIBBONS rows (k 0, 1), then FireRed's memo wrapped from capitals 85, 140 wide, to the paper's foot; an egg as today at the new width.
-  - MOVES and the details: the column without the icon — the name capitals 52 (small font past 86 px), "Lv" small `DEV_INK2` capitals 66, `DevRect(20, 78, 84, 1, DEV_RULE)`; on a move in the details its type chip 40x12 at (20, 84) and category chip after it, `DevColumnRow(102, POWER, …, 20, 104)`, `DevColumnRow(118, ACCURACY, …, 20, 104)`; else the Pokémon's types at y 84. Rows: the type's band `DevRect(r.x, r.y, 4, 24, …)` (on the inverted row too), the name from r.x + 8 capitals r.y + 8, the PP right at r.x + r.w − 4 capitals r.y + 8 (`DevPpInk`), the CANCEL row `DevCancelWord()` from r.x + 8.
+  - MOVES and the details: the column without the icon — the name capitals 52 (small font past 86 px), "Lv" small `DEV_INK2` capitals 66, `DevRect(20, 78, 84, 1, DEV_RULE)`; on a move in the details its type chip 40x12 at (20, 84) and the category chip after it, `DevSumChip(x, 84, 106, 0, DevCategoryWord(physical), …)` (ending by the column's 106; the kit's words fit there at 6 px, so ES / DE count no cut), `DevColumnRow(102, POWER, …, 20, 104)`, `DevColumnRow(118, ACCURACY, …, 20, 104)`; else the Pokémon's types at y 84. Rows: the type's band `DevRect(r.x, r.y, 4, 24, …)` (on the inverted row too), the name from r.x + 8 capitals r.y + 8, the PP right at r.x + r.w − 4 capitals r.y + 8 (`DevPpInk`), the CANCEL row `DevCancelWord()` from r.x + 8.
   - Footer (`DevScreen(&kDevGridNote)`, paper (14,196,216,30)): INFO / STATS `DevNoteTitle(&paper, 20, ability)` + `DevSmallFit(abilityDesc, 20, 20, 212, 224, 1, DEV_SMALL_LINE, DEV_INK)`; the details' text (description, hint or nothing, today's rule) `DevSmallFit(…, 198, 224, 2, …)`; MOVES and MEMO the hint `DevReadText(…, 20, 224, paper.y + 2, DEV_SMALL_LINE)`.
 
 - [ ] **Step 1: Write the failing tests** (`summary` suite):
@@ -277,7 +309,7 @@ def test_summary_reports_contact(self):
 
 `summary` suite (Review Focus 5): on the details with the cursor on move 0, `v.data.contact ^= 1` → `DevWhole(DevCheckSummary(&old, &v))` and `Count(20, 137, 84, 8, DEV_INK) > 0` (the CONTACT row); the cursor on a status move (power "-") still draws the row; on INFO `v.data.contact ^= 1` → `DevCheckSummary(&old, &v).count == 0`.
 - [ ] **Step 2: Run** — `python tools/dev.py test test_field_presentation test_device_views` → FAIL.
-- [ ] **Step 3: Make recipe 0266** — copy `build/dev/src/pokemon_summary_screen.c` (0041, 0236, 0265 applied) to `build/work/src/`, add the line; `python tools/make_recipe.py --before build/dev --after build/work --out patches/pokefirered/0266-summary-reports-contact.json src/pokemon_summary_screen.c`; then the header field and the drawer.
+- [ ] **Step 3: Make recipe 0266** — copy `build/dev/src/pokemon_summary_screen.c` (every earlier recipe applied, 0265 the last) to `build/work/src/`, add the line; `python tools/make_recipe.py --before build/dev --after build/work --out patches/pokefirered/0266-summary-reports-contact.json src/pokemon_summary_screen.c`; then the header field and the drawer.
 - [ ] **Step 4: Run** — Step 2 → PASS; `python tools/dev.py build` (the recipe applies; `FLAG_MAKES_CONTACT` is `include/constants/pokemon.h`'s); `python tools/dev.py test` → all PASS.
 - [ ] **Step 5: Task close** — render `summary_details` vs `def_sum_moves.txt` (CONTACT label [20,136], value right at 104). Azahar: SCRATCH (YES), a status move (NO), FLAMETHROWER (NO). Commit `feat: the Summary's move details say CONTACT (recipe 0266)`.
 
@@ -312,7 +344,7 @@ lv.pressed = BUI_PTY_MESSAGE; assert(DevWhole(DevCheckBattle(&lo, &lv))); Assert
 v.pty.gender[2] ^= 1; assert(DevWhole(DevCheckBattle(&old, &v)));
 ```
 
-`test_field_presentation.py` `test_party_fill_copies_gender`: `function(battleFill, 'BattlePartyFill')` contains `p->gender[i] = s->gender[i];`. Layout: groups "Party" {6 bays, `kDevGridExit`}, "Party, several" {6 bays, `kDevPtyConfirm`, `kDevGridExit`}, "Party level up" {`kDevGridExit`}; `kDevSmallNote.x + kDevSmallNote.w + 8 == kDevPtyConfirm.x` and `kDevPtyConfirm.x + kDevPtyConfirm.w + 8 == kDevGridExit.x`.
+`test_field_presentation.py` `test_party_fill_copies_gender`: `function(fill, 'BattlePartyFill')`, `fill` read from `3ds_port/src/3ds_bottom_battle_fill_impl.h`, contains `p->gender[i] = s->gender[i];`. Layout: groups "Party" {6 bays, `kDevGridExit`}, "Party, several" {6 bays, `kDevPtyConfirm`, `kDevGridExit`}, "Party level up" {`kDevGridExit`}; `kDevSmallNote.x + kDevSmallNote.w + 8 == kDevPtyConfirm.x` and `kDevPtyConfirm.x + kDevPtyConfirm.w + 8 == kDevGridExit.x`.
 - [ ] **Step 2: Run** — `python tools/dev.py test test_device_views test_field_presentation` → FAIL.
 - [ ] **Step 3: Implement** per Interfaces.
 - [ ] **Step 4: Run** — Step 2 → PASS; `python tools/dev.py test` → all PASS.
@@ -326,9 +358,9 @@ v.pty.gender[2] ^= 1; assert(DevWhole(DevCheckBattle(&old, &v)));
 
 **Interfaces:**
 - Consumes: `kDevGridNote`, `kDevGridExit`, `DevKeyWordAt(Ink)`, `DevReadText`, `DEV_ARROW_OFF`, `DEV_DARK_INK`.
-- Produces: `CtrPartyGrid_Cols(int count)` returns 1 for every count; `CtrPartyGrid_Move(...)` returns −1 (FireRed's own list input: UP / DOWN, wrapping); the two-column arithmetic and its comment go, the header says one column the lower screen scrolls (recipe 0257 and `test_party_relearn_recipes.py` unchanged). `DevPtySlim(int i)` = {8, 8 + 28i, 188, 24}; `DevPtyMenuKey(int k)` = {204, 8 + 28k, 108, 24}, k 0-5; `#define DEV_PTY_MENU_ROWS 6`. In the party file `static int DevPtyMenuKeys(const CtrBattleParty *p)` = the menu's rows less the last when its `menuDark` bit is set, and `static int DevPtyMenuFirst(const CtrBattleParty *p)` = keys > 6 ? clamp(menuCursor − 5, 0, keys − 6) : 0. Column key k is row first + k (hit `BUI_PTY_MENU + first + k`), its word from x + 10 (a field move in `DEV_BLUE_INK`, `DevKeyWordAtInk`); the dark last row is `kDevGridExit` (hit `BUI_PTY_MENU + n − 1`: `RunPlan` already makes it B); YES / NO: two column keys, no exit key. The cue (keys > 6 only): `DevTriangle(258, 4, 0, first > 0 ? DEV_DARK_INK : DEV_ARROW_OFF)`, `DevTriangle(258, 182, 1, first + 6 < keys ? DEV_DARK_INK : DEV_ARROW_OFF)`, not hit. The question / caption on `kDevGridNote` (`DevReadText`, from paper.x + 8); `DevPtyScreen` goes.
+- Produces: `CtrPartyGrid_Cols(int count)` returns 1 for every count; `CtrPartyGrid_Move(...)` returns −1 (FireRed's own list input: UP / DOWN, wrapping); the two-column arithmetic and its comment go, and with it `CtrPartyGrid_Rows`, `_Col`, `_Row`, `_ColLen` (no caller left once `DevPtyMenuKey` stops using them): the header keeps `CtrPartyGrid_Count`, `_Cols` (O2) and `_Move`, and says one column the lower screen scrolls (recipe 0257 and `test_party_relearn_recipes.py` unchanged). `DevPtySlim(int i)` = {8, 8 + 28i, 188, 24}; `DevPtyMenuKey(int k)` = {204, 8 + 28k, 108, 24}, k 0-5; `#define DEV_PTY_MENU_ROWS 6`. In the party file `static int DevPtyMenuKeys(const CtrBattleParty *p)` = the menu's rows less the last when its `menuDark` bit is set, and `static int DevPtyMenuFirst(const CtrBattleParty *p)` = keys > `DEV_PTY_MENU_ROWS` ? clamp(menuCursor − (`DEV_PTY_MENU_ROWS` − 1), 0, keys − `DEV_PTY_MENU_ROWS`) : 0. Column key k is row first + k (hit `BUI_PTY_MENU + first + k`), its word from x + 10 (a field move in `DEV_BLUE_INK`, `DevKeyWordAtInk`); the dark last row is `kDevGridExit` (hit `BUI_PTY_MENU + n − 1`: `RunPlan` already makes it B); YES / NO: two column keys, no exit key. The cue (keys > 6 only): `DevTriangle(258, 4, 0, first > 0 ? DEV_DARK_INK : DEV_ARROW_OFF)`, `DevTriangle(258, 182, 1, first + 6 < keys ? DEV_DARK_INK : DEV_ARROW_OFF)`, not hit. The question / caption on `kDevGridNote` (`DevReadText`, from paper.x + 8); `DevPtyScreen` goes.
 
-- [ ] **Step 1: Write the failing tests.** `party_grid_test.c`: `for (n = 1; n <= 8; ++n) { assert(CtrPartyGrid_Cols(n) == 1 && CtrPartyGrid_Rows(n) == n); for (i = 0; i < n; ++i) { assert(CtrPartyGrid_Col(n, i) == 0 && CtrPartyGrid_Row(n, i) == i); for (d = 0; d < 4; ++d) assert(CtrPartyGrid_Move(n, i, d) == -1); } }`. Layout `PartyMenuGrid`: `Same(DevPtyMenuKey(5), (CtrPokeTouchRect){204,148,108,24})`, every `DevPtySlim(i)` and `DevPtyMenuKey(k)` apart, the sixth key's drop ending ≤ 175; group "Party menu" {6 keys, `kDevGridExit`}. `party` suite, `menu8` (Review Focus 2: SUMMARY SWITCH ITEM CUT FLY HEAL REMEMBER CANCEL, CANCEL dark):
+- [ ] **Step 1: Write the failing tests.** `party_grid_test.c` (its two-column checks go): `for (n = 1; n <= 8; ++n) { assert(CtrPartyGrid_Cols(n) == 1 && CtrPartyGrid_Count(n) == n); for (i = 0; i < n; ++i) for (d = 0; d < 4; ++d) assert(CtrPartyGrid_Move(n, i, d) == -1); } assert(CtrPartyGrid_Count(9) == 8);`. Layout `PartyMenuGrid`: `Same(DevPtyMenuKey(5), (CtrPokeTouchRect){204,148,108,24})`, every `DevPtySlim(i)` and `DevPtyMenuKey(k)` apart, the sixth key's drop ending ≤ 175; group "Party menu" {6 keys, `kDevGridExit`}. `party` suite, `menu8` (Review Focus 2: SUMMARY SWITCH ITEM CUT FLY HEAL REMEMBER CANCEL, CANCEL dark):
 
 ```c
 v.pty.menuCursor = 0; DevCheckBattle(&old, &v);
@@ -445,9 +477,9 @@ int main(void) {
     return 0; }''')
 ```
 
-`choice` suite, priced block: the drinks (three priced rows and CANCEL) — `Count(k.x + k.w - 52, k.y + 12, 40, 12, DEV_KEY_INK2) > 0` on each priced key and `== 0` on CANCEL; a six-row priced prize menu — the price under the label (`Count(k.x, k.y + 21, k.w, 8, DEV_KEY_INK2) > 0`) on the 148-wide keys; a 23-character label with a price counts one cut (`assert(sDevKeyCut == 1); sDevKeyCut = 0;`); `v.choice.price[1][0] ^= 1` redraws (`DevWhole`).
+`choice` suite, priced block: the drinks (three priced rows and CANCEL) — `Count(k.x + k.w - 52, k.y + 12, 40, 12, DEV_KEY_INK2) > 0` on each priced key and `== 0` on CANCEL; a six-row priced prize menu — the price under the label (`Count(k.x, k.y + 21, k.w, 8, DEV_KEY_INK2) > 0`) on the 148-wide keys; a 23-character label with a price on a 304-wide key counts one cut, forced as `TouchSamePixels` does by widening the stub glyphs for that one draw (`fontWidths[c] = 12` for the label's capitals, 23 × 12 = 276 past the ≈ 242 px before the price, restored after; at 5 or 6 px no 23-byte label reaches any key's room) — `assert(sDevKeyCut == 1); sDevKeyCut = 0;`; `v.choice.price[1][0] ^= 1` redraws (`DevWhole`).
 - [ ] **Step 2: Run** — `python tools/dev.py test test_field_presentation test_device_views` → FAIL.
-- [ ] **Step 3: Make recipe 0267** — copy `build/dev/src/menu.c` (0171 applied) to `build/work/src/`, add the split and the price, have `CtrFieldChoice_Label` take the label; `python tools/make_recipe.py --before build/dev --after build/work --out patches/pokefirered/0267-field-choice-prices.json src/menu.c`; then the port side.
+- [ ] **Step 3: Make recipe 0267** — copy `build/dev/src/menu.c` (every earlier recipe applied, 0266 included) to `build/work/src/`, add the split and the price, have `CtrFieldChoice_Label` take the label; `python tools/make_recipe.py --before build/dev --after build/work --out patches/pokefirered/0267-field-choice-prices.json src/menu.c`; then the port side.
 - [ ] **Step 4: Run** — Step 2 → PASS; `python tools/dev.py build`; `python tools/dev.py test` → all PASS.
 - [ ] **Step 5: Task close** — render `choice_long` (or a new `choice_priced`) vs `def_choice_list.txt` (label at x 20, price right at 300 in #6A6A6A). Azahar: the Celadon roof's drinks, a Game Corner prize counter, the coin seller. Commit `feat: prices on the choices' keys (recipe 0267)`.
 
@@ -455,7 +487,7 @@ int main(void) {
 
 **Files:**
 - Modify: `3ds_device_layout.h` (`kDevBatScreen`, `kDevBatFight`, `kDevBatRow3`, `kDevBatRow4`), `3ds_device_battle_impl.h`
-- Test: `device_render_test.c` (`battle`: ACTION, IDLE), `device_layout_test.c` (`BattleFaults`, groups)
+- Test: `device_render_test.c` (`battle`: ACTION, IDLE), `device_layout_test.c` (`BattleFaults`, `SharedFaults`, groups)
 
 **Interfaces:**
 - Consumes: the kit's `DevKey` (LED), `DevDim`.
@@ -475,7 +507,7 @@ v.runBlocked = 1; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 260, 200)
 assert(at(234, 24) == DEV_INK && Count(89, 54, 160, 6, DEV_HP_FRAME) > 0);
 ```
 
-(the ball's probes on the board's balls; IDLE: every key dimmed, none sunk). Layout `BattleFaults` pins the five rects; groups "battle, a trainer" and "battle, wild" keep the rules (FIGHT's drop 159 < 168).
+(the ball's probes on the board's balls; IDLE: every key dimmed, none sunk). Layout `BattleFaults` pins the five rects; `SharedFaults:393` becomes `DevAcross(4, i, 168, 62) == kDevBatRow4[i]` (and `3ds_device_layout.h`'s `DevAcross` comment says y 168); groups "battle, a trainer" and "battle, wild" keep the rules (FIGHT's drop 159 < 168).
 - [ ] **Step 2: Run** — `python tools/dev.py test test_device_views` → FAIL.
 - [ ] **Step 3: Implement** per Interfaces (`DevBatLead`, `DevBatFightKey`, `DevBatRowKey`, `DevBatBallKey` on the new rects).
 - [ ] **Step 4: Run** — Step 2 → PASS; `python tools/dev.py test` → all PASS.
@@ -485,13 +517,13 @@ assert(at(234, 24) == DEV_INK && Count(89, 54, 160, 6, DEV_HP_FRAME) > 0);
 
 **Files:**
 - Modify: `3ds_device_layout.h` (`kDevBatMove`; delete `kDevBatMoveScreen`, `kDevBatCancel`), `3ds_device_battle_impl.h`
-- Test: `device_render_test.c` (`battle`: MOVE, TARGET, SAFARI, IDLE Safari), `device_layout_test.c`
+- Test: `device_render_test.c` (`battle`: MOVE, TARGET, SAFARI, IDLE Safari), `device_layout_test.c` (`BattleFaults`, `SharedFaults`, the named-rect table)
 
 **Interfaces:**
-- Consumes: `kDevGridNote`, `kDevGridNoteWide`, `kDevGridExit`, `DevTypeChip`, `DevSmallFit`, `DevReadText`, `DevBackWord`, `DEV_TAG_STAB`, `DEV_KEY_INK2`.
+- Consumes: `kDevGridNote`, `kDevGridNoteWide`, `kDevGridExit`, `DevTypeChip`, `DevSmallFit`, `DevReadText`, `DevBackWord`, `DevCategoryWord`, `DevPowAcc`, `DEV_TAG_STAB`, `DEV_KEY_INK2`.
 - Produces: `kDevBatMove[i]` = `DevAcross(2, i % 2, 8 + 90(i / 2), 84)`: {8,8,148,84} {164,8,148,84} {8,98,148,84} {164,98,148,84}.
   - A move key: the name from x + 10 capitals faceY + 11; the type chip (`DevTypeChip`, 12 tall) at (x + 10, faceY + 28); the matchup 4 px after it at faceY + 28, or "STATUS" small `DEV_KEY_INK2` capitals faceY + 29; the pips at (x + 10, faceY + 64); "PP" small `DEV_KEY_INK2` and the numbers right at x + w − 10 capitals faceY + 63; a hole for no move.
-  - The footer (MOVE: the move under a held touch, else the cursor's; none: empty): chips 10 tall at paper.y + 2 — type from x 20, then category, then "STAB" (`DEV_TAG_STAB`) when `stab`; `"%s %s  %s %s"` POW / ACC (`CTR_TR("POW", "POT", "ST\xC3\x84")`, `CTR_TR("ACC", "PRE", "GEN")`) small `DEV_INK` right-aligned at paper.x + paper.w − 4, capitals paper.y + 2; FireRed's description small `DEV_INK2` from capitals paper.y + 13, two lines (`DevSmallFit`, x 20 to 224), else "EFFECT n%" there.
+  - The footer (MOVE: the move under a held touch, else the cursor's; none: empty): chips 10 tall at paper.y + 2 — type from x 20, then category (`DevCategoryWord`), then "STAB" (`DEV_TAG_STAB`) when `stab`; POW / ACC (`DevPowAcc`) small `DEV_INK` right-aligned at right = paper.x + paper.w − 4, capitals paper.y + 2, starting no further left than the chips' end + 6; when chipsEnd + 6 + its width passes right (ES / DE with a physical STAB move), it is instead the first small line at capitals paper.y + 13 and the description keeps one line. FireRed's description small `DEV_INK2` from capitals paper.y + 13 (+ 10 under a moved POW / ACC), two lines (`DevSmallFit`, x 20 to 224; one when POW / ACC moved), else "EFFECT n%" there.
   - TARGET: the same keys (the HP bar `DevHpBar(x + 10, faceY + 64, 72, 5, …)`, an ally's numbers right capitals faceY + 63); the footer `DevReadText` of today's "Which POKéMON should the move hit?" words.
   - MOVE and TARGET: BACK `kDevGridExit`, dark, `DevBackWord()`, sunk by `DevChosen(BUI_CANCEL, cursor, pressed)`, hit `BUI_CANCEL`; the hint and `DEV_BAT_SHADOW_A` go.
   - SAFARI: the four keys at `kDevBatMove` (art and word as today), "What will you do?" (today's words) on `kDevGridNoteWide` via `DevReadText`; no exit key; IDLE Safari: no question, the keys dimmed.
@@ -509,7 +541,7 @@ mv.cursor = BUI_CANCEL; DevCheckBattle(&mo, &mv); AssertKey(kDevGridExit, DEV_LO
 /* SAFARI */ for (i = 0; i < 4; ++i) AssertHits(BatHitV, &sv, kDevBatMove[i], i); assert(CtrBattleUi_Hit(&sv, 278, 210) == -1 && Count(14, 196, 292, 30, DEV_INK) > 0);
 ```
 
-Layout: `kDevBatMove[i]` pinned; groups "battle moves" {4 keys, `kDevGridExit`} and "Safari" {4 keys}; the lower keys' drops end ≤ 186.
+The MOVE block adds a physical STAB move as the cursor's (its footer drawn in the ES / DE fit runs: no chip overlapped, no cut). Layout: `kDevBatMove[i]` pinned; `SharedFaults:395` becomes `DevAcross(2, i % 2, 8 + 90 * (i / 2), 84) == kDevBatMove[i]` for i < 4 (and `3ds_device_layout.h`'s `DevAcross` comment says y 8, 84 tall); `BattleFaults`' moves-screen clearance (:173) and the named-rect table's "battle moves' screen" and "battle CANCEL" (848-852) go (BACK is `kDevGridExit`); groups "battle moves" {4 keys, `kDevGridExit`} and "Safari" {4 keys}; the lower keys' drops end ≤ 186.
 - [ ] **Step 2: Run** — `python tools/dev.py test test_device_views` → FAIL.
 - [ ] **Step 3: Implement** per Interfaces (`DevBatMoveKey`, `DevBatTargetKey`, a footer function in place of `DevBatMoveScreen`, `DevBatMoves`, `DevBatSafari`, `CtrBattleUi_Hit`, `DevBatUndrawn` for what the footer now draws).
 - [ ] **Step 4: Run** — Step 2 → PASS; `python tools/dev.py test` → all PASS.
@@ -518,12 +550,12 @@ Layout: `kDevBatMove[i]` pinned; groups "battle moves" {4 keys, `kDevGridExit`} 
 ### Task 14: Forget a move
 
 **Files:**
-- Modify: `3ds_device_layout.h` (the learn rects; add `kDevLearnRule`), `3ds_device_learn_impl.h`
+- Modify: `3ds_device_layout.h` (the learn rects; delete `kDevLearnScreen`; add `kDevLearnRule`), `3ds_device_learn_impl.h`
 - Test: `device_suite_learn.h`, `device_layout_test.c`
 
 **Interfaces:**
-- Consumes: `kDevGridTitle`, `kDevGridNote`, `kDevGridExit`, `DevColumnRow`, `DevTypeChip`, `DevSmallFit`, `DEV_TAG_NEW`, `DEV_RULE`.
-- Produces: `kDevLearnScreen {8,40,304,144}`, `kDevLearnColumn {14,46,104,132}`, `kDevLearnPic {34,76,64,64}`, `DevLearnSlot(int i)` = i < 4 ? {124, 48 + 24i, 176, 22} : {124, 150, 176, 22}, `kDevLearnRule {124,146,176,1}` (`DEV_RULE`). The column: the name capitals 52, "Lv" small capitals 66, the picture, `DevColumnRow(146, POWER, …, 20, 110)`, `DevColumnRow(160, ACCURACY, …, 20, 110)`. A row: the name from x 130 capitals r.y + 7; on row 4 first a "NEW" chip (`CTR_TR("NEW", "NUEVO", "NEU")`, `DEV_TAG_NEW`, 12 tall at (130, r.y + 5)) and the name 3 px after it; the type chip (`DevTypeChip`, 12 tall) at (216, r.y + 5); the PP right at 298 capitals r.y + 7, no shadow; the name cut before 212. The footer (paper (14,196,216,30)): the description small `DEV_INK`, capitals 198 and 208 (`DevSmallFit`, 2 lines, x 20 to 224); the hint small `DEV_INK2` capitals 218 for the cursor's row: rows 0-3 `CTR_TR("TAP AGAIN TO FORGET IT.", "TOCA OTRA VEZ PARA OLVIDARLO.", "NOCHMAL TIPPEN ZUM VERGESSEN.")`, a locked (HM) row `CTR_TR("HM MOVES CAN'T BE FORGOTTEN.", "LAS MO NO SE PUEDEN OLVIDAR.", "VM K\xC3\x96NNEN NICHT VERGESSEN WERDEN.")`, row 4 `CTR_TR("TAP AGAIN TO SKIP IT.", "TOCA OTRA VEZ PARA NO APRENDERLO.", "NOCHMAL TIPPEN ZUM AUSLASSEN.")`. BACK `kDevGridExit` (`DevLearnBackKey`). `DevLearnSame` compares the cursor row's `locked` (the hint draws it), still not the others'.
+- Consumes: `kDevGridTitle`, `kDevGridWide`, `kDevGridNote`, `kDevGridExit`, `DevColumnRow`, `DevTypeChip`, `DevSmallFit`, `DEV_TAG_NEW`, `DEV_RULE`.
+- Produces: the screen on `kDevGridWide` {8,40,304,144} (`kDevLearnScreen` goes: no view-named copy of a grid rect), `kDevLearnColumn {14,46,104,132}`, `kDevLearnPic {34,76,64,64}`, `DevLearnSlot(int i)` = i < 4 ? {124, 48 + 24i, 176, 22} : {124, 150, 176, 22}, `kDevLearnRule {124,146,176,1}` (`DEV_RULE`). The column: the name capitals 52, "Lv" small capitals 66, the picture, `DevColumnRow(146, POWER, …, 20, 110)`, `DevColumnRow(160, ACCURACY, …, 20, 110)`. A row: the name from x 130 capitals r.y + 7; on row 4 first a "NEW" chip (`CTR_TR("NEW", "NUEVO", "NEU")`, `DEV_TAG_NEW`, 12 tall at (130, r.y + 5)) and the name 3 px after it; the type chip (`DevTypeChip`, 12 tall) at (216, r.y + 5); the PP right at 298 capitals r.y + 7, no shadow; the name cut before 212. The footer (paper (14,196,216,30); Call 18): the description small `DEV_INK`, capitals 198 and 208 (`DevSmallFit`, 2 lines, x 20 to 224); the hint small `DEV_INK2` capitals 218 for the cursor's row: rows 0-3 `CTR_TR("TAP AGAIN TO FORGET IT.", "TOCA OTRA VEZ PARA OLVIDARLO.", "NOCHMAL TIPPEN ZUM VERGESSEN.")`, a locked (HM) row `CTR_TR("HM MOVES CAN'T BE FORGOTTEN.", "LAS MO NO SE PUEDEN OLVIDAR.", "VM K\xC3\x96NNEN NICHT VERGESSEN WERDEN.")`, row 4 `CTR_TR("TAP AGAIN TO SKIP IT.", "TOCA OTRA VEZ PARA NO APRENDERLO.", "NOCHMAL TIPPEN ZUM AUSLASSEN.")`. BACK `kDevGridExit` (`DevLearnBackKey`). `DevLearnSame` compares the cursor row's `locked` (the hint draws it), still not the others'.
 
 - [ ] **Step 1: Write the failing tests** (`learn` suite; four moves and SLASH new, the cursor on row 1):
 
@@ -535,7 +567,7 @@ lv.learn.row[1].locked = 1; assert(DevWhole(DevCheckTouch(&lo, &lv)));
 lv.learn.row[2].locked ^= 1; lv.mapGroup ^= 1; lv.speed ^= 1; assert(DevCheckTouch(&lo, &lv).count == 0);
 ```
 
-Layout: the column and `DevLearnSlot(0..4)` inside `kDevLearnScreen`'s paper; group "the move to forget" {`kDevGridExit`}.
+Layout: the column and `DevLearnSlot(0..4)` inside `kDevGridWide`'s paper (rows 22 tall, 24 apart: the board's exception to the list rule); group "the move to forget" {`kDevGridExit`}.
 - [ ] **Step 2: Run** — `python tools/dev.py test test_device_views` → FAIL.
 - [ ] **Step 3: Implement** per Interfaces (`DevLearnColumn`, `DevLearnRow`, `DevLearnDraw`, `CtrPokeTouch_LearnHit`, `DevLearnSame`).
 - [ ] **Step 4: Run** — Step 2 → PASS; `python tools/dev.py test` → all PASS (ES/DE: the hints fit 204 px).
@@ -548,8 +580,8 @@ Layout: the column and `DevLearnSlot(0..4)` inside `kDevLearnScreen`'s paper; gr
 - Test: `device_suite_relearn.h`, `device_layout_test.c`; `tools/test_make_device_boards.py` stays green (relearn_list keeps a chip and ▼)
 
 **Interfaces:**
-- Consumes: `DevGridRow`, `kDevGridScreen(Narrow)`, `kDevGridUp/Down`, `kDevGridNote`, `kDevGridExit`, `DevGridColumnKey`, `DevArrowKeys`, `DevTypeChip`, `DevSmallFit`, `DevCancelWord`.
-- Produces: LIST — rows `DevGridRow(i, 0)`: the name from r.x + 6 capitals r.y + 8 (cut before 166), the type chip (`DevTypeChip`, 12 tall) at (170, r.y + 6), `"PP %s"` of `row[i].pp` right at r.x + r.w − 6 capitals r.y + 8 in the row's ink, no shadow; ▲▼ `DevArrowKeys(&kDevGridUp, &kDevGridDown, …)`; the footer: the type chip 10 tall at (20, paper.y + 2), "POW n  ACC n" small `DEV_INK2` 4 px after it capitals paper.y + 2, the description small `DEV_INK` from capitals paper.y + 13, two lines (`DevSmallFit`, x 20 to 224); CANCEL `kDevGridExit` dark `DevCancelWord()` (code 235, one tap = B, unchanged). YESNO (def_bag_menu's pattern) — the question on `kDevGridScreenNarrow` (as today on the narrow screen), YES `DevGridColumnKey(40, 36, 30, 0)` and NO `DevGridColumnKey(40, 36, 30, 1)`, both cream, sunk by `menuCursor`; the move (chip and name) on `kDevGridNote`; no CANCEL. MESSAGE and BLANK as today on the grid names.
+- Consumes: `DevGridRow`, `kDevGridScreen(Narrow)`, `kDevGridUp/Down`, `kDevGridNote`, `kDevGridExit`, `DevGridColumnKey`, `DevArrowKeys`, `DevTypeChip`, `DevSmallFit`, `DevCancelWord`, `DevPowAcc`.
+- Produces: LIST — rows `DevGridRow(i, 0)`: the name from r.x + 6 capitals r.y + 8 (cut before 166), the type chip (`DevTypeChip`, 12 tall) at (170, r.y + 6), `"PP %s"` of `row[i].pp` right at r.x + r.w − 6 capitals r.y + 8 in the row's ink, no shadow; ▲▼ `DevArrowKeys(&kDevGridUp, &kDevGridDown, …)`; the footer: the type chip 10 tall at (20, paper.y + 2), "POW n  ACC n" (`DevPowAcc`) small `DEV_INK2` 4 px after it capitals paper.y + 2, the description small `DEV_INK` from capitals paper.y + 13, two lines (`DevSmallFit`, x 20 to 224); CANCEL `kDevGridExit` dark `DevCancelWord()` (code 235, one tap = B, unchanged). YESNO (the Decision "Relearn YES/NO … keys in the column": unlike the Bag's YES / NO of Task 4, no key in the exit corner) — the question on `kDevGridScreenNarrow` (as today on the narrow screen), YES `DevGridColumnKey(40, 36, 30, 0)` and NO `DevGridColumnKey(40, 36, 30, 1)`, both cream, sunk by `menuCursor`; the move (chip and name) on `kDevGridNote`; no CANCEL. MESSAGE and BLANK as today on the grid names.
 
 - [ ] **Step 1: Write the failing tests** (`relearn` suite):
 
