@@ -1,5 +1,5 @@
 /* ---- choice: the field's choices and YES / NO on the grid (boards def_choice_yesno, def_choice_list and
- * def_choice_grid; plan 04a Task 10), through the field dispatcher -------------------------------------------------
+ * def_choice_grid; plan 04a Tasks 10 and 11), through the field dispatcher ----------------------------------------
  * Included by device_render_test.c before its kSuites. */
 
 /* The grid's note's paper (kDevGridNote 6 px in). */
@@ -47,13 +47,16 @@ static CtrPokeTouchView ChoiceBoard(int n, int cols)
     return v;
 }
 
-/* Upper case (owner decision 5): FireRed's labels, which v0.6.0 title-cased, in capitals; FireRed's question as it is. */
+/* Upper case (owner decision 5): FireRed's labels and prices, which v0.6.0 title-cased, in capitals; FireRed's question
+ * as it is. */
 static void ChoiceUpperCase(CtrPokeTouchView v)
 {
     CtrPokeTouchView cased = v;
 
-    for (int i = 0; i < PT_CHOICE_MAX; ++i)
+    for (int i = 0; i < PT_CHOICE_MAX; ++i) {
         CtrTextCase(cased.choice.label[i]);                     /* "FRESH WATER" -> "Fresh Water" */
+        CtrTextCase(cased.choice.price[i]);                     /* "180 COINS" -> "180 Coins" */
+    }
     TouchSamePixels(&cased, &v, 1, "the labels in v0.6.0's case and as FireRed writes them");
     cased = v;
     DevUpper(cased.choice.prompt, v.choice.prompt, sizeof(cased.choice.prompt));
@@ -84,9 +87,92 @@ static void ChoiceQuestion(CtrPokeTouchView *old, CtrPokeTouchView v)
     v.choice.prompt[0] = 0; DevCheckTouch(old, &v); assert(CountIn(kChoicePaper, DEV_INK) == 0);
 }
 
+/* Port-written prices (recipe 0267 splits FireRed's priced rows into the label and the price). */
+static const char *const kChoiceDrink[3] = {"\xC2\xA5" "200", "\xC2\xA5" "300", "\xC2\xA5" "350"};
+static const char *const kChoicePrize[5] = {"180 COINS", "500 COINS", "2,800 COINS", "5,500 COINS", "9,999 COINS"};
+
+/* A priced choice (def_choice_list's drinks: three priced rows and CANCEL): on a list's key across the screen the price
+ * ends 12 px in from the right in the keys' secondary ink without a shadow, the label from 12 px in with its own;
+ * on a narrower key (a prize menu of six rows in two columns, FireRed's grid) the label centred with its capitals 10 px
+ * down the face and the price small and centred under it (capitals 21 px down); an unpriced row and YES / NO show no
+ * price; a label too wide for what the price leaves is cut 8 px before it and counted; a price changed draws the choice
+ * whole. */
+static void ChoicePrices(CtrPokeTouchView *old)
+{
+    static uint8_t keep[256];
+    CtrPokeTouchView v = ChoiceBoard(4, 0), wide;
+    CtrPokeTouchRect k;
+    int i, x, w;
+
+    /* the drinks: the price at the right of each priced key, up or sunk; none on CANCEL */
+    strcpy(v.choice.label[3], "CANCEL");
+    for (i = 0; i < 3; ++i)
+        strcpy(v.choice.price[i], kChoiceDrink[i]);
+    DevCheckTouch(old, &v);
+    for (i = 0; i < 4; ++i) {
+        k = DevChoiceKey(4, 0, i);
+        assert((Count(k.x + k.w - 52, k.y + 12, 40, 12, DEV_KEY_INK2) > 0) == (i < 3));
+        assert(Count(k.x + k.w - 12, k.y, 12, k.h + DEV_DROP, DEV_KEY_INK2) == 0);           /* ends 12 px in */
+        assert(Count(k.x, k.y, 12, k.h + DEV_DROP, DEV_KEY_INK2) == 0);
+    }
+    k = DevChoiceKey(4, 0, 1);                       /* up: the label from 12 px in, shadowed; the price not */
+    assert(Count(k.x + 12, k.y, 2, k.h, DEV_KEY_INK) > 0 && Count(k.x + k.w - 52, k.y, 40, k.h, DEV_KEY_INK) == 0);
+    assert(Count(k.x + k.w - 52, k.y + 4, 40, k.h - 8, DEV_WHITE) == 0
+           && Count(k.x, k.y + 8, k.w / 2, k.h - 16, DEV_WHITE) > 0);
+    assert(LedAt(DevChoiceKey(4, 0, 0)));            /* the cursor's key sunk, its LED clear of the price */
+
+    /* six priced rows in two columns: the label above, the price under it, both centred; the sixth unpriced */
+    v = ChoiceBoard(6, 0); v.choice.cursor = 2; strcpy(v.choice.label[5], "CANCEL");
+    for (i = 0; i < 5; ++i)
+        strcpy(v.choice.price[i], kChoicePrize[i]);
+    DevCheckTouch(old, &v);
+    for (i = 0; i < 6; ++i) {
+        k = DevChoiceKey(6, 0, i);
+        assert(k.w == 148 && (Count(k.x, k.y + 21, k.w, 8, DEV_KEY_INK2) > 0) == (i < 5));
+    }
+    k = DevChoiceKey(6, 0, 1); x = k.x + (k.w - DevTextWidth("SODA POP")) / 2;
+    assert(Count(k.x, k.y, x - k.x, k.h, DEV_KEY_INK) == 0 && Count(x, k.y + 10, 2, 9, DEV_KEY_INK) > 0);
+    assert(Count(k.x, k.y, k.w, 10, DEV_KEY_INK) == 0 && Count(k.x, k.y + 20, k.w, k.h - 20, DEV_KEY_INK) == 0);
+    w = DevSmallTextWidth(kChoicePrize[1]); x = k.x + (k.w - w) / 2;
+    assert(Count(k.x, k.y + 21, x - k.x, 8, DEV_KEY_INK2) == 0 && Count(x, k.y + 21, w, 8, DEV_KEY_INK2) > 0
+           && Count(x + w, k.y + 21, k.x + k.w - x - w, 8, DEV_KEY_INK2) == 0);
+    k = DevChoiceKey(6, 0, 2); assert(LedAt(k) && Count(k.x, k.y + 23, k.w, 8, DEV_KEY_INK2) > 0);     /* sunk */
+    v.choice.cols = 3; DevCheckTouch(old, &v);       /* FireRed's grid: keys of 96, the same */
+    k = DevChoiceKey(6, 3, 4); assert(k.w == 96 && Count(k.x, k.y + 21, k.w, 8, DEV_KEY_INK2) > 0);
+
+    /* YES / NO: no price */
+    v = ChoiceBoard(2, 0); strcpy(v.choice.price[0], kChoiceDrink[0]); strcpy(v.choice.price[1], kChoiceDrink[1]);
+    DevCheckTouch(old, &v);
+    assert(Count(8, 8, 304, 180, DEV_KEY_INK2) == 0);
+
+    /* a label too wide for the room the price leaves: cut 8 px before the price, counted once a draw (no stub or pack
+     * glyph makes 23 letters that wide: the capitals widened for that one draw, as TouchSamePixels does; drawn without
+     * BACK and the question, whose words widen too: German BACK would be cut as well) */
+    v = ChoiceBoard(4, 0); strcpy(v.choice.label[1], "TWENTY-THREE CHARACTERS");
+    strcpy(v.choice.price[1], "\xC2\xA5" "1,000,000");
+    assert(strlen(v.choice.label[1]) == 23);
+    DevCheckTouch(old, &v); assert(sDevKeyCut == 0);
+    wide = v; wide.backVisible = 0; wide.choice.prompt[0] = 0;
+    memcpy(keep, fontWidths, sizeof(keep));
+    for (unsigned c = 0xbb; c <= 0xd4; ++c)          /* A..Z */
+        fontWidths[c] = 12;
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    CtrPokeTouch_Draw(canvas, &wide);
+    k = DevChoiceKey(4, 0, 1); x = k.x + k.w - 12 - DevTextWidth(v.choice.price[1]);
+    assert(sDevKeyCut == 1 && Count(x - 8, k.y, 8, k.h, DEV_KEY_INK) == 0
+           && Count(k.x + 12, k.y, 2, k.h, DEV_KEY_INK) > 0);
+    memcpy(fontWidths, keep, sizeof(keep));
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    sDevKeyCut = 0;
+    CtrPokeTouch_Draw(canvas, old);                  /* the canvas as `old` again */
+    /* a price changed: the choice whole */
+    v.choice.price[1][0] ^= 1; assert(DevWhole(DevCheckTouch(old, &v)));
+}
+
 /* The plan's suite (YES / NO two tall keys; every key hit where drawn in one column, in two and in FireRed's grids;
  * BACK in the exit corner; nothing hit between the keys and the footer; the question on the note), then the layouts,
- * the keys' looks and words, the question, BACK's states, the ways in and out, upper case and the states for the eye. */
+ * the keys' looks and words, the question, the prices, BACK's states, the ways in and out, upper case and the states for
+ * the eye. */
 static void SuiteChoice(void)
 {
     CtrPokeTouchView v = ChoiceBoard(8, 0), old = v, other;
@@ -151,6 +237,8 @@ static void SuiteChoice(void)
 
     /* the question on the note's paper in the paper's ink */
     ChoiceQuestion(&old, ChoiceBoard(4, 0));
+    /* the prices */
+    ChoicePrices(&old);
     /* BACK in the exit corner: dark, sunk under a touch, grey while it cannot be used, gone (and not hit) while not
      * shown */
     v = ChoiceBoard(2, 0); DevCheckTouch(&old, &v);
@@ -171,7 +259,7 @@ static void SuiteChoice(void)
     v = ChoiceBoard(2, 0); assert(DevWhole(DevCheckTouch(&old, &v)));
     v.viewport = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && DrawnBy(&v, DevFrameShown) && CtrPokeTouch_ChoiceHit(&v, 20, 20) == -1);
     v = ChoiceBoard(2, 0); DevCheckTouch(&old, &v);
-    ChoiceUpperCase(ChoiceBoard(8, 0));
+    other = ChoiceBoard(8, 0); strcpy(other.choice.price[0], kChoicePrize[0]); ChoiceUpperCase(other);
     CtrPokeTouch_Draw(canvas, &old);
 
     /* The states for the eye, each through Update first. */
@@ -184,5 +272,13 @@ static void SuiteChoice(void)
     assert(strlen(v.choice.label[1]) == 23);
     DevCheckTouch(&old, &v); shot("long");
     strcpy(v.choice.prompt, kChoiceThree); DevCheckTouch(&old, &v); shot("question");
+    v = ChoiceBoard(4, 0); strcpy(v.choice.label[3], "CANCEL");
+    for (i = 0; i < 3; ++i)
+        strcpy(v.choice.price[i], kChoiceDrink[i]);
+    DevCheckTouch(&old, &v); shot("priced");
+    v = ChoiceBoard(6, 0); v.choice.cursor = 2; strcpy(v.choice.label[5], "CANCEL");
+    for (i = 0; i < 5; ++i)
+        strcpy(v.choice.price[i], kChoicePrize[i]);
+    DevCheckTouch(&old, &v); shot("prizes");
     assert(sDevKeyCut == 0);                      /* main prints PASS device choice */
 }

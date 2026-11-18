@@ -10,6 +10,9 @@
  *
  * Words (decision 5): FireRed's labels (which v0.6.0 title-cased) through DevUpper, in the normal font, from 12 px in on
  * a list's key across the screen and centred on the others; its question as FireRed writes it; BACK's word the port's.
+ * A priced row (recipe 0267 splits FireRed's label at its CLEAR_TO: the drinks, the Game Corner's coins and prizes)
+ * shows its price in the keys' secondary ink: ending 12 px in from the right of a list's key, or small under the label
+ * on a narrower key; YES / NO never has one.
  *
  * Redraw: the screen whole when the choice as drawn differs (DevChoiceSame), and nothing else. */
 
@@ -39,11 +42,53 @@ int CtrPokeTouch_ChoiceHit(const CtrPokeTouchView *v, int x, int y)
     return -1;
 }
 
+/* YES / NO: two rows in FireRed's one column, the two tall keys (def_choice_yesno). */
+static int DevChoiceYesNo(const CtrPokeTouchChoice *c)
+{
+    return c->count == 2 && c->cols < 2;
+}
+
 /* Where key r's word starts: 12 px in on a list's key across the screen (def_choice_list); 0, centred, on YES / NO's
  * tall keys (def_choice_yesno) and on a key of two or three columns (def_choice_grid). */
 static int DevChoiceInset(const CtrPokeTouchChoice *c, const CtrPokeTouchRect *r)
 {
-    return r->w == 304 && !(c->count == 2 && c->cols < 2) ? 12 : 0;
+    return r->w == 304 && !DevChoiceYesNo(c) ? 12 : 0;
+}
+
+/* `word` as it fits `room`: itself, or cut with "..." into `cut` and counted in sDevKeyCut. */
+static const char *DevChoiceFit(const char *word, int room, char *cut, size_t size)
+{
+    if (DevTextWidth(word) <= room)
+        return word;
+    DevCutText(word, room, cut, size);
+    ++sDevKeyCut;
+    return cut;
+}
+
+/* A priced key's label and price. On a list's key (`inset` 12, def_choice_list) the price ends `inset` px in from the
+ * right in DEV_KEY_INK2 without a shadow and the label runs from `inset` px in to 8 px before it, both centred down the
+ * key; on a narrower one the label centred across with its capitals 10 px down the face and the price small and centred
+ * under it, its capitals 21 px down. What does not fit is cut and counted. */
+static void DevChoicePriced(const CtrPokeTouchRect *r, int faceY, int sunk, const char *word, const char *price,
+                            int inset)
+{
+    uint16_t ink = DevKeyInk(DEV_LOOK_KEY, sunk), shadow = DevKeyInkShadow(DEV_LOOK_KEY, sunk);
+    char cut[32];
+    int w;
+
+    if (inset) {
+        int right = r->x + r->w - inset, end = right - DevTextWidth(price) - 8, top = faceY + (r->h - UI_TEXT_H) / 2;
+
+        DevTextRight(price, right, top, DEV_KEY_INK2);
+        DevTextInk(DevChoiceFit(word, end - (r->x + inset), cut, sizeof(cut)), r->x + inset, top, end, ink, shadow);
+        return;
+    }
+    word = DevChoiceFit(word, r->w - 8, cut, sizeof(cut));
+    DevTextInk(word, r->x + (r->w - DevTextWidth(word)) / 2, faceY + 10, r->x + r->w - 4, ink, shadow);
+    w = DevSmallTextWidth(price);
+    if (w > r->w - 8)
+        ++sDevKeyCut;
+    DevSmallText(price, w > r->w - 8 ? r->x + 4 : r->x + (r->w - w) / 2, faceY + 21, DEV_KEY_INK2, r->x + r->w - 4);
 }
 
 /* The choice whole (after DevBegin: the dispatcher's). */
@@ -51,7 +96,7 @@ static void DevChoiceDraw(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchChoice *c = &v->choice;
     CtrPokeTouchRect paper;
-    char word[sizeof(c->label[0])];
+    char word[sizeof(c->label[0])], price[sizeof(c->price[0])];
 
     DevShell();
     for (int i = 0; i < DevChoiceCount(c); ++i) {
@@ -59,7 +104,11 @@ static void DevChoiceDraw(const CtrPokeTouchView *v)
         int sunk = DevChosen(i, c->cursor, c->pressed - PT_CHOICE_HIT_ROW), faceY = DevKey(&r, DEV_LOOK_KEY, sunk, 6);
 
         DevUpper(word, c->label[i], sizeof(word));
-        DevKeyWordAt(&r, faceY, DEV_LOOK_KEY, sunk, word, DevChoiceInset(c, &r));
+        DevUpper(price, c->price[i], sizeof(price));
+        if (price[0] && !DevChoiceYesNo(c))
+            DevChoicePriced(&r, faceY, sunk, word, price, DevChoiceInset(c, &r));
+        else
+            DevKeyWordAt(&r, faceY, DEV_LOOK_KEY, sunk, word, DevChoiceInset(c, &r));
     }
     paper = DevScreen(&kDevGridNote);
     if (c->prompt[0])

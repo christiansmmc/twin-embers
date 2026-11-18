@@ -592,6 +592,31 @@ int main(void) {
         self.assertEqual([f['path'] for f in doc['files']], ['src/pokemon_summary_screen.c'])
         self.assertRegex((ROOT / '3ds_port/include/3ds_summary.h').read_text(encoding='utf-8'), r'unsigned char ribbons;\s*unsigned char contact;')
 
+    def test_choice_prices_split(self):
+        """A priced multichoice row (FireRed's "FRESH WATER{CLEAR_TO 0x57}{FONT_SMALL}¥200", the Game Corner's
+        "{FONT_SMALL} 50 COINS{CLEAR_TO 0x45}¥1,000") reaches the lower screen as its label and its price (recipe 0267)."""
+        name = '0267-field-choice-prices.json'
+        added = additions(name, 'src/menu.c')
+        self.assertIn('void CtrFieldChoice_Price(int index, char *out, int size)', added)
+        self.assertEqual([f['path'] for f in json.loads((ROOT / 'patches/pokefirered' / name).read_text())['files']], ['src/menu.c'])
+        self.run_c('''#include <assert.h>
+#include <string.h>
+typedef unsigned char u8;
+#define EOS 0xFF
+#define EXT_CTRL_CODE_BEGIN 0xFC
+#define EXT_CTRL_CODE_CLEAR_TO 0x13
+static u8 GetExtCtrlCodeLength(u8 code) { return code == 0x06 || code == 0x13 ? 2 : 1; }
+''' + function(added, 'CtrFieldChoice_Split') + '''
+int main(void) {
+    static const u8 a[] = {0xC0, 0xC1, 0xFC, 0x13, 0x57, 0xFC, 0x06, 0x00, 0xA1, 0xA2, 0xFF};
+    static const u8 b[] = {0xFC, 0x06, 0x00, 0x00, 0xC0, 0xFC, 0x13, 0x45, 0xA1, 0xFF}, c[] = {0xC0, 0xFF};
+    u8 l[8], p[8];
+    CtrFieldChoice_Split(a, l, p, 8); assert(!memcmp(l, "\\xC0\\xC1\\xFF", 3) && !memcmp(p, "\\xA1\\xA2\\xFF", 3));
+    CtrFieldChoice_Split(b, l, p, 8); assert(!memcmp(l, "\\xC0\\xFF", 2) && !memcmp(p, "\\xA1\\xFF", 2));
+    CtrFieldChoice_Split(c, l, p, 8); assert(!memcmp(l, "\\xC0\\xFF", 2) && p[0] == 0xFF);
+    CtrFieldChoice_Split(a, l, p, 2); assert(l[0] == 0xC0 && l[1] == 0xFF);
+    return 0; }''')
+
     def test_device_drawers_write_non_ascii_as_escapes(self):
         """A string literal in a device drawer holds ASCII and backslash escapes only (UTF-8 spelled as bytes, as the codebase
         does): a raw non-ASCII character there is saved as other bytes and draws the wrong letters (ES YES was "S" plus two

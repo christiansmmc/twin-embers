@@ -291,7 +291,8 @@ typedef struct {
 
 /* A choice of the field (a script's multichoice, YES/NO or grid, the PC's menus) drawn by the port as the red device
  * (3ds_device_choice_impl.h), a remote for FireRed's menu: its rows as keys (cols > 0: a grid of that many columns),
- * the cursor's, and the question of the message box. A row is asked of the menu and taken with its A; BACK is its B. */
+ * each with its price when FireRed's row has one (empty when not), the cursor's, and the question of the message box.
+ * A row is asked of the menu and taken with its A; BACK is its B. */
 #define PT_CHOICE_MAX 8
 enum { PT_CHOICE_HIT_ROW = 100 };
 typedef struct {
@@ -300,6 +301,7 @@ typedef struct {
     int8_t cursor;
     int16_t pressed;                /* the hit code under a held touch, or -1 */
     char label[PT_CHOICE_MAX][24];
+    char price[PT_CHOICE_MAX][12];
     char prompt[160];
 } CtrPokeTouchChoice;
 
