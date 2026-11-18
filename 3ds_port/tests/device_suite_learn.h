@@ -221,8 +221,9 @@ static void SuiteLearn(void)
         assert(Count(298 - pp, r.y + 7, pp, 8, ink) > 0 && Count(298 - pp, r.y, pp, 5, ink) == 0 && Count(298, r.y, 2, r.h, ink) == 0);
         assert(Count(260, r.y, 40, r.h, DEV_INK_SH) == 0 && (i == 1) == (Count(130, r.y + 15, 80, 1, DEV_INK_SH) == 0));
     }
-    /* the new one: NEW on its chip 12 tall at (130, 155), the name 3 px after it; the rule over it (kDevLearnRule) */
-    r = DevLearnSlot(4); w = DevSmallTextWidth(CTR_TR("NEW", "NUEVO", "NEU")) + 8;
+    /* the new one: NEW on its chip 12 tall at (130, 155), its word and 2 px a side, the name 3 px after it; the rule over
+     * it (kDevLearnRule) */
+    r = DevLearnSlot(4); w = DevSmallTextWidth(CTR_TR("NEW", "NUEVO", "NEU")) + 4;
     assert(at(130, r.y + 5) == DEV_TAG_NEW && at(130 + w - 1, r.y + 16) == DEV_TAG_NEW && at(130 + w, r.y + 10) == DEV_PAPER);
     assert(at(130, r.y + 4) == DEV_PAPER && at(130, r.y + 17) == DEV_PAPER && Count(130, r.y + 5, w, 12, DEV_WHITE) > 0);
     assert(Count(130 + w, r.y, 3, r.h, DEV_INK) == 0 && Count(130 + w + 3, r.y + 7, 5, 8, DEV_INK) > 0);
@@ -261,23 +262,42 @@ static void SuiteLearn(void)
     other = lv; other.learn.row[0].locked = 1; TouchSamePixels(&lv, &other, 1, "another move's HM lock");
     other = lv; other.learn.row[1].locked = 1; TouchSamePixels(&lv, &other, 0, "the cursor's move's HM lock");
     CtrPokeTouch_Draw(canvas, &lo);
-    /* a name the normal font does not fit before 212 (a long new move after its chip, with capitals 7 px wide): the small
-     * font, capitals r.y + 8, still ending before the chip at 216 */
+    /* a long new move keeps every letter: a name the normal font does not fit before 212 (capitals 7 px wide here) in the
+     * small one, capitals r.y + 8; FireRed's widest names (12 glyphs, 60 px small, as SWORDS DANCE) whole after NEW in
+     * every language, the type's chip moved right only as far as the name needs (after NUEVO: to 226), clear of the
+     * widest PP; nothing cut */
     {
         static uint8_t keepWidths[256];
+        int pp = DEV_LEARN_PP_RIGHT - DevTextWidth("40/40"), chip;
 
+        x = 130 + DevSmallTextWidth(CTR_TR("NEW", "NUEVO", "NEU")) + 4 + 3; r = DevLearnSlot(4);
         lv = LearnBoard(); strcpy(lv.learn.row[4].name, "SMOKESCREEN"); DevCheckTouch(&lo, &lv);
         memcpy(keepWidths, fontWidths, sizeof(keepWidths));
         for (unsigned c = 0xbb; c <= 0xd4; ++c)         /* A..Z */
             fontWidths[c] = 7;
         memset(sPtFontReady, 0, sizeof(sPtFontReady));
         CtrPokeTouch_Draw(canvas, &lv);
-        r = DevLearnSlot(4); x = 130 + DevSmallTextWidth(CTR_TR("NEW", "NUEVO", "NEU")) + 8 + 3;
-        assert(Count(x, r.y + 7, 212 - x, 1, DEV_INK) == 0 && Count(x, r.y + 8, 212 - x, 7, DEV_INK) > 0);
-        assert(Count(212, r.y, 4, r.h, DEV_INK) == 0 && Count(x, r.y + 15, 212 - x, 1, DEV_INK_SH) == 0);
+        w = DevSmallTextWidth("SMOKESCREEN"); chip = x + w + 4 > 216 ? x + w + 4 : 216;
+        assert(Count(x, r.y + 7, w, 1, DEV_INK) == 0 && Count(x, r.y + 8, w, 7, DEV_INK) > 0 && Count(x + w - 5, r.y + 8, 5, 7, DEV_INK) > 0);
+        assert(Count(x + w, r.y, chip - x - w, r.h, DEV_INK) == 0 && Count(x, r.y + 15, w, 1, DEV_INK_SH) == 0);
+        assert(at(chip, r.y + 5) == UiTypeColor(0) && at(chip - 1, r.y + 10) == DEV_PAPER && sDevKeyCut == 0);
         memcpy(fontWidths, keepWidths, sizeof(keepWidths));
         memset(sPtFontReady, 0, sizeof(sPtFontReady));
         CtrPokeTouch_Draw(canvas, &lo);
+        strcpy(lv.learn.row[4].name, "SWORDS DANCE"); DevCheckTouch(&lo, &lv);
+        w = DevTextWidth("SWORDS DANCE") <= 212 - x ? DevTextWidth("SWORDS DANCE") : DevSmallTextWidth("SWORDS DANCE");
+        chip = x + w + 4 > 216 ? x + w + 4 : 216;
+        assert(w >= 60 && chip <= 226 && chip + 40 + 2 <= pp && sDevKeyCut == 0);
+        assert(Count(x + w - 5, r.y + 7, 5, 9, DEV_INK) > 0 && Count(x + w, r.y, chip - x - w, r.h, DEV_INK) == 0);
+        assert(at(chip, r.y + 5) == UiTypeColor(0) && at(chip + 39, r.y + 16) == UiTypeColor(0) && at(chip - 1, r.y + 10) == DEV_PAPER);
+        assert(at(chip + 40, r.y + 10) == DEV_PAPER && Count(chip + 40, r.y, 2, r.h, DEV_INK) == 0);
+        shot("long");
+        /* one longer than any FireRed name (15 glyphs): cut before the chip at 226, and counted once a draw */
+        strcpy(lv.learn.row[4].name, "PORTWRITTENWORD"); sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &lv);
+        assert(sDevKeyCut == 1 && at(226, r.y + 5) == UiTypeColor(0) && Count(222, r.y, 4, r.h, DEV_INK) == 0);
+        assert(Count(x, r.y + 8, 222 - x, 7, DEV_INK) > 0);
+        sDevKeyCut = 0;
+        lv = LearnBoard(); DevCheckTouch(&lo, &lv);
     }
 
     /* BACK: dark in the exit corner, sunk under a touch, grey while it cannot be used, gone while not shown */

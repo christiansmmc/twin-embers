@@ -17,9 +17,10 @@
  * Redraw: the screen whole when the move to forget as drawn differs (DevLearnSame), and nothing else. */
 
 #define DEV_LEARN_NAME_X     130                /* a row's name (after NEW on the new one's) */
-#define DEV_LEARN_NAME_END   212                /* ... cut before it, 4 px short of the type's chip */
-#define DEV_LEARN_CHIP_X     216                /* the type's chip */
-#define DEV_LEARN_PP_RIGHT   298                /* where the PP ends */
+#define DEV_LEARN_CHIP_X     216                /* the type's chip, 4 px after the room for the name */
+#define DEV_LEARN_CHIP_MAX   226                /* ... or as far as this for a long new move: 2 px short of the widest PP */
+#define DEV_LEARN_PP_RIGHT   298                /* where the PP ends (the widest, "40/40", 30 px, from 268) */
+#define DEV_LEARN_NEW_PAD    4                  /* NEW's chip: its word and 2 px a side */
 
 static int DevLearnShown(const CtrPokeTouchView *v)
 {
@@ -91,31 +92,40 @@ static void DevLearnColumn(const CtrPokeTouchLearn *l)
     DevColumnRow(pic->y + pic->h + 20, word, l->row[c].accuracy[0] ? l->row[c].accuracy : "-", x, right);
 }
 
-/* Row i, inverted when `chosen`: on the new one (row 4) NEW on its chip, 12 tall at (130, r.y + 5); the move's name from
- * x 130, or 3 px after NEW, capitals r.y + 7 over its shadow (the small font, capitals r.y + 8, when the normal one does
- * not fit before 212), cut before 212; the type's chip 12 tall at (216, r.y + 5); the PP ending at 298, capitals
- * r.y + 7, without a shadow. */
+/* Row i, inverted when `chosen`: on the new one (row 4) NEW on its chip, 12 tall at (130, r.y + 5), its word and 2 px a
+ * side; the move's name from x 130, or 3 px after NEW, capitals r.y + 7 over its shadow, ending 4 px before the type's
+ * chip, 12 tall at (216, r.y + 5); the PP ending at 298, capitals r.y + 7, without a shadow. A name the normal font does
+ * not fit before 212 is drawn in the small one (capitals r.y + 8); one the small font does not fit either (a long new
+ * move after NUEVO: FireRed's widest names are 60 px in it) moves the type's chip right as far as it needs, at most to
+ * 226, clear of the PP; what does not fit even then is cut there and counted in sDevKeyCut, as a cut key label is. */
 static void DevLearnRow(const CtrPokeTouchLearn *l, int i, int chosen)
 {
     CtrPokeTouchRect r = DevLearnSlot(i);
     uint16_t ink = DevRowInk(chosen), shadow = chosen ? ink : DEV_INK_SH;
-    int x = DEV_LEARN_NAME_X;
+    int x = DEV_LEARN_NAME_X, chip = DEV_LEARN_CHIP_X, small, w;
     char word[sizeof(l->row[0].name)];
 
     DevRow(&r, chosen);
     if (i == PT_LEARN_ROWS - 1) {
         const char *tag = CTR_TR("NEW", "NUEVO", "NEU");
+        int tw = DevSmallTextWidth(tag) + DEV_LEARN_NEW_PAD;
 
-        DevChip(x, r.y + 5, 0, 12, tag, DEV_TAG_NEW, DevChipShadow(DEV_TAG_NEW));
-        x += DevSmallTextWidth(tag) + 8 + 3;
+        DevChip(x, r.y + 5, tw, 12, tag, DEV_TAG_NEW, DevChipShadow(DEV_TAG_NEW));
+        x += tw + 3;
     }
     DevUpper(word, l->row[i].name, sizeof(word));
-    if (DevTextWidth(word) <= DEV_LEARN_NAME_END - x)
-        DevTextInk(word, x, r.y + 7, DEV_LEARN_NAME_END, ink, shadow);
+    small = DevTextWidth(word) > chip - 4 - x;
+    w = small ? DevSmallTextWidth(word) : DevTextWidth(word);
+    if (x + w + 4 > chip)
+        chip = x + w + 4 < DEV_LEARN_CHIP_MAX ? x + w + 4 : DEV_LEARN_CHIP_MAX;
+    if (x + w + 4 > chip)
+        ++sDevKeyCut;
+    if (small)
+        DevSmallText(word, x, r.y + 8, ink, chip - 4);
     else
-        DevSmallText(word, x, r.y + 8, ink, DEV_LEARN_NAME_END);
+        DevTextInk(word, x, r.y + 7, chip - 4, ink, shadow);
     if (l->row[i].type >= 0)
-        DevTypeChip(l->row[i].typeName, l->row[i].type, DEV_LEARN_CHIP_X, r.y + 5, 12);
+        DevTypeChip(l->row[i].typeName, l->row[i].type, chip, r.y + 5, 12);
     DevTextInk(l->row[i].pp, DEV_LEARN_PP_RIGHT - DevTextWidth(l->row[i].pp), r.y + 7, DEV_LEARN_PP_RIGHT, ink, ink);
 }
 

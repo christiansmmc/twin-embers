@@ -7513,7 +7513,7 @@
   },
   {
    "path": "3ds_port/src/3ds_device_learn_impl.h",
-   "sha256": "ef1322a044d704a22bd62d72af002bca0877261a343fc7127ead0a7afb364d6e",
+   "sha256": "8d575d18a18a47f0633346aa0c84aa8a343ce6f7d6b3edd054828041509c5d5a",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7537,7 +7537,7 @@
   },
   {
    "path": "3ds_port/tests/device_suite_learn.h",
-   "sha256": "53a1dc7b8fcf6f3191d26d6957d761452089095dbdeddb045fbc697627be0670",
+   "sha256": "7b1d31d5e38885140c2f5c2a7e2c752676ac34eab5d8203a1ae64508bf101548",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
