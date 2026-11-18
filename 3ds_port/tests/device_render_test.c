@@ -5,8 +5,10 @@
  * exactly where it is drawn (3ds_device_layout.h is the one source of both), and no port-authored key label is cut
  * (sDevKeyCut stays 0). No ROM-derived data: the fonts are synthetic stubs, every glyph DEVICE_FONT_W px wide (default
  * 5; the small font's 5), unless FIRERED_TEST_PAK names the owner's own pack, whose glyphs are then read (a local
- * viewing aid, tools/render_device_views.py; never committed). Environment:
+ * viewing aid, tools/render_device_views.py; never committed). What the kit is told each view draws (its DEV_TRACE,
+ * defined here before the renderer) is always collected; a state keeps the pieces of its last full draw. Environment:
  *   DEVICE_OUT=dir            one PPM per drawn state, dir/<suite>_<state>.ppm
+ *   DEVICE_TRACE=dir          one trace per drawn state, dir/<suite>_<state>.json (tools/make_device_boards.py)
  *   FIRERED_TEST_PAK=pak      the pack (ABI 0x8f71cf3a, its ROM's SHA-1), opened as poketouch_render_test.c does
  *   DEVICE_WIDTHS=file        the normal font's 256 glyph widths; DEVICE_SMALL_WIDTHS=file the small font's
  *   DEVICE_FONT_W=n           the stub glyph width
@@ -14,6 +16,9 @@
  * usage: device_render_test <suite>   (kit, home, battle, party, summary, bag, options, save, card, mail, dex, choice,
  *        learn, relearn, naming, box, easychat, frame, idle, or all; prints PASS device <suite>) */
 #include <assert.h>
+/* The kit's trace: each piece it draws is told to TracePiece (with the canvas and the shots, below). */
+static void TracePiece(int op, int x, int y, int w, int h, int a, int b, const char *s);
+#define DEV_TRACE(op, x, y, w, h, a, b, s) TracePiece((op), (x), (y), (w), (h), (int)(a), (int)(b), (s))
 #ifndef PT_SOURCE
 #define PT_SOURCE "3ds_poketouch.c"
 #endif
@@ -354,12 +359,225 @@ static void clear(uint16_t c)
         canvas[i] = c;
 }
 
-/* The canvas as dir/<suite>_<state>.ppm, with DEVICE_OUT. */
+/* ---- The trace: what the kit is told the view draws (3ds_device_kit_impl.h's DEV_TRACE), for a board ------------- */
+
+#define TRACE_MAX 1024                          /* pieces of one draw (the most a state draws: 231) */
+#define TRACE_TEXT 256                          /* bytes of one piece's text */
+
+static struct {
+    int op, x, y, w, h, a, b;
+    char s[TRACE_TEXT];
+} gTrace[TRACE_MAX];
+static int gTraceCount, gTraceLost, gTraceShot;
+static int gTraceShell = DEV_SHELL_RED;
+static const char *gTraceDir;
+
+/* The bytes of `s` the kit drew w pixels of (DevGlyphs: its glyphs while they fit). */
+static size_t TraceDrawn(const char *s, int w, int small)
+{
+    const char *p = s;
+
+    for (int x = 0; *p;) {
+        const char *q = p;
+        int gw = (small ? DevSmallGlyph(&q) : Glyph(&q))->width;
+
+        if (x + gw > w)
+            break;
+        x += gw;
+        p = q;
+    }
+    return (size_t)(p - s);
+}
+
+/* DEV_TRACE: a piece kept (a text with nothing drawn left out), or BEGIN, which drops them all. */
+static void TracePiece(int op, int x, int y, int w, int h, int a, int b, const char *s)
+{
+    size_t n = !s ? 0 : op == DEV_TRACE_TEXT && b < 2 ? TraceDrawn(s, w, b) : strlen(s);
+
+    if (op == DEV_TRACE_BEGIN) {                /* a new whole draw: what was told before is gone */
+        gTraceCount = gTraceLost = 0;
+        gTraceShell = a;
+        return;
+    }
+    if (op == DEV_TRACE_TEXT && w <= 0)
+        return;
+    if (gTraceCount == TRACE_MAX) {
+        ++gTraceLost;
+        return;
+    }
+    assert(n < TRACE_TEXT);
+    gTrace[gTraceCount].op = op;
+    gTrace[gTraceCount].x = x;
+    gTrace[gTraceCount].y = y;
+    gTrace[gTraceCount].w = w;
+    gTrace[gTraceCount].h = h;
+    gTrace[gTraceCount].a = a;
+    gTrace[gTraceCount].b = b;
+    memcpy(gTrace[gTraceCount].s, s ? s : "", n);
+    gTrace[gTraceCount++].s[n] = 0;
+}
+
+/* The colours the views name (the kit's and the plan-3 views' own), as the boards give them: each name's UI_RGB(r, g,
+ * b) read back as 0xrrggbb. A board shows a colour drawn as one of these in its board value. */
+#pragma push_macro("UI_RGB")
+#undef UI_RGB
+#define UI_RGB(r, g, b) ((unsigned)(r) << 16 | (unsigned)(g) << 8 | (unsigned)(b))
+static const unsigned kTraceRgb[] = {
+    DEV_SHELL_RED, DEV_SHELL_BLUE, DEV_SHELL_GREEN, DEV_SHELL_GREY, DEV_BEZEL, DEV_BEZEL_LINE, DEV_PAPER, DEV_PAPER2,
+    DEV_INK, DEV_INK_SH, DEV_INK2, DEV_INK_DIM, DEV_KEY, DEV_KEY_EDGE, DEV_KEY_INK, DEV_SUNK, DEV_SUNK_EDGE, DEV_SUNK_INK,
+    DEV_SUNK_INK_SH, DEV_LED, DEV_DARK_INK, DEV_FAINT, DEV_FAINT_EDGE, DEV_FAINT_INK, DEV_BUTTON_EDGE, DEV_HP_FRAME,
+    DEV_HP_TRACK, DEV_HP_GREEN, DEV_HP_YELLOW, DEV_HP_RED, DEV_HP_LABEL, DEV_EXP, DEV_EXP_LABEL, DEV_FX_SUPER,
+    DEV_FX_NOTVERY, DEV_FX_EFFECTIVE, DEV_FX_NONE, DEV_CAT_SPECIAL, DEV_CAT_PHYSICAL, DEV_PSN, DEV_FX_SUPER_SH,
+    DEV_FX_NOTVERY_SH, DEV_FX_EFFECTIVE_SH, DEV_CAT_SPECIAL_SH, DEV_LOW_INK, DEV_PP_QUARTER, DEV_PP_HALF, DEV_BLUE_INK,
+    DEV_STAT_UP, DEV_MALE, DEV_FEMALE, DEV_BAG_ARROW_OFF, DEV_BOX_TITLE_SH, DEV_CARD_GOLD,
+};
+#pragma pop_macro("UI_RGB")
+
+/* RGB565 c as "#rrggbb" into out: a named colour's board value, any other (a blend, a type's) widened. */
+static const char *TraceHex(int c, char out[8])
+{
+    for (size_t i = 0; i < sizeof(kTraceRgb) / sizeof(kTraceRgb[0]); ++i)
+        if (UI_RGB(kTraceRgb[i] >> 16, (kTraceRgb[i] >> 8) & 255, kTraceRgb[i] & 255) == c) {
+            snprintf(out, 8, "#%06x", kTraceRgb[i]);
+            return out;
+        }
+    snprintf(out, 8, "#%02x%02x%02x", (c >> 11) << 3 | (c >> 13), ((c >> 5) & 63) << 2 | ((c >> 9) & 3),
+             (c & 31) << 3 | ((c >> 2) & 7));
+    return out;
+}
+
+/* The character FireRed's code `code` draws, in UTF-8: the port's own spelling of it (GlyphCode's, read back), the
+ * gender signs, the ellipsis and "Lv"; "?" for any other. */
+static const char *TraceCodeText(unsigned code, char out[4])
+{
+    static const unsigned char kLead[3] = {0xc2, 0xc3, 0xc5};
+
+    for (unsigned c = 0x20; c < 0x7f; ++c) {
+        const char src[2] = {(char)c, 0}, *p = src;
+
+        if (GlyphCode(&p) == code) {
+            out[0] = (char)c; out[1] = 0;
+            return out;
+        }
+    }
+    for (int i = 0; i < 3; ++i)
+        for (unsigned c = 0x80; c < 0xc0; ++c) {
+            const char src[3] = {(char)kLead[i], (char)c, 0}, *p = src;
+
+            if (GlyphCode(&p) == code) {
+                out[0] = (char)kLead[i]; out[1] = (char)c; out[2] = 0;
+                return out;
+            }
+        }
+    return code == 0xb5 ? "\xE2\x99\x82" : code == 0xb6 ? "\xE2\x99\x80" : code == 0xb0 ? "\xE2\x80\xA6"
+         : code == 0x34 ? "Lv" : "?";
+}
+
+/* `s` as a JSON string: UTF-8 as it is, a FireRed code (0x01 escaped) as the character it draws; a Japanese one (0x02
+ * escaped) or a byte that is not UTF-8 as "?", a control as a space. */
+static void TraceJsonText(FILE *f, const char *s)
+{
+    char text[4];
+
+    fputc('"', f);
+    while (*s) {
+        unsigned char c = (unsigned char)*s++;
+        int more = c >= 0xc2 && c <= 0xdf ? 1 : c >= 0xe0 && c <= 0xef ? 2 : 0, k = 0;
+
+        while (k < more && ((unsigned char)s[k] & 0xc0) == 0x80)
+            ++k;
+        if ((c == 0x01 || c == 0x02) && *s) {
+            const char *drawn = c == 0x01 ? TraceCodeText((unsigned char)*s, text) : "?";
+
+            ++s;
+            fputs(!strcmp(drawn, "\"") ? "\\\"" : !strcmp(drawn, "\\") ? "\\\\" : drawn, f);
+        } else if (c == '"' || c == '\\')
+            fprintf(f, "\\%c", c);
+        else if (c < 0x20)
+            fputc(' ', f);
+        else if (c < 0x80)
+            fputc(c, f);
+        else if (more && k == more) {
+            fputc(c, f);
+            fwrite(s, 1, (size_t)more, f);
+            s += more;
+        } else
+            fputc('?', f);
+    }
+    fputc('"', f);
+}
+
+/* The trace of the last whole draw as dir/<suite>_<state>.json, with DEVICE_TRACE: {"suite", "state", "shot" (its
+ * place among the suite's), "shell", "items": [...]} in draw order (tools/make_device_boards.py reads it). */
+static void TraceWrite(const char *state)
+{
+    static const char *const kLook[3] = {"key", "dark", "faint"};
+    static const char *const kArt[] = {"icon", "picture", "item", "badge", "wallpaper", "mark", "sprite", "frame",
+                                       "logo", "gba"};
+    static const char *const kDir[4] = {"up", "down", "left", "right"};
+    static const char *const kOp[] = {"begin", "art", "shell", "screen", "key", "dim", "hole", "row", "rect", "led",
+                                      "text", "chip", "bar", "tri"};
+    char path[512], hex[8], hex2[8];
+    FILE *f;
+
+    ++gTraceShot;
+    if (!gTraceDir)
+        return;
+    if (gTraceLost) {
+        fprintf(stderr, "%s %s: the trace lost %d pieces (TRACE_MAX)\n", gSuite, state, gTraceLost);
+        assert(0);
+    }
+    snprintf(path, sizeof(path), "%s/%s_%s.json", gTraceDir, gSuite, state);
+    f = fopen(path, "wb");
+    assert(f);
+    fprintf(f, "{\"suite\": \"%s\", \"state\": \"%s\", \"shot\": %d, \"shell\": \"%s\", \"items\": [", gSuite, state,
+            gTraceShot, TraceHex(gTraceShell, hex));
+    for (int i = 0; i < gTraceCount; ++i) {
+        const int op = gTrace[i].op, a = gTrace[i].a, b = gTrace[i].b;
+
+        fprintf(f, "%s\n  {\"op\": \"%s\", \"x\": %d, \"y\": %d, \"w\": %d", i ? "," : "", kOp[op], gTrace[i].x,
+                gTrace[i].y, gTrace[i].w);
+        if (op != DEV_TRACE_TEXT)
+            fprintf(f, ", \"h\": %d", gTrace[i].h);
+        if (op == DEV_TRACE_SHELL)
+            fprintf(f, ", \"screws\": %d", a);
+        else if (op == DEV_TRACE_KEY)
+            fprintf(f, ", \"look\": \"%s\", \"sunk\": %d", kLook[a], b);
+        else if (op == DEV_TRACE_HOLE)
+            fprintf(f, ", \"radius\": %d", a);
+        else if (op == DEV_TRACE_ROW)
+            fprintf(f, ", \"chosen\": %d", a);
+        else if (op == DEV_TRACE_RECT)
+            fprintf(f, ", \"fill\": \"%s\"", TraceHex(a, hex));
+        else if (op == DEV_TRACE_TEXT) {
+            fprintf(f, ", \"font\": \"%s\", \"ink\": \"%s\"", b == 1 ? "small" : "normal", TraceHex(a, hex));
+            if (gTrace[i].h != a)
+                fprintf(f, ", \"shadow\": \"%s\"", TraceHex(gTrace[i].h, hex2));
+        } else if (op == DEV_TRACE_CHIP)
+            fprintf(f, ", \"fill\": \"%s\", \"shadow\": \"%s\"", TraceHex(a, hex), TraceHex(b, hex2));
+        else if (op == DEV_TRACE_BAR)
+            fprintf(f, ", \"fill\": \"%s\", \"filled\": %d", TraceHex(a, hex), b);
+        else if (op == DEV_TRACE_TRI)
+            fprintf(f, ", \"ink\": \"%s\", \"dir\": \"%s\"", TraceHex(a, hex), kDir[b & 3]);
+        else if (op == DEV_TRACE_ART)
+            fprintf(f, ", \"kind\": \"%s\"", kArt[a]);
+        if (op == DEV_TRACE_TEXT || op == DEV_TRACE_CHIP) {
+            fputs(", \"text\": ", f);
+            TraceJsonText(f, gTrace[i].s);
+        }
+        fputc('}', f);
+    }
+    fputs("\n]}\n", f);
+    fclose(f);
+}
+
+/* The canvas as dir/<suite>_<state>.ppm, with DEVICE_OUT; the trace as dir/<suite>_<state>.json, with DEVICE_TRACE. */
 static void shot(const char *state)
 {
     char path[512];
     FILE *f;
 
+    TraceWrite(state);
     if (!gOut)
         return;
     snprintf(path, sizeof(path), "%s/%s_%s.ppm", gOut, gSuite, state);
@@ -2364,6 +2582,7 @@ int main(int argc, char **argv)
         return 2;
     }
     gOut = getenv("DEVICE_OUT");
+    gTraceDir = getenv("DEVICE_TRACE");
     if (stub && atoi(stub) > 1 && atoi(stub) <= 16)
         gStubW = (unsigned)atoi(stub);
     SyntheticFont(font, 0);
@@ -2383,6 +2602,7 @@ int main(int argc, char **argv)
         if (all || !strcmp(argv[1], kSuites[i].name)) {
             gSuite = kSuites[i].name;
             sDevKeyCut = 0;
+            gTraceShot = 0;
             kSuites[i].run();
             printf("PASS device %s\n", kSuites[i].name);
             ++ran;

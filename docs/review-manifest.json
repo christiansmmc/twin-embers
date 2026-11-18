@@ -54,7 +54,7 @@
   },
   {
    "path": ".github/workflows/source-audit.yml",
-   "sha256": "af3fbea2c098ac79d7b9d655f08beadb37e0df8a520390c4f97aaef7cf28d6a1",
+   "sha256": "96a4011da5497dcb3f8c565a67ea9f6aff9356006e5143a135ca913085aea079",
    "review_status": "reviewed",
    "credit": "alex61194 (original distribution work with disclosed AI assistance); christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7307,7 +7307,7 @@
   },
   {
    "path": "tools/dev.py",
-   "sha256": "1f80ff27b0422180e7f822ed4c9d6e8e75ea083898a58f8efdba32839f5c72b0",
+   "sha256": "67bdb378191ea19cd67091e2a7329d9fc4d866c7b21d44eb52deb47bff8de5af",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7387,7 +7387,7 @@
   },
   {
    "path": "tools/test_dev_tool.py",
-   "sha256": "02281e2fa220a1c7c8e1b79eceffb1ba610710acc4ac86940c54c6b6970f4489",
+   "sha256": "39ab97913a68582224127887583568a931e3782377592be60e23f6845ea22875",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7403,7 +7403,7 @@
   },
   {
    "path": "3ds_port/src/3ds_device_kit_impl.h",
-   "sha256": "731c1811e7faddbbf092854632a9ee911e0f84a03c2e341cdb81e35dfadbb37a",
+   "sha256": "80bef3e9e1bd1437e9be2adc9272b80e2233a71bf232b5ed8ef03c828d6f0403",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7419,7 +7419,7 @@
   },
   {
    "path": "3ds_port/tests/device_render_test.c",
-   "sha256": "ae856742923682ba106612c7a89d8db10f966360ba7473b80b8d030e1fe148b2",
+   "sha256": "1b9a8bcff82e870b3f370007e24e033f5e3ff3a0024d5eb3d6d4da2f943df2d4",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7708,6 +7708,22 @@
   {
    "path": "3ds_port/tests/device_suite_frame.h",
    "sha256": "061edd3d87f56f4c9821f0c36cb444c44a023f32cf81b077a1f195a22f9b8d66",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "tools/make_device_boards.py",
+   "sha256": "223fd8f10a6c18ded5939773f2f11ed15c7afc7c3694237f02cd36447118a92f",
+   "review_status": "reviewed",
+   "credit": "christiansmmc (fork changes with disclosed AI assistance)",
+   "license": "MIT only for original owned contributions; third-party rights unchanged",
+   "basis": "Reviewed text-only source/documentation of the fork; no ROM/game payloads or generated media"
+  },
+  {
+   "path": "tools/test_make_device_boards.py",
+   "sha256": "470b80a955e350bcb8c33daf77e9005338fdb8c5c520c9c92beed33c3b636649",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
