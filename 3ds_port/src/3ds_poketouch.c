@@ -155,8 +155,8 @@ static int CtrPokeTouch_PackMenuIcon(unsigned icon, uint8_t pixels[12 * 12], uin
     return 1;
 }
 
-/* The palette and components are the lower screen's design system (3ds_ui_theme.h / .inc); the red device's B views
- * have their own kit (3ds_device_kit_impl.h). */
+/* The canvas being drawn: the red device's kit (3ds_device_kit_impl.h) and the old theme's few components
+ * (3ds_ui_theme_impl.h) draw on it. */
 static uint16_t *sCanvas;
 
 static void Px(int x, int y, uint16_t c)
@@ -277,11 +277,6 @@ static uint16_t Tone(uint16_t c, int on)
 
 #include "3ds_ui_theme_impl.h"
 #include "3ds_icons.h"
-/* The skin keeps the Ascuas pieces (EmWell, EmKeyTab, EmSwitch, EmBezel) for the screens not converted to Llama; this one draws its own. */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
-#include "3ds_touch_skin_impl.h"
-#pragma GCC diagnostic pop
 
 /* The HOME map: the 240x160 screen of FireRed's Region Map (its tilemap, tiles and palette, decoded by the game bridge)
  * is read once per map and version, and the 192x128 of it HOME's window shows (PT_HOME_SRC_X, PT_HOME_SRC_Y on) is kept

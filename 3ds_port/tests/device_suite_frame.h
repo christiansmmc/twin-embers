@@ -40,7 +40,7 @@ static void FrameBack(int sunk)
     assert((Count(r.x, r.y, r.w, r.h + DEV_DROP, DEV_LED) > 0) == sunk);
 }
 
-/* Upper case (owner decision 5): the bar, which v0.6.0 title-cases, drawn in capitals. */
+/* Upper case (owner decision 5): the bar, which v0.6.0 title-cased, drawn in capitals. */
 static void FrameUpperCase(CtrPokeTouchView v)
 {
     CtrPokeTouchView cased = v;
@@ -65,7 +65,7 @@ static void SuiteFrame(void)
     /* the plan's suite */
     v.viewport = 1; v.backVisible = v.backEnabled = 1; DevCheckTouch(&old, &v); assert(DrawnBy(&v, DevFrameShown));
     assert(at(PT_VIEW_X, PT_VIEW_Y) == 0 && at(PT_VIEW_X + PT_VIEW_W - 1, PT_VIEW_Y + PT_VIEW_H - 1) == 0 && at(PT_VIEW_X - 1, PT_VIEW_Y + 20) == DEV_BEZEL);
-    for (y = -1; y <= H; ++y) for (x = -1; x <= W; ++x) {                                       /* moved from poketouch_render_test */
+    for (y = -1; y <= H; ++y) for (x = -1; x <= W; ++x) {                                       /* every point, and one past each edge */
         int in = x >= PT_VIEW_X && x < PT_VIEW_X + PT_VIEW_W && y >= PT_VIEW_Y && y < PT_VIEW_Y + PT_VIEW_H, gx, gy;
         assert(CtrPokeTouch_ViewportToGba(x, y, &gx, &gy) == in && (!in || (gx == x - PT_VIEW_X && gy == y - PT_VIEW_Y))); }
     AssertHits(BackV, &v, kDevSumBack, 1); v.backPressed = 1; DevCheckTouch(&old, &v); AssertKey(kDevSumBack, DEV_LOOK_DARK, 1);

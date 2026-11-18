@@ -147,6 +147,45 @@ class DeviceViews(unittest.TestCase):
         self.labels_fit('ES')
 
 
+class EmberGone(unittest.TestCase):
+    """The ember look is deleted (decision 4, spec 5.6): its shell, skin, backdrop and pieces, the art made for it and its
+    generator, the test that pinned it and the bar's title case it drew. Nothing in the port, its tools or CI names what
+    is gone; no ember identifier is left in the port's code; the old theme keeps only what the B views draw with."""
+
+    GONE = ['3ds_port/src/3ds_touch_skin_impl.h', '3ds_port/src/3ds_ember2_impl.h', '3ds_port/include/ember_skin.h',
+            *[f'3ds_port/include/ember_skin_bg{i}.h' for i in range(4)], 'tools/make_ember_skin.py',
+            '3ds_port/tests/poketouch_render_test.c', 'tools/test_poketouch_render.py',
+            '3ds_port/include/3ds_text_case_views.h']
+    THEME = {'UiIn', 'UiInset', 'UiText', 'UiTextWidth', 'UiTypeColor', 'UiImage'}
+    EMBER = re.compile(r'\b(Em2?[A-Z]\w*|Ll[A-Z]\w*|Ts[A-Z]\w*|kEm[A-Z]\w*|EM2?_\w+|LL_\w+|CtrTextCase_Touch)\b')
+
+    @staticmethod
+    def texts(*folders, suffixes=('.c', '.h', '.py', '.yml', '.json'), names=('Makefile',)):
+        for folder in folders:
+            for path in sorted((ROOT / folder).rglob('*')):
+                if path.is_file() and (path.suffix in suffixes or path.name in names) and path.name != Path(__file__).name:
+                    yield path, path.read_text(encoding='utf-8', errors='replace')
+
+    def test_files_gone(self):
+        for name in self.GONE:
+            self.assertFalse((ROOT / name).exists(), name)
+
+    def test_nothing_names_them(self):
+        stems = [Path(name).stem for name in self.GONE]
+        for path, text in self.texts('3ds_port', 'tools', '.github'):
+            for stem in stems:
+                self.assertFalse(stem in text, f'{path.relative_to(ROOT)} names {stem}')
+
+    def test_no_ember_identifier(self):
+        for path, text in self.texts('3ds_port/src', '3ds_port/include', '3ds_port/tests', suffixes=('.c', '.h')):
+            found = self.EMBER.search(text)
+            self.assertIsNone(found.group(0) if found else None, str(path.relative_to(ROOT)))
+
+    def test_theme_keeps_what_b_draws_with(self):
+        text = (PORT / 'src/3ds_ui_theme_impl.h').read_text(encoding='utf-8')
+        self.assertEqual(set(re.findall(r'^UI_FN [\w ]+?\**\b(\w+)\(', text, re.M)), self.THEME)
+
+
 class RenderTool(unittest.TestCase):
     def setUp(self):
         self.tool = importlib.import_module('render_device_views')
@@ -221,13 +260,12 @@ class IconBuffers(unittest.TestCase):
                                            '3ds_device_summary_impl.h'])
 
     def test_every_stub_writes_both_frames(self):
-        for test in ('device_render_test.c', 'poketouch_render_test.c'):
-            text = (PORT / 'tests' / test).read_text(encoding='utf-8')
-            for name in self.BRIDGES:
-                body = re.search(r'\nint ' + name + r'\([^)]*\)\s*\{(.*?)\n?\}\n', text, re.S)
-                self.assertTrue(body, f'{test}: {name}')
-                first = body.group(1).split('return')[0]
-                self.assertIn('memset(tiles, 0, PT_MON_ICON_BYTES)', first, f'{test}: {name} writes both frames first')
+        text = (PORT / 'tests/device_render_test.c').read_text(encoding='utf-8')
+        for name in self.BRIDGES:
+            body = re.search(r'\nint ' + name + r'\([^)]*\)\s*\{(.*?)\n?\}\n', text, re.S)
+            self.assertTrue(body, name)
+            first = body.group(1).split('return')[0]
+            self.assertIn('memset(tiles, 0, PT_MON_ICON_BYTES)', first, f'{name} writes both frames first')
 
 
 if __name__ == '__main__':

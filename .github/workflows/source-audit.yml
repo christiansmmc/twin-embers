@@ -58,8 +58,6 @@ jobs:
           python3 tools/test_asset_bundle.py
           python3 tools/test_assets_runtime.py --cc gcc
           python3 tools/test_data_runtime.py --cc gcc
-      - name: Synthetic PokeTouch icons, geometry and unchanged viewports
-        run: python3 -m unittest discover -s tools -p test_poketouch_render.py -v
       - name: "B device views: draw, hits, layout, boards"
         run: |
           python3 -m unittest discover -s tools -p test_device_views.py -v

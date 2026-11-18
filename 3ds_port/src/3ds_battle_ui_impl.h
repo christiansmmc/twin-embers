@@ -1,8 +1,6 @@
-/* What the red device's views and the field's ember views share from the battle's old drawer (included in
- * 3ds_poketouch.c before the kit, whose drawing helpers and design system it uses): FireRed's party and item icons,
- * decoded once and cached; the ember surface and the wrapped text the field's ember views draw with. The battle's lower
- * screen, the Party and the Bag are the red device's (3ds_device_battle_impl.h, 3ds_device_party_impl.h,
- * 3ds_device_bag_impl.h). */
+/* What the red device's views keep of the battle's old drawer (included in 3ds_poketouch.c before the kit, whose
+ * drawing helpers it uses): FireRed's party and item icons, decoded once and cached. The battle's lower screen, the Party
+ * and the Bag are the red device's (3ds_device_battle_impl.h, 3ds_device_party_impl.h, 3ds_device_bag_impl.h). */
 
 #include "3ds_icons.h"
 #include "3ds_text_case.h"

@@ -12,7 +12,7 @@
  * rule's exception: the frame and the idle screen). Every rectangle is 3ds_device_layout.h's, so what is drawn is what
  * a touch takes.
  *
- * Words (decision 5): the bar (v0.6.0 title-cases it) through DevUpper.
+ * Words (decision 5): the bar (v0.6.0 title-cased it) through DevUpper.
  *
  * Redraw: the screen whole when the picture's presence, the bar or BACK as drawn differ (DevFrameSame), and nothing
  * else.

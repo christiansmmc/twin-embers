@@ -190,7 +190,7 @@ def remove_tree(path):
     shutil.rmtree(path, **{'onexc' if sys.version_info >= (3, 12) else 'onerror': writable})
 
 
-SUITES = ['test_poketouch_render', 'test_option_labels', 'test_storage_touch',
+SUITES = ['test_option_labels', 'test_storage_touch',
           'test_storage_controller', 'test_easychat_plan', 'test_field_presentation', 'test_bag_pockets',
           'test_first_battle', 'test_device_views', 'test_make_device_boards']
 

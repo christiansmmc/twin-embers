@@ -8,7 +8,7 @@
  * cursor; nothing while the game is written. No BACK: NO and B leave. Every rectangle is 3ds_device_layout.h's, so what
  * is drawn is what a touch takes.
  *
- * Words (decision 5): the port's labels in capitals; the dialogue (v0.6.0 title-cases bar[]) and YES / NO / OK through
+ * Words (decision 5): the port's labels in capitals; the dialogue (v0.6.0 title-cased bar[]) and YES / NO / OK through
  * DevUpper; the player's name as typed; the values with v0.6.0's caps (999 hours, 59 minutes, ¥999999).
  *
  * Redraw: the screen whole when what it draws differs (DevSaveSame), and nothing else. */

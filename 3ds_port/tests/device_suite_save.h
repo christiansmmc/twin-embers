@@ -7,8 +7,7 @@ static int SaveHitV(const void *view, int x, int y)
     return CtrPokeTouch_SaveHit(x, y, ((const CtrPokeTouchView *)view)->saveState);
 }
 
-/* The dialogue for `state` as 3ds_bottom.c gives it (SaveFill's words, cased as CtrTextCase_Touch cases bar[]);
- * `overwrite`: another game is saved. */
+/* The dialogue for `state` as 3ds_bottom.c gives it (SaveFill's words); `overwrite`: another game is saved. */
 static void SaveDialogue(CtrPokeTouchView *v, int state, int overwrite)
 {
     memset(v->bar, 0, sizeof(v->bar));
@@ -27,8 +26,6 @@ static void SaveDialogue(CtrPokeTouchView *v, int state, int overwrite)
     } else {
         snprintf(v->bar[0], PT_BAR_LEN, CTR_TR("Save your game?", "\xc2\xbfGuardar la partida?", "Spiel speichern?"));
     }
-    for (int i = 0; i < PT_BAR_LINES; ++i)
-        CtrTextCase(v->bar[i]);
 }
 
 /* The plan's board: SAVE asking, YES chosen, nothing held; 8 badges, a Pokedex of 151, 123:45, ¥999999; the player as
@@ -53,7 +50,7 @@ static CtrPokeTouchView SaveBoard(void)
     return v;
 }
 
-/* Upper case (owner decision 5): the dialogue (v0.6.0 title-cases bar[]) drawn in capitals; the player's name as typed. */
+/* Upper case (owner decision 5): the dialogue (v0.6.0 title-cased bar[]) drawn in capitals; the player's name as typed. */
 static void SaveUpperCase(CtrPokeTouchView v)
 {
     CtrPokeTouchView capitals = v;

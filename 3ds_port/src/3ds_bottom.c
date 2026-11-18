@@ -44,7 +44,7 @@
 #include "3ds_log.h"
 #include "3ds_summary.h"
 #include "3ds_poketouch.h"
-#include "3ds_text_case_views.h"
+#include "3ds_text_case.h"
 #include "3ds_poketouch_options.h"
 #include "3ds_ui_strings.h"
 #include "3ds_perf.h"
@@ -4692,13 +4692,9 @@ void CtrBottom_Frame(void)
     } else
         SnapshotState(&state, mode == MODE_OFF && CtrBottom_HasSave() && sEnabled && CtrBottom_IsFieldTransition()
                               ? MODE_FIELD : mode, pressed);
-    /* Only the view that is drawn is cased (Render draws the battle's or the touch view, never both), and a held picture
-     * (nav: state is sShown) was cased when it was first built. */
-    if (!nav) {
+    /* The shell's colour (a held picture, nav: state is sShown, keeps the one it was built with). */
+    if (!nav)
         state.touch.shell = state.battle.shell = state.sum.shell = (uint8_t)CtrOptions_Shell();
-        if (!state.battleUi && (!state.touch.home || state.touch.viewport))
-            CtrTextCase_Touch(&state.touch);    /* HOME, the Bag and the battle's states are the red device's: FireRed's capitals (DevUpper) */
-    }
     /* The logo only once nothing has been shown for a while: a screen's few frames of change show the backdrop. */
     sIdleFrames = state.mode == MODE_OFF && !sSession.active ? (sIdleFrames < IDLE_LOGO_FRAMES ? sIdleFrames + 1
                                                                                                  : sIdleFrames) : 0;

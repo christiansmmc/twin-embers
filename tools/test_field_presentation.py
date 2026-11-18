@@ -1211,7 +1211,7 @@ int main(void) {
         bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
         self.assertIn('CtrPokeTouch_DrawIdle(sCanvas, s->idleLogo, s->touch.shell);', function(bottom, 'Render'))
         frame = function(bottom, 'CtrBottom_Frame')
-        fill = frame.index('    if (!nav) {\n        state.touch.shell = state.battle.shell = state.sum.shell = '
+        fill = frame.index('    if (!nav)\n        state.touch.shell = state.battle.shell = state.sum.shell = '
                            '(uint8_t)CtrOptions_Shell();\n')
         self.assertLess(frame.index('SnapshotState(&state,'), fill)
         self.assertLess(fill, frame.index('memcmp(&state, &sShown, sizeof(state))'))
