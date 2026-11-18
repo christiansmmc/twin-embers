@@ -2338,7 +2338,13 @@ static void SuiteSummary(void)
     assert(Count(114, 152, 146, 24, DEV_INK2) > 0 && Count(257, 46, 5, 132, DEV_INK) == 0);
     AssertRowHits(SumHitV, &sv, DevSumRow(0), SUI_HIT_MOVE);
     assert(Count(14, 196, 216, 30, DEV_INK) > 0 && Count(14, 196, 216, 30, DEV_TITLE_INK) == 0);
+    /* CONTACT (def_sum_moves): the row at y 136 on a move, a status move too; its bit is drawn on the details only */
+    assert(Count(20, 137, 84, 8, DEV_INK) > 0 || Count(20, 137, 84, 8, DEV_INK2) > 0);
+    sv.data.contact ^= 1; assert(DevWhole(DevCheckSummary(&so, &sv))); sv.data.contact ^= 1; DevCheckSummary(&so, &sv);
     shot("details");
+    sv.data.cursor = 2; DevCheckSummary(&so, &sv); assert(Count(20, 137, 84, 8, DEV_INK) > 0);
+    sv.data.contact ^= 4; assert(DevWhole(DevCheckSummary(&so, &sv))); sv.data.contact ^= 4;
+    sv.data.cursor = 0; DevCheckSummary(&so, &sv);
     sv.data.cursor = 2; strcpy(sv.data.moveDesc, "Port words for one move."); DevCheckSummary(&so, &sv);   /* GROWL: no category */
     assert(at(130, 102) == DEV_BEZEL && Count(60, 84, 50, 12, DEV_CAT_SPECIAL) == 0 && Count(60, 84, 50, 12, DEV_CAT_PHYSICAL) == 0);
     sv.data.cursor = 3; strcpy(sv.data.moveDesc, "Port words for another move's text."); DevCheckSummary(&so, &sv);   /* FIGHT: physical */
@@ -2381,6 +2387,7 @@ static void SuiteSummary(void)
     sv.data.swapping = 0; sv.data.swapCursor = 0; sv.data.cursor = 4; sv.data.moveDesc[0] = 0; DevCheckSummary(&so, &sv);
     sv.data.swapCursor = 2; assert(DevCheckSummary(&so, &sv).count == 0);                    /* not swapping: not drawn */
 
+    sv.data.page = SUI_PAGE_INFO; DevCheckSummary(&so, &sv); sv.data.contact ^= 1; assert(DevCheckSummary(&so, &sv).count == 0); sv.data.contact ^= 1;
     sv.data.swapping = 0; sv.trainer = 1; sv.data.page = SUI_PAGE_INFO; DevCheckSummary(&so, &sv); AssertKey(tab[3], DEV_LOOK_KEY, 1);
     /* MEMO: the left column as INFO's; NATURE and RIBBONS in rows, then FireRed's memo from capitals 85; ▲▼ back; the
      * hint */

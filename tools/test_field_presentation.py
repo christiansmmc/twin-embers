@@ -582,6 +582,16 @@ int main(void) {
         header = (ROOT / '3ds_port/include/3ds_summary.h').read_text(encoding='utf-8')
         self.assertRegex(header, r'char nature\[12\];\s*unsigned char natureId;')
 
+    def test_summary_reports_contact(self):
+        """The Summary's move details say whether the move makes contact (def_sum_moves): the bridge reports a bit per move,
+        read from the move's own flags (recipe 0266, the summary screen's file only), after the ribbons."""
+        name = '0266-summary-reports-contact.json'
+        self.assertIn('if (gBattleMoves[out->moves[i]].flags & FLAG_MAKES_CONTACT) out->contact |= (unsigned char)(1u << i);',
+                      additions(name, 'src/pokemon_summary_screen.c'))
+        doc = json.loads((ROOT / 'patches/pokefirered' / name).read_text())
+        self.assertEqual([f['path'] for f in doc['files']], ['src/pokemon_summary_screen.c'])
+        self.assertRegex((ROOT / '3ds_port/include/3ds_summary.h').read_text(encoding='utf-8'), r'unsigned char ribbons;\s*unsigned char contact;')
+
     def test_party_menu_marks(self):
         """The B Party's action menu: a field move's name in blue (FireRed's own colour for them, ids from
         CURSOR_OPTION_FIELD_MOVES on), CANCEL a dark key (CURSOR_OPTION_CANCEL1 or _CANCEL2); bit i for row i. The ids

@@ -435,6 +435,9 @@ static void DevSumMoveColumn(const CtrSummaryUiView *v)
                      DEV_SUM_COL_VALUE);
         DevColumnRow(118, CTR_TR("ACCURACY", "PRECISI\xC3\x93N", "GENAUIGKEIT"), d->accuracy[i][0] ? d->accuracy[i] : "-",
                      DEV_SUM_COL_X, DEV_SUM_COL_VALUE);
+        DevColumnRow(134, CTR_TR("CONTACT", "CONTACTO", "KONTAKT"),
+                     (d->contact >> i) & 1 ? CTR_TR("YES", "SÃ", "JA") : CTR_TR("NO", "NO", "NEIN"), DEV_SUM_COL_X,
+                     DEV_SUM_COL_VALUE);
     }
 }
 
@@ -807,6 +810,8 @@ static void DevSumUndrawn(CtrSummaryUiView *still, const CtrSummaryUiView *v)
     if (DevSumBattle(still) == DevSumBattle(v))
         s->origin = d->origin;
     s->ready = d->ready;
+    if (d->page != SUI_PAGE_MOVES_INFO)
+        s->contact = d->contact;
     if (DevSumPressDrawn(still) == DevSumPressDrawn(v))
         still->pressed = v->pressed;
     if (d->page != SUI_PAGE_MOVES_INFO) {

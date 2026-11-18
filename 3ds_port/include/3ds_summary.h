@@ -28,12 +28,13 @@ typedef struct {
     char power[4][8], accuracy[4][8], moveDesc[256];
     /* What the lower screen's own design reads besides the Summary's strings: the type numbers (its colours), the
      * nature's name and number (0-24, GetNature's: STATS marks the stat it raises and the one it lowers, 3ds_nature.h),
-     * the ribbons earned and the HP as numbers (its bar); all read from the Pokemon shown. */
+     * the ribbons earned, the HP as numbers (its bar) and which moves make contact; all read from the Pokemon shown. */
     unsigned char typeIds[2], moveTypeIds[4];
     char nature[12];
     unsigned char natureId;
     unsigned short hpCur, hpMax;
     unsigned char ribbons;
+    unsigned char contact;          /* bit i: move i makes contact (its own flags), the details' CONTACT row */
     /* The IVs and EVs in the order HP, Atk, Def, Sp.Atk, Sp.Def, Speed, and Hidden Power's type and power (the STATS page's
      * IV / EV view), all read from the Pokemon shown. */
     unsigned char iv[6], ev[6], hpType, hpPower;
