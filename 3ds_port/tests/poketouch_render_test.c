@@ -324,9 +324,9 @@ int main(int argc, char **argv)
         for(int i=0;i<PT_COUNT;++i) if(UiIn(&expected[i],x,y)) hit=i;
         assert(CtrPokeTouch_HitTest(x,y)==hit);
         int gx=-1,gy=-1;
-        int inside=x>=4&&x<244&&y>=4&&y<164;
+        int inside=x>=PT_VIEW_X&&x<PT_VIEW_X+PT_VIEW_W&&y>=PT_VIEW_Y&&y<PT_VIEW_Y+PT_VIEW_H;
         assert(CtrPokeTouch_ViewportToGba(x,y,&gx,&gy)==inside);
-        if(inside) assert(gx==x-4&&gy==y-4);
+        if(inside) assert(gx==x-PT_VIEW_X&&gy==y-PT_VIEW_Y);
     }
     CtrPokeTouchView v={0}; v.selected=v.pressed=PT_NONE;
     v.home=1; v.playerX=v.playerY=v.cursorX=v.cursorY=-1;
@@ -354,7 +354,7 @@ int main(int argc, char **argv)
     for(int screen=0;screen<2;++screen) {      /* HOME, the GBA picture (OPTIONS, SAVE: device_render_test.c) */
         v.home=screen==0; v.viewport=screen==1;
         update(&old,&v);
-        if(viewports) for(int x=4;x<244;++x) for(int y=4;y<164;++y) {
+        if(viewports) for(int x=PT_VIEW_X;x<PT_VIEW_X+PT_VIEW_W;++x) for(int y=PT_VIEW_Y;y<PT_VIEW_Y+PT_VIEW_H;++y) {
             uint16_t c=at(x,y); fwrite(&c,2,1,viewports);
         }
     }
