@@ -643,18 +643,21 @@ static int DexFaults(void)
     return faults;
 }
 
-/* The field's choices: n keys (1-8) in FireRed's one column (two past four, going down first) or a grid of 2 or 3
- * columns, every key above the question's note and BACK, which stand side by side under them; a grid of one column is
- * the one column's layout (no key past the screen). (The move to forget's and the relearner's own rectangles:
- * LearnFaults.) */
+/* The field's choices on the grid (boards def_choice_yesno, def_choice_list, def_choice_grid): n keys (1-8) in
+ * FireRed's one column (YES / NO two tall keys; up to four across the screen, 38 tall and 44 apart; five to eight in two
+ * columns going down first, the left one always four) or FireRed's grid of 2 or 3 columns across; every key's drop ends
+ * above the footer (the grid's note and its exit, BACK); a grid of one column is the one column's layout. (The move to
+ * forget's and the relearner's own rectangles: LearnFaults.) */
 static int ChoiceFaults(void)
 {
     static const int kCols[4] = {0, 1, 2, 3};
     int faults = 0;
 
-    assert(Same(kDevChoiceNote, (CtrPokeTouchRect){8, 160, 228, 72}) && Same(kDevChoiceBack, (CtrPokeTouchRect){244, 160, 68, 70}));
-    assert(Same(DevChoiceKey(6, 0, 3), (CtrPokeTouchRect){164, 8, 148, 40}) && Same(DevChoiceKey(4, 0, 3), (CtrPokeTouchRect){8, 116, 304, 32}));
-    assert(Same(DevChoiceKey(8, 3, 7), (CtrPokeTouchRect){112, 96, 96, 40}) && Same(DevChoiceKey(8, 2, 7), (CtrPokeTouchRect){164, 116, 148, 32}));
+    assert(Same(DevChoiceKey(2, 0, 0), (CtrPokeTouchRect){8, 8, 304, 84}) && Same(DevChoiceKey(2, 0, 1), (CtrPokeTouchRect){8, 100, 304, 84}));
+    assert(Same(DevChoiceKey(4, 0, 3), (CtrPokeTouchRect){8, 140, 304, 38}) && Same(DevChoiceKey(5, 0, 3), (CtrPokeTouchRect){8, 140, 148, 38}));
+    assert(Same(DevChoiceKey(5, 0, 4), (CtrPokeTouchRect){164, 8, 148, 38}) && Same(DevChoiceKey(8, 0, 7), (CtrPokeTouchRect){164, 140, 148, 38}));
+    assert(Same(DevChoiceKey(6, 3, 4), (CtrPokeTouchRect){112, 52, 96, 38}) && Same(DevChoiceKey(8, 3, 7), (CtrPokeTouchRect){112, 96, 96, 38}));
+    assert(Same(DevChoiceKey(8, 2, 7), (CtrPokeTouchRect){164, 140, 148, 38}));
     for (int n = 1; n <= 8; ++n)
         for (int i = 0; i < n; ++i)
             if (!Same(DevChoiceKey(n, 1, i), DevChoiceKey(n, 0, i))) {
@@ -666,15 +669,11 @@ static int ChoiceFaults(void)
             for (int i = 0; i < n; ++i) {
                 CtrPokeTouchRect k = DevChoiceKey(n, kCols[c], i);
 
-                if (k.y + k.h + DEV_DROP > kDevChoiceNote.y || k.y + k.h + DEV_DROP > kDevChoiceBack.y) {
-                    fprintf(stderr, "choice: key %d of %d (%d columns) reaches the note or BACK\n", i, n, kCols[c]);
+                if (k.y + k.h + DEV_DROP > kDevGridNote.y || k.y + k.h + DEV_DROP > kDevGridExit.y) {
+                    fprintf(stderr, "choice: key %d of %d (%d columns) reaches the footer\n", i, n, kCols[c]);
                     ++faults;
                 }
             }
-    if (kDevChoiceNote.x + kDevChoiceNote.w > kDevChoiceBack.x || kDevChoiceNote.y != kDevChoiceBack.y) {
-        fprintf(stderr, "choice: the note meets BACK, or they are not side by side\n");
-        ++faults;
-    }
     return faults;
 }
 
@@ -943,7 +942,7 @@ int main(void)
         {"move to forget's picture", kDevLearnPic}, {"move to forget's slot 4", DevLearnSlot(4)},
         {"relearner's narrow screen", kDevRlNarrow}, {"relearner's narrow description", kDevRlDescNarrow},
         {"relearner's YES", DevRlKey(0)}, {"relearner's NO", DevRlKey(1)},
-        {"choice note", kDevChoiceNote}, {"choice BACK", kDevChoiceBack}, {"choice key 7 of 8", DevChoiceKey(8, 0, 7)},
+        {"choice YES", DevChoiceKey(2, 0, 0)}, {"choice NO", DevChoiceKey(2, 0, 1)}, {"choice key 7 of 8", DevChoiceKey(8, 0, 7)},
         {"choice grid key 7 of 8", DevChoiceKey(8, 3, 7)},
         {"naming screen", kDevNameScreen}, {"naming OK", DevNameTop(4)}, {"naming key 3,7", DevNameKey(8, 3, 7)},
         {"naming symbol 3,5", DevNameKey(6, 3, 5)},
@@ -996,7 +995,7 @@ int main(void)
 
             for (int i = 0; i < n; ++i)
                 choiceKeys[c][n - 1][i] = DevChoiceKey(n, cols, i);
-            choiceKeys[c][n - 1][n] = kDevChoiceBack;
+            choiceKeys[c][n - 1][n] = kDevGridExit;
             snprintf(choiceName[c][n - 1], sizeof(choiceName[c][n - 1]), "choice of %d (%d columns)", n, cols);
             choiceGroups[c][n - 1] = (DevGroup){choiceName[c][n - 1], choiceKeys[c][n - 1], n + 1};
             faults += GroupFaults(&choiceGroups[c][n - 1]);

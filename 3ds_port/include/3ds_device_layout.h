@@ -391,17 +391,15 @@ static inline CtrPokeTouchRect DevDexSlot(int i)
     return r;
 }
 
-/* ---- The field's choices, the move to forget, the relearner (no board; 3ds_device_choice_impl.h, _learn_impl.h,
- * _relearn_impl.h) ---------------------------------------------------------------------------------------------------
- * A choice: FireRed's rows as keys across the screen (DevChoiceKey), the message box's question on the note under them
- * (kDevChoiceNote) and BACK beside it. The move to forget: FireRed's question on the grid's title, its screen
+/* ---- The field's choices (boards def_choice_*), the move to forget, the relearner (3ds_device_choice_impl.h,
+ * _learn_impl.h, _relearn_impl.h) ------------------------------------------------------------------------------------
+ * A choice: FireRed's rows as keys above the footer (DevChoiceKey), the message box's question on the grid's note and
+ * BACK in its exit (kDevGridNote, kDevGridExit). The move to forget: FireRed's question on the grid's title, its screen
  * (kDevLearnScreen: the Pokemon in its column, kDevLearnColumn, its picture in kDevLearnPic; the four moves and the new
  * one in DevLearnSlot(0..4)), the tall note (the description) and BACK. The relearner is the grid's list page: the
  * question on the title, five tall rows with ▲ ▼, the description on the note and CANCEL (FireRed's CANCEL row) in the
  * exit; YES / NO beside the narrow screens (kDevRlNarrow, kDevRlDescNarrow) in DevRlKey(i). Each its own copy of the
  * numbers it drew with (the Summary's and the Bag's), so neither moves with them. */
-static const CtrPokeTouchRect kDevChoiceNote __attribute__((unused)) = {8, 160, 228, 72};
-static const CtrPokeTouchRect kDevChoiceBack __attribute__((unused)) = {244, 160, 68, 70};
 static const CtrPokeTouchRect kDevLearnScreen __attribute__((unused)) = {8, 40, 304, 140};
 static const CtrPokeTouchRect kDevLearnColumn __attribute__((unused)) = {14, 46, 104, 128};
 static const CtrPokeTouchRect kDevLearnPic __attribute__((unused)) = {34, 82, 64, 64};
@@ -424,23 +422,23 @@ static inline CtrPokeTouchRect DevRlKey(int i)
     return r;
 }
 
-/* Key i of a choice of n (1-8): FireRed's one column (cols 0, or a grid of one) in one column up to four keys and in two
- * beyond, going down first as FireRed's list does; a grid of `cols` columns across, as FireRed's grid goes. Up to three
- * rows 40 tall, four 32, 4 px apart from the top. */
+/* Key i of a choice of n (1-8) from the top of the screen: FireRed's grid (cols 2 or more) across, as its grid goes;
+ * its one column (cols 0, or a grid of one) two tall keys for two (YES / NO), one column across the screen up to four,
+ * and two columns for five to eight, going down first as FireRed's list does, the left one always four. The keys 38 tall
+ * and 44 apart, YES / NO 84 and 92. */
 static inline CtrPokeTouchRect DevChoiceKey(int n, int cols, int i)
 {
-    int c, rows, h, col, row;
+    CtrPokeTouchRect r = {8, (int16_t)(8 + 44 * i), 304, 38};
 
-    if (cols < 2)
-        cols = 0;
-    c = cols > 0 ? cols : n > 4 ? 2 : 1;
-    rows = (n + c - 1) / c;
-    if (rows < 1)
-        rows = 1;
-    col = cols > 0 ? i % c : i / rows;
-    row = cols > 0 ? i / c : i % rows;
-    h = rows <= 3 ? 40 : 32;
-    return DevAcross(c, col, 8 + (h + 4) * row, h);
+    if (cols >= 2)
+        return DevAcross(cols, i % cols, 8 + 44 * (i / cols), 38);
+    if (n > 4)
+        return DevAcross(2, i / 4, 8 + 44 * (i % 4), 38);
+    if (n == 2) {
+        r.y = (int16_t)(8 + 92 * i);
+        r.h = 84;
+    }
+    return r;
 }
 
 /* ---- The naming keyboard (no board; 3ds_device_naming_impl.h) --------------------------------------------------------
