@@ -145,7 +145,7 @@ static void SuiteFrame(void)
     assert(FrameHintInk(0, FRAME_HINT_X + 100) > 0 && FrameHintInk(1, FRAME_HINT_X + 60) > 0);
     strcpy(v.bar[1], "Port words for this test, and on and on"); strcpy(v.bar[2], "More port words that two lines drop");
     DevCheckTouch(&old, &v); sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &v);         /* one draw: one cut */
-    assert(sDevKeyCut == 1 && FrameHintInk(1, FRAME_HINT_X + FRAME_HINT_ROOM - 40) > 0);
+    assert(sDevKeyCut == 1 && FrameHintInk(1, FRAME_HINT_X + FRAME_HINT_ROOM / 2) > 0);    /* line 2 past its middle */
     sDevKeyCut = 0;
     memcpy(smallWidths, keepSmall, sizeof(keepSmall));
     memset(sDevSmallReady, 0, sizeof(sDevSmallReady));

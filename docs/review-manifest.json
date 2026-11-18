@@ -7609,7 +7609,7 @@
   },
   {
    "path": "3ds_port/tests/device_suite_frame.h",
-   "sha256": "9de4889702b79248818f6da88784905bb901d1d607d8f0706506804b809240ee",
+   "sha256": "f5ab68a395c50aca9357b18a8f7c2fbb5e0e376b418546f6f29d0a51cab6e5aa",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
