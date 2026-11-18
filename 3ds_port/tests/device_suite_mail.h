@@ -8,7 +8,7 @@ static CtrPokeTouchView MailBoard(void)
     CtrPokeTouchView v;
 
     memset(&v, 0, sizeof(v));
-    v.pressed = v.selected = PT_NONE;
+    v.pressed = PT_NONE;
     v.mail.on = 1;
     v.mail.item = 121;
     strcpy(v.mail.name, "ORANGE MAIL");
@@ -40,7 +40,7 @@ static void SuiteMail(void)
 
     CtrPokeTouch_Draw(canvas, &mo);
     /* the plan's suite */
-    mv = MailBoard(); DevCheckTouch(&mo, &mv); assert(CtrPokeTouch_DeviceShown(&mv));
+    mv = MailBoard(); DevCheckTouch(&mo, &mv); assert(DrawnBy(&mv, DevMailShown));
     /* mail */ assert(CtrPokeTouch_MailHit(&mv, 160, 90) && !CtrPokeTouch_MailHit(&mv, 160, 200)); AssertHits(BackV, &mv, kDevWideKey, 1); mv.mail.from[0] = 0; DevCheckTouch(&mo, &mv);
     mv.mapGroup ^= 1; mv.speed ^= 1; assert(DevCheckTouch(&mo, &mv).count == 0);
 
@@ -72,13 +72,13 @@ static void SuiteMail(void)
     assert(at(11, 210) == DEV_SHELL_RED && !BackV(&mv, 11, 210) && CtrPokeTouch_MailHit(&mv, 160, 90));
     /* what the letter does not draw presents nothing: the bar, the column's fields, the map */
     mv = MailBoard(); DevCheckTouch(&mo, &mv);
-    strcpy(mv.bar[0], "Anything"); mv.registeredItem = 7; mv.enabled[PT_BAG] = 1; mv.playerX = 3;
+    strcpy(mv.bar[0], "Anything"); mv.enabled[PT_BAG] = 1; mv.playerX = 3;
     assert(DevCheckTouch(&mo, &mv).count == 0);
     mv.shell = 1; assert(DevWhole(DevCheckTouch(&mo, &mv)) && at(1, 100) == DEV_SHELL_BLUE);
     mv.shell = 0; DevCheckTouch(&mo, &mv);
     strcpy(mv.mail.name, "RETRO MAIL"); assert(DevWhole(DevCheckTouch(&mo, &mv)));
     /* the ways in and out: the GBA picture (in the frame's screen: nothing of the letter hit, the frame's BACK) */
-    mv.viewport = 1; assert(DevWhole(DevCheckTouch(&mo, &mv)) && CtrPokeTouch_DeviceShown(&mv));
+    mv.viewport = 1; assert(DevWhole(DevCheckTouch(&mo, &mv)) && DrawnBy(&mv, DevFrameShown));
     assert(!CtrPokeTouch_MailHit(&mv, 160, 90) && CtrPokeTouch_BackHit(&mv, 278, 209) && !CtrPokeTouch_BackHit(&mv, 180, 210));
     mv = MailBoard(); mv.mail.on = 0; assert(!CtrPokeTouch_MailHit(&mv, 160, 90));
     mv = MailBoard(); assert(DevWhole(DevCheckTouch(&mo, &mv)));

@@ -58,7 +58,7 @@ static CtrPokeTouchView DexBoard(void)
     CtrPokeTouchDex *d = &v.dex;
 
     memset(&v, 0, sizeof(v));
-    v.pressed = v.selected = PT_NONE;
+    v.pressed = PT_NONE;
     d->on = 1;
     d->state = PT_DEX_STATE_MENU;
     d->pressed = -1;
@@ -142,7 +142,7 @@ static void SuiteDex(void)
     dexArt = 1;
     CtrPokeTouch_Draw(canvas, &old);
     /* the plan's suite */
-    v = DexBoard(); DevCheckTouch(&old, &v); assert(CtrPokeTouch_DeviceShown(&v));
+    v = DexBoard(); DevCheckTouch(&old, &v); assert(DrawnBy(&v, DevDexShown));
     for (i = 0; i < 3; ++i) AssertHits(DexHitV, &v, kDevBagPocket[i], PT_DEX_HIT_TAB + i);
     AssertKey(kDevBagPocket[1], DEV_LOOK_KEY, 1);
     for (i = 0; i < 6; ++i) AssertHits(DexHitV, &v, DevDexItem(i), PT_DEX_HIT_ITEM + ItemRow(&v, i));
@@ -277,7 +277,7 @@ static void SuiteDex(void)
     v = DexBoard(); v.dex.state = PT_DEX_STATE_BUSY; assert(DevWhole(DevCheckTouch(&old, &v)));
     assert(CtrPokeTouch_DexHit(&v, 160, 100) == -1 && CtrPokeTouch_DexHit(&v, 20, 20) == -1 && at(160, 100) == DEV_SHELL_RED);
     v = DexBoard(); DevCheckTouch(&old, &v);
-    strcpy(v.bar[0], "Anything"); v.bar[1][0] = 0; v.registeredItem = 7; v.enabled[PT_BAG] = 1; v.playerX = 3;
+    strcpy(v.bar[0], "Anything"); v.bar[1][0] = 0; v.enabled[PT_BAG] = 1; v.playerX = 3;
     assert(DevCheckTouch(&old, &v).count == 0);
     v.shell = 2; assert(DevWhole(DevCheckTouch(&old, &v)) && at(1, 100) == DEV_SHELL_GREEN);
     v.shell = 0; DevCheckTouch(&old, &v);
@@ -285,8 +285,8 @@ static void SuiteDex(void)
     assert(DevWhole(DevCheckTouch(&old, &other)));
     v = DexBoard(); assert(DevWhole(DevCheckTouch(&old, &v)));
     other = v; memset(&other.dex, 0, sizeof(other.dex)); other.viewport = 1;
-    assert(DevWhole(DevCheckTouch(&old, &other)) && CtrPokeTouch_DeviceShown(&other) && CtrPokeTouch_DexHit(&other, 160, 90) == -1);
-    v = DexBoard(); v.viewport = 1; assert(CtrPokeTouch_DeviceShown(&v) && CtrPokeTouch_DexHit(&v, 160, 20) == -1);
+    assert(DevWhole(DevCheckTouch(&old, &other)) && DrawnBy(&other, DevFrameShown) && CtrPokeTouch_DexHit(&other, 160, 90) == -1);
+    v = DexBoard(); v.viewport = 1; assert(DrawnBy(&v, DevFrameShown) && CtrPokeTouch_DexHit(&v, 160, 20) == -1);
     v = DexBoard(); assert(DevWhole(DevCheckTouch(&old, &v)));
     DexUpperCase(DexBoard());
     CtrPokeTouch_Draw(canvas, &old);

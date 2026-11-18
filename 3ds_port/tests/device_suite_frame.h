@@ -16,7 +16,7 @@ static CtrPokeTouchView FrameBoard(void)
     CtrPokeTouchView v;
 
     memset(&v, 0, sizeof(v));
-    v.pressed = v.selected = PT_NONE;
+    v.pressed = PT_NONE;
     v.viewport = 1;
     strcpy(v.bar[0], "Fame checker");
     strcpy(v.bar[1], "Use the game's own controls.");
@@ -63,7 +63,7 @@ static void SuiteFrame(void)
 
     CtrPokeTouch_Draw(canvas, &old);
     /* the plan's suite */
-    v.viewport = 1; v.backVisible = v.backEnabled = 1; DevCheckTouch(&old, &v); assert(CtrPokeTouch_DeviceShown(&v));
+    v.viewport = 1; v.backVisible = v.backEnabled = 1; DevCheckTouch(&old, &v); assert(DrawnBy(&v, DevFrameShown));
     assert(at(PT_VIEW_X, PT_VIEW_Y) == 0 && at(PT_VIEW_X + PT_VIEW_W - 1, PT_VIEW_Y + PT_VIEW_H - 1) == 0 && at(PT_VIEW_X - 1, PT_VIEW_Y + 20) == DEV_BEZEL);
     for (y = -1; y <= H; ++y) for (x = -1; x <= W; ++x) {                                       /* moved from poketouch_render_test */
         int in = x >= PT_VIEW_X && x < PT_VIEW_X + PT_VIEW_W && y >= PT_VIEW_Y && y < PT_VIEW_Y + PT_VIEW_H, gx, gy;
@@ -132,7 +132,7 @@ static void SuiteFrame(void)
      * presents nothing */
     v = FrameBoard(); DevCheckTouch(&old, &v);
     assert(DevCheckTouch(&old, &v).count == 0);
-    v.enabled[PT_BAG] = 1; v.registeredItem = 7; v.bikeItem = 9; v.running = 1; v.selected = PT_SAVE; v.pressed = PT_BAG;
+    v.enabled[PT_BAG] = 1; v.running = 1; v.pressed = PT_BAG;
     strcpy(v.playerName, "RED"); v.playerX = 3; v.optCount = 3;
     assert(DevCheckTouch(&old, &v).count == 0);
     strcpy(v.bar[0], "Teachy TV"); assert(DevWhole(DevCheckTouch(&old, &v)));
@@ -144,7 +144,7 @@ static void SuiteFrame(void)
     /* the dispatcher's rows: the frame is its last, for any field view no other row draws (FireRed's picture, or nothing
      * at all), never for a view of its own (Easy Chat even with a picture), HOME or the Bag */
     v = FrameBoard(); assert(FrameRow(&v));
-    memset(&other, 0, sizeof(other)); assert(FrameRow(&other) && CtrPokeTouch_DeviceShown(&other));
+    memset(&other, 0, sizeof(other)); assert(FrameRow(&other));
     for (int i = 0; i < 11; ++i) {
         other = FrameBoard();
         switch (i) {
@@ -163,9 +163,15 @@ static void SuiteFrame(void)
         assert(FrameRow(&other) == (i != 0));         /* a view's own row only without the picture (Easy Chat always) */
         other.viewport = 0; assert(!FrameRow(&other) && DevFieldIndex(&other) >= 0);
     }
-    other = FrameBoard(); other.viewport = 0; other.home = 1; assert(DevFieldIndex(&other) == -1 && CtrPokeTouch_DeviceShown(&other));
-    other.home = 0; other.bag.on = 1; assert(DevFieldIndex(&other) == -1 && CtrPokeTouch_DeviceShown(&other));
+    other = FrameBoard(); other.viewport = 0; other.home = 1; assert(DevFieldIndex(&other) == -1);
+    other.home = 0; other.bag.on = 1; assert(DevFieldIndex(&other) == -1);
     other.viewport = 1; assert(FrameRow(&other));     /* the Bag's picture (GIVE, a case) is FireRed's: the frame */
+    /* HOME and the Bag draw no BACK: none of their pixels is BACK, not even with BACK shown and usable (3ds_bottom.c
+     * asks it of HOME in the frames after OPTIONS opens, HOME still the picture shown, where OPTIONS' key is) */
+    other = HomeBoard(); other.backVisible = other.backEnabled = 1; assert(DevHomeShown(&other));
+    for (y = 0; y < H; ++y) for (x = 0; x < W; ++x) assert(!CtrPokeTouch_BackHit(&other, x, y));
+    other = BagBoard(); other.backVisible = other.backEnabled = 1; assert(DevBagShown(&other));
+    for (y = 0; y < H; ++y) for (x = 0; x < W; ++x) assert(!CtrPokeTouch_BackHit(&other, x, y));
     /* the ways in and out: HOME, the frame, the Bag, the frame */
     other = HomeBoard(); assert(DevWhole(DevCheckTouch(&old, &other)));
     v = FrameBoard(); assert(DevWhole(DevCheckTouch(&old, &v)));
@@ -179,7 +185,7 @@ static void SuiteFrame(void)
     v.backPressed = 1; DevCheckTouch(&old, &v); shot("back_pressed");
     v.backPressed = 0; v.backEnabled = 0; DevCheckTouch(&old, &v); shot("back_off");
     v = FrameBoard(); v.backVisible = 0; DevCheckTouch(&old, &v); shot("wide");
-    memset(&v, 0, sizeof(v)); v.pressed = v.selected = PT_NONE; DevCheckTouch(&old, &v); shot("empty");
+    memset(&v, 0, sizeof(v)); v.pressed = PT_NONE; DevCheckTouch(&old, &v); shot("empty");
     assert(sDevKeyCut == 0);                      /* main prints PASS device frame */
 }
 

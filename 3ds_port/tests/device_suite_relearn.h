@@ -58,7 +58,7 @@ static CtrPokeTouchView RelearnBoard(void)
     CtrPokeTouchRelearn *l = &v.relearn;
 
     memset(&v, 0, sizeof(v));
-    v.pressed = v.selected = PT_NONE;
+    v.pressed = PT_NONE;
     l->on = 1;
     l->panel = PT_RL_PANEL_LIST;
     l->count = 8;
@@ -110,7 +110,7 @@ static void SuiteRelearn(void)
 
     CtrPokeTouch_Draw(canvas, &ro);
     /* the plan's suite */
-    rv = RelearnBoard(); DevCheckTouch(&ro, &rv); assert(CtrPokeTouch_DeviceShown(&rv));
+    rv = RelearnBoard(); DevCheckTouch(&ro, &rv); assert(DrawnBy(&rv, DevRelearnShown));
     /* relearn */ for (i = 0; i < 5; ++i) AssertRowHits(RlHitV, &rv, DevTallRow(i, 0), PT_RL_HIT_ROW + i);
     assert(CtrPokeTouch_RelearnHit(&rv, 294, 73) == -1); AssertHits(RlHitV, &rv, kDevBagDown, PT_RL_HIT_DOWN); AssertHits(RlHitV, &rv, kDevBagClose, PT_RL_HIT_CANCEL);
     rv.relearn.first = 4; rv.relearn.cursor = 8; DevCheckTouch(&ro, &rv); AssertKey(kDevBagClose, DEV_LOOK_DARK, 1); assert(CtrPokeTouch_RelearnHit(&rv, 130, DevTallRow(4, 0).y + 5) == -1);
@@ -196,7 +196,7 @@ static void SuiteRelearn(void)
      * picture: in the frame's screen, nothing of the relearner hit) */
     rv = RelearnBoard(); DevCheckTouch(&ro, &rv);
     rv.backPressed = 1; rv.backEnabled = 0; rv.relearn.species = 7; strcpy(rv.relearn.nickname, "Blaze"); strcpy(rv.relearn.level, "37");
-    rv.relearn.menuCursor = 1; rv.relearn.tap = 1; strcpy(rv.bar[0], "Anything"); rv.registeredItem = 7; rv.playerX = 3;
+    rv.relearn.menuCursor = 1; rv.relearn.tap = 1; strcpy(rv.bar[0], "Anything"); rv.playerX = 3;
     assert(DevCheckTouch(&ro, &rv).count == 0);
     rv.relearn.pressed = PT_RL_HIT_UP; assert(DevCheckTouch(&ro, &rv).count == 0);         /* ▲ cannot go: not drawn sunk */
     rv.relearn.pressed = -1; DevCheckTouch(&ro, &rv);
@@ -206,8 +206,8 @@ static void SuiteRelearn(void)
     assert(DevWhole(DevCheckTouch(&ro, &other)));
     rv = RelearnBoard(); assert(DevWhole(DevCheckTouch(&ro, &rv)));
     other = rv; memset(&other.relearn, 0, sizeof(other.relearn)); other.viewport = 1;
-    assert(DevWhole(DevCheckTouch(&ro, &other)) && CtrPokeTouch_DeviceShown(&other) && CtrPokeTouch_RelearnHit(&other, 130, 60) == -1);
-    rv.viewport = 1; assert(CtrPokeTouch_DeviceShown(&rv) && CtrPokeTouch_RelearnHit(&rv, 130, 60) == -1);
+    assert(DevWhole(DevCheckTouch(&ro, &other)) && DrawnBy(&other, DevFrameShown) && CtrPokeTouch_RelearnHit(&other, 130, 60) == -1);
+    rv.viewport = 1; assert(DrawnBy(&rv, DevFrameShown) && CtrPokeTouch_RelearnHit(&rv, 130, 60) == -1);
     rv = RelearnBoard(); assert(DevWhole(DevCheckTouch(&ro, &rv)));
     RelearnUpperCase(RelearnBoard());
     CtrPokeTouch_Draw(canvas, &ro);

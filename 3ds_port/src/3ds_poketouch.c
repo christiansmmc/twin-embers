@@ -1,22 +1,13 @@
 /* PokeTouch: the bottom screen, drawn and hit-tested.
  *
- * Layout (320x240, see 3ds_poketouch.h): the frame with the 240x160 viewport
- * (the GBA picture is drawn there 1:1 by the GPU, 3ds_video.c), the
- * contextual bar under it, the side column POKeDEX / POKeMON / BAG / the
- * player's name (Trainer Card) / SAVE / OPTIONS and under it the X and Y
- * shortcuts and the Running Shoes (the running mode), icons only. With no
- * menu open the lower screen is HOME, the red device's (3ds_device_home_impl.h):
- * FireRed's Region Map at 1:1 with the player on it, the party, RUN, the
- * game's speed and the six START entries as keys.
+ * Every view is the red device's (style B, its kit: 3ds_device_kit_impl.h). With no menu open the lower screen is HOME
+ * (3ds_device_home_impl.h): FireRed's Region Map at 1:1 with the player on it, the party, RUN, the game's speed and the
+ * six START entries as keys. Then the battle, the Party, the Summary, the Bag, and the field's other views through one
+ * table, the field dispatcher (3ds_device_field_impl.h), whose last row shows FireRed's own picture (the GBA's 240x160,
+ * drawn 1:1 by the GPU, 3ds_video.c) in an embedded screen.
  *
- * Look (the views not yet the red device's): the Llama mockup's (3ds_ember2_impl.h): FireRed's text window for the note and the
- * picture's frame; cream pieces that wear flame (with a ring) when chosen; slate for BACK.
- *
- * Art: FireRed's own item icons for the shortcuts (read from the game, so
- * they show whatever is configured), FireRed's latin_normal font for the
- * bar, a 5x7 bitmap font for buttons, and pack-backed item icons for
- * six menu entries (original shoe fallback). Drawn only when the view
- * changes.
+ * Art: FireRed's own, read from the game or the user's pack (its latin_normal font, its item icons, the Region Map),
+ * never compiled in. Drawn only when the view changes.
  */
 #include <stdio.h>
 #include <string.h>
@@ -164,31 +155,6 @@ static int CtrPokeTouch_PackMenuIcon(unsigned icon, uint8_t pixels[12 * 12], uin
     return 1;
 }
 
-/* The START column at the screen's right (v0.6.0's, beside the GBA picture's frame there; no view draws it now): six
- * raised buttons, the X and Y shortcut tiles and RUN with its switch. */
-const CtrPokeTouchRect gCtrPokeTouchRects[PT_COUNT] = {
-    [PT_POKEDEX]    = {250,   4, 68, 21},
-    [PT_POKEMON]    = {250,  29, 68, 21},
-    [PT_BAG]        = {250,  54, 68, 21},
-    [PT_CARD]       = {250,  79, 68, 21},
-    [PT_SAVE]       = {250, 104, 68, 21},
-    [PT_OPTIONS]    = {250, 129, 68, 21},
-    [PT_REGISTERED] = {250, 158, 32, 40},
-    [PT_BIKE]       = {286, 158, 32, 40},
-    [PT_RUN]        = {250, 204, 68, 30},
-};
-
-/* Areas that are not buttons: the picture's frame, and under it the bar: the note card on the left and, on its
- * right, BACK or SAVE's buttons. */
-static const CtrPokeTouchRect sMenuFrame = {0, 0, 248, 168};
-static const CtrPokeTouchRect sBar = {0, 168, 248, 72};
-const CtrPokeTouchRect gCtrPokeTouchBack = {172, 202, 72, 34};
-#define NOTE_X 4
-#define NOTE_Y 172
-#define NOTE_H 64
-#define NOTE_W_FULL 240
-#define NOTE_W_SIDE 164
-
 /* The palette and components are the lower screen's design system (3ds_ui_theme.h / .inc); the red device's B views
  * have their own kit (3ds_device_kit_impl.h). */
 static uint16_t *sCanvas;
@@ -298,7 +264,7 @@ static const PtGlyph *Glyph(const char **s)
     return &sPtFont[code];
 }
 
-/* Images: palette indices, 0 clear; disabled art is a light grey. */
+/* A colour of art as drawn: as it is when on, a light grey (its luma, lightened) when disabled. */
 static uint16_t Tone(uint16_t c, int on)
 {
     if (on)
@@ -309,22 +275,6 @@ static uint16_t Tone(uint16_t c, int on)
     return (uint16_t)((luma >> 1) << 11 | luma << 5 | (luma >> 1));
 }
 
-static void Art(const uint8_t *pixels, const uint16_t *pal, int stride, int x0, int y0, int w, int h,
-                int x, int y, int on)
-{
-    int px0 = x < 0 ? -x : 0, px1 = x + w > W ? W - x : w, py0 = y < 0 ? -y : 0, py1 = y + h > H ? H - y : h;
-
-    for (int px = px0; px < px1; ++px) {                       /* a column at a time, the canvas' order, clipped once */
-        uint16_t *p = sCanvas + (size_t)(x + px) * H + (H - 1 - (size_t)(y + py0));
-
-        for (int py = py0; py < py1; ++py, --p) {
-            uint8_t v = pixels[(y0 + py) * stride + x0 + px];
-            if (v)
-                *p = Tone(pal[v], on);
-        }
-    }
-}
-
 #include "3ds_ui_theme_impl.h"
 #include "3ds_icons.h"
 /* The skin keeps the Ascuas pieces (EmWell, EmKeyTab, EmSwitch, EmBezel) for the screens not converted to Llama; this one draws its own. */
@@ -332,116 +282,6 @@ static void Art(const uint8_t *pixels, const uint16_t *pal, int stride, int x0, 
 #pragma GCC diagnostic ignored "-Wunused-function"
 #include "3ds_touch_skin_impl.h"
 #pragma GCC diagnostic pop
-
-#define BTN_DEPTH 3                     /* the lip under a big button (BACK, SAVE's) */
-#define COL_DEPTH 2                     /* and under the column's */
-
-/* A pill: `rows` (h colours) in a shape w wide and h tall whose two ends are half discs (w >= h). One span a row. */
-static void LhPill(int x, int y, int w, int h, const uint16_t *rows)
-{
-    for (int row = 0; row < h; ++row) {
-        int dy = 2 * row + 1 - h, left = h;
-
-        for (int col = 0; col < h; ++col) {
-            int dx = 2 * col + 1 - h;
-
-            if (dx * dx + dy * dy <= h * h) {
-                left = col;
-                break;
-            }
-        }
-        if (left < h)
-            Fill(x + left, y + row, w - 2 * left, 1, rows[row]);
-    }
-}
-
-/* The mockup's switch (.sw): 30 x 15 with its outline (its box is 28 x 13), a slate outline, a glass track (green when on, grey when off) and
- * a 15 px knob, at the right when on and at the left when off. The knob is lit from its upper left (white, going to #d6d8e2 at 11 px). */
-static void LhSwitch(int x, int y, int on)
-{
-    uint16_t rows[15];
-    int kx = on ? x + 15 : x;
-
-    for (int r = 0; r < 15; ++r)
-        rows[r] = LL_SLATE;
-    LhPill(x, y, 30, 15, rows);
-    for (int r = 0; r < 13; ++r)
-        rows[r] = on ? (r < 6 ? Em2Lerp(UI_RGB(166, 238, 174), UI_RGB(92, 200, 116), r, 5) : Em2Lerp(UI_RGB(60, 176, 92), UI_RGB(42, 148, 74), r - 6, 6))
-                     : Em2Lerp(UI_RGB(216, 212, 220), UI_RGB(170, 166, 178), r, 12);
-    LhPill(x + 1, y + 1, 28, 13, rows);
-    Em2Disc(kx, y, 15, LL_SLATE);
-    for (int row = 0; row < 13; ++row)
-        for (int col = 0; col < 13; ++col) {
-            int px = 2 * col + 1 - 13, py = 2 * row + 1 - 13, gx = col * 100 + 50 - 585, gy = row * 100 + 50 - 455, d;
-
-            if (px * px + py * py > 13 * 13)
-                continue;
-            d = (int)LlIsqrt((unsigned)(gx * gx + gy * gy));
-            Px(kx + 1 + col, y + 1 + row, d <= 385 ? EM_WHITE : Em2Lerp(EM_WHITE, UI_RGB(214, 216, 226), d - 385, 715));
-        }
-}
-
-/* The rectangle with the two rows the shadow of a raised piece under it takes. */
-static CtrPokeTouchRect Under(const CtrPokeTouchRect *r)
-{
-    CtrPokeTouchRect u = *r;
-
-    u.h = (int16_t)(u.h + 2);
-    return u;
-}
-
-/* Shortcut item icons from FireRed's icon table, decoded once per item and
- * shown as the 20x20 around their drawn part. */
-enum { ICON_REGISTERED, ICON_BIKE, ICON_COUNT };
-
-static struct {
-    unsigned item;
-    int ok, x0, y0;
-    uint8_t pixels[24 * 24];
-    uint16_t pal[16];
-} sIcons[ICON_COUNT];
-
-static int ItemIcon(int slot, unsigned item)
-{
-    static unsigned char tiles[0x200];
-    static unsigned short pal[16];
-
-    if (item == 0)
-        return 0;
-    if (sIcons[slot].item == item)
-        return sIcons[slot].ok;
-    sIcons[slot].item = item;
-    sIcons[slot].ok = CtrPokeTouch_ItemIcon(item, tiles, pal);
-    if (!sIcons[slot].ok)
-        return 0;
-    int left = 24, right = 0, top = 24, bottom = 0;
-    for (int y = 0; y < 24; ++y)
-        for (int x = 0; x < 24; ++x) {
-            unsigned byte = tiles[(y / 8 * 3 + x / 8) * 32 + y % 8 * 4 + x % 8 / 2];
-            uint8_t v = (uint8_t)((byte >> (x & 1) * 4) & 15);
-            sIcons[slot].pixels[y * 24 + x] = v;
-            if (v) {
-                if (x < left) left = x;
-                if (x >= right) right = x + 1;
-                if (y < top) top = y;
-                if (y >= bottom) bottom = y + 1;
-            }
-        }
-    int x0 = left < right ? (left + right) / 2 - 10 : 2, y0 = top < bottom ? (top + bottom) / 2 - 10 : 2;
-    sIcons[slot].x0 = x0 < 0 ? 0 : x0 > 4 ? 4 : x0;
-    sIcons[slot].y0 = y0 < 0 ? 0 : y0 > 4 ? 4 : y0;
-    for (int i = 0; i < 16; ++i) {
-        unsigned c = pal[i];
-        sIcons[slot].pal[i] = GbaColor(c);
-    }
-    return 1;
-}
-
-static void ItemArt(int slot, unsigned item, int x, int y, int on)
-{
-    if (ItemIcon(slot, item))
-        Art(sIcons[slot].pixels, sIcons[slot].pal, 24, sIcons[slot].x0, sIcons[slot].y0, 20, 20, x, y, on);
-}
 
 /* The HOME map: the 240x160 screen of FireRed's Region Map (its tilemap, tiles and palette, decoded by the game bridge)
  * is read once per map and version, and the 192x128 of it HOME's window shows (PT_HOME_SRC_X, PT_HOME_SRC_Y on) is kept
@@ -596,152 +436,6 @@ bool CtrPokeTouch_FlyHit(int x, int y)
     return sHomeShown && sFlyButton.w && UiIn(&sFlyButton, x, y);
 }
 
-/* The backdrop. */
-static void Frame(void)
-{
-    TsBackdrop();
-}
-
-/* The frame's area: the backdrop where v0.6.0's frame went round the GBA picture (every view is the red device's now:
- * 3ds_device_home_impl.h, 3ds_device_bag_impl.h and the field dispatcher's views, FireRed's picture in the frame's own
- * screen, 3ds_device_frame_impl.h). */
-static void MenuFrame(void)
-{
-    const CtrPokeTouchRect *r = &sMenuFrame;
-
-    TsBgRect(r->x, r->y, r->w, r->h);
-}
-
-/* BACK: the slate button of going back ("<" and its word at the left, as the mockup draws it); pressed it sinks, disabled it is grey. */
-static void Back(const CtrPokeTouchView *v)
-{
-    const CtrPokeTouchRect *r = &gCtrPokeTouchBack;
-    const EmPal *pal = v->backEnabled ? &kEmSlate : &kEmGrey;
-    int fy, fh = r->h - BTN_DEPTH;
-
-    TsBgRect(r->x, r->y, r->w, r->h + 2);
-    Em2CardShadow(r->x, r->y, r->w, r->h);
-    fy = EmButton(r->x, r->y, r->w, r->h, pal, BTN_DEPTH, v->backEnabled && v->backPressed);
-    LlArrow(r->x + 12, fy + (fh - 10) / 2, 6, 10, 2, EM_WHITE);
-    UiText(CTR_TR("Back", "Atr\xC3\xA1s", "Zur\xc3\xbc" "ck"), r->x + 24, fy + (fh - UI_TEXT_H) / 2, pal->ink, pal->inkSh, 1, r->x + r->w - 3);
-}
-
-/* The bar: the note card with up to three lines, 15 pixels apart and centred on it; the first line is the subject,
- * the others what is known about it (dimmer). It is narrower when BACK is on its right. */
-static void Bar(const CtrPokeTouchView *v)
-{
-    const CtrPokeTouchRect *r = &sBar;
-    int lines = 0;
-    int w = v->backVisible ? NOTE_W_SIDE : NOTE_W_FULL;
-    int right = NOTE_X + w - 12;
-
-    TsBgRect(r->x, r->y, r->w, r->h);
-    for (int i = 0; i < PT_BAR_LINES; ++i)
-        if (v->bar[i][0])
-            lines = i + 1;
-    /* The note is FireRed's window (the Llama mockup's): the subject at its top left, a rule under it, then the lines that
-     * say more, 14 apart, dimmer. */
-    LlWindow(NOTE_X, NOTE_Y, w, NOTE_H);
-    if (lines == 1) {
-        Em2Text(v->bar[0], NOTE_X + 13, NOTE_Y + (NOTE_H - UI_TEXT_H) / 2, EM_DARK, EM_DARK_SH, right);
-    } else if (lines > 1) {
-        Em2Text(v->bar[0], NOTE_X + 13, NOTE_Y + 11, EM_DARK, EM_DARK_SH, right);
-        LlRule(NOTE_X + 13, NOTE_Y + 26, right - NOTE_X - 13);
-        for (int i = 1; i < lines; ++i)
-            Em2Text(v->bar[i], NOTE_X + 13, NOTE_Y + 32 + (i - 1) * 14, EM_DIM, EM_DARK_SH, right);
-    }
-    if (v->backVisible)
-        Back(v);
-}
-
-/* An element's area: its rectangle and the ring (or the shadow) round it. */
-static CtrPokeTouchRect Area(int id)
-{
-    return UiInset(&gCtrPokeTouchRects[id], -2);
-}
-
-/* The column's icons, by button. */
-static int ColumnIcon(int id)
-{
-    return id;          /* kEmberIcon is in the order PT_POKEDEX .. PT_OPTIONS */
-}
-
-/* A START entry's word (PT_POKEDEX..PT_OPTIONS): the entry's, or for the Trainer Card the player's name as typed (into
- * `name`). The column's buttons and HOME's keys say the same. */
-static const char *ColumnLabel(int id, const CtrPokeTouchView *v, char name[16])
-{
-    const char *label = id == PT_POKEDEX ? CTR_TR("Pok\xC3\xA9" "dex", "Pok\xC3\xA9" "dex", "Pok\xc3\xa9" "dex")
-                      : id == PT_POKEMON ? CTR_TR("Pok\xC3\xA9mon", "Pok\xC3\xA9mon", "Pok\xc3\xa9" "mon")
-                      : id == PT_BAG ? CTR_TR("Bag", "Mochila", "Beutel")
-                      : id == PT_SAVE ? CTR_TR("Save", "Guardar", "Sichern") : id == PT_OPTIONS ? CTR_TR("Option", "Ajustes", "Option") : name;
-    int n = 0;
-
-    if (id == PT_CARD)
-        for (; n < 15 && v->playerName[n]; ++n)
-            name[n] = v->playerName[n];
-    name[n] = 0;
-    return label;
-}
-
-/* A button: cream, flame and ringed when selected (the screen shown, or the running mode on), sunk when pressed, grey when it cannot be used.
- * The column's carry their icon and label (the Trainer Card the player's name), the shortcuts their key on a blue ribbon and their item in
- * its well, RUN its switch. */
-static void Button(int id, const CtrPokeTouchView *v)
-{
-    const CtrPokeTouchRect *r = &gCtrPokeTouchRects[id];
-    CtrPokeTouchRect area = Area(id);
-    int on = v->enabled[id] || v->selected == id;
-    int pressed = v->enabled[id] && v->pressed == id;
-    int selected = (v->selected == id && id != PT_RUN) || (id == PT_RUN && v->enabled[id] && v->running);
-    const EmPal *pal = !on ? &kEmGrey : id == PT_RUN ? &kEmCream : LlPick(selected, &kEmCream);
-    int fy, fh = r->h - COL_DEPTH;
-
-    TsBgRect(area.x, area.y, area.w, area.h);
-    if (selected && id != PT_RUN && on)
-        LlSelectRing(r->x, r->y, r->w, r->h);
-    else
-        Em2CardShadow(r->x, r->y, r->w, r->h);
-    fy = EmButton(r->x, r->y, r->w, r->h, pal, COL_DEPTH, pressed);
-    switch (id) {
-    case PT_REGISTERED:
-    case PT_BIKE: {
-        const char *key = id == PT_REGISTERED ? "X" : "Y";
-
-        LlRibbonBox(r->x + 1, fy + 1, UiTextWidth(key, 1) + 18, 11, 7, LL_TL, LL_BLUE_TOP, LL_BLUE_BOT, key);
-        LlWell(r->x + 3, fy + 15, r->w - 6, fh - 18);
-        ItemArt(id == PT_REGISTERED ? ICON_REGISTERED : ICON_BIKE, id == PT_REGISTERED ? v->registeredItem : v->bikeItem,
-                r->x + (r->w - 20) / 2, fy + 15 + (fh - 18 - 20) / 2, on);
-        break;
-    }
-    case PT_RUN:
-        /* The battle menu's RUN shoe, small, beside the switch. */
-        for (int v2 = 0; v2 < FLATSHOESMALL_H; ++v2)
-            for (int u = 0; u < FLATSHOESMALL_W; ++u)
-                if (kFlatShoeSmall[v2 * FLATSHOESMALL_W + u])
-                    Px(r->x + 5 + u, fy + (fh - FLATSHOESMALL_H) / 2 + v2, kFlatShoeSmall[v2 * FLATSHOESMALL_W + u]);
-        LhSwitch(r->x + 34, fy + (fh - 15) / 2, selected);
-        break;
-    default: {
-        char name[16];
-        const char *label = ColumnLabel(id, v, name);
-
-        EmIcon(ColumnIcon(id), r->x + 4, fy + (fh - EMBER_ICON) / 2, on);
-        UiText(label, r->x + 23, fy + (fh - UI_TEXT_H) / 2, pal->ink, pal->inkSh, 1, r->x + r->w - 2);
-        break;
-    }
-    }
-}
-
-int CtrPokeTouch_HitTest(int x, int y)
-{
-    for (int i = 0; i < PT_COUNT; ++i) {
-        const CtrPokeTouchRect *r = &gCtrPokeTouchRects[i];
-        if (x >= r->x && y >= r->y && x < r->x + r->w && y < r->y + r->h)
-            return i;
-    }
-    return PT_NONE;
-}
-
 /* The viewport shows the GBA picture 1:1. */
 bool CtrPokeTouch_ViewportToGba(int x, int y, int *gx, int *gy)
 {
@@ -762,10 +456,10 @@ static void DevHomeUpdate(const CtrPokeTouchView *old, const CtrPokeTouchView *v
 static int DevBagShown(const CtrPokeTouchView *v);
 static void DevBagFieldDraw(const CtrPokeTouchView *v);
 static void DevBagFieldUpdate(const CtrPokeTouchView *old, const CtrPokeTouchView *v, CtrDirtyList *dirty);
-/* The field's views without a board drawn as the red device, through one table: the field dispatcher
- * (3ds_device_field_impl.h, included at the end). 0 when `v` is none of them. */
-static int DevFieldDraw(const CtrPokeTouchView *v);
-static int DevFieldUpdate(const CtrPokeTouchView *old, const CtrPokeTouchView *v, CtrDirtyList *dirty);
+/* Every other view, drawn as the red device through one table: the field dispatcher (3ds_device_field_impl.h, included
+ * at the end), whose last row, FireRed's picture in its screen, takes any view the rows before it do not. */
+static void DevFieldDraw(const CtrPokeTouchView *v);
+static void DevFieldUpdate(const CtrPokeTouchView *old, const CtrPokeTouchView *v, CtrDirtyList *dirty);
 
 void CtrPokeTouch_Draw(uint16_t *canvas, const CtrPokeTouchView *v)
 {
@@ -779,30 +473,7 @@ void CtrPokeTouch_Draw(uint16_t *canvas, const CtrPokeTouchView *v)
         DevBagFieldDraw(v);
         return;
     }
-    if (DevFieldDraw(v))
-        return;
-    Frame();
-    MenuFrame();
-    Bar(v);
-    for (int i = 0; i < PT_COUNT; ++i)
-        Button(i, v);
-}
-
-/* Whether element `id` looks different between two views. */
-static int Changed(int id, const CtrPokeTouchView *a, const CtrPokeTouchView *b)
-{
-    if (a->enabled[id] != b->enabled[id] || (a->pressed == id) != (b->pressed == id)
-        || (a->selected == id) != (b->selected == id))
-        return 1;
-    return (id == PT_RUN && a->running != b->running)
-        || (id == PT_REGISTERED && a->registeredItem != b->registeredItem)
-        || (id == PT_BIKE && a->bikeItem != b->bikeItem)
-        || (id == PT_CARD && strcmp(a->playerName, b->playerName));
-}
-
-static void Mark(CtrDirtyList *dirty, const CtrPokeTouchRect *r)
-{
-    CtrDirty_Add(dirty, r->x, r->y, r->x + r->w, r->y + r->h);
+    DevFieldDraw(v);
 }
 
 void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const CtrPokeTouchView *v, CtrDirtyList *dirty)
@@ -826,31 +497,7 @@ void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const Ct
         CtrDirty_Add(dirty, 0, 0, W, H);
         return;
     }
-    if (DevFieldUpdate(old, v, dirty))
-        return;
-    if (old->viewport != v->viewport || old->home != v->home) {
-        MenuFrame();
-        Mark(dirty, &sMenuFrame);
-    }
-    if (memcmp(old->bar, v->bar, sizeof(v->bar)) || old->backVisible != v->backVisible) {
-        Bar(v);
-        Mark(dirty, &sBar);
-    } else if (v->backVisible && (old->backEnabled != v->backEnabled || old->backPressed != v->backPressed)) {
-        CtrPokeTouchRect back = Under(&gCtrPokeTouchBack);
-
-        Back(v);                            /* a press or a state: only BACK's rectangle and its shadow */
-        Mark(dirty, &back);
-    }
-    for (int i = 0; i < PT_COUNT; ++i) {
-        if (!Changed(i, old, v))
-            continue;
-        Button(i, v);
-        {
-            CtrPokeTouchRect area = Area(i);
-
-            Mark(dirty, &area);
-        }
-    }
+    DevFieldUpdate(old, v, dirty);
 }
 
 #include "3ds_battle_ui_impl.h"

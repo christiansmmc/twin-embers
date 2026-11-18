@@ -26,7 +26,7 @@ static CtrPokeTouchView ChoiceBoard(int n, int cols)
     CtrPokeTouchView v;
 
     memset(&v, 0, sizeof(v));
-    v.pressed = v.selected = PT_NONE;
+    v.pressed = PT_NONE;
     v.choice.on = 1;
     v.choice.count = (uint8_t)n;
     v.choice.cols = (uint8_t)cols;
@@ -67,7 +67,7 @@ static void SuiteChoice(void)
 
     CtrPokeTouch_Draw(canvas, &old);
     /* the plan's suite */
-    v = ChoiceBoard(8, 0); DevCheckTouch(&old, &v); assert(CtrPokeTouch_DeviceShown(&v));
+    v = ChoiceBoard(8, 0); DevCheckTouch(&old, &v); assert(DrawnBy(&v, DevChoiceShown));
     for (n = 1; n <= 8; ++n) {
         v.choice.count = (uint8_t)n; v.choice.cols = 0; DevCheckTouch(&old, &v);
         for (i = 0; i < n; ++i) AssertHits(ChoiceHitV, &v, DevChoiceKey(n, 0, i), PT_CHOICE_HIT_ROW + i);
@@ -119,14 +119,14 @@ static void SuiteChoice(void)
 
     /* what the choice does not draw presents nothing; the shell's colour whole; the ways in and out (HOME; FireRed's
      * picture: in the frame's screen, nothing of the choice hit) */
-    strcpy(v.bar[0], "Anything"); v.registeredItem = 7; v.enabled[PT_BAG] = 1; v.playerX = 3;
+    strcpy(v.bar[0], "Anything"); v.enabled[PT_BAG] = 1; v.playerX = 3;
     assert(DevCheckTouch(&old, &v).count == 0);
     v.shell = 2; assert(DevWhole(DevCheckTouch(&old, &v)) && at(1, 100) == DEV_SHELL_GREEN);
     v.shell = 0; DevCheckTouch(&old, &v);
     other = v; other.choice.on = 0; other.home = 1; other.playerX = other.playerY = other.cursorX = other.cursorY = -1;
     assert(DevWhole(DevCheckTouch(&old, &other)));
     v = ChoiceBoard(2, 0); assert(DevWhole(DevCheckTouch(&old, &v)));
-    v.viewport = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && CtrPokeTouch_DeviceShown(&v) && CtrPokeTouch_ChoiceHit(&v, 20, 20) == -1);
+    v.viewport = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && DrawnBy(&v, DevFrameShown) && CtrPokeTouch_ChoiceHit(&v, 20, 20) == -1);
     v = ChoiceBoard(2, 0); DevCheckTouch(&old, &v);
     ChoiceUpperCase(ChoiceBoard(8, 0));
     CtrPokeTouch_Draw(canvas, &old);

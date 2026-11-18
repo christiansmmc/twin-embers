@@ -39,7 +39,6 @@ static CtrPokeTouchView SaveBoard(void)
 
     memset(&v, 0, sizeof(v));
     v.pressed = PT_NONE;
-    v.selected = PT_SAVE;
     v.save = 1;
     v.saveSel = 0;
     v.savePressed = PT_SAVE_NONE;
@@ -79,7 +78,7 @@ static void SuiteSave(void)
     sPlayer.key = -1;
     CtrPokeTouch_Draw(canvas, &old);
     /* the plan's suite */
-    v = SaveBoard(); DevCheckTouch(&old, &v); assert(CtrPokeTouch_DeviceShown(&v));
+    v = SaveBoard(); DevCheckTouch(&old, &v); assert(DrawnBy(&v, DevSaveShown));
     AssertHits(SaveHitV, &v, kDevAskYes, PT_SAVE_FIRST); AssertHits(SaveHitV, &v, kDevAskNo, PT_SAVE_SECOND); AssertKey(kDevAskYes, DEV_LOOK_KEY, 1);
     v.saveSel = 1; DevCheckTouch(&old, &v); AssertKey(kDevAskNo, DEV_LOOK_KEY, 1); v.savePressed = PT_SAVE_FIRST; DevCheckTouch(&old, &v); AssertKey(kDevAskYes, DEV_LOOK_KEY, 1);
     v.saveState = SAVE_WRITING; DevCheckTouch(&old, &v); assert(CtrPokeTouch_SaveHit(260, 170, SAVE_WRITING) == PT_SAVE_NONE && at(260, 175) == DEV_SHELL_RED);
@@ -130,7 +129,7 @@ static void SuiteSave(void)
     b = a; b.saveDex = 15; TouchSamePixels(&a, &b, 0, "151 and 15 caught");    /* a count of another length */
     /* what SAVE does not draw presents nothing: BACK's fields, the column's, the map, OPTIONS' */
     v = SaveBoard(); DevCheckTouch(&old, &v);
-    v.backVisible = v.backEnabled = v.backPressed = 1; v.registeredItem = 7; v.enabled[PT_BAG] = 1; v.playerX = 3;
+    v.backVisible = v.backEnabled = v.backPressed = 1; v.enabled[PT_BAG] = 1; v.playerX = 3;
     v.optCount = 2; strcpy(v.optLabel[0], "Text speed");
     assert(DevCheckTouch(&old, &v).count == 0);
     v.shell = 2; assert(DevWhole(DevCheckTouch(&old, &v)) && at(1, 100) == DEV_SHELL_GREEN);
@@ -141,7 +140,7 @@ static void SuiteSave(void)
     other = v; other.save = 0; other.home = 1; other.playerX = other.playerY = other.cursorX = other.cursorY = -1;
     assert(DevWhole(DevCheckTouch(&old, &other)));
     v = SaveBoard(); assert(DevWhole(DevCheckTouch(&old, &v)));
-    v.viewport = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && CtrPokeTouch_DeviceShown(&v));
+    v.viewport = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && DrawnBy(&v, DevFrameShown));
     v = SaveBoard(); DevCheckTouch(&old, &v);
     SaveUpperCase(SaveBoard());
     CtrPokeTouch_Draw(canvas, &old);

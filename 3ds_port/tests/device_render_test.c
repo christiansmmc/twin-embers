@@ -715,6 +715,15 @@ static __attribute__((unused)) int BackV(const void *view, int x, int y)
     return CtrPokeTouch_BackHit((const CtrPokeTouchView *)view, x, y);
 }
 
+/* The dispatcher's row that draws `view` is the one whose `shown` this is (a view's own row, or DevFrameShown: the
+ * frame, FireRed's picture in its screen). */
+static __attribute__((unused)) int DrawnBy(const CtrPokeTouchView *view, int (*shown)(const CtrPokeTouchView *))
+{
+    int i = DevFieldIndex(view);
+
+    return i >= 0 && kDevFieldViews[i].shown == shown;
+}
+
 /* With small letters wider than capitals (7 px in both fonts): `a` and `b` drawn alike, or (`same` 0) not. A suite's
  * upper-case check: a word drawn through DevUpper looks the same in either case, one drawn as typed does not. */
 static __attribute__((unused)) void TouchSamePixels(const CtrPokeTouchView *a, const CtrPokeTouchView *b, int same,
@@ -1097,7 +1106,7 @@ static CtrPokeTouchView HomeBoard(void)
     CtrPokeTouchView v;
 
     memset(&v, 0, sizeof(v));
-    v.selected = v.pressed = PT_NONE;
+    v.pressed = PT_NONE;
     v.optPressed = -1;
     v.home = 1;
     for (int i = 0; i < PT_COUNT; ++i)
@@ -1154,6 +1163,13 @@ static void HomeUpperCase(CtrPokeTouchView v)
     assert(!memcmp(capitals, canvas, sizeof(capitals)));
     assert(sHomeRibbon.w == DevTextWidth("KANTO") + 23 && DevTextWidth("KANTO") != DevTextWidth("Kanto"));
     assert(!strcmp(DevHomeKeyWord(PT_POKEMON, &v, word), "POK\xC3\xA9MON") && !strcmp(DevHomeKeyWord(PT_CARD, &v, word), "Rick"));
+    /* the five entries' keys say DevHomeWord's words, in capitals: the label-fit builds' sDevKeyCut == 0 is their fit */
+    for (int id = PT_POKEDEX; id <= PT_OPTIONS; ++id) {
+        char name[16], up[24];
+
+        DevUpper(up, DevHomeWord(id, &v, name), sizeof(up));
+        assert(id == PT_CARD || (up[0] && !strcmp(DevHomeKeyWord(id, &v, word), up)));
+    }
     memcpy(fontWidths, keepWidths, sizeof(keepWidths));
     memcpy(smallWidths, keepSmall, sizeof(keepSmall));
     memset(sPtFontReady, 0, sizeof(sPtFontReady));
@@ -1258,7 +1274,7 @@ static void SuiteHome(void)
     assert(DevWhole(DevCheckTouch(&old, &v)) && at(160, 152) == DEV_SHELL_GREEN);
     /* nothing HOME draws changed: nothing presented */
     v.optPressed = 3;
-    v.registeredItem = 7;
+    v.backVisible = 1;
     d = DevCheckTouch(&old, &v);
     assert(d.count == 0);
 
@@ -2265,7 +2281,7 @@ static CtrPokeTouchView BagBoard(void)
     CtrPokeTouchBag *b = &v.bag;
 
     memset(&v, 0, sizeof(v));
-    v.selected = v.pressed = PT_NONE;
+    v.pressed = PT_NONE;
     v.optPressed = -1;
     b->on = 1;
     b->kind = PT_BAG_KIND_BAG;
@@ -2406,14 +2422,14 @@ static void SuiteBag(void)
     AssertKey(kDevBagClose, DEV_LOOK_DARK, 0); assert(Count(244, 190, 68, 40, DEV_DARK_INK) > 0);
     shot("items");
     /* a touch chooses: a row (the cursor's not), ▼; ▲ cannot go up, so its touch draws nothing; what the page does not
-     * draw (the column, the bar, BACK, the registered items outside Key Items, the quantity box's maximum) draws nothing */
+     * draw (HOME's keys, the bar, BACK, the registered items outside Key Items, the quantity box's maximum) draws nothing */
     v.bag.pressed = PT_BAG_HIT_ROW + 3; DevCheckTouch(&old, &v); assert(at(20, 104) == DEV_BEZEL && at(20, 72) == DEV_PAPER);
     v.bag.pressed = PT_BAG_HIT_DOWN; DevCheckTouch(&old, &v); AssertKey(kDevBagDown, DEV_LOOK_KEY, 1); assert(at(20, 72) == DEV_BEZEL);
     v.bag.pressed = PT_BAG_HIT_CLOSE; DevCheckTouch(&old, &v); AssertKey(kDevBagClose, DEV_LOOK_DARK, 1); assert(at(20, 72) == DEV_PAPER);
     v.bag.pressed = PT_BAG_HIT_TAB + 1; DevCheckTouch(&old, &v); AssertKey(kDevBagPocket[1], DEV_LOOK_KEY, 1); AssertKey(kDevBagPocket[0], DEV_LOOK_KEY, 0);
     v.bag.pressed = -1; DevCheckTouch(&old, &v);
     v.bag.pressed = PT_BAG_HIT_UP; assert(DevCheckTouch(&old, &v).count == 0);
-    v.bag.pressed = -1; strcpy(v.bar[0], "Items"); v.enabled[PT_BAG] = 1; v.backVisible = 1; v.registeredItem = 13;
+    v.bag.pressed = -1; strcpy(v.bar[0], "Items"); v.enabled[PT_BAG] = 1; v.backVisible = 1; 
     v.bag.regX = 13; v.bag.tossMax = 99; v.bag.titleItem = 7; strcpy(v.bag.prompt, "?"); v.bag.money = 500;
     assert(DevCheckTouch(&old, &v).count == 0);
     v.bag.prompt[0] = 0;

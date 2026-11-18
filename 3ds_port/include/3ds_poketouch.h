@@ -7,19 +7,17 @@
 #include "3ds_summary.h"
 
 /*
- * PokeTouch: the bottom screen (320x240). A view over FireRed's own menu
- * and shortcuts: every button maps to the game's START menu entry or key
- * item use (3ds_bottom.c issues them); this module only lays out, draws and
- * hit-tests. The frame (an embedded screen) holds the viewport, where the GBA picture
- * of the open menu is shown 1:1 (240x160) by the GPU, and the contextual bar
- * under it. Drawing goes into the bottom canvas (RGB565,
- * column-major, each column bottom-to-top) when the view changes.
+ * PokeTouch: the bottom screen (320x240). A view over FireRed's own menus and shortcuts: HOME's keys are the game's START
+ * menu entries, the X and Y buttons its key items (3ds_bottom.c issues them); this module only lays out, draws and
+ * hit-tests. A menu the lower screen does not draw itself is FireRed's own picture, shown 1:1 (240x160) by the GPU in
+ * the viewport of an embedded screen, with a note under it. Drawing goes into the bottom canvas (RGB565, column-major,
+ * each column bottom-to-top) when the view changes.
  */
 enum {
-    PT_POKEDEX, PT_POKEMON, PT_BAG, PT_CARD, PT_SAVE, PT_OPTIONS, /* side column (the map is HOME, no button) */
-    PT_REGISTERED,  /* shortcut 1, X: the registered item (SELECT) */
-    PT_BIKE,        /* shortcut 2, Y: the Bicycle */
-    PT_RUN,         /* Running Shoes: the running mode on and off (B runs as ever) */
+    PT_POKEDEX, PT_POKEMON, PT_BAG, PT_CARD, PT_SAVE, PT_OPTIONS, /* the START entries: HOME's keys (the map is HOME) */
+    PT_REGISTERED,  /* X: the registered item (SELECT), a field command */
+    PT_BIKE,        /* Y: the Bicycle, a field command */
+    PT_RUN,         /* Running Shoes: HOME's RUN, the running mode on and off (B runs as ever) */
     PT_COUNT,
     PT_CLOSE = PT_COUNT, /* START menu exit pick for the bridge; not a button */
     PT_FLY,              /* the field command that Flies to the selected map section; not a button */
@@ -409,9 +407,8 @@ typedef struct {
 } CtrPokeTouchDex;
 
 typedef struct {
-    uint8_t enabled[PT_COUNT];  /* usable now: drawn normally, else dimmed */
-    uint8_t pressed;            /* element under a held touch, or PT_NONE */
-    uint8_t selected;           /* the active destination, or PT_NONE */
+    uint8_t enabled[PT_COUNT];  /* HOME's key or RUN usable now: drawn normally, else dimmed */
+    uint8_t pressed;            /* HOME's element under a held touch, or PT_NONE */
     uint8_t running;            /* the running mode is on (Running Shoes) */
     uint8_t viewport;           /* the GPU shows a GBA picture in the viewport */
     uint8_t home;               /* HOME is the lower screen (the red device's; with no GBA picture) */
@@ -459,13 +456,11 @@ typedef struct {
     uint16_t saveHours;
     uint16_t saveDex;           /* Pokemon caught */
     uint32_t saveMoney;
-    uint8_t backVisible;        /* the contextual BACK control is on the bar (a screen with no touch exit of its own) */
+    uint8_t backVisible;        /* the view's BACK is shown (a screen with no touch exit of its own) */
     uint8_t backEnabled;        /* it can be used now: drawn normally, else dimmed */
     uint8_t backPressed;        /* it is under a held touch */
-    uint16_t registeredItem;    /* 0: nothing registered */
-    uint16_t bikeItem;          /* the Bicycle's item id, 0 when not owned */
     char bar[PT_BAR_LINES][PT_BAR_LEN]; /* contextual text, "" for no line */
-    char playerName[16];        /* the Trainer Card button's label (UTF-8) */
+    char playerName[16];        /* the player's name (UTF-8): HOME's Trainer Card key, SAVE's line */
     CtrPokeTouchBag bag;        /* the field Bag, when bag.on */
     CtrPokeTouchDex dex;        /* the Pokedex, when dex.on */
     CtrPokeTouchCard card;      /* the Trainer Card, when card.on */
@@ -479,17 +474,9 @@ typedef struct {
     uint8_t shell;          /* the lower screen's shell colour: 0 red, 1 blue, 2 green, 3 grey (CtrOptions_Shell) */
 } CtrPokeTouchView;
 
-extern const CtrPokeTouchRect gCtrPokeTouchRects[PT_COUNT];
-/* BACK: a shell control in the bar's bottom-right corner, outside the viewport. It
- * stands for the B button of the open screen (3ds_bottom.c sends the real B). */
-extern const CtrPokeTouchRect gCtrPokeTouchBack;
-/* Whether the view is drawn as the red device (HOME, the Bag, or a field view of the dispatcher,
- * 3ds_device_field_impl.h, whose last row, FireRed's picture in its screen, takes any other): no START column under
- * it. Every view is. */
-bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *view);
 /* Whether a bottom-screen pixel is on BACK as the view draws it: a field view of the dispatcher's
- * BACK key while it is shown (backVisible); for HOME and the Bag (no row of the dispatcher's),
- * gCtrPokeTouchBack. */
+ * (3ds_device_field_impl.h) BACK key while it is shown (backVisible); never for HOME and the Bag, which
+ * draw none. BACK stands for the B button of the open screen (3ds_bottom.c sends the real B). */
 bool CtrPokeTouch_BackHit(const CtrPokeTouchView *view, int x, int y);
 
 /* The OPTIONS row and zone (PT_OPT_ZONE_*) under a bottom-screen pixel of the view shown (OPTIONS,
@@ -507,8 +494,6 @@ int CtrPokeTouch_OptionKey(const CtrPokeTouchView *view, int x, int y);
  * confirming, OK (PT_SAVE_FIRST, in YES's place) after a result, none while writing. */
 int CtrPokeTouch_SaveHit(int x, int y, int state);
 
-/* The START column's PT_* under a bottom-screen pixel, or PT_NONE (every view but HOME). */
-int CtrPokeTouch_HitTest(int x, int y);
 bool CtrPokeTouch_FlyHit(int x, int y);          /* HOME's FLY key, while it is drawn */
 /* HOME (view->home, no GBA picture) under lower-screen point (x, y): its keys PT_POKEDEX..PT_OPTIONS, PT_RUN,
  * PT_HOME_SPEED, PT_HOME_PARTY + a slot that holds a Pokemon, else PT_NONE (the map window is not a key). */

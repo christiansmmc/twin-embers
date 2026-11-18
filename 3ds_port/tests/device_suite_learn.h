@@ -50,7 +50,6 @@ static CtrPokeTouchView LearnBoard(void)
 
     memset(&v, 0, sizeof(v));
     v.pressed = PT_NONE;
-    v.selected = PT_POKEMON;
     l->on = 1;
     l->cursor = 4;
     l->pressed = -1;
@@ -113,7 +112,7 @@ static void SuiteLearn(void)
     ForgetPictures();
     CtrPokeTouch_Draw(canvas, &lo);
     /* the plan's suite */
-    lv = LearnBoard(); DevCheckTouch(&lo, &lv); assert(CtrPokeTouch_DeviceShown(&lv));
+    lv = LearnBoard(); DevCheckTouch(&lo, &lv); assert(DrawnBy(&lv, DevLearnShown));
     /* learn */ for (i = 0; i < 5; ++i) AssertRowHits(LearnHitV, &lv, DevSumRow(i), PT_LEARN_HIT_ROW + i);
     assert(at(DevSumRow(4).x + 1, DevSumRow(4).y + 11) == DEV_BEZEL); AssertHits(BackV, &lv, kDevSumBack, 1);   /* before the name */
     lv.learn.row[2].move = lv.learn.row[3].move = 0; DevCheckTouch(&lo, &lv); assert(CtrPokeTouch_LearnHit(&lv, 130, DevSumRow(2).y + 5) == -1);
@@ -169,7 +168,7 @@ static void SuiteLearn(void)
 
     /* what the move to forget does not draw presents nothing; the shell's colour whole; the ways in and out (HOME; the
      * Summary's own picture before it is ready: in the frame's screen, nothing of the move to forget hit) */
-    strcpy(lv.bar[0], "Anything"); lv.registeredItem = 7; lv.enabled[PT_BAG] = 1; lv.playerX = 3;
+    strcpy(lv.bar[0], "Anything"); lv.enabled[PT_BAG] = 1; lv.playerX = 3;
     assert(DevCheckTouch(&lo, &lv).count == 0);
     lv.shell = 2; assert(DevWhole(DevCheckTouch(&lo, &lv)) && at(1, 100) == DEV_SHELL_GREEN);
     lv.shell = 0; DevCheckTouch(&lo, &lv);
@@ -178,8 +177,8 @@ static void SuiteLearn(void)
     assert(DevWhole(DevCheckTouch(&lo, &other)));
     lv = LearnBoard(); assert(DevWhole(DevCheckTouch(&lo, &lv)));
     other = lv; memset(&other.learn, 0, sizeof(other.learn)); other.viewport = 1;
-    assert(DevWhole(DevCheckTouch(&lo, &other)) && CtrPokeTouch_DeviceShown(&other) && CtrPokeTouch_LearnHit(&other, 130, 60) == -1);
-    lv.viewport = 1; assert(CtrPokeTouch_DeviceShown(&lv) && CtrPokeTouch_LearnHit(&lv, 130, 60) == -1);
+    assert(DevWhole(DevCheckTouch(&lo, &other)) && DrawnBy(&other, DevFrameShown) && CtrPokeTouch_LearnHit(&other, 130, 60) == -1);
+    lv.viewport = 1; assert(DrawnBy(&lv, DevFrameShown) && CtrPokeTouch_LearnHit(&lv, 130, 60) == -1);
     lv = LearnBoard(); assert(DevWhole(DevCheckTouch(&lo, &lv)));
     LearnUpperCase(LearnBoard());
     CtrPokeTouch_Draw(canvas, &lo);

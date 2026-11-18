@@ -112,7 +112,7 @@ int main(void) {
 #define CTR_SUMMARY_BATTLE_PARTY 2
 #define CtrLog_Write(...) ((void)0)
 static struct { int active,owner,battle,entered,frames,away; void *partyCallback; } sSession;
-static int sScreen,sStorageSession,sPendingScreen=PT_NONE;
+static int sScreen,sStorageSession;
 static void *sPartyMenuCallback;
 static void *CtrBottom_CurrentCallback(void) { return NULL; }
 static void *CtrBottomParty_Callback(void) { return NULL; }
@@ -1032,8 +1032,7 @@ int main(void) {
         """On a field frame HOME's keys, its party, FLY, the region key and the map take a touch only while HOME is the
         picture the lower screen shows: the frame after another screen closed still shows that screen's picture (the
         Bag's, a viewport's), and a touch there must not open what HOME has at that place. A native screen (OPTIONS,
-        SAVE) hits the START column only before its own picture is shown: drawn as the red device it has no column, so
-        nothing is hit."""
+        SAVE) takes its touches itself: nothing of HOME's is hit under it, shown yet or not."""
         bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
         start = bottom.index('static struct {\n    int valid;')
         state = bottom[start:bottom.index('} sHome;', start) + len('} sHome;')]
@@ -1061,12 +1060,7 @@ static int OptionsActive(void) { return 0; }
 static int SaveActive(void) { return 0; }
 static void ProcessOptionsTouch(const CtrInput *in) { (void)in; }
 static void ProcessSaveInput(const CtrInput *in) { (void)in; }
-/* every view is drawn as the red device: HOME, the Bag, a field view's own row (OPTIONS, SAVE, the Pokedex, a choice,
- * the move to forget, the relearner, the naming keyboard, the PC box, Easy Chat...) and the frame, the dispatcher's
- * last row, for any other (FireRed's picture in its screen, or an empty screen) */
-bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *v) { (void)v; return true; }
 /* HOME: BAG's key at the bottom right, FLY and the region key in the window's top corners, the map below them */
-int CtrPokeTouch_HitTest(int x, int y) { return x < 60 && y < 60 ? PT_OPTIONS : PT_NONE; }
 int CtrPokeTouch_HomeHit(const CtrPokeTouchView *v, int x, int y) { (void)v; return x >= 200 && y >= 150 ? PT_BAG : PT_NONE; }
 bool CtrPokeTouch_FlyHit(int x, int y) { return x >= 160 && x < 200 && y < 30; }
 bool CtrPokeTouch_HomeRibbonHit(int x, int y) { return x < 30 && y < 30; }
@@ -1109,12 +1103,14 @@ int main(void) {
     Tap(250, 200); Tap(100, 80); assert(activated == -1 && !tapped);
     sShown.touch.viewport = 0; sShown.touch.home = 1; sHaveShown = 0;
     Tap(250, 200); Tap(100, 80); assert(activated == -1 && !tapped);
-    /* a native screen with nothing shown yet: the column's hits */
-    native = 1; sShown.touch.home = 0; Tap(20, 20); assert(activated == PT_OPTIONS);
+    /* a native screen with nothing shown yet, or HOME still shown on its first frame: nothing of HOME's is hit */
+    native = 1; sShown.touch.home = 1; Tap(250, 200); Tap(100, 80); Tap(10, 10);
+    assert(activated == -1 && !tapped && !nextMap && sPoke.id == PT_NONE && !sHome.down);
+    sHaveShown = 1; Tap(250, 200); Tap(100, 80); Tap(10, 10);
+    assert(activated == -1 && !tapped && !nextMap && sPoke.id == PT_NONE && !sHome.down);
     /* SAVE, OPTIONS, the Pokedex, a choice, the move to forget, the relearner, the naming keyboard, the PC box, Easy
-     * Chat or FireRed's picture on the red device (or HOME still shown on its first frame): no column under it, nothing
-     * hit */
-    sHaveShown = 1; sShown.touch.save = 1; activated = -1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
+     * Chat or FireRed's picture on the red device: nothing hit */
+    sShown.touch.home = 0; sShown.touch.save = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.save = 0; sShown.touch.options = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.options = 0; sShown.touch.dex.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.dex.on = 0; sShown.touch.choice.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
@@ -1192,14 +1188,21 @@ int main(void) {
 }
 ''')
 
-    def test_column_only_under_ember_views(self):
-        """While the START column still exists in code (PR C), no tap on a view drawn as the red device reaches it or the
-        route: the column's rectangles lie under the B views' ▲▼ and BACK. BACK is the one the view draws."""
+    def test_route_and_column_gone(self):
+        """The START column, its X / Y tiles and the route that unwound one menu to open another are gone (decision 3):
+        no view draws the column, so nothing hits it or routes from it. The X and Y buttons still use the registered
+        item and the Bicycle, from the field as ever. BACK is the one the view draws."""
         bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
-        self.assertIn('if (!sHaveShown || !CtrPokeTouch_DeviceShown(&sShown.touch))\n        ProcessRouteTouch(mode, in);', function(bottom, 'ProcessTouch'))
-        self.assertIn('CtrPokeTouch_DeviceShown(&sShown.touch)', function(bottom, 'PokeTouchHit'))
+        poketouch = ((ROOT / '3ds_port/src/3ds_poketouch.c').read_text(encoding='utf-8')
+                     + (ROOT / '3ds_port/include/3ds_poketouch.h').read_text(encoding='utf-8'))
+        for name in ('ProcessRouteTouch', 'RequestDestination', 'CanRouteDestination', 'CtrPokeTouch_HitTest',
+                     'gCtrPokeTouchRects', 'gCtrPokeTouchBack', 'CtrPokeTouch_DeviceShown', 'sPendingScreen',
+                     'CtrPokeTouch_HitOptPage'):
+            self.assertNotIn(name, bottom + poketouch)
+        frame = function(bottom, 'CtrBottom_Frame')            # X and Y keep the registered item and the Bicycle
+        self.assertIn('CtrPokeTouch_RequestFieldCommand(PT_BIKE);', frame)
+        self.assertIn('CtrPokeTouch_RequestFieldCommand(PT_REGISTERED);', frame)
         self.assertIn('CtrPokeTouch_BackHit(&sShown.touch,', function(bottom, 'ProcessBack'))
-        self.assertNotIn('CtrPokeTouch_HitOptPage', bottom)
 
     def test_idle_screen_in_the_shell_colour(self):
         """The idle screen (nothing for FireRed's screen above: MODE_OFF) is the red device's in the shell colour OPTIONS

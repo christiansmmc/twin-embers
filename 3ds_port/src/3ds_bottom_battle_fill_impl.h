@@ -511,7 +511,7 @@ static void BattleFill(CtrBattleView *v)
 }
 
 /* SAVE's view: FireRed's own save information (the facts SaveStatToString prints), the player's
- * icon key, and the dialogue's text for the state. No BACK: NO, B and the sidebar leave. */
+ * icon key, and the dialogue's text for the state. No BACK: NO and B leave. */
 static void SaveFill(CtrPokeTouchView *v)
 {
     unsigned minutes = CtrSave_PlayMinutes();

@@ -255,9 +255,6 @@ extern unsigned CtrBottomPouch_PouchItem(void);
 /* The Berry Pouch opened from the battle Bag (its BERRIES): shown with no field menu round it. */
 extern int CtrBottomPouch_FromBattle(void);
 extern int CtrSave_Begin(void);
-extern void CtrMenu_SetSwitchTarget(int target);
-extern int CtrMenu_TakeSwitched(void);
-extern int CtrBottomSummary_RedirectExit(void);
 extern void CtrSave_End(void);
 extern int CtrSave_IsDifferentFile(void);
 extern int CtrSave_Run(void);
@@ -553,7 +550,7 @@ static int sInitDone;
 static struct {
     int owner;
     int active;
-    int battle;                    /* battle-owned menus and their Summary cannot route to field roots */
+    int battle;                    /* a battle's menu or its Summary (CtrBottom_LogState says so) */
     int entered;
     void *partyCallback;
     int frames;
@@ -564,23 +561,17 @@ static struct {
  * the battle that comes back. The session's own grace and what is shown meanwhile (the last picture) end together. */
 #define BRIDGE_MAX 90
 
-/* Destination router (below). sScreen is the logical PokeTouch root being
- * shown: PT_POKEMON or PT_BAG while a lower-screen session is active, else
- * PT_NONE (HOME). sPendingScreen is the root the user tapped but that has not
- * been entered yet. Both leave sSession.owner alone to describe who owns the
- * hidden FireRed flow: a child Party of the Bag stays the Bag's until a tap
- * on the other root changes it. While a route is in flight (sRouteHold) the
- * last presentation stays on the bottom screen and TOP stays held. */
-#define ROUTE_COOLDOWN 30       /* frames before another B on the same screen */
-#define ROUTE_OPEN_TRIES 150    /* frames the field may take to accept the open */
-#define ROUTE_TIMEOUT 900       /* frames for the whole unwind */
+/* sScreen is the logical PokeTouch root being shown: the session's (PT_POKEMON, PT_BAG, PT_CARD, PT_POKEDEX) while a
+ * lower-screen session is active, a native screen (PT_OPTIONS, PT_SAVE), else PT_NONE (HOME). sSession.owner says who
+ * owns the hidden FireRed flow: a child Party of the Bag stays the Bag's. While a session opened from the field is not
+ * yet ready to be shown (sRouteHold, UpdateSessionHold) the last presentation stays on the bottom screen and TOP stays
+ * held. */
+#define ROUTE_TIMEOUT 900       /* frames the hold may last at most */
 #define ROUTE_STABLE 8          /* frames the new root must stay ready before it is shown */
 static int sScreen = PT_NONE;
-static int sPendingScreen = PT_NONE;
 static int sRouteHold;
-static int sRouteFrames, sRouteWait, sRouteMode, sRouteTries, sRouteReady;
-static uint16_t sRouteKey;     /* the route's own B, sent after the plans ran */
-static int CanRouteDestination(int target, int mode);
+static int sRouteFrames, sRouteReady;
+static uint16_t sRouteKey;     /* a key a touch's plan sends as FireRed's own, after the plans ran */
 enum { DEXPLAN_LIST = 0, DEXPLAN_SLOT, DEXPLAN_FLIP };
 static struct {
     int active, target, state, steps, release;
@@ -615,8 +606,7 @@ static int sSaveAfterMenu;         /* SAVE asked for with START open: frames lef
 
 /* Native OPTIONS (3ds_poketouch_options.c): a PokeTouch screen of its own over
  * the live field, with no hidden FireRed menu behind it, so no session. sScreen
- * is PT_OPTIONS while it is up (a route that unwinds a real menu to the field
- * sets it there, and the session's end leaves it). `sel` is the row the note
+ * is PT_OPTIONS while it is up (HOME's key opens it). `sel` is the row the note
  * describes; `down` a touch that began on a row (`row`, `zone`), `inside` while
  * it is still on it; `key` a touch that began on a key (PT_OPT_KEY_*, 0 for
  * none), `keyInside` while it is still on it. */
@@ -1248,14 +1238,12 @@ static void SnapshotState(Snapshot *s, int mode, int pressed)
     s->pressed = (unsigned char)pressed;
     s->cursor = -1;
     s->tapped = -1;
-    /* PT_POKEDEX is zero: a zeroed view must not select that sidebar button. */
-    s->touch.selected = PT_NONE;
+    /* PT_POKEDEX is zero: a zeroed view must not press HOME's POKeDEX key. */
     s->touch.pressed = PT_NONE;
     if (mode == MODE_PARTY_CHILD) {
         /* Learning/forgetting and the disc animation keep their native GBA
-         * controls; sidebar routing must not unwind these modal callbacks. */
+         * controls. */
         s->touch.viewport = 1;
-        s->touch.selected = sSession.active ? sSession.owner : PT_POKEMON;
         snprintf(s->touch.bar[0], PT_BAR_LEN, CTR_TR("Move / item", "Ataque / objeto", "Attacke / Item"));
         snprintf(s->touch.bar[1], PT_BAR_LEN, CTR_TR("Use A and B to follow the prompts.", "Usa A y B para seguir las indicaciones.", "Nutze A und B gem\xc3\xa4\xc3\x9f Anweisung."));
         LearnSnapshot(s, mode);
@@ -1340,31 +1328,10 @@ static void SnapshotState(Snapshot *s, int mode, int pressed)
     if (mode == MODE_FIELD || mode == MODE_PARTY || mode == MODE_SUMMARY || mode == MODE_BAG || IS_CASE_MODE(mode)
         || mode == MODE_CARD || mode == MODE_DEX) {
         s->touch.pressed = sPoke.inside ? sPoke.id : PT_NONE;
-        s->touch.selected = PT_NONE;
         s->touch.running = (uint8_t)(CtrPokeTouch_RunModeShown() != 0);
         CtrPokeTouch_PlayerName(s->touch.playerName, sizeof(s->touch.playerName));
-        s->touch.registeredItem = (uint16_t)CtrPokeTouch_RegisteredItem();
-        s->touch.bikeItem = (uint16_t)CtrPokeTouch_BikeItem();
-        s->touch.enabled[PT_RUN] = (uint8_t)(CtrPokeTouch_Enabled(PT_RUN) != 0);
     }
     if (mode == MODE_SUMMARY || mode == MODE_BAG || IS_CASE_MODE(mode) || mode == MODE_CARD || mode == MODE_DEX) {
-        memset(s->touch.enabled, 0, sizeof(s->touch.enabled));
-        s->touch.enabled[PT_RUN] = (uint8_t)(CtrPokeTouch_Enabled(PT_RUN) != 0);
-        s->touch.enabled[PT_POKEMON] = (uint8_t)CanRouteDestination(PT_POKEMON, mode);
-        s->touch.enabled[PT_BAG] = (uint8_t)CanRouteDestination(PT_BAG, mode);
-        s->touch.enabled[PT_OPTIONS] = (uint8_t)CanRouteDestination(PT_OPTIONS, mode);
-        s->touch.enabled[PT_CARD] = (uint8_t)CanRouteDestination(PT_CARD, mode);
-        s->touch.enabled[PT_POKEDEX] = (uint8_t)CanRouteDestination(PT_POKEDEX, mode);
-        s->touch.enabled[PT_SAVE] = (uint8_t)CanRouteDestination(PT_SAVE, mode);
-        /* The entry whose session this is: BAG for the field Bag, POKeMON
-         * for Party's GIVE Bag (and Summary). */
-        s->touch.selected = (uint8_t)(sSession.active ? sSession.owner : mode == MODE_BAG ? PT_BAG : PT_POKEMON);
-        if (sStorageSession || (mode == MODE_POUCH && CtrBottomPouch_FromBattle())) {
-            /* Summary and GIVE-item Bag opened from a box belong to the PC,
-             * not to a field PokÃ©Touch root; the Berry Pouch of the battle Bag belongs to the battle. */
-            memset(s->touch.enabled, 0, sizeof(s->touch.enabled));
-            s->touch.selected = PT_NONE;
-        }
         s->touch.viewport = 1;
         s->touch.backVisible = (uint8_t)BackVisible(mode);
         s->touch.backEnabled = (uint8_t)BackEnabled(mode);
@@ -1413,7 +1380,6 @@ static void SnapshotState(Snapshot *s, int mode, int pressed)
         for (int i = 0; i < PT_COUNT; ++i)
             s->touch.enabled[i] = (uint8_t)FieldEnabled(i);
         if (NativeActive()) {
-            s->touch.selected = (uint8_t)sScreen;
             if (sScreen == PT_SAVE) {
                 SaveFill(&s->touch);
                 return;
@@ -1490,14 +1456,6 @@ static void SnapshotState(Snapshot *s, int mode, int pressed)
             memcpy(s->actionNames[i], sLatchNames[i], ACTION_NAME_LEN);
             s->actionNames[i][ACTION_NAME_LEN - 1] = 0;
         }
-        /* Party opened from the Bag (an item to give or use) stays the Bag's. */
-        s->touch.selected = sSession.active && sSession.owner == PT_BAG ? PT_BAG : PT_POKEMON;
-        s->touch.enabled[PT_POKEMON] = (uint8_t)CanRouteDestination(PT_POKEMON, mode);
-        s->touch.enabled[PT_BAG] = (uint8_t)CanRouteDestination(PT_BAG, mode);
-        s->touch.enabled[PT_OPTIONS] = (uint8_t)CanRouteDestination(PT_OPTIONS, mode);
-        s->touch.enabled[PT_CARD] = (uint8_t)CanRouteDestination(PT_CARD, mode);
-        s->touch.enabled[PT_POKEDEX] = (uint8_t)CanRouteDestination(PT_POKEDEX, mode);
-        s->touch.enabled[PT_SAVE] = (uint8_t)CanRouteDestination(PT_SAVE, mode);
         s->touch.viewport = 1;
         PartyBar(s, &s->touch);
         BattlePartyFill(s);
@@ -2310,22 +2268,9 @@ static void ProcessBack(int mode, const CtrInput *in)
     sBack.down = sBack.inside = 0;
 }
 
-/* Destination router. A tap on the other root of the sidebar (PT_POKEMON,
- * PT_BAG) unwinds the real FireRed screen through its own B, one press at a
- * time and only when the screen takes input, to the field, then opens the
- * requested root there exactly as HOME does. Nothing is destroyed or opened on
- * top of anything. PT_OPTIONS is a native screen (no real menu to open); the Trainer Card and the Pokedex are real ones. Not routed: PT_SAVE. */
-
-static int RouteTargetMode(int target)
-{
-    return target == PT_BAG ? MODE_BAG : target == PT_CARD ? MODE_CARD : target == PT_POKEDEX ? MODE_DEX : MODE_PARTY;
-}
-
-/* The screen shown takes its B now: no fade, no popup, message, quantity,
- * yes/no or page flip in the way. While unwinding, Party's own action menu
- * does not count against it: the Summary returns to Party with that menu
- * open, and its B closes it (FireRed's own cancel). */
-static int RouteScreenReady(int mode, int unwinding)
+/* The screen shown takes input now: no fade, no popup, message, quantity, yes/no or page flip in the way (the Party's
+ * slots, not its action menu). */
+static int SessionScreenReady(int mode)
 {
     if (CtrBottom_IsFading())
         return 0;
@@ -2341,109 +2286,20 @@ static int RouteScreenReady(int mode, int unwinding)
         /* IsOpen is only the Party's slot input: under its action menu the
          * menu's own task runs and IsOpen is false. */
         return CtrBottomParty_InputReady() && !CtrBottomParty_YesNoOpen() && !CtrBottomParty_CanAdvanceText()
-            && (CtrBottomParty_IsOpen() || (unwinding && CtrBottomParty_SelectionOpen()))
-            && (unwinding || !CtrBottomParty_SelectionOpen());
+            && CtrBottomParty_IsOpen() && !CtrBottomParty_SelectionOpen();
     return 0;
 }
 
-static int CanRouteDestination(int target, int mode)
+/* Every frame, before the plans run: a session opened from the field (BeginSessionPending) is shown once its screen is
+ * up and drawn, its setup and fade-in over (or the session is gone), never the GBA's setup. The fade-in may start a few
+ * frames after the screen first takes input, so it must stay ready for a while; ROUTE_TIMEOUT bounds the wait. */
+static void UpdateSessionHold(int mode)
 {
-    if (sSession.battle)
-        return 0;
-    if (target != PT_POKEMON && target != PT_BAG && target != PT_CARD && target != PT_OPTIONS && target != PT_POKEDEX
-        && target != PT_SAVE)
-        return 0;
-    if (!sSession.active || sPendingScreen != PT_NONE || target == sScreen)
-        return 0;
-    /* The Pokédex is a destination only once the game has given it (as its START entry). */
-    if (target == PT_POKEDEX && !CtrSave_HasPokedex())
-        return 0;
-    return RouteScreenReady(mode, 0);
-}
+    int target = sScreen == PT_BAG ? MODE_BAG : sScreen == PT_CARD ? MODE_CARD : sScreen == PT_POKEDEX ? MODE_DEX
+               : MODE_PARTY;
 
-static void RequestDestination(int target, int mode)
-{
-    if (!CanRouteDestination(target, mode))
-        return;
-    sPendingScreen = target;
-    sRouteHold = 1;
-    sRouteFrames = sRouteWait = sRouteTries = sRouteReady = 0;
-    sRouteMode = -1;
-    sTapped = SLOT_NONE;
-    /* The screen's own exit opens the next one directly (CtrMenu_SetSwitchTarget); a Summary of the Party leaves for it
-     * too, not back to the Party. */
-    CtrMenu_SetSwitchTarget(target);
-    if (mode == MODE_SUMMARY)
-        CtrBottomSummary_RedirectExit();
-    CtrLog_Write(CTR_LOG_VIDEO, "bottom: route %s -> %s", RootName(sScreen), RootName(target));
-}
-
-static void RouteAbort(const char *why)
-{
-    CtrLog_Write(CTR_LOG_VIDEO, "bottom: route to %s abandoned: %s", RootName(sPendingScreen), why);
-    CtrMenu_SetSwitchTarget(-1);
-    sPendingScreen = PT_NONE;
-    sRouteHold = 0;
-    sForceRedraw = 1;
-}
-
-/* In the field: open the requested root as HOME's tap does. FireRed accepts
- * it only when the field is idle, so this is retried for a while. Failing
- * ends the session: HOME, TOP released, nothing left held. */
-static void OpenDestination(int target)
-{
-    int opened;
-
-    CtrMenu_SetSwitchTarget(-1);        /* the field was reached: no screen's exit is to switch any more */
-    if (target == PT_SAVE) {
-        /* SAVE locks the field first (CtrSave_Begin), once the field takes it after the fade back. */
-        if (CtrSave_Begin()) {
-            sPendingScreen = PT_NONE;
-            OpenSave();
-            CtrLog_Write(CTR_LOG_VIDEO, "bottom: route reached the field: %s", RootName(target));
-            return;
-        }
-        if (++sRouteTries > ROUTE_OPEN_TRIES)
-            RouteAbort("save refused");
-        return;
-    }
-    if (NativeRoot(target)) {
-        /* A native screen: nothing to open. The unwound session ends in the
-         * field (TOP released there) and the bottom stays held until then. */
-        sPendingScreen = PT_NONE;
-        sScreen = target;
-        sOpt.sel = 0;
-        sOpt.down = sOpt.inside = sOpt.key = sOpt.keyInside = 0;
-        CtrLog_Write(CTR_LOG_VIDEO, "bottom: route reached the field: %s", RootName(target));
-        return;
-    }
-    opened = target == PT_BAG ? CtrField_TryOpenBag() : target == PT_CARD ? CtrField_TryOpenCard()
-           : target == PT_POKEDEX ? CtrField_TryOpenDex() : CtrField_TryOpenParty();
-    if (opened) {
-        sPendingScreen = PT_NONE;
-        BeginSessionPending(target);
-        return;
-    }
-    if (++sRouteTries > ROUTE_OPEN_TRIES) {
-        CtrLog_Write(CTR_LOG_VIDEO, "bottom: route to %s failed in the field: back to HOME", RootName(target));
-        sPendingScreen = PT_NONE;
-        sRouteHold = 0;
-        sSession.active = 0;
-        sScreen = PT_NONE;
-        sPartyMenuCallback = NULL;
-        sForceRedraw = 1;
-    }
-}
-
-/* Every frame while a route is pending, before the plans run. */
-static void UpdateDestinationRoute(int mode)
-{
-    if (sRouteHold && sPendingScreen == PT_NONE) {
-        /* The requested root is up and drawn, its setup and fade-in over (or
-         * the session is gone): only now show it, never the GBA's setup. The
-         * fade-in may start a few frames after the screen first takes input,
-         * so it must stay ready for a while. */
-        if (sSession.active && !(mode == RouteTargetMode(sScreen) && RouteScreenReady(mode, 0)))
+    if (sRouteHold) {
+        if (sSession.active && !(mode == target && SessionScreenReady(mode)))
             sRouteReady = 0;
         else if (!sSession.active || ++sRouteReady >= ROUTE_STABLE) {
             sRouteHold = 0;
@@ -2452,86 +2308,8 @@ static void UpdateDestinationRoute(int mode)
         }
     }
     if (sRouteHold && ++sRouteFrames > ROUTE_TIMEOUT) {
-        if (sPendingScreen != PT_NONE)
-            RouteAbort("timeout");
-        else {
-            sRouteHold = 0;
-            sForceRedraw = 1;
-        }
-        return;
-    }
-    if (sPendingScreen == PT_NONE)
-        return;
-    if (CtrMenu_TakeSwitched()) {
-        /* The screen's exit opened the next one: its session begins, shown once it is ready. */
-        int target = sPendingScreen;
-
-        sPendingScreen = PT_NONE;
-        BeginSessionPending(target);
-        CtrLog_Write(CTR_LOG_VIDEO, "bottom: switched to %s", RootName(target));
-        return;
-    }
-    if (!sSession.active) {
-        RouteAbort("session ended");
-        return;
-    }
-    if (mode == MODE_FIELD) {
-        OpenDestination(sPendingScreen);
-        return;
-    }
-    if (mode != sRouteMode)
-        sRouteWait = 0;
-    if (sRouteWait > 0) {
-        --sRouteWait;
-        return;
-    }
-    if (sPlan.kind != PLAN_NONE || sBagPlan.kind != BAGPLAN_NONE || sSumPlan.kind != SUMPLAN_NONE
-        || sDexPlan.active)
-        return;
-    if (!RouteScreenReady(mode, 1))
-        return;
-    /* The screen's own B: FireRed decides where it leads (Summary to Party,
-     * a case to the Bag, Party or Bag to the field). The Party plan refuses
-     * a B into its action menu, so that one is sent directly. */
-    if (mode == MODE_PARTY && CtrBottomParty_SelectionOpen())
-        sRouteKey = K_B;
-    else if (mode == MODE_PARTY)
-        PlanPress(K_B);
-    else
-        BackPress(mode);            /* (the real Trainer Card: B from its front, A from its back) */
-    sRouteMode = mode;
-    sRouteWait = ROUTE_COOLDOWN;
-}
-
-/* A tap on the sidebar's other root while a lower-screen session runs: pressed
- * on touch-down, cancelled by moving off, one request on release over it. */
-static void ProcessRouteTouch(int mode, const CtrInput *in)
-{
-    if (sPendingScreen != PT_NONE || (in->held & 0x3ffu) || (sHaveShown && mode != sShown.mode)) {
-        sPoke.id = PT_NONE;
-        sPoke.inside = 0;
-        return;
-    }
-    if (in->touchDown) {
-        int id = CtrPokeTouch_HitTest((int)in->touchX, (int)in->touchY);
-
-        sPoke.id = (uint8_t)(CanRouteDestination(id, mode) ? id : PT_NONE);
-        sPoke.inside = sPoke.id != PT_NONE;
-        return;
-    }
-    if (sPoke.id == PT_NONE)
-        return;
-    if (in->touchActive) {
-        sPoke.inside = CtrPokeTouch_HitTest((int)in->touchX, (int)in->touchY) == sPoke.id;
-        return;
-    }
-    {
-        int id = sPoke.id, inside = sPoke.inside;
-
-        sPoke.id = PT_NONE;
-        sPoke.inside = 0;
-        if (inside)
-            RequestDestination(id, mode);
+        sRouteHold = 0;
+        sForceRedraw = 1;
     }
 }
 
@@ -2600,7 +2378,7 @@ static int UpdateSession(int mode, int planRunning)
     }
     if (mode == MODE_SUMMARY) {
         /* A Summary opened from the battle's Party belongs to the battle for as long as it exists, though FireRed's
-         * callback is the Summary's own: TOP keeps the battle, nothing routes to the field's screens. */
+         * callback is the Summary's own: TOP keeps the battle. */
         if (CtrBottomSummary_Origin() == CTR_SUMMARY_BATTLE_PARTY)
             sSession.battle = 1;
         sSession.away = 0;
@@ -2622,9 +2400,7 @@ static int UpdateSession(int mode, int planRunning)
         }
         if (cur != sSession.partyCallback) {
             /* Summary/Fly map pushed on top: brief grace, then show it. */
-            if (++sSession.away < BRIDGE_MAX || sPendingScreen != PT_NONE)
-                return 1;
-            return 0;
+            return ++sSession.away < BRIDGE_MAX;
         }
         sSession.entered = 1;
         sSession.away = 0;
@@ -2632,12 +2408,9 @@ static int UpdateSession(int mode, int planRunning)
     }
     if (home) {
         sSession.away = 0;
-        /* A route passes through the field: not the end of the session. */
-        if (sPendingScreen != PT_NONE)
-            return 1;
         if ((sSession.entered || sSession.frames > 30) && !CtrBottom_IsFading()) {
             sSession.active = 0;
-            if (!NativeRoot(sScreen))   /* a route to a native screen ends its session here */
+            if (!NativeRoot(sScreen))   /* a native screen opened meanwhile stays up */
                 sScreen = PT_NONE;
             sPartyMenuCallback = NULL;
             CtrLog_Write(CTR_LOG_VIDEO, "bottom: hidden %s session over", RootName(sSession.owner));
@@ -2645,9 +2418,8 @@ static int UpdateSession(int mode, int planRunning)
         }
         return 1;
     }
-    /* Setup / map reload passes through here briefly (a route's unwind and
-     * open take as long as they take: its own timeout bounds it). */
-    return ++sSession.away < BRIDGE_MAX || sPendingScreen != PT_NONE;
+    /* Setup / map reload passes through here briefly. */
+    return ++sSession.away < BRIDGE_MAX;
 }
 
 static void BeginSessionPending(int owner)
@@ -2660,8 +2432,8 @@ static void BeginSessionPending(int owner)
     sSession.partyCallback = NULL;
     sSession.frames = 0;
     sSession.away = 0;
-    /* The root opens from the field or a route: its picture is not shown (the
-     * viewport would sample the GBA's half-built screen) until it is ready. */
+    /* The root opens from the field: its picture is not shown (the viewport
+     * would sample the GBA's half-built screen) until it is ready. */
     sRouteHold = 1;
     sRouteFrames = 0;
     sRouteReady = 0;
@@ -2721,10 +2493,6 @@ static void PokeTouchActivate(int id)
         else if (CtrField_TryOpenDex())
             BeginSessionPending(PT_POKEDEX);
         break;
-    case PT_BIKE:
-    case PT_REGISTERED:
-        CtrPokeTouch_RequestFieldCommand((unsigned)id);
-        break;
     case PT_RUN:
         CtrPokeTouch_ToggleRun();
         break;
@@ -2767,10 +2535,9 @@ bool CtrBottom_TakeTurboTap(void)
     return tap;
 }
 
-/* What the field's sidebar can do now. OPTIONS is the native screen: never
- * with FireRed's own START menu up (its entry would open FireRed's Options),
- * and no-op once open; while it is open the entries that have no destination
- * of their own yet are off. HOME's own places follow HomeTouchEnabled. */
+/* What HOME's keys can do now. OPTIONS is the native screen: never with
+ * FireRed's own START menu up (its entry would open FireRed's Options), and
+ * no-op once open. HOME's own places follow HomeTouchEnabled. */
 static int FieldEnabled(int id)
 {
     int home = HomeTouchEnabled(id);
@@ -2778,7 +2545,7 @@ static int FieldEnabled(int id)
     if (home >= 0)
         return home;
     /* While SAVE is up the field is locked (so FireRed's own checks say no to everything) and the
-     * sidebar is off: SAVE's NO, its B and its OK are the ways out. */
+     * keys are off: SAVE's NO, its B and its OK are the ways out. */
     if (SaveActive() || !CtrPokeTouch_Enabled(id))
         return 0;
     if (id == PT_OPTIONS || id == PT_CARD)
@@ -2952,8 +2719,8 @@ static void UpdateSave(void)
 
 /* Touch-down presses an enabled element, moving off releases the highlight,
  * release over it acts once. Holding never repeats. HOME's own keys and places
- * are its (CtrPokeTouch_HomeHit); a native screen (OPTIONS, SAVE: the red
- * device's) has the START column only before it is first shown. */
+ * are its (CtrPokeTouch_HomeHit); a native screen (OPTIONS, SAVE) takes its
+ * touches itself (ProcessOptionsTouch, ProcessSaveInput). */
 
 /* HOME is the picture the lower screen shows: only then do its keys, party, FLY, region key and map take a touch (on the
  * field's first frames the screen that closed may still be the picture shown). */
@@ -2964,9 +2731,7 @@ static int HomeShownNow(void)
 
 static int PokeTouchHit(int x, int y)
 {
-    if (NativeActive())
-        return sHaveShown && CtrPokeTouch_DeviceShown(&sShown.touch) ? PT_NONE : CtrPokeTouch_HitTest(x, y);
-    return HomeShownNow() ? CtrPokeTouch_HomeHit(&sShown.touch, x, y) : PT_NONE;
+    return !NativeActive() && HomeShownNow() ? CtrPokeTouch_HomeHit(&sShown.touch, x, y) : PT_NONE;
 }
 
 static void ProcessPokeTouch(const CtrInput *in)
@@ -4289,14 +4054,6 @@ static int ProcessTouch(int mode)
 
     /* PokeTouch works alongside the buttons (walking while tapping is fine):
      * what it starts runs under FireRed's own field checks. */
-    if (sPendingScreen != PT_NONE && (mode == MODE_FIELD || mode == MODE_OFF)) {
-        /* A route passes through the field: nothing there is touchable. */
-        sPoke.id = PT_NONE;
-        sPoke.inside = 0;
-        sHome.down = 0;
-        sTouch.active = 0;
-        return HIT_NONE;
-    }
     if (mode == MODE_FIELD) {
         sTouch.active = 0;
         ProcessBack(mode, in);          /* only on the native OPTIONS screen */
@@ -4334,7 +4091,7 @@ static int ProcessTouch(int mode)
         return HIT_NONE;
     }
     if (mode == MODE_SUMMARY && SummaryPremium()) {
-        /* The battle Summary's own screen: no sidebar to route from, its own BACK. */
+        /* The battle Summary's own screen, its own BACK. */
         sPoke.id = PT_NONE;
         sPoke.inside = 0;
         sTouch.active = 0;
@@ -4342,7 +4099,7 @@ static int ProcessTouch(int mode)
         return ProcessSummaryTouch(in);
     }
     if (mode == MODE_NAMING) {
-        /* The naming screen: modal, nothing on the sidebar routes away from it. */
+        /* The naming screen: modal. */
         sPoke.id = PT_NONE;
         sPoke.inside = 0;
         sTouch.active = 0;
@@ -4369,7 +4126,7 @@ static int ProcessTouch(int mode)
         return HIT_NONE;
     }
     if (mode == MODE_CHOICE) {
-        /* The field's choice: modal, nothing on the sidebar routes away from it. */
+        /* The field's choice: modal. */
         sPoke.id = PT_NONE;
         sPoke.inside = 0;
         sTouch.active = 0;
@@ -4378,7 +4135,7 @@ static int ProcessTouch(int mode)
         return HIT_NONE;
     }
     if (mode == MODE_PARTY_CHILD && CtrBottomLearn_IsOpen()) {
-        /* The move to forget: modal, nothing on the sidebar routes away from it. */
+        /* The move to forget: modal. */
         sPoke.id = PT_NONE;
         sPoke.inside = 0;
         sTouch.active = 0;
@@ -4387,8 +4144,8 @@ static int ProcessTouch(int mode)
         return HIT_NONE;
     }
     if (sStorageSession && (mode == MODE_SUMMARY || mode == MODE_BAG || IS_CASE_MODE(mode))) {
-        /* Keep the real GBA child touchscreen handler and BACK. Prevent the
-         * field sidebar from unwinding the still-active PC context. */
+        /* Keep the real GBA child touchscreen handler and BACK: the PC's
+         * context is still active. */
         sPoke.id = PT_NONE;
         sPoke.inside = 0;
         ProcessBack(mode, in);
@@ -4402,8 +4159,7 @@ static int ProcessTouch(int mode)
     }
     if (FieldListFor(mode) != NULL) {
         /* The field's Bag and its cases, a mart's BUY list, the item PC's WITHDRAW ITEM, the mailbox: the red device's
-         * page takes the whole screen, modal (no column, no BACK: its CLOSE is B, and the column's rectangles lie over
-         * its ▲▼ and CLOSE). */
+         * page takes the whole screen, modal (no BACK: its CLOSE is B). */
         sPoke.id = PT_NONE;
         sPoke.inside = 0;
         sTouch.active = 0;
@@ -4411,14 +4167,9 @@ static int ProcessTouch(int mode)
         ProcessFieldBagTouch(FieldListFor(mode), in);
         return HIT_NONE;
     }
-    /* The column's route only under an ember view: under the red device its rectangles lie under the view's keys. */
-    if (!sHaveShown || !CtrPokeTouch_DeviceShown(&sShown.touch))
-        ProcessRouteTouch(mode, in);
-    else {
-        sPoke.id = PT_NONE;
-        sPoke.inside = 0;
-        sTouch.active = 0;
-    }
+    sPoke.id = PT_NONE;
+    sPoke.inside = 0;
+    sTouch.active = 0;
     ProcessBack(mode, in);
     if (mode == MODE_CARD) {
         ProcessCardTouch(in);
@@ -4715,7 +4466,7 @@ void CtrBottom_Init(void)
     memset(&sSum, 0, sizeof(sSum));
     sBridgeFrames = 0;
     sHeldTop = 0;
-    sScreen = sPendingScreen = PT_NONE;
+    sScreen = PT_NONE;
     sRouteHold = 0;
     sTapped = SLOT_NONE;
     sHaveShown = 0;
@@ -4804,7 +4555,7 @@ void CtrBottom_Frame(void)
     }
     /* Native OPTIONS lasts while the field is the screen's owner: a menu, a
      * battle or FireRed's START menu takes over, so it is left for HOME. */
-    if (NativeActive() && sPendingScreen == PT_NONE
+    if (NativeActive()
         && ((mode != MODE_FIELD && !(mode == MODE_OFF && CtrBottom_IsFieldTransition())) || CtrPokeTouch_StartMenuOpen()))
         CloseNative();
     /* Hits from the last render are used; render rebuilds them. */
@@ -4818,7 +4569,7 @@ void CtrBottom_Frame(void)
         pressed = ProcessTouch(mode);
     UpdateSave();
     UpdateSaveAfterMenu(mode);
-    UpdateDestinationRoute(mode);
+    UpdateSessionHold(mode);
     RunPlan();
     if (mode == MODE_DEX)
         RunDexPlan();
@@ -4907,9 +4658,9 @@ void CtrBottom_Frame(void)
         if (!hold)
             sTapped = SLOT_NONE;
     }
-    /* A route in flight: the last presentation stays (no HOME, no black, no
-     * viewport sampling the unwinding GBA screens) until the requested root
-     * is up. */
+    /* A session's screen not ready yet (UpdateSessionHold): the last
+     * presentation stays (no HOME, no black, no viewport sampling the GBA's
+     * setup) until the requested root is up. */
     if (storageBridge || (!sRouteHold && SessionBridge(mode))) {
         /* Between two screens of one session: what was shown stays (see SessionBridge). */
         CtrVideo_HoldBottom(true);
@@ -5030,7 +4781,7 @@ uint16_t CtrBottom_InjectedKeys(void)
 
 /* The turbo runs in two places, each only while FireRed says it is stable. The plain field (its own CB2, nothing fading,
  * no battle or battle transition) with PokeTouch having no screen of its own up: no hidden session, no native OPTIONS or
- * SAVE (SAVE also locks the field), no route in flight. And the battle itself (its own main callback, nothing fading, no
+ * SAVE (SAVE also locks the field), no session's screen held. And the battle itself (its own main callback, nothing fading, no
  * transition) with the lower screen on the battle's own UI: its messages, animations, turns and choices; never the Bag,
  * the Party or the Summary opened from it (a session), a loading screen or a fade. The chosen multiplier is kept
  * everywhere else and comes back with the battle. */
@@ -5044,12 +4795,11 @@ bool CtrBottom_TurboApplies(void)
         return true;
     if (battle)
         return CurrentMode() == MODE_BATTLE && !sSession.active && !sRouteHold && !SaveActive() && !sBatHold;
-    return CurrentMode() == MODE_FIELD && !sSession.active && sScreen == PT_NONE && sPendingScreen == PT_NONE
-        && !sRouteHold && !SaveActive();
+    return CurrentMode() == MODE_FIELD && !sSession.active && sScreen == PT_NONE && !sRouteHold && !SaveActive();
 }
 
-/* The lower screen keeps its picture and TOP its frame (a route in flight, a bridge between two screens of a session,
- * the battle's Bag or Party being opened): nothing the game draws meanwhile is seen, so the game may skip showing it. */
+/* The lower screen keeps its picture and TOP its frame (a session's screen not ready yet, a bridge between two screens
+ * of a session, the battle's Bag or Party being opened): nothing the game draws meanwhile is seen, so the game may skip showing it. */
 bool CtrBottom_MenuChangingOver(void)
 {
     if (!sEnabled || !sInitDone || !CtrBottom_HasSave() || !sHeldTop)

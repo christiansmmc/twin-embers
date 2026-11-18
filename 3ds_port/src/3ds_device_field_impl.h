@@ -1,7 +1,7 @@
 /* The field dispatcher: the field's views without a board, drawn as the red device, in one table. Included last by
- * 3ds_poketouch.c (after every view's own file); CtrPokeTouch_Draw and _Update ask it after HOME and the Bag
- * (DevFieldDraw, DevFieldUpdate, declared before them), 3ds_bottom.c asks CtrPokeTouch_DeviceShown (no START column under
- * a view drawn as the device) and CtrPokeTouch_BackHit (BACK where the view draws it).
+ * 3ds_poketouch.c (after every view's own file); CtrPokeTouch_Draw and _Update hand it every view but HOME and the Bag
+ * (DevFieldDraw, DevFieldUpdate, declared before them), 3ds_bottom.c asks CtrPokeTouch_BackHit (BACK where the view
+ * draws it).
  *
  * A row: when the view is shown, how it draws whole (after DevBegin), whether two views draw the same (the fields it
  * draws, the press as drawn; the shell is the dispatcher's), and its BACK key as drawn now (NULL: none). The rows are in
@@ -40,39 +40,29 @@ static int DevFieldIndex(const CtrPokeTouchView *v)
     return -1;
 }
 
-/* `v` whole when a row draws it (sCanvas is CtrPokeTouch_Draw's); 0 when none does. */
-static int DevFieldDraw(const CtrPokeTouchView *v)
+/* `v` whole, by its row (sCanvas is CtrPokeTouch_Draw's); nothing for HOME and the Bag, which have none. */
+static void DevFieldDraw(const CtrPokeTouchView *v)
 {
     int i = DevFieldIndex(v);
 
     if (i < 0)
-        return 0;
+        return;
     DevBegin(sCanvas, v->shell);
     kDevFieldViews[i].draw(v);
-    return 1;
 }
 
-/* From `old` to `v` when either is a row's: the same row drawing the same in the same shell presents nothing, anything
- * else is drawn whole; 0 when neither is a row's. */
-static int DevFieldUpdate(const CtrPokeTouchView *old, const CtrPokeTouchView *v, CtrDirtyList *dirty)
+/* From `old` to `v`: the same row drawing the same in the same shell presents nothing, anything else is drawn whole. */
+static void DevFieldUpdate(const CtrPokeTouchView *old, const CtrPokeTouchView *v, CtrDirtyList *dirty)
 {
     int a = DevFieldIndex(old), b = DevFieldIndex(v);
 
-    if (a < 0 && b < 0)
-        return 0;
-    if (a != b || old->shell != v->shell || !kDevFieldViews[b].same(old, v)) {
+    if (a != b || b < 0 || old->shell != v->shell || !kDevFieldViews[b].same(old, v)) {
         CtrPokeTouch_Draw(sCanvas, v);
         CtrDirty_Add(dirty, 0, 0, W, H);
     }
-    return 1;
 }
 
-bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *v)
-{
-    return DevHomeShown(v) || DevBagShown(v) || DevFieldIndex(v) >= 0;
-}
-
-/* HOME and the Bag (no row) keep v0.6.0's BACK rectangle. */
+/* HOME and the Bag (no row) draw no BACK: nothing of theirs is it. */
 bool CtrPokeTouch_BackHit(const CtrPokeTouchView *v, int x, int y)
 {
     int i = DevFieldIndex(v);
@@ -80,7 +70,7 @@ bool CtrPokeTouch_BackHit(const CtrPokeTouchView *v, int x, int y)
     CtrPokeTouchRect area;
 
     if (i < 0)
-        return UiIn(&gCtrPokeTouchBack, x, y);
+        return false;
     key = kDevFieldViews[i].back(v);
     if (!v->backVisible || !key)
         return false;

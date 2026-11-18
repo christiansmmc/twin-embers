@@ -176,8 +176,8 @@ static void update_at(int line, CtrPokeTouchView *old, const CtrPokeTouchView *v
         for(int x=0;x<W;++x) for(int y=0;y<H;++y) {
             unsigned n=x*H+H-1-y;
             if(reference[n]!=canvas[n]) {
-                fprintf(stderr,"redraw mismatch line %d (opt sel %u pressed %d zone %u page %u cnt %u options %u) at %d,%d selected=%u pressed=%u save=%u/%u back=%u\n",
-                        line,v->optSelected,v->optPressed,v->optZone,v->optPage,v->optCount,v->options,x,y,v->selected,v->pressed,v->save,v->saveState,v->backVisible);
+                fprintf(stderr,"redraw mismatch line %d (opt sel %u pressed %d zone %u page %u cnt %u options %u) at %d,%d pressed=%u save=%u/%u back=%u\n",
+                        line,v->optSelected,v->optPressed,v->optZone,v->optPage,v->optCount,v->options,x,y,v->pressed,v->save,v->saveState,v->backVisible);
                 assert(reference[n]==canvas[n]);
             }
         }
@@ -316,17 +316,8 @@ int main(int argc, char **argv)
         puts("PASS six production icon decoders with real user-owned pack, header/index/payload CRCs");
     }
 #endif
-    for (int y=-1;y<=H;++y) for (int x=-1;x<=W;++x) {
-        static const CtrPokeTouchRect expected[PT_COUNT] = {
-            {250,4,68,21},{250,29,68,21},{250,54,68,21},{250,79,68,21},
-            {250,104,68,21},{250,129,68,21},{250,158,32,40},{286,158,32,40},{250,204,68,30}};
-        int hit=PT_NONE;
-        for(int i=0;i<PT_COUNT;++i) if(UiIn(&expected[i],x,y)) hit=i;
-        assert(CtrPokeTouch_HitTest(x,y)==hit);
-    }                                           /* (the viewport's GBA points: device_render_test.c's frame suite) */
-    CtrPokeTouchView v={0}; v.selected=v.pressed=PT_NONE;
+    CtrPokeTouchView v={0}; v.pressed=PT_NONE;     /* (the viewport's GBA points: device_render_test.c's frame suite) */
     v.home=1; v.playerX=v.playerY=v.cursorX=v.cursorY=-1;
-    v.registeredItem=1; v.bikeItem=2;
     strcpy(v.playerName,"Trades"); strcpy(v.bar[0],"TEST MAP");
     for(int i=0;i<PT_COUNT;++i) v.enabled[i]=1;
     CtrPokeTouch_Draw(canvas,&v);                       /* HOME (the red device's: device_render_test.c checks it) */
@@ -342,10 +333,10 @@ int main(int argc, char **argv)
     FILE *viewports=argc>2?fopen(argv[2],"wb"):NULL;
     CtrPokeTouchView old=v;
     for(int i=0;i<PT_COUNT;++i) {
-        v.pressed=i; update(&old,&v); v.pressed=PT_NONE; v.selected=i; update(&old,&v);
-        v.enabled[i]=0; v.selected=PT_NONE; update(&old,&v); v.enabled[i]=1; update(&old,&v);
+        v.pressed=i; update(&old,&v); v.pressed=PT_NONE; update(&old,&v);
+        v.enabled[i]=0; update(&old,&v); v.enabled[i]=1; update(&old,&v);
     }
-    v.running=1; update(&old,&v); v.registeredItem=2; v.bikeItem=1; update(&old,&v);
+    v.running=1; update(&old,&v);
     strcpy(v.playerName,"Alex"); update(&old,&v);
     for(int screen=0;screen<2;++screen) {      /* HOME, the GBA picture (its frame, OPTIONS, SAVE: device_render_test.c) */
         v.home=screen==0; v.viewport=screen==1;
@@ -360,7 +351,7 @@ int main(int argc, char **argv)
         const char *dir=getenv("PT_PREVIEW_DIR"), *fp=getenv("PT_PREVIEW_FONT"), *wp=getenv("PT_PREVIEW_WIDTHS");
         if(dir && fp) { FILE *ff=fopen(fp,"rb"); assert(ff); assert(fread(font,1,sizeof(font),ff)==sizeof(font)); fclose(ff); memset(sPtFontReady,0,sizeof(sPtFontReady)); }
         if(dir && wp) { FILE *ff=fopen(wp,"rb"); assert(ff); assert(fread(fontWidths,1,sizeof(fontWidths),ff)==sizeof(fontWidths)); fclose(ff); memset(sPtFontReady,0,sizeof(sPtFontReady)); }
-        memset(&old,0,sizeof(old)); old.selected=old.pressed=PT_NONE;
+        memset(&old,0,sizeof(old)); old.pressed=PT_NONE;
     }
     v.home=1; v.backVisible=1; update(&old,&v);
     v.backEnabled=1; update(&old,&v); v.backPressed=1; update(&old,&v);
@@ -422,14 +413,6 @@ int main(int argc, char **argv)
         STILL(150,150,40,14,0,"LlFlameFace",LlFlameFace(150,150,40,14,3,0));
         STILL(150,150,10,68,0,"LlScrollRail",LlScrollRail(150,150,10,68,3,28));
         { static const char *const names[3]={"OFF","LOW","HIGH"}; STILL(150,150,118,14,0,"LlSegments",LlSegments(150,150,118,14,names,3,2,1)); }
-        /* The column's own pieces (3ds_poketouch.c): the mockup's switch (RUN's), 30 x 15 with the knob at the right when on and at the left when off. */
-        STILL(150,150,30,15,0,"LhSwitch on",LhSwitch(150,150,1));
-        { uint16_t k=0, g; SENTINEL(); LhSwitch(150,150,1); g=at(150+6,150+11); k=at(150+22,150+7);
-          assert(((g>>5)&63)*4>(g>>11)*8+40 && (k>>11)>26 && (k&31)>26);   /* green track on the left, the pale knob on the right */
-          SENTINEL(); LhSwitch(150,150,0); g=at(150+22,150+11); k=at(150+7,150+7);
-          assert(abs((int)(g>>11)*8-(int)(g&31)*8)<24 && (k>>11)>26 && (k&31)>26); }   /* grey track on the right, the knob on the left */
-        STILL(150,150,30,15,0,"LhSwitch off",LhSwitch(150,150,0));
-        PIECE(150,150,150,26,0,"LhPill",LhPill(150,150,150,26,(uint16_t[26]){0}));
         STILL(150,150,30,30,1,"LlPlate",LlPlate(150,150,30,UI_RGB(64,72,104),0,0));
         PIECE(146,146,38,38,0,"LlPlate ring",LlPlate(150,150,30,UI_RGB(24,74,134),UI_RGB(232,248,255),1));   /* a px of edge, one of band, a px of edge: 3 px out */
         PIECE(146,146,50,50,0,"LlPlate ring 2",LlPlate(150,150,42,UI_RGB(138,22,16),UI_RGB(255,216,144),2));
@@ -659,6 +642,6 @@ int main(int argc, char **argv)
     if(viewports) fclose(viewports);
     if(realPack) fclose(realPack);
     free(realIndex);
-    puts("PASS real renderer: decoder, 4bpp, geometry, viewport, incremental states, X/Y/RUN, back");
+    puts("PASS real renderer: decoder, 4bpp, viewport, incremental states, RUN, back");
     return 0;
 }

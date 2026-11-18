@@ -46,7 +46,6 @@ jobs:
         run: |
           python3 -m unittest discover -s tools -p test_wilds_recipe.py -v
           python3 -m unittest discover -s tools -p test_option_labels.py -v
-          python3 -m unittest discover -s tools -p test_column_labels.py -v
           python3 -m unittest discover -s tools -p test_m4a_reverse_block.py -v
           python3 -m unittest discover -s tools -p test_bag_pockets.py -v
           python3 -m unittest discover -s tools -p test_dev_tool.py -v
