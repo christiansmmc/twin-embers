@@ -22,7 +22,6 @@ typedef enum {
     UIS_NO,
     UIS_OK,
     UIS_CANCEL,
-    UIS_TAP_TO_CONTINUE,
     UIS_DEX_LISTS,
     UIS_DEX_HABITATS,
     UIS_DEX_SEARCH,
@@ -53,7 +52,6 @@ typedef enum {
     UIS_NAME_SYMBOLS,
     UIS_NAME_DELETE,
     UIS_NAME_OK,
-    UIS_NAME_HINT,
     UIS_FLY_PICK,           /* HOME's line under the place: the Party's FLY waits for a town, and any button leaves (two
                              * lines of the small font, broken at the \n: 18 small letters at most each) */
     UIS_FLY_UNVISITED,      /* ... and why a place picked cannot be flown to (one line: 18 small letters at most) */
@@ -80,7 +78,6 @@ static const char *const kCtrUiStrings[UIS_COUNT] = {
     [UIS_NO] = CTR_TR("No", "No", "Nein"),
     [UIS_OK] = CTR_TR("OK", "OK", "OK"),
     [UIS_CANCEL] = CTR_TR("Cancel", "Cancelar", "Zur\xC3\xBC" "ck"),
-    [UIS_TAP_TO_CONTINUE] = CTR_TR("Tap to continue", "Toca para seguir", "Tippen zum Fortfahren"),
     [UIS_DEX_LISTS] = CTR_TR("Lists", "Listas", "Listen"),
     [UIS_DEX_HABITATS] = CTR_TR("Habitats", "H\xC3\xA1" "bitats", "Habitate"),
     [UIS_DEX_SEARCH] = CTR_TR("Search", "Buscar", "Suche"),
@@ -111,7 +108,6 @@ static const char *const kCtrUiStrings[UIS_COUNT] = {
     [UIS_NAME_SYMBOLS] = CTR_TR("123", "123", "123"),
     [UIS_NAME_DELETE] = CTR_TR("Delete", "Borrar", "L\xC3\x96SCHEN"),
     [UIS_NAME_OK] = CTR_TR("OK", "OK", "OK"),
-    [UIS_NAME_HINT] = CTR_TR("Touch a key to write it, and OK when the name is ready.", "Toca una tecla para escribirla, y OK cuando el nombre est\xC3\xA9 listo.", "Taste ber\xC3\xBChren zum Schreiben, OK wenn fertig."),
     [UIS_FLY_PICK] = CTR_TR("Tap a town.\nAny button: cancel", "Toca un pueblo.\nBotones: cancelar", "Ort antippen.\nTasten: Zur\xC3\xBC" "ck"),
     [UIS_FLY_UNVISITED] = CTR_TR("Not visited yet", "A\xc3\xban sin visitar", "Noch nicht besucht"),
     [UIS_FLY_NO_MON] = CTR_TR("No one knows Fly", "Nadie sabe Vuelo", "Fliegen fehlt"),

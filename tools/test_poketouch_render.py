@@ -36,12 +36,11 @@ class Renderer(unittest.TestCase):
             cur=(folder/'current.bin').read_bytes(); base=(folder/'base.bin').read_bytes()
             frame=240*160*2
             self.assertEqual(len(cur),len(base))
-            # HOME and GBA viewports are pixel-identical to the base.
+            # HOME's viewport is pixel-identical to the base.
             # (HOME wears the Llama look: the region's ribbon and the map's shaded edge are in the first 13 rows of its columns, which are left out.)
             home=lambda data:b''.join(data[c*320+26:(c+1)*320] for c in range(240))
             self.assertEqual(home(cur[:frame]),home(base[:frame]),'HOME viewport pixels must match the base')
-            self.assertEqual(cur[frame:2*frame],base[frame:2*frame],'GBA viewport pixels must match the base')
-            # (OPTIONS and SAVE are the red device's: test_device_views.py.)
+            # (FireRed's picture moved into its screen, OPTIONS and SAVE are the red device's: test_device_views.py.)
             self.assertNotEqual((folder/'current.ppm').read_bytes(),(folder/'base.ppm').read_bytes())
 
 if __name__=='__main__': unittest.main()

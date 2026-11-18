@@ -12,7 +12,7 @@
  *   DEVICE_FONT_W=n           the stub glyph width
  *
  * usage: device_render_test <suite>   (kit, home, battle, party, summary, bag, options, save, card, mail, dex, choice,
- *        learn, relearn, or all; prints PASS device <suite>) */
+ *        learn, relearn, naming, box, easychat, frame, idle, or all; prints PASS device <suite>) */
 #include <assert.h>
 #ifndef PT_SOURCE
 #define PT_SOURCE "3ds_poketouch.c"
@@ -191,10 +191,25 @@ int CtrPokeTouch_CardBadges(unsigned char *tiles, unsigned short *palette)
     if (!cardArt) return 0;
     memset(tiles, 0x22, 0x400); memset(palette, 0, 32); palette[2] = CARD_ART_BLUE; return 1;
 }
+/* A Pokemon's icon (the naming keyboard's, the PC box's): none, unless a suite asks for synthetic art (monArt 1: a 24x24
+ * square of index 1 in STUB_ICON in a clear border of 4; 2: the whole 32x32 square). Every call writes both frames, the
+ * PT_MON_ICON_BYTES the game's bridge writes, so a smaller buffer is overrun here too; so do the Party's and the
+ * Summary's icon stubs below. */
+#define MON_ART_ORANGE 0x021f                   /* GBA BGR555 */
+#define STUB_ICON GbaColor(MON_ART_ORANGE)
+static int monArt;
 int CtrPokeTouch_MonIcon(unsigned species, unsigned personality, int egg, unsigned char *tiles, unsigned short *palette)
 {
-    (void)species; (void)personality; (void)egg; (void)tiles; (void)palette;
-    return 0;
+    int border = monArt == 2 ? 0 : 4;
+
+    (void)species; (void)personality; (void)egg;
+    memset(tiles, 0, PT_MON_ICON_BYTES); memset(palette, 0, 32);
+    if (!monArt) return 0;
+    palette[1] = MON_ART_ORANGE;
+    for (int y = border; y < 32 - border; ++y)
+        for (int x = border; x < 32 - border; ++x)
+            tiles[(y / 8 * 4 + x / 8) * 32 + y % 8 * 4 + x % 8 / 2] |= (unsigned char)(1 << (x & 1) * 4);
+    return 1;
 }
 int CtrPokeTouch_ItemIcon(unsigned item, unsigned char *tiles, unsigned short *palette)
 {
@@ -247,11 +262,24 @@ int CtrPokeTouch_MapCursorIcon(uint8_t *tiles, uint16_t *pal)
     if (!iconArt) return 0;
     memset(tiles, 0x22, 4 * 32); memset(tiles + 4 * 32, 0x20, 4 * 32); memset(pal, 0, 32); pal[2] = 0x7c00; return 1;
 }
-int CtrPokeTouch_MarkShape(int mark, unsigned char *indexes) { (void)mark; (void)indexes; return 0; }
+/* A mark's shape (the PC box's marks): none, unless a suite asks for synthetic art (markArt): a 4x4 square of index 3 in
+ * a ring of index 4 (the mark and its edge), 6x6 in all, in the 8x8's rows and columns 1-6. */
+static int markArt;
+int CtrPokeTouch_MarkShape(int mark, unsigned char *indexes)
+{
+    (void)mark;
+    if (!markArt) return 0;
+    for (int i = 0; i < 64; ++i) {
+        int x = i % 8, y = i / 8;
+
+        indexes[i] = (unsigned char)(x >= 2 && x <= 5 && y >= 2 && y <= 5 ? 3 : x >= 1 && x <= 6 && y >= 1 && y <= 6 ? 4 : 0);
+    }
+    return 1;
+}
 int CtrBottomParty_Icon(int slot, unsigned char *tiles, unsigned short *pal)
 {
     /* A flat 32x32 icon in the slot's own colour, a clear border and a hole in the middle, so the 2:1 sample shows. */
-    memset(tiles, 0, 1024); memset(pal, 0, 32);
+    memset(tiles, 0, PT_MON_ICON_BYTES); memset(pal, 0, 32);
     for (int y = 2; y < 30; ++y)
         for (int x = 2; x < 30; ++x)
             if (!(x >= 12 && x < 20 && y >= 12 && y < 20)) {
@@ -276,8 +304,9 @@ static int SumArtIndex(int x, int y, int size)
 unsigned CtrBottomSummary_IconSpecies(void) { return 0; }
 int CtrBottomSummary_Icon(unsigned char *tiles, unsigned short *pal)
 {
+    memset(tiles, 0, PT_MON_ICON_BYTES); memset(pal, 0, 32);
     if (!sumArt) return 0;
-    memset(tiles, 0x11, 512); memset(pal, 0, 32); pal[1] = SUM_ART_RED; return 1;
+    memset(tiles, 0x11, PT_MON_ICON_BYTES); pal[1] = SUM_ART_RED; return 1;
 }
 int CtrBottomSummary_Pic(unsigned char *tiles, unsigned short *pal, int *flip)
 {
@@ -297,8 +326,20 @@ int CtrBottomSummary_Pic80(unsigned char *pixels, unsigned short *pal, int *flip
             pixels[y * 40 + x / 2] |= (unsigned char)(SumArtIndex(x, y, 80) << (x & 1) * 4);
     return 1;
 }
+/* A box's wallpaper (the PC box's): none, unless a suite asks for synthetic art (wallArt): every pixel of the 160x144 its
+ * own colour, WallArtColor(id, x, y), so where a pixel lands shows. */
+static int wallArt;
+static unsigned short WallArtColor(unsigned id, int x, int y)
+{
+    return (unsigned short)((x & 31) | (y & 31) << 5 | (((x >> 5) + 5 * (y >> 5) + (int)id) & 31) << 10);
+}
 int CtrPokeTouch_Wallpaper(unsigned id, unsigned short *rgb555)
-{ (void)id; (void)rgb555; return 0; }
+{
+    if (!wallArt) return 0;
+    for (int i = 0; i < 160 * 144; ++i)
+        rgb555[i] = WallArtColor(id, i % 160, i / 160);
+    return 1;
+}
 
 /* ---- Canvas, shots and the checks every suite shares ------------------------------------------------------------- */
 
@@ -2283,6 +2324,10 @@ static void SuiteBag(void)
 #include "device_suite_choice.h"
 #include "device_suite_learn.h"
 #include "device_suite_relearn.h"
+#include "device_suite_naming.h"
+#include "device_suite_box.h"
+#include "device_suite_easychat.h"
+#include "device_suite_frame.h"           /* frame and idle */
 
 /* ---- main --------------------------------------------------------------------------------------------------------- */
 
@@ -2301,6 +2346,11 @@ static const struct { const char *name; void (*run)(void); } kSuites[] = {
     {"choice", SuiteChoice},
     {"learn", SuiteLearn},
     {"relearn", SuiteRelearn},
+    {"naming", SuiteNaming},
+    {"box", SuiteBox},
+    {"easychat", SuiteEasyChat},
+    {"frame", SuiteFrame},
+    {"idle", SuiteIdle},
 };
 
 int main(int argc, char **argv)
@@ -2310,7 +2360,7 @@ int main(int argc, char **argv)
 
     if (argc != 2) {
         fprintf(stderr, "usage: device_render_test <suite> (kit, home, battle, party, summary, bag, options, save, card, "
-                        "mail, dex, choice, learn, relearn, all)\n");
+                        "mail, dex, choice, learn, relearn, naming, box, easychat, frame, idle, all)\n");
         return 2;
     }
     gOut = getenv("DEVICE_OUT");

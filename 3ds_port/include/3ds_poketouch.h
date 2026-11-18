@@ -10,7 +10,7 @@
  * PokeTouch: the bottom screen (320x240). A view over FireRed's own menu
  * and shortcuts: every button maps to the game's START menu entry or key
  * item use (3ds_bottom.c issues them); this module only lays out, draws and
- * hit-tests. The frame on the left holds the viewport, where the GBA picture
+ * hit-tests. The frame (an embedded screen) holds the viewport, where the GBA picture
  * of the open menu is shown 1:1 (240x160) by the GPU, and the contextual bar
  * under it. Drawing goes into the bottom canvas (RGB565,
  * column-major, each column bottom-to-top) when the view changes.
@@ -38,9 +38,11 @@ enum { PT_FLY_NONE, PT_FLY_UNVISITED, PT_FLY_NO_MON, PT_FLY_NO_BADGE, PT_FLY_NO_
 
 typedef struct { int16_t x, y, w, h; } CtrPokeTouchRect;
 
-/* The viewport: the GBA picture's 240x160, pixel for pixel. */
-#define PT_VIEW_X 4
-#define PT_VIEW_Y 4
+/* The viewport: the GBA picture's 240x160, pixel for pixel, on the paper of its embedded screen (3ds_device_layout.h
+ * kDevViewScreen). The one place of FireRed's picture: the GPU draws it here (3ds_video.c) and a touch in it is a GBA
+ * point (CtrPokeTouch_ViewportToGba). */
+#define PT_VIEW_X 40
+#define PT_VIEW_Y 14
 #define PT_VIEW_W 240
 #define PT_VIEW_H 160
 /* The HOME map: FireRed's own Region Map art, drawn passively over the field's
@@ -234,7 +236,7 @@ typedef struct {
     char name[32], from[24];        /* from: as typed, "" when unknown */
 } CtrPokeTouchMail;
 
-/* Easy Chat (3ds_field_easychat_impl.h), drawn by the port over the whole lower screen (the upper one keeps FireRed's own): a remote
+/* Easy Chat (3ds_device_easychat_impl.h), drawn by the port over the whole lower screen (the upper one keeps FireRed's own): a remote
  * for the game's screen. The phrase as chips, the group menu (or the letters of the A-Z order), a group's word list with its rail and
  * a letter strip, and the game's Yes/No questions over the dimmed phrase. Everything is the game's state (CtrBottomEasyChat_*); the
  * touches are walked to with its own keys (3ds_bottom_easychat_impl.h). */
@@ -247,8 +249,8 @@ typedef struct {
 #define PT_EC_ASK_LEN 48
 enum { PT_EC_EDIT, PT_EC_GROUP, PT_EC_LETTER, PT_EC_LIST };         /* the screen: the phrase, the groups, the letters, a list */
 enum { PT_EC_ASK_NONE, PT_EC_ASK_QUIT, PT_EC_ASK_DELETE, PT_EC_ASK_CONFIRM };
-#define PT_EC_CELL_TOGGLE 24        /* the group and letter screens' A-Z / groups button and BACK, as cells */
-#define PT_EC_CELL_BACK 25
+#define PT_EC_CELL_TOGGLE 26        /* the group and letter screens' A-Z / groups button and BACK, as cells (past Z's 25) */
+#define PT_EC_CELL_BACK 27
 /* Hit codes (CtrPokeTouch_EasyHit). */
 enum { PT_EC_HIT_CHIP = 100, PT_EC_HIT_MODE_GROUPS = 120, PT_EC_HIT_MODE_ALPHA, PT_EC_HIT_DELETE = 130, PT_EC_HIT_CANCEL,
        PT_EC_HIT_CONFIRM, PT_EC_HIT_CELL = 200, PT_EC_HIT_ROW = 300, PT_EC_HIT_UP = 320, PT_EC_HIT_DOWN, PT_EC_HIT_RAIL,
@@ -292,7 +294,7 @@ typedef struct {
     char prompt[160];
 } CtrPokeTouchChoice;
 
-/* FireRed's naming screen drawn by the port (3ds_field_naming_impl.h), a remote for it: the name so far, the keys of
+/* FireRed's naming screen drawn by the port (3ds_device_naming_impl.h), a remote for it: the name so far, the keys of
  * its page (FireRed's own character codes, 0xff for no key), tabs for its three pages, DELETE and OK. A key moves
  * FireRed's cursor there and presses its A; a tab is its SELECT, DELETE its B. */
 #define PT_NAME_ROWS 4
@@ -312,9 +314,9 @@ typedef struct {
     uint8_t title[32];              /* FireRed's question, its codes, 0xff ended */
 } CtrPokeTouchName;
 
-/* A PC box drawn by the port (3ds_field_box_impl.h), a remote for FireRed's own box: its name between the arrows, its
- * thirty places with their icons, PARTY and CLOSE BOX, the Pokemon in hand, the Party when the cursor is in it, and
- * over them the box's menu, its YES/NO, its box chooser or its message. Texts are FireRed's own codes, 0xff ended.
+/* A PC box drawn by the port (3ds_device_box_impl.h), a remote for FireRed's own box: its name on the wallpaper's band,
+ * its thirty places with their icons, PARTY and CLOSE BOX, the Pokemon in hand, the Party when the cursor is in it, the
+ * box's menu, its YES/NO, its box chooser, its marks or its message. Texts are FireRed's own codes, 0xff ended.
  * A touch is the PC's own controller (3ds_storage_touch.h hit codes): the cursor walked there and A. */
 #define PT_BOX_SLOTS 30
 #define PT_BOX_MENU_MAX 7
@@ -482,10 +484,12 @@ extern const CtrPokeTouchRect gCtrPokeTouchRects[PT_COUNT];
  * stands for the B button of the open screen (3ds_bottom.c sends the real B). */
 extern const CtrPokeTouchRect gCtrPokeTouchBack;
 /* Whether the view is drawn as the red device (HOME, the Bag, or a field view of the dispatcher,
- * 3ds_device_field_impl.h): no START column under it. */
+ * 3ds_device_field_impl.h, whose last row, FireRed's picture in its screen, takes any other): no START column under
+ * it. Every view is. */
 bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *view);
 /* Whether a bottom-screen pixel is on BACK as the view draws it: a field view of the dispatcher's
- * BACK key while it is shown (backVisible), an ember view's gCtrPokeTouchBack. */
+ * BACK key while it is shown (backVisible); for HOME and the Bag (no row of the dispatcher's),
+ * gCtrPokeTouchBack. */
 bool CtrPokeTouch_BackHit(const CtrPokeTouchView *view, int x, int y);
 
 /* The OPTIONS row and zone (PT_OPT_ZONE_*) under a bottom-screen pixel of the view shown (OPTIONS,
@@ -544,8 +548,10 @@ int CtrPokeTouch_NameHit(const CtrPokeTouchView *view, int x, int y);
 /* What of the PC box (view->box.on) is under lower-screen point (x, y): a 3ds_storage_touch.h ST_HIT_* code, or
  * PT_BOX_HIT_MESSAGE, or ST_HIT_NONE. */
 int CtrPokeTouch_BoxHit(const CtrPokeTouchView *view, int x, int y);
-/* The game's side: a Pokemon's icon (its first frame, 4bpp 32x32) and palette; and the box as it is now (0 while the
- * port should show FireRed's own picture). */
+/* The game's side: a Pokemon's icon and palette, and the box as it is now (0 while the port should show FireRed's own
+ * picture). The icon is FireRed's two frames (4bpp 32x32 each, the first drawn): the bridge writes PT_MON_ICON_BYTES,
+ * so every buffer given it (or CtrBottomSummary_Icon, CtrBottomParty_Icon) holds that many, the first frame alone too. */
+#define PT_MON_ICON_BYTES 1024
 int CtrPokeTouch_MonIcon(unsigned species, unsigned personality, int egg, unsigned char *tiles, unsigned short *palette);
 /* A box wallpaper's 160x144 picture, as FireRed draws it: BGR555, 0 when there is none. */
 int CtrPokeTouch_Wallpaper(unsigned id, unsigned short *rgb555);
@@ -579,8 +585,9 @@ void CtrPokeTouch_Draw(uint16_t *canvas, const CtrPokeTouchView *view);
 void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const CtrPokeTouchView *view,
                          CtrDirtyList *dirty);
 /* The lower screen with nothing to show for FireRed's screen above (its title, naming, a shop, an evolution, a trade):
- * the ember backdrop, and the project's logo when `logo`. */
-void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo);
+ * the red device in the shell colour `shell` (0 red, 1 blue, 2 green, 3 grey) with an embedded screen asleep, and the
+ * project's logo on it when `logo` (3ds_device_frame_impl.h). */
+void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo, uint8_t shell);
 
 /*
  * The battle screen (3ds_device_battle_impl.h, CtrBattleUi_*): the whole lower screen while FireRed's battle is on

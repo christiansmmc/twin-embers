@@ -137,11 +137,11 @@ static void SuiteSave(void)
     v.shell = 0; DevCheckTouch(&old, &v);
     v.playerFemale = 1; assert(DevWhole(DevCheckTouch(&old, &v)));
     strcpy(v.playerName, "Leaf"); assert(DevWhole(DevCheckTouch(&old, &v)));
-    /* the ways in and out: HOME, SAVE, the GBA picture (an ember view: nothing of SAVE drawn, BACK's own rectangle) */
+    /* the ways in and out: HOME, SAVE, the GBA picture (in the frame's screen: nothing of SAVE drawn) */
     other = v; other.save = 0; other.home = 1; other.playerX = other.playerY = other.cursorX = other.cursorY = -1;
     assert(DevWhole(DevCheckTouch(&old, &other)));
     v = SaveBoard(); assert(DevWhole(DevCheckTouch(&old, &v)));
-    v.viewport = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && !CtrPokeTouch_DeviceShown(&v));
+    v.viewport = 1; assert(DevWhole(DevCheckTouch(&old, &v)) && CtrPokeTouch_DeviceShown(&v));
     v = SaveBoard(); DevCheckTouch(&old, &v);
     SaveUpperCase(SaveBoard());
     CtrPokeTouch_Draw(canvas, &old);

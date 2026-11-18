@@ -164,8 +164,8 @@ static int CtrPokeTouch_PackMenuIcon(unsigned icon, uint8_t pixels[12 * 12], uin
     return 1;
 }
 
-/* The START column on the right of the GBA picture's frame (the picture ends at x = 244, its frame at 247): six raised
- * buttons, the X and Y shortcut tiles and RUN with its switch. */
+/* The START column at the screen's right (v0.6.0's, beside the GBA picture's frame there; no view draws it now): six
+ * raised buttons, the X and Y shortcut tiles and RUN with its switch. */
 const CtrPokeTouchRect gCtrPokeTouchRects[PT_COUNT] = {
     [PT_POKEDEX]    = {250,   4, 68, 21},
     [PT_POKEMON]    = {250,  29, 68, 21},
@@ -381,15 +381,6 @@ static void LhSwitch(int x, int y, int on)
         }
 }
 
-/* The frame round the GBA picture (x, y, w, h the picture): FireRed's window in the 3 px there is outside it: the slate
- * outline, the sky blue and the light blue next to the picture. Nothing inside the picture's rectangle. */
-static void HomeFrame(int x, int y, int w, int h)
-{
-    UiRoundFill(x - 3, y - 3, w + 6, h + 6, 5, LL_SLATE);
-    UiRoundFill(x - 2, y - 2, w + 4, h + 4, 4, UI_RGB(122, 180, 216));
-    UiRoundFill(x - 1, y - 1, w + 2, h + 2, 3, UI_RGB(200, 228, 240));
-}
-
 /* The rectangle with the two rows the shadow of a raised piece under it takes. */
 static CtrPokeTouchRect Under(const CtrPokeTouchRect *r)
 {
@@ -401,7 +392,7 @@ static CtrPokeTouchRect Under(const CtrPokeTouchRect *r)
 
 /* Shortcut item icons from FireRed's icon table, decoded once per item and
  * shown as the 20x20 around their drawn part. */
-enum { ICON_REGISTERED, ICON_BIKE, ICON_BOX_HAND, ICON_BOX_NOTE, ICON_COUNT };
+enum { ICON_REGISTERED, ICON_BIKE, ICON_COUNT };
 
 static struct {
     unsigned item;
@@ -611,42 +602,14 @@ static void Frame(void)
     TsBackdrop();
 }
 
-/* Where the frame goes round the GBA picture. */
-static int FrameShown(const CtrPokeTouchView *v)
-{
-    return v->viewport;
-}
-
-/* Easy Chat, over the whole screen (3ds_field_easychat_impl.h, included at the end). */
-static void FEasyDraw(const CtrPokeTouchView *v);
-static void FEasyUpdate(uint16_t *canvas, const CtrPokeTouchView *old, const CtrPokeTouchView *v, CtrDirtyList *dirty);
-/* The naming screen the port draws (3ds_field_naming_impl.h, included at the end). */
-static void FNameFrame(const CtrPokeTouchView *v);
-static void FNameNote(const CtrPokeTouchView *v, int w);
-/* The PC box the port draws (3ds_field_box_impl.h, included at the end). */
-static void FBoxFrame(const CtrPokeTouchView *v);
-static void FBoxNote(const CtrPokeTouchView *v, int w);
-
-/* The frame's area: the window frame round the GBA picture, or an ember view's screen (HOME, the Bag, OPTIONS, SAVE, the
- * Trainer Card, the letter, the Pokedex, the move to forget, the relearner and a choice are the red device's:
- * 3ds_device_home_impl.h, 3ds_device_bag_impl.h and the field dispatcher's views). */
-static void MenuFrame(const CtrPokeTouchView *v)
+/* The frame's area: the backdrop where v0.6.0's frame went round the GBA picture (every view is the red device's now:
+ * 3ds_device_home_impl.h, 3ds_device_bag_impl.h and the field dispatcher's views, FireRed's picture in the frame's own
+ * screen, 3ds_device_frame_impl.h). */
+static void MenuFrame(void)
 {
     const CtrPokeTouchRect *r = &sMenuFrame;
 
     TsBgRect(r->x, r->y, r->w, r->h);
-    if (v->name.on && !v->viewport) {
-        FNameFrame(v);
-        return;
-    }
-    if (v->box.on && !v->viewport) {
-        FBoxFrame(v);
-        return;
-    }
-    if (!FrameShown(v))
-        return;
-    HomeFrame(PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H);
-    Fill(PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H, 0);   /* covered by the GPU's picture */
 }
 
 /* BACK: the slate button of going back ("<" and its word at the left, as the mockup draws it); pressed it sinks, disabled it is grey. */
@@ -670,31 +633,22 @@ static void Bar(const CtrPokeTouchView *v)
     const CtrPokeTouchRect *r = &sBar;
     int lines = 0;
     int w = v->backVisible ? NOTE_W_SIDE : NOTE_W_FULL;
+    int right = NOTE_X + w - 12;
 
     TsBgRect(r->x, r->y, r->w, r->h);
     for (int i = 0; i < PT_BAR_LINES; ++i)
         if (v->bar[i][0])
             lines = i + 1;
-    if (!v->viewport && (v->name.on || v->box.on))
-        Em2NoteShadow(NOTE_X, NOTE_Y, w, NOTE_H);           /* the screens that draw their own note (each puts the shadow its note throws) */
-    if (v->name.on && !v->viewport)
-        FNameNote(v, w);
-    else if (v->box.on && !v->viewport)
-        FBoxNote(v, w);
-    else {
-        /* The note is FireRed's window (the Llama mockup's): the subject at its top left, a rule under it, then the lines that say more, 14 apart,
-         * dimmer. */
-        int right = NOTE_X + w - 12;
-
-        LlWindow(NOTE_X, NOTE_Y, w, NOTE_H);
-        if (lines == 1) {
-            Em2Text(v->bar[0], NOTE_X + 13, NOTE_Y + (NOTE_H - UI_TEXT_H) / 2, EM_DARK, EM_DARK_SH, right);
-        } else if (lines > 1) {
-            Em2Text(v->bar[0], NOTE_X + 13, NOTE_Y + 11, EM_DARK, EM_DARK_SH, right);
-            LlRule(NOTE_X + 13, NOTE_Y + 26, right - NOTE_X - 13);
-            for (int i = 1; i < lines; ++i)
-                Em2Text(v->bar[i], NOTE_X + 13, NOTE_Y + 32 + (i - 1) * 14, EM_DIM, EM_DARK_SH, right);
-        }
+    /* The note is FireRed's window (the Llama mockup's): the subject at its top left, a rule under it, then the lines that
+     * say more, 14 apart, dimmer. */
+    LlWindow(NOTE_X, NOTE_Y, w, NOTE_H);
+    if (lines == 1) {
+        Em2Text(v->bar[0], NOTE_X + 13, NOTE_Y + (NOTE_H - UI_TEXT_H) / 2, EM_DARK, EM_DARK_SH, right);
+    } else if (lines > 1) {
+        Em2Text(v->bar[0], NOTE_X + 13, NOTE_Y + 11, EM_DARK, EM_DARK_SH, right);
+        LlRule(NOTE_X + 13, NOTE_Y + 26, right - NOTE_X - 13);
+        for (int i = 1; i < lines; ++i)
+            Em2Text(v->bar[i], NOTE_X + 13, NOTE_Y + 32 + (i - 1) * 14, EM_DIM, EM_DARK_SH, right);
     }
     if (v->backVisible)
         Back(v);
@@ -827,12 +781,8 @@ void CtrPokeTouch_Draw(uint16_t *canvas, const CtrPokeTouchView *v)
     }
     if (DevFieldDraw(v))
         return;
-    if (v->ec.on) {
-        FEasyDraw(v);
-        return;
-    }
     Frame();
-    MenuFrame(v);
+    MenuFrame();
     Bar(v);
     for (int i = 0; i < PT_COUNT; ++i)
         Button(i, v);
@@ -878,18 +828,8 @@ void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const Ct
     }
     if (DevFieldUpdate(old, v, dirty))
         return;
-    if (v->ec.on || old->ec.on) {
-        FEasyUpdate(canvas, old, v, dirty);
-        return;
-    }
-    if (memcmp(&old->name, &v->name, sizeof(v->name)) || memcmp(&old->box, &v->box, sizeof(v->box))) {
-        /* The naming screen, the PC box: its whole area and its note (the note follows the selection). */
-        MenuFrame(v);
-        Mark(dirty, &sMenuFrame);
-        Bar(v);
-        Mark(dirty, &sBar);
-    } else if (old->viewport != v->viewport || old->home != v->home) {
-        MenuFrame(v);
+    if (old->viewport != v->viewport || old->home != v->home) {
+        MenuFrame();
         Mark(dirty, &sMenuFrame);
     }
     if (memcmp(old->bar, v->bar, sizeof(v->bar)) || old->backVisible != v->backVisible) {
@@ -913,33 +853,6 @@ void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const Ct
     }
 }
 
-#include "idle_logo.h"
-
-/* The lower screen while FireRed's screen above has nothing for it: the ember backdrop and the project's logo. */
-void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
-{
-    int x0 = (W - IDLE_LOGO_W) / 2, y0 = (H - IDLE_LOGO_H_PX) / 2 - 6;
-
-    sCanvas = canvas;
-    sHomeShown = 0;
-    TsBackdrop();
-    for (int y = 0; logo && y < IDLE_LOGO_H_PX; ++y)
-        for (int x = 0; x < IDLE_LOGO_W; ++x) {
-            int k = kIdleLogo[y * IDLE_LOGO_W + x], a = kIdleLogoAlpha[k];
-            unsigned c = kIdleLogoColour[k], b;
-
-            if (a == 0)
-                continue;
-            if (a < 15) {                          /* a/15 of the logo over the backdrop, channel by channel */
-                b = TsGet(x0 + x, y0 + y);
-                c = ((((c >> 11) * a + (b >> 11) * (15 - a)) / 15) << 11)
-                  | (((((c >> 5) & 63) * a + ((b >> 5) & 63) * (15 - a)) / 15) << 5)
-                  | (((c & 31) * a + (b & 31) * (15 - a)) / 15);
-            }
-            Px(x0 + x, y0 + y, (uint16_t)c);
-        }
-}
-
 #include "3ds_battle_ui_impl.h"
 #include "3ds_device_kit_impl.h"   /* the red device (style B): its kit, for the B views below */
 #include "3ds_device_home_impl.h"  /* HOME */
@@ -955,8 +868,8 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo)
 #include "3ds_device_learn_impl.h"  /* the move to forget (a view of the field dispatcher; a move's type chip) */
 #include "3ds_device_relearn_impl.h"  /* the relearner (a view of the field dispatcher) */
 #include "3ds_device_choice_impl.h"  /* a choice of the field (a view of the field dispatcher) */
-#include "3ds_field_bag_impl.h"
-#include "3ds_field_naming_impl.h"
-#include "3ds_field_box_impl.h"
-#include "3ds_field_easychat_impl.h"
+#include "3ds_device_naming_impl.h"  /* the naming keyboard (a view of the field dispatcher; FireRed's codes as text) */
+#include "3ds_device_box_impl.h"  /* the PC box (a view of the field dispatcher; the wallpaper, the icons) */
+#include "3ds_device_easychat_impl.h"  /* Easy Chat (the field dispatcher's first row; the whole screen) */
+#include "3ds_device_frame_impl.h"  /* FireRed's picture in its screen (the dispatcher's last row), the idle screen */
 #include "3ds_device_field_impl.h"  /* the field dispatcher: the field's views without a board (last: it names them all) */

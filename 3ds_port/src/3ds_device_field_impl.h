@@ -17,17 +17,21 @@ typedef struct {
 } DevFieldView;
 
 static const DevFieldView kDevFieldViews[] = {
+    {DevEcShown, DevEcDraw, DevEcSame, DevEcBackKey},               /* Easy Chat (3ds_device_easychat_impl.h) */
     {DevDexShown, DevDexDraw, DevDexSame, DevDexBackKey},           /* the Pokedex (3ds_device_dex_impl.h) */
     {DevCardShown, DevCardDraw, DevCardSame, DevCardBackKey},       /* the Trainer Card (3ds_device_card_impl.h) */
     {DevLearnShown, DevLearnDraw, DevLearnSame, DevLearnBackKey},   /* the move to forget (3ds_device_learn_impl.h) */
     {DevRelearnShown, DevRelearnDraw, DevRelearnSame, DevRelearnBackKey},   /* the relearner (_relearn_impl.h) */
     {DevMailShown, DevMailDraw, DevMailSame, DevMailBackKey},       /* the letter (3ds_device_mail_impl.h) */
     {DevChoiceShown, DevChoiceDraw, DevChoiceSame, DevChoiceBackKey},   /* a choice (3ds_device_choice_impl.h) */
+    {DevNameShown, DevNameDraw, DevNameSame, DevNameBackKey},       /* the naming keyboard (3ds_device_naming_impl.h) */
+    {DevBoxShown, DevBoxDraw, DevBoxSame, DevBoxBackKey},           /* the PC box (3ds_device_box_impl.h) */
     {DevSaveShown, DevSaveDraw, DevSaveSame, DevSaveBackKey},       /* SAVE (3ds_device_save_impl.h) */
     {DevOptShown, DevOptDraw, DevOptSame, DevOptBackKey},           /* OPTIONS (3ds_device_options_impl.h) */
+    {DevFrameShown, DevFrameDraw, DevFrameSame, DevFrameBackKey},   /* FireRed's picture, or none (_frame_impl.h) */
 };
 
-/* The row that draws `v`, or -1 (an ember view, HOME, the Bag). */
+/* The row that draws `v`, or -1 (HOME, the Bag): the frame, the last, takes any view the rows before it do not. */
 static int DevFieldIndex(const CtrPokeTouchView *v)
 {
     for (int i = 0; i < (int)(sizeof(kDevFieldViews) / sizeof(kDevFieldViews[0])); ++i)
@@ -68,6 +72,7 @@ bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *v)
     return DevHomeShown(v) || DevBagShown(v) || DevFieldIndex(v) >= 0;
 }
 
+/* HOME and the Bag (no row) keep v0.6.0's BACK rectangle. */
 bool CtrPokeTouch_BackHit(const CtrPokeTouchView *v, int x, int y)
 {
     int i = DevFieldIndex(v);

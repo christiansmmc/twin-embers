@@ -8,7 +8,7 @@
 #include "3ds_text_case.h"
 #include "3ds_ui_strings.h"
 
-/* The Party's icons (the red device's Party, the battle's lead and HOME draw them). */
+/* The Party's icons (the red device's Party, the battle's lead and HOME draw them): both frames, PT_MON_ICON_BYTES. */
 extern int CtrBottomParty_Icon(int slot, unsigned char *tilesOut, unsigned short *palOut);
 /* Party icons: FireRed's 32x32 icon of a slot with both its frames (the second under the first), decoded once per
  * species and slot. */
@@ -21,7 +21,7 @@ static struct {
 
 static int BPartyIcon(int slot, unsigned icon)
 {
-    static unsigned char tiles[1024];
+    static unsigned char tiles[PT_MON_ICON_BYTES];
     static unsigned short pal[16];
 
     if (sBPIcon[slot].icon == icon + 1)
@@ -41,13 +41,6 @@ static int BPartyIcon(int slot, unsigned icon)
         sBPIcon[slot].pal[i] = GbaColor(c);
     }
     return 1;
-}
-
-/* Text wrapped into `maxLines` lines of `width`, in `ink` over `shadow`, 16 apart; the last ends in "..." when there is more
- * (the field's ember views' prompts). */
-static void BPWrap(const char *text, int x, int y, int width, int maxLines, uint16_t ink, uint16_t shadow)
-{
-    Em2Wrap(text, x, y, width, maxLines, 16, ink, shadow);
 }
 
 /* Item icons: FireRed's 24x24 icon of an item, decoded once into a collision-free 12-slot FIFO cache (the Bag's rows, its
@@ -105,17 +98,4 @@ static void BItemDraw(unsigned item, int x, int y, int scale)
 
     if (slot >= 0)
         UiImage(sBIcon[slot].pixels, sBIcon[slot].pal, 24, 24, 24, x, y, scale, 1);
-}
-
-/* The ember surface: PokeTouch's red theme with the shadows and outlines of the light pieces (the field's ember views'). */
-static UiSurface sUiEmber;
-
-static void EmSurface(void)
-{
-    sUiEmber = sUiRed;
-    sUiEmber.textSh = EM_DARK_SH;
-    sUiEmber.textDim = EM_DIM;
-    sUiEmber.outline = UI_RGB(64, 72, 104);
-    sUiEmber.track = UI_RGB(64, 72, 104);
-    sUiS = &sUiEmber;
 }

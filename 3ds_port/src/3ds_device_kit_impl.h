@@ -1022,22 +1022,28 @@ UI_FN void DevGender(int gender, int x, int y)
                 }
 }
 
-/* A party slot's icon, FireRed's frame 0 (BPartyIcon): 32x32, or half (16x16: of each 2x2 block its first pixel that is
- * not clear, in reading order); faint, every colour toward DEV_FAINT. */
-UI_FN void DevMonIcon(int slot, unsigned icon, int x, int y, int half, int faint)
+/* A Pokemon's icon from its 32x32 palette indices (`pixels`, rows of 32, 0 clear) and palette: 32x32, or half (16x16: of
+ * each 2x2 block its first pixel that is not clear, in reading order); faint, every colour toward DEV_FAINT. */
+UI_FN void DevIconPixels(const uint8_t *pixels, const uint16_t *pal, int x, int y, int half, int faint)
 {
     int size = half ? 16 : 32, step = half ? 2 : 1;
 
-    if (slot < 0 || slot >= 6 || !BPartyIcon(slot, icon))
-        return;
     for (int py = 0; py < size; ++py)
         for (int px = 0; px < size; ++px) {
-            const uint8_t *src = sBPIcon[slot].pixels + py * step * 32 + px * step;
+            const uint8_t *src = pixels + py * step * 32 + px * step;
             uint8_t v = src[0];
 
             if (half && !v)
                 v = src[1] ? src[1] : src[32] ? src[32] : src[33];
             if (v)
-                Px(x + px, y + py, faint ? DevBlend(DEV_FAINT, sBPIcon[slot].pal[v], DEV_A_FAINT_ART) : sBPIcon[slot].pal[v]);
+                Px(x + px, y + py, faint ? DevBlend(DEV_FAINT, pal[v], DEV_A_FAINT_ART) : pal[v]);
         }
+}
+
+/* A party slot's icon, FireRed's frame 0 (BPartyIcon), as DevIconPixels draws it. */
+UI_FN void DevMonIcon(int slot, unsigned icon, int x, int y, int half, int faint)
+{
+    if (slot < 0 || slot >= 6 || !BPartyIcon(slot, icon))
+        return;
+    DevIconPixels(sBPIcon[slot].pixels, sBPIcon[slot].pal, x, y, half, faint);
 }

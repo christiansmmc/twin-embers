@@ -1061,10 +1061,10 @@ static int OptionsActive(void) { return 0; }
 static int SaveActive(void) { return 0; }
 static void ProcessOptionsTouch(const CtrInput *in) { (void)in; }
 static void ProcessSaveInput(const CtrInput *in) { (void)in; }
-/* the views drawn as the red device: HOME, the Bag, OPTIONS, SAVE, the Pokedex, a choice, the move to forget, the
- * relearner */
-bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *v)
-{ return v->home || v->bag.on || v->options || v->save || v->dex.on || v->choice.on || v->learn.on || v->relearn.on; }
+/* every view is drawn as the red device: HOME, the Bag, a field view's own row (OPTIONS, SAVE, the Pokedex, a choice,
+ * the move to forget, the relearner, the naming keyboard, the PC box, Easy Chat...) and the frame, the dispatcher's
+ * last row, for any other (FireRed's picture in its screen, or an empty screen) */
+bool CtrPokeTouch_DeviceShown(const CtrPokeTouchView *v) { (void)v; return true; }
 /* HOME: BAG's key at the bottom right, FLY and the region key in the window's top corners, the map below them */
 int CtrPokeTouch_HitTest(int x, int y) { return x < 60 && y < 60 ? PT_OPTIONS : PT_NONE; }
 int CtrPokeTouch_HomeHit(const CtrPokeTouchView *v, int x, int y) { (void)v; return x >= 200 && y >= 150 ? PT_BAG : PT_NONE; }
@@ -1111,15 +1111,20 @@ int main(void) {
     Tap(250, 200); Tap(100, 80); assert(activated == -1 && !tapped);
     /* a native screen with nothing shown yet: the column's hits */
     native = 1; sShown.touch.home = 0; Tap(20, 20); assert(activated == PT_OPTIONS);
-    /* SAVE, OPTIONS, the Pokedex, a choice, the move to forget or the relearner on the red device (or HOME still shown on
-     * its first frame): no column under it, nothing hit */
+    /* SAVE, OPTIONS, the Pokedex, a choice, the move to forget, the relearner, the naming keyboard, the PC box, Easy
+     * Chat or FireRed's picture on the red device (or HOME still shown on its first frame): no column under it, nothing
+     * hit */
     sHaveShown = 1; sShown.touch.save = 1; activated = -1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.save = 0; sShown.touch.options = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.options = 0; sShown.touch.dex.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.dex.on = 0; sShown.touch.choice.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.choice.on = 0; sShown.touch.learn.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
     sShown.touch.learn.on = 0; sShown.touch.relearn.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
-    sShown.touch.relearn.on = 0;
+    sShown.touch.relearn.on = 0; sShown.touch.name.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
+    sShown.touch.name.on = 0; sShown.touch.box.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
+    sShown.touch.box.on = 0; sShown.touch.ec.on = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
+    sShown.touch.ec.on = 0; sShown.touch.viewport = 1; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);
+    sShown.touch.viewport = 0; Tap(20, 20); assert(activated == -1 && sPoke.id == PT_NONE);     /* the frame's, empty */
     sShown.touch.options = 0; sShown.touch.home = 1; Tap(20, 20); assert(activated == -1);
     return 0;
 }
@@ -1195,6 +1200,78 @@ int main(void) {
         self.assertIn('CtrPokeTouch_DeviceShown(&sShown.touch)', function(bottom, 'PokeTouchHit'))
         self.assertIn('CtrPokeTouch_BackHit(&sShown.touch,', function(bottom, 'ProcessBack'))
         self.assertNotIn('CtrPokeTouch_HitOptPage', bottom)
+
+    def test_idle_screen_in_the_shell_colour(self):
+        """The idle screen (nothing for FireRed's screen above: MODE_OFF) is the red device's in the shell colour OPTIONS
+        chose: Render gives it the snapshot's shell, which every frame fills whatever the mode (MODE_OFF too), so a
+        change of the shell changes the snapshot and the idle screen is drawn again."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        self.assertIn('CtrPokeTouch_DrawIdle(sCanvas, s->idleLogo, s->touch.shell);', function(bottom, 'Render'))
+        frame = function(bottom, 'CtrBottom_Frame')
+        fill = frame.index('    if (!nav) {\n        state.touch.shell = state.battle.shell = state.sum.shell = '
+                           '(uint8_t)CtrOptions_Shell();\n')
+        self.assertLess(frame.index('SnapshotState(&state,'), fill)
+        self.assertLess(fill, frame.index('memcmp(&state, &sShown, sizeof(state))'))
+
+    def test_box_chooser_cancel_sends_b(self):
+        """The PC box's chooser (DEPOSIT's, JUMP's) has no CANCEL of FireRed's: its CANCEL key is the view's BACK while
+        the chooser is up (3ds_device_box_impl.h DevBoxBackKey; the box suite of device_render_test.c pins where it is
+        drawn and hit). BACK is shown in the box and enabled while the chooser is up, and a tap held and released on it
+        sends FireRed's B once, as v0.6.0's BACK did there; moved off it, with a button held, or not enabled, nothing."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        self.assertIn('mode == MODE_STORAGE_BOX', function(bottom, 'BackVisible'))
+        self.assertRegex(function(bottom, 'BackEnabled'),
+                         r'if \(mode == MODE_STORAGE_BOX\)\s+return [^;]*CtrBottomStorage_BoxChoose\(\)')
+        code = function(bottom, 'BackPress') + '\n' + function(bottom, 'ProcessBack')
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+#include "3ds_input.h"
+#include "3ds_poketouch.h"
+enum { MODE_FIELD = 1, MODE_STORAGE_PC, MODE_STORAGE_BOX, MODE_CARD, MODE_DEX, MODE_CHOICE, MODE_GBAVIEW,
+       MODE_PARTY_CHILD, MODE_SUMMARY };
+enum { BAGPLAN_PRESS = 1, SUMPLAN_PRESS = 1 };
+#define K_B (1u << 1)
+typedef struct ListScreen ListScreen;
+static uint16_t sRouteKey;
+static int sHaveShown = 1, choosing = 1;
+static struct { int mode; CtrPokeTouchView touch; } sShown;
+static struct { int down; int inside; } sBack;
+static int BackVisible(int mode) { return mode == MODE_STORAGE_BOX; }
+static int BackEnabled(int mode) { return mode == MODE_STORAGE_BOX && choosing; }
+/* the chooser's CANCEL, the view's BACK, at the bottom right */
+bool CtrPokeTouch_BackHit(const CtrPokeTouchView *v, int x, int y) { (void)v; return x >= 188 && y >= 172; }
+static void CloseNative(void) { assert(0); }
+static uint16_t CardLeaveKey(void) { assert(0); return 0; }
+static const ListScreen *ListFor(int mode) { (void)mode; return NULL; }
+static void BagPlanStart(const ListScreen *l, int kind, int target, int activate, uint16_t keys)
+{ (void)l; (void)kind; (void)target; (void)activate; (void)keys; assert(0); }
+static void SumPlanStart(int kind, int target, int activate, uint16_t keys)
+{ (void)kind; (void)target; (void)activate; (void)keys; assert(0); }
+''' + code + '''
+static void Touch(int x, int y, int down, int active, uint16_t held)
+{
+    CtrInput in;
+
+    memset(&in, 0, sizeof(in));
+    in.touchActive = active; in.touchDown = down; in.touchX = (uint16_t)x; in.touchY = (uint16_t)y; in.held = held;
+    ProcessBack(MODE_STORAGE_BOX, &in);
+}
+int main(void)
+{
+    sShown.mode = MODE_STORAGE_BOX;
+    Touch(250, 200, 1, 1, 0); Touch(250, 200, 0, 1, 0); assert(!sRouteKey);
+    Touch(250, 200, 0, 0, 0); assert(sRouteKey == K_B);                        /* released on it: B, once */
+    sRouteKey = 0; Touch(250, 200, 0, 0, 0); assert(!sRouteKey);
+    Touch(250, 200, 1, 1, 0); Touch(100, 100, 0, 1, 0); Touch(100, 100, 0, 0, 0); assert(!sRouteKey);   /* moved off */
+    Touch(250, 200, 1, 1, 0); Touch(250, 200, 0, 1, 2); Touch(250, 200, 0, 0, 0); assert(!sRouteKey);   /* B held */
+    choosing = 0; Touch(250, 200, 1, 1, 0); Touch(250, 200, 0, 0, 0); assert(!sRouteKey);             /* not taken */
+    return 0;
+}
+''')
 
     def test_field_lists_route_once(self):
         """The red device's Bag page takes its touch through one branch of ProcessTouch, FieldListFor's: the field's

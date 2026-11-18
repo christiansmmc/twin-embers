@@ -1,8 +1,11 @@
-/* Easy Chat as the lower screen's remote (included by 3ds_bottom.c after the relearner's; drawn by 3ds_field_easychat_impl.h).
+/* Easy Chat as the lower screen's remote (included by 3ds_bottom.c after the relearner's; drawn by 3ds_device_easychat_impl.h,
+ * which takes FireRed's words as the game has them and draws them in capitals).
  * MODE_GBAVIEW keeps the session and the held upper screen it always had; once the game's screen waits for keys (recipe 0255) the lower screen
  * draws it itself, and until then (its setup, its fade out) the viewport as before. The game decides everything: a touch is walked to with the
  * game's own keys, one a frame (a frame without between them), the state read again every frame, so it never goes out of step: a physical
  * key cancels the walk, and it gives up after PLAN_LIMIT frames or when the cursor stops moving. */
+
+#include "3ds_device_layout.h"          /* the letter strip (kDevEcStrip): a scrub off it is read at its edge */
 
 extern int CtrBottomEasyChat_IsOpen(void);
 extern int CtrBottomEasyChat_Ready(void);
@@ -141,25 +144,10 @@ static int EasyFill(CtrPokeTouchEasy *e, int pressed)
     return 1;
 }
 
-static void EasyCase(CtrPokeTouchEasy *e)
-{
-    CtrTextCase(e->title);
-    CtrTextCase(e->listTitle);
-    CtrTextCase(e->ask1);
-    CtrTextCase(e->ask2);
-    for (int i = 0; i < PT_EC_WORDS; ++i)
-        CtrTextCase(e->chip[i]);
-    for (int i = 0; i < PT_EC_GROUPS; ++i)
-        CtrTextCase(e->group[i]);
-    for (int k = 0; k < 2 * PT_EC_ROWS; ++k)
-        CtrTextCase(e->list[k]);
-}
-
 static int EasySnapshot(Snapshot *s)
 {
     if (!EasyFill(&s->touch.ec, sEcTap.down && sEcTap.inside ? sEcTap.code : -1))
         return 0;
-    EasyCase(&s->touch.ec);
     s->touch.viewport = 0;
     s->touch.backVisible = 0;
     return 1;
@@ -363,7 +351,8 @@ static void ProcessEasyTouch(const CtrInput *in)
         int target = sEcTap.code == PT_EC_HIT_RAIL ? CtrPokeTouch_EasyRailTarget(e, (int)in->touchY) : -1;
 
         if (sEcTap.code == PT_EC_HIT_STRIP) {
-            int letter = CtrPokeTouch_EasyStripLetter(in->touchX < 284 ? 284 : (int)in->touchX, in->touchY < 28 ? 28 : (int)in->touchY);
+            int letter = CtrPokeTouch_EasyStripLetter(in->touchX < kDevEcStrip.x ? kDevEcStrip.x : (int)in->touchX,
+                                                      in->touchY < kDevEcStrip.y ? kDevEcStrip.y : (int)in->touchY);
 
             if (letter >= 0) {              /* the first word that starts with it, or past it (the list is in order): its row */
                 int i = 0;
@@ -422,7 +411,7 @@ static void ProcessEasyTouch(const CtrInput *in)
             sRouteKey = K_A;
         else if (code == PT_EC_HIT_TOGGLE)
             EasyPlanStart(EP_TOGGLE, 0, 0);
-    } else if (code >= PT_EC_HIT_CELL && code < PT_EC_HIT_CELL + 26) {
+    } else if (code >= PT_EC_HIT_CELL && code <= PT_EC_HIT_CELL + PT_EC_CELL_BACK) {
         int cell = code - PT_EC_HIT_CELL;
 
         if (cell == PT_EC_CELL_TOGGLE)
