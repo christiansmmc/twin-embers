@@ -772,24 +772,116 @@ static void BagPlanStart(const ListScreen *list, int kind, int target, int activ
         self.assertEqual(int(re.search(r'#define LIST_DRAG_ROW (\d+)', bottom).group(1)), pitch)
         self.assertIn('/ LIST_DRAG_ROW', function(bottom, 'ProcessFieldDexTouch'))
 
-    def test_relearn_cancel_key(self):
-        """The relearner's CANCEL is a key of its own on the red device (owner decision 4: PT_RL_HIT_CANCEL, 235, in the
-        Bag's CLOSE place), FireRed's CANCEL row no longer drawn as a row. A tap on it is taken as v0.6.0 took a tap on
-        that row, the list's last entry (index `count`): the cursor on it, A; else the walk to it. It has no branch of
-        its own. (The relearn suite of device_render_test.c pins where it is hit.)"""
+    def run_relearn(self, main):
+        """RelearnFill and ProcessRelearnTouch, their state and the game's answers as 3ds_bottom_relearn_impl.h declares
+        them, over a synthetic relearner on its list: gCount moves (the list has one more row, FireRed's CANCEL, index
+        gCount), the cursor at gCursor, the hit under the finger gHit; `main` drives it."""
         relearn = (ROOT / '3ds_port/src/3ds_bottom_relearn_impl.h').read_text(encoding='utf-8')
-        header = (ROOT / '3ds_port/include/3ds_poketouch.h').read_text(encoding='utf-8')
-        touch = function(relearn, 'ProcessRelearnTouch')
-        self.assertRegex(header, r'PT_RL_HIT_MESSAGE = 234, PT_RL_HIT_CANCEL = 235 \}')
-        target = re.search(r'int row = sRelearnTap\.code == PT_RL_HIT_CANCEL \? sShown\.touch\.relearn\.count\s*:\s*'
-                           r'sShown\.touch\.relearn\.first \+ sRelearnTap\.code - PT_RL_HIT_ROW;', touch)
-        self.assertIsNotNone(target)
-        self.assertEqual(touch.count('PT_RL_HIT_CANCEL'), 1)
-        rest = touch[target.end():]
-        self.assertLess(rest.index('else if (row == CtrBottomRelearn_Cursor())\n            sRouteKey = K_A;'),
-                        rest.index('sRelearnPlan.target = row;'))
-        for code in ('PT_RL_HIT_MESSAGE', 'PT_RL_HIT_YES', 'PT_RL_HIT_UP', 'PT_RL_HIT_DOWN'):
-            self.assertLess(rest.index(code), rest.index('else if (row == CtrBottomRelearn_Cursor())'))
+        externs = '\n'.join(re.findall(r'^extern [^;]+;', relearn, re.M))
+        start = relearn.index('static struct {\n    int down, inside, code;')
+        state = relearn[start:relearn.index('\n', relearn.index('static int sRelearnFirst;'))]
+        code = function(relearn, 'RelearnFill') + '\n' + function(relearn, 'ProcessRelearnTouch')
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+#include "3ds_input.h"
+#include "3ds_poketouch.h"
+#define K_A (1u << 0)
+#define K_B (1u << 1)
+#define K_UP (1u << 6)
+#define K_DOWN (1u << 7)
+enum { MODE_GBAVIEW = 18 };
+static uint16_t sRouteKey;
+static int sHaveShown = 1;
+static struct { int mode; CtrPokeTouchView touch; } sShown;
+static int gCount = 8, gCursor = 1, gHit = -1;
+extern int CtrBottom_IsFading(void);
+int CtrBottom_IsFading(void) { return 0; }
+''' + externs + '''
+int CtrBottomRelearn_IsOpen(void) { return 1; }
+int CtrBottomRelearn_Panel(void) { return PT_RL_PANEL_LIST; }
+int CtrBottomRelearn_Input(void) { return 1; }
+int CtrBottomRelearn_State(void) { return 0; }
+int CtrBottomRelearn_MenuCursor(void) { return 0; }
+void CtrBottomRelearn_Message(char *out, int size) { (void)size; out[0] = 0; }
+int CtrBottomRelearn_Count(void) { return gCount; }
+int CtrBottomRelearn_Cursor(void) { return gCursor; }
+unsigned CtrBottomRelearn_Species(void) { return 1; }
+void CtrBottomRelearn_Name(char *nickname, int nsize, char *level, int lsize)
+{ (void)nsize; (void)lsize; nickname[0] = level[0] = 0; }
+void CtrBottomRelearn_Question(char *out, int size) { (void)size; out[0] = 0; }
+unsigned CtrBottomRelearn_Row(int i, int *type, char *name, int nsize, char *pp, int psize, char *power, int wsize,
+                              char *accuracy, int asize)
+{
+    (void)nsize; (void)psize; (void)wsize; (void)asize;
+    name[0] = pp[0] = power[0] = accuracy[0] = 0;
+    *type = i < gCount ? 0 : -1;
+    return i < gCount ? 100u + (unsigned)i : 0u;     /* FireRed's CANCEL row: no move */
+}
+void CtrBottomRelearn_Description(unsigned move, char *out, int size) { (void)move; (void)size; out[0] = 0; }
+void CtrBottomRelearn_TypeName(int type, char *out, int size) { (void)type; (void)size; out[0] = 0; }
+int CtrPokeTouch_RelearnHit(const CtrPokeTouchView *view, int x, int y) { (void)view; (void)x; (void)y; return gHit; }
+''' + state + '\n' + code + '''
+/* What the screen shows now (RelearnFill), as the frame before the touch showed it. */
+static void Shown(void)
+{
+    memset(&sShown, 0, sizeof(sShown));
+    sShown.mode = MODE_GBAVIEW;
+    RelearnFill(&sShown.touch.relearn, -1);
+}
+/* A tap on `hit`: down, held, released. */
+static __attribute__((unused)) void Tap(int hit)
+{
+    CtrInput in;
+
+    gHit = hit;
+    memset(&in, 0, sizeof(in));
+    in.touchActive = in.touchDown = 1; in.touchX = 10; in.touchY = 10;
+    ProcessRelearnTouch(&in);
+    in.touchDown = 0; ProcessRelearnTouch(&in);
+    in.touchActive = 0; ProcessRelearnTouch(&in);
+}
+''' + main)
+
+    def test_relearn_cancel_sends_b(self):
+        """The relearner's CANCEL is a key of its own on the red device (owner decision 4: PT_RL_HIT_CANCEL, 235, in the
+        Bag's CLOSE place), FireRed's CANCEL row no longer drawn as a row. One tap on it is FireRed's B on the list
+        (owner decision, 2026-11-18), which asks the same give-up question as A on that row and is enabled while the list
+        takes keys (RelearnSnapshot): wherever the cursor is, B once, and no walk. A row is still walked to, and the
+        cursor's row taken with A. (The relearn suite of device_render_test.c pins where CANCEL is hit.)"""
+        self.run_relearn('''
+int main(void)
+{
+    gCursor = 1; Shown();
+    Tap(PT_RL_HIT_CANCEL); assert(sRouteKey == K_B && !sRelearnPlan.active);           /* the cursor on a move: B, once */
+    sRouteKey = 0; Tap(-1); assert(!sRouteKey && !sRelearnPlan.active);
+    gCursor = gCount; Shown(); Tap(PT_RL_HIT_CANCEL); assert(sRouteKey == K_B && !sRelearnPlan.active);   /* on CANCEL */
+    sRouteKey = 0; gCursor = 1; Shown(); assert(sShown.touch.relearn.first == 1);      /* the window back up to it */
+    Tap(PT_RL_HIT_ROW + 0); assert(sRouteKey == K_A && !sRelearnPlan.active);           /* the cursor's row: A */
+    sRouteKey = 0; Tap(PT_RL_HIT_ROW + 3); assert(!sRouteKey && sRelearnPlan.active && sRelearnPlan.target == 4);
+    return 0;
+}
+''')
+
+    def test_relearn_window_ends_at_the_last_move(self):
+        """The list's window of PT_RL_ROWS rows follows the cursor and ends at the last move: FireRed's CANCEL row is the
+        CANCEL key, not a row, so a window past the last move would leave its last row blank. With the cursor on the
+        last move or on CANCEL the window is the last PT_RL_ROWS moves; a list shorter than that starts at its top."""
+        self.run_relearn('''
+int main(void)
+{
+    gCount = 8; gCursor = 7; Shown(); assert(sShown.touch.relearn.first == 3);
+    for (int i = 0; i < PT_RL_ROWS; ++i) assert(sShown.touch.relearn.row[i].move == 103u + (unsigned)i);
+    gCursor = 8; Shown(); assert(sShown.touch.relearn.first == 3);                      /* the cursor on CANCEL */
+    gCursor = 0; Shown(); assert(sShown.touch.relearn.first == 0);
+    gCursor = 5; Shown(); assert(sShown.touch.relearn.first == 1);
+    gCount = 5; gCursor = 5; Shown(); assert(sShown.touch.relearn.first == 0);
+    gCount = 3; gCursor = 3; Shown(); assert(sShown.touch.relearn.first == 0 && sShown.touch.relearn.row[2].move == 102u);
+    return 0;
+}
+''')
 
     def test_battle_bag_drags_its_rows(self):
         """The battle Bag's rows drag as the field Bag's do (v0.6.0's battle Bag scrolled by touch, its rail): a finger

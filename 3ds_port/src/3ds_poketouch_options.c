@@ -398,7 +398,7 @@ static void LookPreview(CtrPokeTouchView *v, int selected)
     snprintf(l->name, sizeof(l->name), "%s", text ? text : "");
     if (index < 0)
     {
-        snprintf(l->credit, sizeof(l->credit), "%s", CTR_TR("The look the game had before.", "El aspecto que ten\xC3\xAD" "a el juego.", "Das Aussehen, das das Spiel hatte."));
+        snprintf(l->credit, sizeof(l->credit), "%s", CTR_TR("THE LOOK THE GAME HAD BEFORE.", "EL ASPECTO QUE TEN\xC3\x8D" "A EL JUEGO.", "DAS AUSSEHEN, DAS DAS SPIEL HATTE."));
         return;
     }
     text = CtrLooks_Credit(index);

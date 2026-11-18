@@ -200,7 +200,7 @@ typedef struct {
  * remote for FireRed's screen: the list (a window of PT_RL_ROWS rows of the list: the moves it can remember, then
  * FireRed's CANCEL row, the cursor and the selected move's numbers and description), a question with YES and NO, or a
  * message. A row is walked to with the list's own UP / DOWN and taken with its A; FireRed's CANCEL row is the CANCEL key
- * (PT_RL_HIT_CANCEL), taken as that row is. */
+ * (PT_RL_HIT_CANCEL), FireRed's B on the list (the same give-up question). */
 #define PT_RL_ROWS 5
 enum { PT_RL_HIT_ROW = 200, PT_RL_HIT_UP = 230, PT_RL_HIT_DOWN = 231, PT_RL_HIT_YES = 232, PT_RL_HIT_NO = 233,
        PT_RL_HIT_MESSAGE = 234, PT_RL_HIT_CANCEL = 235 };

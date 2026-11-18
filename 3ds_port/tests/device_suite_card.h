@@ -44,16 +44,18 @@ static CtrPokeTouchView CardBoard(void)
     return v;
 }
 
-/* Upper case (owner decision 5): FireRed's labels and records' labels, which v0.6.0 title-cased, drawn in capitals; the
- * name as typed. */
+/* Upper case (owner decision 5): FireRed's labels and records' labels, which v0.6.0 title-cased, drawn in capitals, but
+ * IDNo., drawn as FireRed writes it; the name as typed. */
 static void CardUpperCase(CtrPokeTouchView v)
 {
-    static const char *const kTitle[6] = {"Name: ", "Idno.", "Money", "\xC2\xA5", "Pok\xC3\xA9" "dex", "Time"};
+    static const char *const kTitle[6] = {"Name: ", "IDNo.", "Money", "\xC2\xA5", "Pok\xC3\xA9" "dex", "Time"};
     CtrPokeTouchView cased = v;
 
     for (int i = 0; i < 6; ++i)
         strcpy(cased.card.label[i], kTitle[i]);
     TouchSamePixels(&cased, &v, 1, "the front's labels in v0.6.0's case and in capitals");
+    strcpy(cased.card.label[1], "IDNO.");
+    TouchSamePixels(&cased, &v, 0, "IDNo. as FireRed writes it and in capitals");
     strcpy(cased.card.name, "RICK");
     TouchSamePixels(&cased, &v, 0, "the name as typed and in capitals");
     v.card.back = cased.card.back = 1;

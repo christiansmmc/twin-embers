@@ -11,7 +11,7 @@
  *    under a held touch), the cursor's move on the narrow description;
  *  - a message: on the list's screen, FireRed's ▼ while it waits for A (and then a tap anywhere is its A), the keys grey;
  *  - while it is set up: the empty screens, the keys grey, nothing hit.
- * A row is walked to with the list's own UP / DOWN and taken with its A, CANCEL as FireRed's CANCEL row
+ * A row is walked to with the list's own UP / DOWN and taken with its A, CANCEL is FireRed's B on the list
  * (3ds_bottom_relearn_impl.h ProcessRelearnTouch). Every rectangle is 3ds_device_layout.h's, so what is drawn is what a
  * touch takes.
  *

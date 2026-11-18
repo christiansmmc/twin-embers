@@ -228,7 +228,8 @@ static void SuiteBox(void)
     assert(at(14, 14) == DEV_PAPER2 && Count(14, 14, 160, 24, DEV_INK) > 0 && Count(14, 14, 160, 24, DEV_BEZEL) == 0);
 
     /* the right column: ◀ ▶ sunk while held; PARTY and CLOSE BOX sunk by FireRed's cursor on its buttons or a held touch,
-     * which takes the cursor's marks (the frame, the band, a key) away from the rest of the box */
+     * which takes the cursor's marks (the frame, the band, a key) away from the rest of the box (the dark CLOSE BOX's face
+     * is the same up and sunk: AssertKey tells them apart by its LED) */
     v = BoxBoard(); DevCheckTouch(&old, &v);
     AssertKey(kDevBoxPrev, DEV_LOOK_KEY, 0); AssertKey(kDevBoxNext, DEV_LOOK_KEY, 0); AssertKey(kDevBoxParty, DEV_LOOK_KEY, 0); AssertKey(kDevBoxClose, DEV_LOOK_DARK, 0);
     v.box.area = ST_AREA_BUTTONS; v.box.pos = 0; DevCheckTouch(&old, &v); AssertKey(kDevBoxParty, DEV_LOOK_KEY, 1); AssertKey(kDevBoxClose, DEV_LOOK_DARK, 0);
@@ -325,6 +326,7 @@ static void SuiteBox(void)
     assert(CtrPokeTouch_BoxHit(&v, 20, 20) == ST_HIT_NONE && CtrPokeTouch_BoxHit(&v, 100, 200) == ST_HIT_NONE);
     v.box.pressed = ST_HIT_MENU_BASE + 3; DevCheckTouch(&old, &v); BoxKeysSunk(5, 3, 1);
     assert(at(DevBoxCell(29).x, DevBoxCell(29).y + 12) == BOX_DIM(DEV_BEZEL));   /* a held key is the menu's alone */
+    v.box.pressed = ST_HIT_MENU_BASE + 4; DevCheckTouch(&old, &v); BoxKeysSunk(5, 4, 1);   /* the dark CANCEL held: sunk, lit */
     v.box.pressed = ST_HIT_MENU_BASE + 6; DevCheckTouch(&old, &v); BoxKeysSunk(5, 1, 1);   /* no such key: as none */
     v.box.pressed = 3; assert(DevCheckTouch(&old, &v).count == 0);
     assert(at(DevBoxCell(29).x, DevBoxCell(29).y + 12) == BOX_DIM(DEV_BEZEL));   /* the place the menu is for */

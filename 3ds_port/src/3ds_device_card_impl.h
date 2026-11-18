@@ -127,24 +127,23 @@ static int DevCardRecords(const CtrPokeTouchCard *c)
     return c->rows < PT_CARD_ROWS ? c->rows : PT_CARD_ROWS;
 }
 
-/* The front's first line: NAME (FireRed's label without its ": ") and the name at its left, IDNo. and the ID at its
- * right; the labels small in the secondary ink. */
+/* The front's first line: NAME (FireRed's label without its ": ") and the name at its left, IDNo. (as FireRed writes
+ * it) and the ID at its right; the labels small in the secondary ink. */
 static void DevCardFirstLine(const CtrPokeTouchCard *c)
 {
     CtrPokeTouchRect r = DevCardRow(0);
     int smallTop = r.y + (r.h - 7) / 2, top = r.y + (r.h - UI_TEXT_H) / 2, right = r.x + r.w, idX, idLabelX;
-    char name[DEV_CARD_WORD], idLabel[DEV_CARD_WORD], id[16];
+    char name[DEV_CARD_WORD], id[16];
 
     DevUpper(name, c->label[0], sizeof(name));
     for (int n = (int)strlen(name); n > 0 && (name[n - 1] == ' ' || name[n - 1] == ':'); --n)
         name[n - 1] = 0;
-    DevUpper(idLabel, c->label[1], sizeof(idLabel));
     snprintf(id, sizeof(id), "%05u", (unsigned)c->id);
     idX = right - DevTextWidth(id);
-    idLabelX = idX - 6 - DevSmallTextWidth(idLabel);
+    idLabelX = idX - 6 - DevSmallTextWidth(c->label[1]);
     DevSmallText(name, r.x, smallTop, DEV_INK2, right);
     DevText(c->name, r.x + DevSmallTextWidth(name) + 6, top, idLabelX - 6);
-    DevSmallText(idLabel, idLabelX, smallTop, DEV_INK2, idX);
+    DevSmallText(c->label[1], idLabelX, smallTop, DEV_INK2, idX);
     DevText(id, idX, top, right);
 }
 

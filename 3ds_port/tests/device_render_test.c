@@ -680,13 +680,22 @@ static uint16_t KeyFace(int look, int sunk)
     return sunk ? DEV_SUNK : DEV_KEY;
 }
 
+static int Count(int x, int y, int w, int h, uint16_t c);
+
+/* ...and on a dark or faint key, whose face is the same up and sunk, the LED: lit in its area when sunk, and not when up
+ * (a cream key's area may show an LED while up: the naming keyboard's page key FireRed's cursor turns to). */
 static __attribute__((unused)) void AssertKey(CtrPokeTouchRect r, int look, int sunk)
 {
-    int faceY = r.y + (sunk ? DEV_SINK : 0);
+    int faceY = r.y + (sunk ? DEV_SINK : 0), areaH = r.y + r.h + DEV_DROP > H ? H - r.y : r.h + DEV_DROP;
 
     if (at(r.x + 3, faceY + r.h / 2) != KeyFace(look, sunk)) {
         fprintf(stderr, "%s: key {%d,%d,%d,%d} look %d sunk %d: face %04x at %d,%d, wanted %04x\n", gSuite, r.x, r.y, r.w,
                 r.h, look, sunk, at(r.x + 3, faceY + r.h / 2), r.x + 3, faceY + r.h / 2, KeyFace(look, sunk));
+        assert(0);
+    }
+    if (look != DEV_LOOK_KEY && (Count(r.x, r.y, r.w, areaH, DEV_LED) > 0) != sunk) {
+        fprintf(stderr, "%s: key {%d,%d,%d,%d} look %d: LED %s, wanted %s\n", gSuite, r.x, r.y, r.w, r.h, look,
+                sunk ? "dark" : "lit", sunk ? "sunk" : "up");
         assert(0);
     }
 }
@@ -1549,7 +1558,7 @@ static CtrBattleView BatBoard(void)
     }
     v.move[0].stab = 1;
     v.move[0].effectChance = 10;
-    strcpy(v.move[0].desc, "A powerful fire attack that may inflict a burn.");
+    strcpy(v.move[0].desc, "Port-written words in place of what a move does.");
     for (int i = 0; i < 3; ++i) {
         CtrBattleTarget *t = &v.target[i];
 
@@ -2079,7 +2088,7 @@ static CtrSummaryUiView SumBoard(void)
     strcpy(d->exp, "41000");
     strcpy(d->nextExp, "2808");
     strcpy(d->ability, "BLAZE");
-    strcpy(d->abilityDesc, "Powers up FIRE moves in a pinch.");
+    strcpy(d->abilityDesc, "Port words for an ability's text.");
     strcpy(d->memo, "ADAMANT nature.\nMet at Lv5, PALLET TOWN.");
     for (int i = 0; i < 4; ++i) {
         d->moves[i] = (unsigned short)(i + 1);
@@ -2249,7 +2258,7 @@ static void SuiteSummary(void)
 
     /* the details: FireRed's cursor inverts its row; the move's type and category, POWER and ACCURACY in the left
      * column; its description on the note; the arrows grey and not taken; CANCEL under the moves */
-    sv.data.page = SUI_PAGE_MOVES_INFO; sv.data.cursor = 0; strcpy(sv.data.moveDesc, "A powerful fire attack that may inflict a burn.");
+    sv.data.page = SUI_PAGE_MOVES_INFO; sv.data.cursor = 0; strcpy(sv.data.moveDesc, "Port-written words in place of what a move does.");
     DevCheckSummary(&so, &sv);
     AssertKey(kDevSumTab[2], DEV_LOOK_KEY, 1);
     assert(at(126, 54) == DEV_BEZEL && Count(124, 52, 176, 22, DEV_PAPER) > 0 && at(126, 78) == DEV_PAPER);
@@ -2258,9 +2267,9 @@ static void SuiteSummary(void)
     AssertRowHits(SumHitV, &sv, DevSumRow(0), SUI_HIT_MOVE);
     assert(Count(14, 194, 216, 32, DEV_INK) > 0);
     shot("details");
-    sv.data.cursor = 2; strcpy(sv.data.moveDesc, "Reduces the foe's ATTACK."); DevCheckSummary(&so, &sv);   /* GROWL: no category */
+    sv.data.cursor = 2; strcpy(sv.data.moveDesc, "Port words for one move."); DevCheckSummary(&so, &sv);   /* GROWL: no category */
     assert(at(126, 102) == DEV_BEZEL && Count(20, 97, 92, 12, DEV_CAT_SPECIAL) == 0 && Count(20, 97, 92, 12, DEV_CAT_PHYSICAL) == 0);
-    sv.data.cursor = 3; strcpy(sv.data.moveDesc, "Destroys barriers like LIGHT SCREEN."); DevCheckSummary(&so, &sv);   /* FIGHTING: physical */
+    sv.data.cursor = 3; strcpy(sv.data.moveDesc, "Port words for another move's text."); DevCheckSummary(&so, &sv);   /* FIGHTING: physical */
     assert(Count(20, 97, 92, 12, DEV_CAT_PHYSICAL) > 0);
     sv.data.moveDesc[0] = 0;                                                    /* CANCEL: no description */
     sv.data.page = SUI_PAGE_MOVES_INFO; sv.data.cursor = 4; DevCheckSummary(&so, &sv);
@@ -2291,7 +2300,7 @@ static void SuiteSummary(void)
     sv.data.origin = CTR_SUMMARY_FIELD_PARTY; DevCheckSummary(&so, &sv); assert(Count(14, 194, 216, 32, DEV_INK) > 0);
     sv.data.swapping = 1; DevCheckSummary(&so, &sv);
     sv.data.swapCursor = 3; assert(DevCheckSummary(&so, &sv).count == 1);
-    strcpy(sv.data.moveDesc, "Reduces the foe's ATTACK."); assert(DevCheckSummary(&so, &sv).count == 0);   /* the hint, not it */
+    strcpy(sv.data.moveDesc, "Port words for one move."); assert(DevCheckSummary(&so, &sv).count == 0);   /* the hint, not it */
     sv.data.swapping = 0; sv.data.swapCursor = 0; sv.data.cursor = 4; sv.data.moveDesc[0] = 0; DevCheckSummary(&so, &sv);
     sv.data.swapCursor = 2; assert(DevCheckSummary(&so, &sv).count == 0);                    /* not swapping: not drawn */
 
@@ -2335,7 +2344,7 @@ static void SuiteSummary(void)
     assert(Count(20, 63, 98, 12, DEV_MALE) == 0 && Count(20, 154, 92, 12, fire) == 0);
     sv.pressed = SUI_HIT_TAB + 1; DevCheckSummary(&so, &sv); AssertKey(kDevSumTab[3], DEV_LOOK_KEY, 1);    /* a grey tab: not chosen */
     sv.pressed = -1; assert(DevCheckSummary(&so, &sv).count == 0);
-    strcpy(sv.data.nickname, "EGG"); strcpy(sv.data.species, "EGG"); strcpy(sv.data.hatch, "It appears to move occasionally. It may be close to hatching.");
+    strcpy(sv.data.nickname, "EGG"); strcpy(sv.data.species, "EGG"); strcpy(sv.data.hatch, "Port-written words in place of how soon an EGG will hatch.");
     DevCheckSummary(&so, &sv); assert(Count(126, 50, 172, 120, DEV_INK) > 0);
     shot("egg");
     sv.trainer = 0; DevCheckSummary(&so, &sv); assert(Count(126, 50, 172, 120, DEV_INK) > 0 && Count(20, 154, 92, 12, fire) == 0);
@@ -2610,7 +2619,7 @@ static void SuiteBag(void)
     shot("itempc");
     strcpy(v.bag.title, "MAILBOX"); v.bag.typed = 1; v.bag.count = 3; v.bag.cursor = 0;
     for (i = 0; i < 3; ++i) { strcpy(v.bag.row[i].name, i ? "MOM" : "Rick"); v.bag.row[i].item = (uint16_t)(121 + i); v.bag.row[i].qty = 0; }
-    strcpy(v.bag.selName, "Rick"); v.bag.selItem = 121; strcpy(v.bag.selDesc, "A MAIL to be held by a POK\xC3\xA9MON.");
+    strcpy(v.bag.selName, "Rick"); v.bag.selItem = 121; strcpy(v.bag.selDesc, "Port words for a MAIL's text.");
     DevCheckTouch(&old, &v); assert(CtrPokeTouch_BagHit(&v, 138, 48 + 16 * 3 + 8) == -1 && CtrPokeTouch_BagHit(&v, 138, 48 + 8) == PT_BAG_HIT_ROW);
     shot("mailbox");
     BagUpperCase(BagBoard());
