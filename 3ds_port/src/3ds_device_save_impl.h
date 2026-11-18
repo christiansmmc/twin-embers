@@ -3,7 +3,7 @@
  *
  * HOME's page. On its screen the save's facts, a row each (PLAYER, BADGES, POKeDEX, TIME, MONEY: the label small, the
  * value at the row's right) and the player's own map icon (HOME's) at 4x. Under it the dialogue on the question's note
- * (its subject, then what it says more in the secondary ink) and, in HOME's third and sixth key places, YES and NO, the
+ * (its subject, then what it says more in the secondary ink) and, beside it (kDevAskYes, kDevAskNo), YES and NO, the
  * game's cursor sunk (or the key under a held touch); after a result (saved, an error) OK alone in YES's place, the
  * cursor; nothing while the game is written. No BACK: NO and B leave. Every rectangle is 3ds_device_layout.h's, so what
  * is drawn is what a touch takes.

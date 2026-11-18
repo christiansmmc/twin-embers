@@ -1,13 +1,15 @@
 /* HOME as the red device (style B; board B · Início), included by 3ds_poketouch.c right after the kit. Every rectangle is
  * 3ds_device_layout.h's, so what is drawn is what a touch takes.
  *
- * The shell, a screen and six keys under it. The screen's paper holds, on the left, the map's window: FireRed's own
+ * The shell, a screen and eight keys under it. The screen's paper holds, on the left, the map's window: FireRed's own
  * Region Map at 1:1 (CtrPokeTouch_MapPrepare composes it once per map), the player's icon on his cell, the destination
  * as FireRed's own cursor (it blinks) with its name on a small window, the region key (a touch goes to the next map the
  * game has opened, when there is one) and FLY while the destination can be flown to. On the right, the panel: the
  * place's name, the region line (or why a destination cannot be flown to), the party (each Pokemon's icon over its HP
- * bar, a ring for a hole), RUN with its lamp and SPD with the turbo's multiplier. The keys: the six START entries, the
- * pack's icon beside the word, sunk with their LED under a held touch, dimmed while they cannot be used.
+ * bar, a ring for a hole) and TIME, FireRed's play clock. The keys, two rows of four: the six START entries (the pack's
+ * icon beside the word), RUN (its word beside its status LED: lit while the running mode is on, a dim disc otherwise)
+ * and SPD (its label beside the turbo's multiplier); each sunk with its LED under a held touch, dimmed while it cannot
+ * be used.
  *
  * Words: upper case, as the board and FireRed write them (DevUpper), port words and game strings alike; the player's name
  * as typed.
@@ -16,14 +18,12 @@
  * redraws the window alone. */
 
 #define DEV_HOME_HOLE          UI_RGB(0xC4, 0xC4, 0xC4)   /* an empty party cell's ring */
-#define DEV_HOME_LAMP_ON       UI_RGB(0x48, 0xC0, 0x60)   /* RUN's lamp, on and off: its face and its edge */
-#define DEV_HOME_LAMP_ON_EDGE  UI_RGB(0x1F, 0x6A, 0x32)
-#define DEV_HOME_LAMP_OFF      UI_RGB(0xD8, 0xD8, 0xD0)
-#define DEV_HOME_LAMP_OFF_EDGE UI_RGB(0xA0, 0xA0, 0x98)
-#define DEV_HOME_ICON          16                          /* a key's icon, and the gap before its word */
-#define DEV_HOME_ICON_GAP      6
+#define DEV_HOME_ICON          16                          /* a key's icon */
+#define DEV_HOME_GAP           6                           /* between a key's two pieces: icon and word, word and LED, label
+                                                            * and multiplier */
+#define DEV_HOME_LED           6                           /* RUN's status LED, its top DEV_HOME_LED_TOP under the face's */
+#define DEV_HOME_LED_TOP       14
 #define DEV_HOME_LABEL_H       17                          /* the destination's name window */
-#define DEV_HOME_LAMP          8                           /* RUN's lamp: a 6x6 face in a 1 px edge, 4 px in (the board's) */
 
 /* FireRed's map cursor (two frames). */
 static struct Icon sCursor = {-1, 0, 2, {{0}}, {0}};
@@ -196,65 +196,35 @@ static void DevHomeWindow(const CtrPokeTouchView *v)
 /* ---- The panel --------------------------------------------------------------------------------------------------------- */
 
 /* The party: each Pokemon's icon (half size; a fainted one faded) over its HP bar (an egg has none, as in FireRed), a
- * ring for a hole, a dark edge round the one under a held touch. */
+ * ring for a hole, a dark edge round the one under a held touch; where the board has them (DevHomeCell's places). */
 static void DevHomeParty(const CtrPokeTouchView *v)
 {
     for (int i = 0; i < 6; ++i) {
         CtrPokeTouchRect c = DevHomeCell(i);
-        int cx = c.x + c.w / 2;
 
         if (!v->party[i]) {
-            DevRing(cx - 9, c.y + 2, 18, DEV_HOME_HOLE);
+            DevRing(c.x + 7, c.y + 4, 16, DEV_HOME_HOLE);
             continue;
         }
         if (v->pressed == PT_HOME_PARTY + i) {
             DevRound(c.x, c.y, c.w, c.h, 4, DEV_BEZEL);
             DevRound(c.x + 1, c.y + 1, c.w - 2, c.h - 2, 3, DEV_PAPER);
         }
-        DevMonIcon(i, v->partyIcon[i], cx - 8, c.y + 3, 1, v->party[i] == 2);
+        DevMonIcon(i, v->partyIcon[i], c.x + 7, c.y + 4, 1, v->party[i] == 2);
         if (!(v->partyEgg >> i & 1))
-            DevHpBar(cx - 11, c.y + 22, 22, 4, v->partyHp[i], 100);
+            DevHpBar(c.x + 4, c.y + 25, 22, 4, v->partyHp[i], 100);
     }
 }
 
-/* RUN: the word and the lamp (on while the running mode is), as the board draws them; inverted under a held touch, grey
- * while it cannot be used. The word in the normal font from the board's 4 px in; a longer one in the small font from
- * 2 px in. */
-static void DevHomeRun(const CtrPokeTouchView *v)
+/* TIME: FireRed's play clock (the hours and minutes SAVE shows, with its caps), small in the secondary ink. */
+static void DevHomeTime(const CtrPokeTouchView *v)
 {
-    const CtrPokeTouchRect *r = &kDevHomeRun;
-    char run[16];
-    int on = v->enabled[PT_RUN], pressed = on && v->pressed == PT_RUN, lit = on && v->running;
-    int lampX = r->x + r->w - 1 - 4 - DEV_HOME_LAMP, lampY = r->y + (r->h - DEV_HOME_LAMP) / 2;
-    int small, x;
-    uint16_t ink = pressed ? DEV_PAPER : on ? DEV_INK : DEV_INK_DIM;
+    const CtrPokeTouchRect *r = &kDevHomeTime;
+    char time[24];
 
-    /* CORRER and RENNEN do not fit beside the board's lamp, even small: the shorter imperatives do */
-    DevUpper(run, CTR_TR("Run", "Corre", "Lauf"), sizeof(run));
-    small = DevFitFont(run, lampX - 2 - (r->x + 5), lampX - 2 - (r->x + 3));
-    x = small ? r->x + 3 : r->x + 5;
-    DevPaperButton(r, pressed);
-    DevFitWord(run, small, x, lampX - 2 - x, r->y, r->h, 0, ink, pressed || !on ? ink : DEV_INK_SH);
-    Fill(lampX, lampY, DEV_HOME_LAMP, DEV_HOME_LAMP, lit ? DEV_HOME_LAMP_ON_EDGE : DEV_HOME_LAMP_OFF_EDGE);
-    Fill(lampX + 1, lampY + 1, DEV_HOME_LAMP - 2, DEV_HOME_LAMP - 2, lit ? DEV_HOME_LAMP_ON : DEV_HOME_LAMP_OFF);
-}
-
-/* SPD: its label (small) at the left and the turbo's multiplier at the right; inverted under a held touch, grey while a
- * tap cannot change it. */
-static void DevHomeSpeed(const CtrPokeTouchView *v)
-{
-    const CtrPokeTouchRect *r = &kDevHomeSpeed;
-    const char *label = CTR_TR("SPD", "VEL", "TMP");
-    int on = v->speedEnabled, pressed = on && v->pressed == PT_HOME_SPEED;
-    uint16_t ink = pressed ? DEV_PAPER : on ? DEV_INK : DEV_INK_DIM, ink2 = pressed ? DEV_PAPER : on ? DEV_INK2 : DEV_INK_DIM;
-    char value[8];
-    int vw;
-
-    snprintf(value, sizeof(value), "%ux", v->speed >= 2 && v->speed <= 4 ? (unsigned)v->speed : 1u);
-    vw = DevTextWidth(value);
-    DevPaperButton(r, pressed);
-    DevFitWord(label, 1, r->x + 5, r->w - 10 - vw - 2, r->y, r->h, 0, ink2, ink2);
-    DevTextInk(value, r->x + r->w - 5 - vw, r->y + (r->h - UI_TEXT_H) / 2, r->x + r->w - 5, ink, pressed || !on ? ink : DEV_INK_SH);
+    snprintf(time, sizeof(time), "%s %u:%02u", CTR_TR("TIME", "TIEMPO", "ZEIT"),
+             (unsigned)(v->saveHours > 999 ? 999 : v->saveHours), (unsigned)(v->saveMinutes > 59 ? 59 : v->saveMinutes));
+    DevSmallText(time, r->x, r->y + 2, DEV_INK2, r->x + r->w);
 }
 
 /* `s` in the small font in at most maxLines lines DEV_LINE_H apart, `width` wide, broken at spaces (DevWrap's rule) and
@@ -300,7 +270,7 @@ static void DevHomeSmallWrap(const char *s, int x, int top, int width, int maxLi
 /* The panel: the place's name (two lines), the line under it (the map's region, as the region key names it; or bar[2]
  * when 3ds_bottom.c has something to say there: why a place picked cannot be flown to, the dungeon over it, the Party's
  * FLY's hint; a line too long for the panel, or broken in two, takes the name's second line too when the name has left
- * it free), the rule, the party, RUN and SPD. */
+ * it free), the rule, the party and TIME. */
 static void DevHomePanel(const CtrPokeTouchView *v)
 {
     char name[PT_BAR_LEN], line[PT_BAR_LEN];
@@ -315,8 +285,7 @@ static void DevHomePanel(const CtrPokeTouchView *v)
                      DEV_INK2);
     Fill(kDevHomeRule.x, kDevHomeRule.y, kDevHomeRule.w, kDevHomeRule.h, DEV_RULE);
     DevHomeParty(v);
-    DevHomeRun(v);
-    DevHomeSpeed(v);
+    DevHomeTime(v);
 }
 
 /* ---- The keys ---------------------------------------------------------------------------------------------------------- */
@@ -364,6 +333,16 @@ static const char *DevHomeKeyWord(int id, const CtrPokeTouchView *v, char out[24
     return id == PT_CARD ? strcpy(out, name) : out;
 }
 
+/* A key's word in its own box at x, `w` wide (DevKeyLabel centres it there, and cuts and counts only a word wider than
+ * w): a pair's word or multiplier. On HOME's 34 px keys a word's rows lie below a sunk key's LED, so no word has to
+ * move off it (DevKeyWord's case). */
+static void DevHomeWordAt(const CtrPokeTouchRect *r, int faceY, int sunk, int x, int w, const char *word)
+{
+    CtrPokeTouchRect box = {(int16_t)(x - 4), r->y, (int16_t)(w + 8), r->h};
+
+    DevKeyLabel(&box, faceY, DEV_LOOK_KEY, sunk, word);
+}
+
 /* A START entry's key: the icon, 6 px, the word (the entry's, the player's name for the card), the pair centred; sunk
  * with its LED under a held touch; dimmed while it cannot be used. Without the pack the port's own 12x12 silhouette in
  * the key's ink stands for the icon. */
@@ -371,16 +350,15 @@ static void DevHomeKey(int id, const CtrPokeTouchView *v)
 {
     const CtrPokeTouchRect *r = &kDevHomeKey[id];
     int sunk = v->enabled[id] && v->pressed == id, faceY = DevKey(r, DEV_LOOK_KEY, sunk, 6);
-    int room = r->w - 8 - DEV_HOME_ICON - DEV_HOME_ICON_GAP, lw, x0, iy = faceY + (r->h - DEV_HOME_ICON) / 2;
+    int room = r->w - 8 - DEV_HOME_ICON - DEV_HOME_GAP, lw, x0, iy = faceY + (r->h - DEV_HOME_ICON) / 2;
     const PtSoft *soft = DevHomeIcon(id);
     char out[24];
     const char *label = DevHomeKeyWord(id, v, out);
-    CtrPokeTouchRect word;
 
     lw = DevTextWidth(label);
     if (lw > room)
         lw = room;
-    x0 = r->x + (r->w - (DEV_HOME_ICON + DEV_HOME_ICON_GAP + lw)) / 2;
+    x0 = r->x + (r->w - (DEV_HOME_ICON + DEV_HOME_GAP + lw)) / 2;
     if (soft)
         PokeTouch_SoftDraw(soft, x0, iy, 1);
     else
@@ -388,10 +366,52 @@ static void DevHomeKey(int id, const CtrPokeTouchView *v)
             for (int x = 0; x < 12; ++x)
                 if ((sTwinIconRows[id][y] >> (11 - x)) & 1u)
                     Px(x0 + 2 + x, iy + 2 + y, sunk ? DEV_SUNK_INK : DEV_KEY_INK);
-    /* the word's own box: DevKeyLabel centres it there, and cuts (and counts) only a word wider than the room */
-    word = (CtrPokeTouchRect){(int16_t)(x0 + DEV_HOME_ICON + DEV_HOME_ICON_GAP - 4), r->y, (int16_t)(lw + 8), r->h};
-    DevKeyLabel(&word, faceY, DEV_LOOK_KEY, sunk, label);
+    DevHomeWordAt(r, faceY, sunk, x0 + DEV_HOME_ICON + DEV_HOME_GAP, lw, label);
     if (!v->enabled[id])
+        DevDim(r);
+}
+
+/* RUN: the word, 6 px, its status LED (6 px, its top DEV_HOME_LED_TOP under the face's): lit while the running mode is
+ * on, a dim disc in the key's edge colour otherwise; the pair centred. Sunk with its own LED under a held touch,
+ * dimmed while it cannot be used. CORRER and RENNEN would crowd the LED: the shorter imperatives. */
+static void DevHomeRun(const CtrPokeTouchView *v)
+{
+    const CtrPokeTouchRect *r = &kDevHomeRun;
+    int sunk = v->enabled[PT_RUN] && v->pressed == PT_RUN, faceY = DevKey(r, DEV_LOOK_KEY, sunk, 6);
+    int room = r->w - 8 - DEV_HOME_GAP - DEV_HOME_LED, lw, x0, ledX;
+    char run[16];
+
+    DevUpper(run, CTR_TR("Run", "Corre", "Lauf"), sizeof(run));
+    lw = DevTextWidth(run);
+    if (lw > room)
+        lw = room;
+    x0 = r->x + (r->w - (lw + DEV_HOME_GAP + DEV_HOME_LED)) / 2;
+    DevHomeWordAt(r, faceY, sunk, x0, lw, run);
+    ledX = x0 + lw + DEV_HOME_GAP;
+    if (v->running)
+        DevLedPixels(ledX, faceY + DEV_HOME_LED_TOP, DEV_HOME_LED, DevKeyFace(DEV_LOOK_KEY, sunk));
+    else
+        DevDisc(ledX, faceY + DEV_HOME_LED_TOP, DEV_HOME_LED, DEV_KEY_EDGE);
+    if (!v->enabled[PT_RUN])
+        DevDim(r);
+}
+
+/* SPD: its label small in the key's second ink, 6 px, the turbo's multiplier ("2x") in the key's ink, the pair centred;
+ * sunk with its LED under a held touch, dimmed while a tap cannot change it. */
+static void DevHomeSpeed(const CtrPokeTouchView *v)
+{
+    const CtrPokeTouchRect *r = &kDevHomeSpeed;
+    const char *label = CTR_TR("SPD", "VEL", "TMP");
+    int sunk = v->speedEnabled && v->pressed == PT_HOME_SPEED, faceY = DevKey(r, DEV_LOOK_KEY, sunk, 6);
+    int lw = DevSmallTextWidth(label), vw, x0;
+    char value[8];
+
+    snprintf(value, sizeof(value), "%ux", v->speed >= 2 && v->speed <= 4 ? (unsigned)v->speed : 1u);
+    vw = DevTextWidth(value);
+    x0 = r->x + (r->w - (lw + DEV_HOME_GAP + vw)) / 2;
+    DevSmallText(label, x0, faceY + (r->h - 7) / 2, DEV_KEY_INK2, x0 + lw);
+    DevHomeWordAt(r, faceY, sunk, x0 + lw + DEV_HOME_GAP, vw, value);
+    if (!v->speedEnabled)
         DevDim(r);
 }
 
@@ -406,6 +426,8 @@ static void DevHomeDraw(const CtrPokeTouchView *v)
     DevHomePanel(v);
     for (int id = PT_POKEDEX; id <= PT_OPTIONS; ++id)
         DevHomeKey(id, v);
+    DevHomeRun(v);
+    DevHomeSpeed(v);
     sHomeShown = 1;
 }
 
@@ -417,7 +439,8 @@ typedef struct {
     int8_t cursorX, cursorY;
     uint8_t party[6], partyHp[6], speed, speedEnabled;
     uint16_t partyIcon[6];
-    uint8_t partyEgg;
+    uint8_t partyEgg, saveMinutes;
+    uint16_t saveHours;
     char bar[PT_BAR_LINES][PT_BAR_LEN];
     char playerName[16];
 } DevHomeLook;
@@ -441,6 +464,8 @@ static void DevHomeLookOf(const CtrPokeTouchView *v, DevHomeLook *l)
     memcpy(l->partyHp, v->partyHp, sizeof(l->partyHp));
     memcpy(l->partyIcon, v->partyIcon, sizeof(l->partyIcon));
     l->partyEgg = v->partyEgg;
+    l->saveMinutes = v->saveMinutes;
+    l->saveHours = v->saveHours;
     l->speed = v->speed;
     l->speedEnabled = v->speedEnabled;
     memcpy(l->bar, v->bar, sizeof(l->bar));
@@ -465,18 +490,16 @@ static void DevHomeUpdate(const CtrPokeTouchView *old, const CtrPokeTouchView *v
     }
 }
 
-/* What HOME shows under a lower-screen point: a key with its drop, RUN, SPD, a cell that holds a Pokemon. */
+/* What HOME shows under a lower-screen point: a key with its drop (a START entry, RUN, SPD), a cell that holds a
+ * Pokemon. */
 int CtrPokeTouch_HomeHit(const CtrPokeTouchView *v, int x, int y)
 {
-    for (int id = PT_POKEDEX; id <= PT_OPTIONS; ++id) {
-        CtrPokeTouchRect a = DevKeyArea(&kDevHomeKey[id]);
-
-        if (UiIn(&a, x, y))
+    for (int id = PT_POKEDEX; id <= PT_OPTIONS; ++id)
+        if (DevOnKey(&kDevHomeKey[id], x, y))
             return id;
-    }
-    if (UiIn(&kDevHomeRun, x, y))
+    if (DevOnKey(&kDevHomeRun, x, y))
         return PT_RUN;
-    if (UiIn(&kDevHomeSpeed, x, y))
+    if (DevOnKey(&kDevHomeSpeed, x, y))
         return PT_HOME_SPEED;
     for (int i = 0; i < 6; ++i) {
         CtrPokeTouchRect c = DevHomeCell(i);

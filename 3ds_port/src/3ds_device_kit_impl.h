@@ -56,7 +56,7 @@
 #define DEV_FAINT_INK      UI_RGB(0x8A, 0x84, 0x78)
 /* A rule on the paper (HOME's panel, the Summary's MOVES). */
 #define DEV_RULE           UI_RGB(0xD8, 0xD8, 0xD0)
-/* HOME's paper buttons (RUN, SPD): white with this border. */
+/* A white pill's border on the paper (the Summary's STATS switch). */
 #define DEV_BUTTON_EDGE    UI_RGB(0xB0, 0xB0, 0xA8)
 /* Bars: HP (frame, track, the three levels, the "HP" tag's ink) and experience. */
 #define DEV_HP_FRAME       UI_RGB(0x40, 0x48, 0x50)
@@ -487,18 +487,6 @@ UI_FN uint16_t DevRowInk(int chosen)
     return chosen ? DEV_PAPER : DEV_INK;
 }
 
-/* HOME's RUN / SPD: a white button with a 1 px DEV_BUTTON_EDGE border, radius 2; pressed, inverted (DEV_BEZEL). Its
- * text in DevRowInk(pressed). */
-UI_FN void DevPaperButton(const CtrPokeTouchRect *r, int pressed)
-{
-    if (pressed) {
-        DevRound(r->x, r->y, r->w, r->h, 2, DEV_BEZEL);
-        return;
-    }
-    DevRound(r->x, r->y, r->w, r->h, 2, DEV_BUTTON_EDGE);
-    DevRound(r->x + 1, r->y + 1, r->w - 2, r->h - 2, 1, DEV_WHITE);
-}
-
 /* ---- Text ---------------------------------------------------------------------------------------------------------- */
 
 /* The small font's glyphs (half-width, capitals rows 4-10), decoded once. It has no Japanese glyphs: those are spaces. */
@@ -752,7 +740,7 @@ UI_FN void DevCutText(const char *s, int room, char *out, size_t size)
 
 /* The font a port word fits `room` in (`smallRoom` for the small font, which may start further out): 0 the normal one,
  * 1 the small one (the boards' label size). A word that fits neither is cut in the small one and counted in sDevKeyCut,
- * as a cut key label is. (HOME's RUN and FLY, the battle's grey quick ball.) */
+ * as a cut key label is. (HOME's FLY, the battle's grey quick ball.) */
 UI_FN int DevFitFont(const char *s, int room, int smallRoom)
 {
     if (DevTextWidth(s) <= room)

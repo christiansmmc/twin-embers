@@ -1166,13 +1166,14 @@ static void PartyFill(uint8_t kind[6], uint8_t hp[6], uint8_t status[6], uint16_
 }
 
 /* HOME, the field's lower screen: FireRed's own map of where the player is (at 1:1), the location's name and region,
- * the party and the game's speed. The region key switches to another map the game has opened. */
+ * the party, the play time (as SaveFill reads it) and the game's speed. The region key switches to another map the
+ * game has opened. */
 static unsigned sHomeOpen;                  /* the maps the region key leads to, as the last frame saw them */
 
 static void HomeMapState(Snapshot *s)
 {
     int group = CtrPokeTouch_MapGroup(), px, py, mapsec, version = CtrPokeTouch_MapVersion();
-    unsigned open = 0, turbo = CtrSettings_Turbo();
+    unsigned open = 0, turbo = CtrSettings_Turbo(), minutes = CtrSave_PlayMinutes();
     uint8_t status[6];
 
     if (group < 0 || group >= PT_MAP_COUNT)
@@ -1189,6 +1190,8 @@ static void HomeMapState(Snapshot *s)
         sHome.view = group + 1;
     s->touch.home = 1;
     PartyFill(s->touch.party, s->touch.partyHp, status, s->touch.partyIcon, &s->touch.partyEgg);
+    s->touch.saveHours = (uint16_t)CtrSave_PlayHours();
+    s->touch.saveMinutes = (uint8_t)(minutes > 59 ? 59 : minutes);
     s->touch.speed = (uint8_t)(turbo >= 2 && turbo <= 4 ? turbo : 1);
     s->touch.speedEnabled = (uint8_t)(CtrBottom_TurboCanCycle() != 0);
     s->touch.mapGroup = (uint8_t)(sHome.view - 1);

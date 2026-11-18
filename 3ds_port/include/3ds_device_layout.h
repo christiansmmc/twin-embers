@@ -73,28 +73,32 @@ static inline CtrPokeTouchRect DevGridColumnKey(int top, int pitch, int h, int i
 
 /* ---- HOME (board B · Início, 3ds_device_home_impl.h) ------------------------------------------------------------------
  * The screen: its paper holds the map's window on the left (PT_HOME_X/Y/W/H, 3ds_poketouch.h) and the panel on the
- * right: the place's name (two lines, DEV_LINE_H apart), the region line, a rule, the party's six cells, RUN and SPD
- * (paper buttons: no drop). Under the screen the six keys, in PT_* order. In the window, over the map: the region key
- * (its width is its text's: the most it may take is kDevHomeMapKey.w) and FLY. A text's rectangle is the board's box;
- * the capitals start 3 px into a box of the normal font, 2 px into one of the small font. */
+ * right: the place's name (two lines, DEV_LINE_H apart), the region line, a rule, the party's six cells and the play
+ * time (TIME). Under the screen eight keys of 73 in two rows (DevAcross(4, c, 154 or 196, 34)): the six START entries
+ * in PT_* order, three to a row, with RUN at the end of the top row and SPD at the end of the bottom one. In the window,
+ * over the map: the region key (its width is its text's: the most it may take is kDevHomeMapKey.w) and FLY. A text's
+ * rectangle is the board's box; the capitals start 3 px into a box of the normal font, 2 px into one of the small
+ * font. */
 static const CtrPokeTouchRect kDevHomeScreen __attribute__((unused)) = {8, 8, 304, 140};
 static const CtrPokeTouchRect kDevHomeKey[6] __attribute__((unused)) = {
-    {8, 156, 96, 36}, {112, 156, 96, 36}, {216, 156, 96, 36}, {8, 198, 96, 34}, {112, 198, 96, 34}, {216, 198, 96, 34},
+    {8, 154, 73, 34}, {85, 154, 73, 34}, {162, 154, 73, 34}, {8, 196, 73, 34}, {85, 196, 73, 34}, {162, 196, 73, 34},
 };
-static const CtrPokeTouchRect kDevHomeRun __attribute__((unused)) = {210, 123, 44, 16};
-static const CtrPokeTouchRect kDevHomeSpeed __attribute__((unused)) = {258, 123, 44, 16};
-static const CtrPokeTouchRect kDevHomeName __attribute__((unused)) = {212, 17, 90, 26};
+static const CtrPokeTouchRect kDevHomeRun __attribute__((unused)) = {239, 154, 73, 34};
+static const CtrPokeTouchRect kDevHomeSpeed __attribute__((unused)) = {239, 196, 73, 34};
+static const CtrPokeTouchRect kDevHomeName __attribute__((unused)) = {212, 16, 90, 26};
 static const CtrPokeTouchRect kDevHomeRegion __attribute__((unused)) = {212, 44, 90, 10};
-static const CtrPokeTouchRect kDevHomeRule __attribute__((unused)) = {210, 58, 92, 1};
+static const CtrPokeTouchRect kDevHomeRule __attribute__((unused)) = {210, 57, 92, 1};
+static const CtrPokeTouchRect kDevHomeTime __attribute__((unused)) = {212, 128, 90, 10};
 static const CtrPokeTouchRect kDevHomeMapKey __attribute__((unused)) = {16, 16, 96, 14};
 /* FLY at the window's top right: the board's place (16, 122) covers Cinnabar Island (Kanto's cell 4,14); cells 17-21 of
  * rows 0-2 hold no place on any of the four maps. */
 static const CtrPokeTouchRect kDevHomeFly __attribute__((unused)) = {158, 16, 44, 16};
 
-/* The party's cell i (0-5), three to a row: its icon, its HP bar, and where a touch on it is taken. */
+/* The party's cell i (0-5), three to a row: its icon (half size) at (x + 7, y + 4), its HP bar (22x4) at (x + 4,
+ * y + 25), a hole's ring (16) where the icon would be, and where a touch on it is taken. */
 static inline CtrPokeTouchRect DevHomeCell(int i)
 {
-    CtrPokeTouchRect r = {(int16_t)(210 + 31 * (i % 3)), (int16_t)(62 + 28 * (i / 3)), 30, 28};
+    CtrPokeTouchRect r = {(int16_t)(210 + 30 * (i % 3)), (int16_t)(60 + 32 * (i / 3)), 30, 32};
 
     return r;
 }
@@ -220,7 +224,7 @@ static inline CtrPokeTouchRect DevBagMenuKey(int n, int i)
  * its CONFIRM, kDevPtyConfirm, in the keys' place); a tall screen over a wide
  * key; the tall note with BACK beside it (kDevTallNote, kDevTallBack: the frame's, the move to forget's, the Trainer
  * Card's and the Pokedex page's BACK until their boards' tasks); a question's note beside YES and
- * NO (where HOME's third and sixth keys are). */
+ * NO. */
 static const CtrPokeTouchRect kDevSmallNote __attribute__((unused)) = {8, 190, 152, 42};
 static const CtrPokeTouchRect kDevSmallKey[2] __attribute__((unused)) = {{168, 190, 32, 40}, {204, 190, 32, 40}};
 static const CtrPokeTouchRect kDevTallScreen __attribute__((unused)) = {8, 8, 304, 172};

@@ -1,11 +1,10 @@
 /* The red device's rectangles (3ds_device_layout.h), the one source of what the B views draw and what they hit.
  *
  * Rules: every rectangle the header holds lies inside the 320x240 screen with its 3 px drop; a key is at least 20 px
- * tall and 28 px wide (a paper button, HOME's RUN and SPD on the screen's paper, at least 40x16: the board's); the keys
- * of one view state never overlap, their drops included. Keys of different states may share space (the Bag's item menu
- * keys lie where its CLOSE is in the list), so each state is a group of its own. Each view adds its rectangles to
- * `rects` and one group per state to `groups` (in main: the header's rectangles are objects, not constants), and its own
- * checks (where a view's pieces must lie).
+ * tall and 28 px wide; the keys of one view state never overlap, their drops included. Keys of different states may
+ * share space (the Bag's item menu keys lie where its CLOSE is in the list), so each state is a group of its own. Each
+ * view adds its rectangles to `rects` and one group per state to `groups` (in main: the header's rectangles are
+ * objects, not constants), and its own checks (where a view's pieces must lie).
  *
  * usage: device_layout_test (prints PASS device layout) */
 #include <assert.h>
@@ -28,15 +27,9 @@ static int Same(CtrPokeTouchRect a, CtrPokeTouchRect b)
     return a.x == b.x && a.y == b.y && a.w == b.w && a.h == b.h;
 }
 
-/* A paper button: drawn on a screen's paper, no drop (HOME's RUN and SPD). */
-static int Paper(CtrPokeTouchRect r)
-{
-    return Same(r, kDevHomeRun) || Same(r, kDevHomeSpeed);
-}
-
 static int BigEnough(CtrPokeTouchRect r)
 {
-    return Paper(r) ? r.h >= 16 && r.w >= 40 : r.h >= 20 && r.w >= 28;
+    return r.h >= 20 && r.w >= 28;
 }
 
 /* r (with its drop when `drop`) lies inside `outer`. */
@@ -110,11 +103,10 @@ static void RulesCatchFaults(void)
     assert(GroupFaults(&dropTouchG) == 0);
     assert(GroupFaults(&lowG) == 1);
     assert(GroupFaults(&smallG) == 2);
-    assert(Paper(kDevHomeRun) && BigEnough(kDevHomeRun) && !BigEnough((CtrPokeTouchRect){210, 123, 44, 15}));
 }
 
-/* HOME (board B · Início): the six keys under the screen, the panel's pieces on its paper, the map's keys in the
- * window. */
+/* HOME (board B · Início): eight keys of 73 under the screen in two rows (the six START entries, RUN and SPD at the
+ * rows' ends), the panel's pieces on its paper, the map's keys in the window. */
 static int HomeFaults(void)
 {
     const CtrPokeTouchRect lower = {0, 150, 320, 90}, window = {PT_HOME_X, PT_HOME_Y, PT_HOME_W, PT_HOME_H};
@@ -122,36 +114,48 @@ static int HomeFaults(void)
     int faults = 0;
 
     assert(Same(kDevHomeScreen, (CtrPokeTouchRect){8, 8, 304, 140}));
-    assert(Same(kDevHomeKey[0], (CtrPokeTouchRect){8, 156, 96, 36}) && Same(kDevHomeKey[1], (CtrPokeTouchRect){112, 156, 96, 36})
-           && Same(kDevHomeKey[2], (CtrPokeTouchRect){216, 156, 96, 36}) && Same(kDevHomeKey[3], (CtrPokeTouchRect){8, 198, 96, 34})
-           && Same(kDevHomeKey[4], (CtrPokeTouchRect){112, 198, 96, 34}) && Same(kDevHomeKey[5], (CtrPokeTouchRect){216, 198, 96, 34}));
-    assert(Same(kDevHomeRun, (CtrPokeTouchRect){210, 123, 44, 16}) && Same(kDevHomeSpeed, (CtrPokeTouchRect){258, 123, 44, 16}));
     for (int i = 0; i < 6; ++i)
-        assert(Same(DevHomeCell(i), (CtrPokeTouchRect){(int16_t)(210 + 31 * (i % 3)), (int16_t)(62 + 28 * (i / 3)), 30, 28}));
-    assert(kDevHomeName.x == 212 && kDevHomeName.y == 17 && kDevHomeName.w == 90 && kDevHomeName.h == 2 * 13);
-    assert(kDevHomeRegion.x == 212 && kDevHomeRegion.y == 44 && Same(kDevHomeRule, (CtrPokeTouchRect){210, 58, 92, 1}));
+        assert(Same(kDevHomeKey[i], DevAcross(4, i % 3, i < 3 ? 154 : 196, 34)));
+    assert(Same(kDevHomeKey[0], (CtrPokeTouchRect){8, 154, 73, 34}) && Same(kDevHomeKey[1], (CtrPokeTouchRect){85, 154, 73, 34})
+           && Same(kDevHomeKey[2], (CtrPokeTouchRect){162, 154, 73, 34}) && Same(kDevHomeKey[3], (CtrPokeTouchRect){8, 196, 73, 34})
+           && Same(kDevHomeKey[4], (CtrPokeTouchRect){85, 196, 73, 34}) && Same(kDevHomeKey[5], (CtrPokeTouchRect){162, 196, 73, 34}));
+    assert(Same(kDevHomeRun, DevAcross(4, 3, 154, 34)) && Same(kDevHomeSpeed, DevAcross(4, 3, 196, 34)));
+    assert(Same(kDevHomeRun, (CtrPokeTouchRect){239, 154, 73, 34}) && Same(kDevHomeSpeed, (CtrPokeTouchRect){239, 196, 73, 34}));
+    for (int i = 0; i < 6; ++i)
+        assert(Same(DevHomeCell(i), (CtrPokeTouchRect){(int16_t)(210 + 30 * (i % 3)), (int16_t)(60 + 32 * (i / 3)), 30, 32}));
+    assert(Same(kDevHomeName, (CtrPokeTouchRect){212, 16, 90, 26}) && kDevHomeName.h == 2 * 13);
+    assert(kDevHomeRegion.x == 212 && kDevHomeRegion.y == 44 && Same(kDevHomeRule, (CtrPokeTouchRect){210, 57, 92, 1}));
+    assert(Same(kDevHomeTime, (CtrPokeTouchRect){212, 128, 90, 10}));
     assert(kDevHomeMapKey.x == 16 && kDevHomeMapKey.y == 16 && kDevHomeMapKey.h == 14
            && Same(kDevHomeFly, (CtrPokeTouchRect){158, 16, 44, 16}));        /* moved off Cinnabar Island */
     assert(PT_HOME_X == 14 && PT_HOME_Y == 14 && PT_HOME_W == 192 && PT_HOME_H == 128 && PT_HOME_SRC_X == 24 && PT_HOME_SRC_Y == 28);
-    for (int i = 0; i < 6; ++i)
-        if (!Within(kDevHomeKey[i], lower, 1)) {
+    for (int i = 0; i < 8; ++i) {
+        CtrPokeTouchRect k = i < 6 ? kDevHomeKey[i] : i == 6 ? kDevHomeRun : kDevHomeSpeed;
+
+        if (!Within(k, lower, 1)) {
             fprintf(stderr, "HOME: key %d leaves the lower part {0,150,320,90}\n", i);
             ++faults;
         }
+    }
     if (!Within(kDevHomeMapKey, window, 1) || !Within(kDevHomeFly, window, 1)) {   /* with their drops */
         fprintf(stderr, "HOME: the region key or FLY leaves the map's window\n");
         ++faults;
     }
-    if (!Within(window, paper, 0) || !Within(kDevHomeRun, paper, 0) || !Within(kDevHomeSpeed, paper, 0)
-        || !Within(kDevHomeName, paper, 0) || !Within(kDevHomeRegion, paper, 0) || !Within(kDevHomeRule, paper, 0)) {
+    if (!Within(window, paper, 0) || !Within(kDevHomeName, paper, 0) || !Within(kDevHomeRegion, paper, 0)
+        || !Within(kDevHomeRule, paper, 0) || !Within(kDevHomeTime, paper, 0)) {
         fprintf(stderr, "HOME: a piece of the panel leaves the screen's paper\n");
         ++faults;
     }
     for (int i = 0; i < 6; ++i)
-        if (!Within(DevHomeCell(i), paper, 0) || DevHomeCell(i).x < window.x + window.w) {
+        if (!Within(DevHomeCell(i), paper, 0) || DevHomeCell(i).x < window.x + window.w
+            || DevHomeCell(i).y < kDevHomeRule.y + kDevHomeRule.h) {
             fprintf(stderr, "HOME: the party's cell %d leaves the panel\n", i);
             ++faults;
         }
+    if (DevHomeCell(5).y + DevHomeCell(5).h > kDevHomeTime.y) {
+        fprintf(stderr, "HOME: the party's last row reaches into TIME\n");
+        ++faults;
+    }
     return faults;
 }
 
@@ -438,7 +442,7 @@ static int LearnFaults(void)
 /* The shapes the views without a board share (plan 3): DevAcross gives the boarded rows back (the battle's wild row
  * and its moves' top row) and fits n keys of 1-8 across; the tall rows (DevTallRow: the Pokedex's list, the relearner's)
  * on the list's paper and a narrow one; the small note with its two keys and CLOSE beside it, the tall screen over the
- * wide key, the question's note beside YES / NO (where HOME's third and sixth keys are). */
+ * wide key, the question's note beside YES / NO. */
 static int SharedFaults(void)
 {
     const CtrPokeTouchRect paper = {14, 46, 248, 132}, narrowPaper = {14, 46, 172, 132};
@@ -899,7 +903,7 @@ int main(void)
         {"HOME BAG", kDevHomeKey[2]}, {"HOME card", kDevHomeKey[3]}, {"HOME SAVE", kDevHomeKey[4]},
         {"HOME OPTIONS", kDevHomeKey[5]}, {"HOME RUN", kDevHomeRun}, {"HOME SPD", kDevHomeSpeed},
         {"HOME name", kDevHomeName}, {"HOME region line", kDevHomeRegion}, {"HOME rule", kDevHomeRule},
-        {"HOME region key", kDevHomeMapKey}, {"HOME FLY", kDevHomeFly},
+        {"HOME region key", kDevHomeMapKey}, {"HOME FLY", kDevHomeFly}, {"HOME TIME", kDevHomeTime},
         {"HOME cell 0", DevHomeCell(0)}, {"HOME cell 5", DevHomeCell(5)},
         {"battle screen", kDevBatScreen}, {"battle moves' screen", kDevBatMoveScreen}, {"battle FIGHT", kDevBatFight},
         {"battle BAG (3)", kDevBatRow3[0]}, {"battle POKeMON (3)", kDevBatRow3[1]}, {"battle RUN (3)", kDevBatRow3[2]},

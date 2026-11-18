@@ -1061,8 +1061,8 @@ static void KitUpper(void)
     assert(!out[0]);
 }
 
-/* Every piece on the red shell, for the eye (kit_sheet): the screen with its text, rows, icons, marks, bars, chips and
- * paper buttons; every key look up and sunk, a dimmed key, a hole, small keys (a tab, arrows, a pill). */
+/* Every piece on the red shell, for the eye (kit_sheet): the screen with its text, rows, icons, marks, bars and chips;
+ * every key look up and sunk, a dimmed key, a hole, small keys (a tab, arrows, a pill). */
 static void KitSheet(void)
 {
     static const CtrPokeTouchRect kKeys[8] = {{8, 106, 72, 36}, {84, 106, 72, 36}, {160, 106, 72, 36}, {236, 106, 76, 36},
@@ -1104,11 +1104,7 @@ static void KitSheet(void)
     x = DevLabelChip(152, p.y + 68, "EXP", DEV_HP_FRAME, DEV_EXP_LABEL);
     Fill(152 + x, p.y + 68, 40, 9, DEV_HP_TRACK);
     Fill(152 + x, p.y + 70, 26, 5, DEV_EXP);
-    /* Paper buttons and chips (x 240..304). */
-    DevPaperButton(&(CtrPokeTouchRect){244, p.y + 2, 44, 16}, 0);
-    DevTextInk("RUN", 248, p.y + 6, 286, DevRowInk(0), DEV_INK_SH);
-    DevPaperButton(&(CtrPokeTouchRect){244, p.y + 20, 44, 16}, 1);
-    DevTextInk("2x", 248, p.y + 24, 286, DevRowInk(1), DevRowInk(1));
+    /* Chips (x 240..304). */
     DevChip(240, p.y + 38, 40, 12, "FIRE", UiTypeColor(10), DevChipShadow(UiTypeColor(10)));
     DevChip(240, p.y + 52, 0, 12, "SPECIAL", DEV_CAT_SPECIAL, DEV_CAT_SPECIAL_SH);
     DevChip(240, p.y + 66, 0, 12, "SUPER", DEV_FX_SUPER, DEV_FX_SUPER_SH);
@@ -1212,8 +1208,9 @@ static int HomeHitV(const void *view, int x, int y)
 }
 
 /* The board's HOME: VERMILION CITY in KANTO (the map's region, under the name), the player's name on the card, five
- * Pokemon and a hole (HP 100, 66, 34, 0 and 8 %), the speed at 2x, the map's art there, another map open; no player on
- * the map, no destination. Strings as FireRed has them: no casing (the B views are upper case). */
+ * Pokemon and a hole (HP 100, 66, 34, 0 and 8 %), the play time 12:34, the speed at 2x, the map's art there, another
+ * map open; no player on the map, no destination. Strings as FireRed has them: no casing (the B views are upper
+ * case). */
 static CtrPokeTouchView HomeBoard(void)
 {
     static const uint8_t kHp[6] = {100, 66, 34, 0, 8, 0};
@@ -1236,6 +1233,8 @@ static CtrPokeTouchView HomeBoard(void)
         v.partyHp[i] = kHp[i];
         v.partyIcon[i] = (uint16_t)(i == 5 ? 0 : 25 + i);
     }
+    v.saveHours = 12;
+    v.saveMinutes = 34;
     v.speed = 2;
     v.speedEnabled = 1;
     return v;
@@ -1290,19 +1289,33 @@ static void HomeUpperCase(CtrPokeTouchView v)
     memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
 }
 
-/* The suite as the plan gives it (HOME's keys hit where they are drawn, the map at 1:1, every cell of every map in the
- * window, the name window inside it, a blink or a step presents only the window), the review's checks (upper case, the
- * name window clear of the region key and FLY, the Fly reasons under a long name, an egg), then the states for the eye. */
+/* The leftmost x in {x0, y0, w, h} of colour a and the rightmost of colour b: a pair's margins in its key (-1 for a
+ * colour not there). */
+static void InkSpan(int x0, int y0, int w, int h, uint16_t a, uint16_t b, int *left, int *right)
+{
+    *left = *right = -1;
+    for (int x = x0; x < x0 + w; ++x)
+        for (int y = y0; y < y0 + h; ++y) {
+            if (at(x, y) == a && *left < 0)
+                *left = x;
+            if (at(x, y) == b)
+                *right = x;
+        }
+}
+
+/* The suite as the plan gives it (HOME's eight keys hit where they are drawn, RUN's LED lit and dim, the play time, the
+ * map at 1:1, every cell of every map in the window, the name window inside it, a blink or a step presents only the
+ * window), the review's checks (upper case, the name window clear of the region key and FLY, the Fly reasons under a
+ * long name, an egg), then the states for the eye. */
 static void SuiteHome(void)
 {
-    static const int ids[6] = {PT_POKEDEX, PT_POKEMON, PT_BAG, PT_CARD, PT_SAVE, PT_OPTIONS};
     static const int corner[5][2] = {{0, 0}, {21, 0}, {0, 14}, {21, 14}, {10, 7}};
     static uint16_t tm[30 * 20], btm[30 * 20], gba[MAP_COLORS];
     static uint8_t tl[MAP_TILES * 32], btl[MAP_TILES * 32];
     CtrPokeTouchView v, old;
     CtrPokeTouchRect r, keyArea = DevKeyArea(&kDevHomeMapKey), flyArea = DevKeyArea(&kDevHomeFly);
     CtrDirtyList d;
-    int i, x, y, gx, gy, cx, cy, vx, vy, dx, dy, g;
+    int i, id, lit, x, y, gx, gy, cx, cy, vx, vy, dx, dy, g, left, right;
     const int flyX = kDevHomeFly.x + kDevHomeFly.w / 2, flyY = kDevHomeFly.y + kDevHomeFly.h / 2;
 
     richArt = 1;
@@ -1313,19 +1326,44 @@ static void SuiteHome(void)
     CtrPokeTouch_Draw(canvas, &v);
     old = v;
     shot("plain");
-    for (i = 0; i < 6; ++i) {
-        AssertHits(HomeHitV, &v, kDevHomeKey[i], ids[i]);
-        AssertKey(kDevHomeKey[i], DEV_LOOK_KEY, 0);
+    /* the eight keys (the board's [8|85|162|239, 154|196, 73, 34]): each hit on its face and drop, up */
+    for (id = PT_POKEDEX; id <= PT_OPTIONS; ++id) {
+        AssertHits(HomeHitV, &v, kDevHomeKey[id], id);
+        AssertKey(kDevHomeKey[id], DEV_LOOK_KEY, 0);
     }
-    assert(CtrPokeTouch_HomeHit(&v, 108, 174) == PT_NONE && at(108, 174) == DEV_SHELL_RED);      /* the gap */
-    assert(CtrPokeTouch_HomeHit(&v, 232, 131) == PT_RUN && CtrPokeTouch_HomeHit(&v, 280, 131) == PT_HOME_SPEED);
-    assert(CtrPokeTouch_HomeHit(&v, 225, 75) == PT_HOME_PARTY && CtrPokeTouch_HomeHit(&v, 256, 103) == PT_HOME_PARTY + 4
-           && CtrPokeTouch_HomeHit(&v, 287, 103) == PT_NONE && CtrPokeTouch_HomeHit(&v, 100, 80) == PT_NONE);
+    AssertHits(HomeHitV, &v, kDevHomeRun, PT_RUN); AssertHits(HomeHitV, &v, kDevHomeSpeed, PT_HOME_SPEED);
+    AssertKey(kDevHomeRun, DEV_LOOK_KEY, 0); AssertKey(kDevHomeSpeed, DEV_LOOK_KEY, 0);
+    /* the party's cells, each hit on itself where it holds a Pokemon; a hole, TIME and the window take nothing */
+    for (i = 0; i < 6; ++i) if (v.party[i]) AssertRowHits(HomeHitV, &v, DevHomeCell(i), PT_HOME_PARTY + i);
+    assert(CtrPokeTouch_HomeHit(&v, 82, 174) == PT_NONE && at(82, 174) == DEV_SHELL_RED);        /* the gap */
+    assert(CtrPokeTouch_HomeHit(&v, 287, 103) == PT_NONE && CtrPokeTouch_HomeHit(&v, 232, 131) == PT_NONE
+           && CtrPokeTouch_HomeHit(&v, 100, 80) == PT_NONE);
     assert(CtrPokeTouch_HomeWindowPoint(14, 14, &vx, &vy) && vx == 0 && vy == 0 && CtrPokeTouch_HomeWindowPoint(205, 141, &vx, &vy)
            && vx == 191 && vy == 127 && !CtrPokeTouch_HomeWindowPoint(206, 80, &vx, &vy) && !CtrPokeTouch_HomeWindowPoint(13, 80, &vx, &vy));
-    /* RUN's lamp as the board draws it: an 8x8 at 4 px in, its 6x6 face */
-    assert(at(241, 127) == DEV_HOME_LAMP_OFF_EDGE && at(248, 134) == DEV_HOME_LAMP_OFF_EDGE && at(242, 128) == DEV_HOME_LAMP_OFF
-           && at(247, 133) == DEV_HOME_LAMP_OFF && at(249, 130) == DEV_WHITE && at(240, 130) == DEV_WHITE);
+    /* the panel as the board has it: the name's capitals at 19, the rule at 57, the cells' bars [214 + 30c, 85 + 32r, 22,
+     * 4], the hole's ring [277, 96, 16, 16], TIME's capitals at 130 */
+    assert(Count(212, 16, 90, 3, DEV_INK) == 0 && Count(212, 19, 90, 1, DEV_INK) > 0);
+    assert(at(210, 57) == DEV_RULE && at(301, 57) == DEV_RULE && at(210, 56) == DEV_PAPER && at(210, 58) == DEV_PAPER);
+    assert(at(214, 85) == DEV_HP_FRAME && at(235, 88) == DEV_HP_FRAME && at(213, 86) == DEV_PAPER && at(236, 86) == DEV_PAPER
+           && at(274, 117) == DEV_PAPER && at(244, 117) == DEV_HP_FRAME);                       /* cell 4's bar; 5 a hole */
+    assert(at(284, 96) == DEV_HOME_HOLE && at(277, 104) == DEV_HOME_HOLE && at(284, 104) == DEV_PAPER && at(284, 95) == DEV_PAPER);
+    assert(Count(212, 124, 90, 6, DEV_INK2) == 0 && Count(212, 130, 3, 7, DEV_INK2) > 0);
+    /* RUN: the word and its LED, the pair centred, the LED's top at faceY + 14; lit while running, else a dim disc */
+    v.running = 1; DevCheckTouch(&old, &v); lit = Count(239, 154, 73, 37, DEV_KEY_EDGE); assert(Count(239, 154, 73, 37, DEV_LED) >= 20);
+    assert(Count(239, 168, 73, 6, DEV_LED) == Count(239, 154, 73, 37, DEV_LED));
+    InkSpan(239, 154, 73, 34, DEV_KEY_INK, DEV_LED, &left, &right);
+    assert(left > 239 && right > left && abs((left - 239) - (311 - right)) <= 1);
+    v.running = 0; DevCheckTouch(&old, &v); assert(Count(239, 154, 73, 37, DEV_LED) == 0 && Count(239, 154, 73, 37, DEV_KEY_EDGE) - lit >= 20);  /* the dim disc */
+    v.pressed = PT_RUN; DevCheckTouch(&old, &v); AssertKey(kDevHomeRun, DEV_LOOK_KEY, 1); assert(LedAt(kDevHomeRun)); v.pressed = PT_NONE;
+    /* SPD: its label small in the key's second ink, 6 px, the multiplier, the pair centred; sunk under a touch */
+    InkSpan(239, 196, 73, 34, DEV_KEY_INK2, DEV_KEY_INK, &left, &right);
+    assert(left > 239 && right > left && abs((left - 239) - (311 - right)) <= 2);
+    v.pressed = PT_HOME_SPEED; DevCheckTouch(&old, &v); AssertKey(kDevHomeSpeed, DEV_LOOK_KEY, 1); assert(LedAt(kDevHomeSpeed));
+    v.pressed = PT_NONE; DevCheckTouch(&old, &v);
+    /* TIME: FireRed's play clock, a minute later drawn whole */
+    v.saveMinutes = 33; DevCheckTouch(&old, &v);
+    v.saveMinutes = 34; assert(DevWhole(DevCheckTouch(&old, &v))); assert(Count(212, 130, 90, 7, DEV_INK2) > 0);
+    v.saveHours = 13; assert(DevWhole(DevCheckTouch(&old, &v))); v.saveHours = 12; DevCheckTouch(&old, &v);
     /* the map at 1:1: window pixel (dx, dy) is the Region Map screen's (24 + dx, 28 + dy) (below the region key's rows) */
     CtrPokeTouch_MapArt(0, tm, tl, gba, btm, btl);
     for (dy = 20; dy < 128; dy += 9)
@@ -1373,7 +1411,7 @@ static void SuiteHome(void)
     v.pressed = PT_NONE;
     v.enabled[PT_SAVE] = 0;
     DevCheckTouch(&old, &v);
-    assert(at(115, 215) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
+    assert(at(88, 213) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128));
     v.flyOk = 1;
     DevCheckTouch(&old, &v);
     assert(CtrPokeTouch_FlyHit(flyX, flyY));
@@ -1441,7 +1479,7 @@ static void SuiteHome(void)
     v.partyIcon[5] = 412;
     v.partyEgg = 1u << 5;
     DevCheckTouch(&old, &v);
-    assert(at(245, 112) == DEV_HP_FRAME && at(276, 112) == DEV_PAPER && at(287, 112) == DEV_PAPER);
+    assert(at(245, 117) == DEV_HP_FRAME && at(276, 117) == DEV_PAPER && at(287, 117) == DEV_PAPER);
     assert(CtrPokeTouch_HomeHit(&v, 287, 103) == PT_HOME_PARTY + 5);
 
     /* The states for the eye, each through Update first. pressed: POKeMON held (the board's). */
@@ -1519,6 +1557,7 @@ static void SuiteHome(void)
     v.enabled[PT_SAVE] = 0;
     v.shell = 2;
     DevCheckTouch(&old, &v);
+    assert(at(242, 171) == DevBlend(DEV_SHELL_GREEN, DEV_KEY, DEV_A_DIM) && at(242, 213) == at(242, 171));   /* RUN, SPD */
     shot("fainted");
     richArt = 0;
     iconArt = 0;
