@@ -327,6 +327,7 @@ static void BattlePartyFill(Snapshot *s)
             p->tag[i] = PartyTag(s->description[i]);
         snprintf(p->name[i], sizeof(p->name[i]), "%s", s->nick[i]);
         p->nameIsSpecies[i] = (uint8_t)(!p->egg[i] && PartyNameIsSpecies(i, p->name[i], CtrBottomParty_Species(i)));
+        p->gender[i] = s->gender[i];
     }
     {
         int slot, level, stats[6], gains[6];

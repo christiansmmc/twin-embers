@@ -246,19 +246,22 @@ static void PartyMenuGrid(void)
     }
 }
 
-/* The Party (boards B · POKeMON and its menu): the brief's numbers; the bays two to a row; with a menu the slim bays
- * left of its keys, none of them reaching the menu's screen; each screen above nothing it would cover. */
+/* The Party (boards B · POKeMON and its menu): the brief's numbers; the bays two to a row over the grid's note and exit
+ * (picking several: the small note, CONFIRM and the exit, 8 px apart); with a menu the slim bays left of its keys, none
+ * of them reaching the menu's screen; each screen above nothing it would cover. */
 static int PartyFaults(void)
 {
     int faults = 0;
 
-    assert(Same(kDevPtyNote, (CtrPokeTouchRect){8, 180, 222, 52}) && Same(kDevPtyCancel, (CtrPokeTouchRect){238, 180, 74, 50}));
-    assert(Same(kDevPtyConfirm, (CtrPokeTouchRect){238, 180, 74, 22}) && Same(kDevPtyCancelLow, (CtrPokeTouchRect){238, 206, 74, 24}));
-    assert(Same(kDevPtyMenuNote, (CtrPokeTouchRect){8, 182, 304, 50}) && Same(kDevPtyLevelScreen, (CtrPokeTouchRect){8, 8, 304, 166}));
+    assert(Same(kDevPtyConfirm, (CtrPokeTouchRect){168, 190, 68, 40}) && Same(kDevPtyLevelScreen, (CtrPokeTouchRect){8, 8, 304, 176}));
+    assert(Same(kDevPtyMenuNote, (CtrPokeTouchRect){8, 182, 304, 50}));
+    assert(kDevSmallNote.x + kDevSmallNote.w + 8 == kDevPtyConfirm.x && kDevPtyConfirm.x + kDevPtyConfirm.w + 8 == kDevGridExit.x);
     for (int i = 0; i < 6; ++i) {
+        int foot = DevPtyBay(i).y + DevPtyBay(i).h + DEV_DROP;
+
         assert(Same(DevPtyBay(i), (CtrPokeTouchRect){(int16_t)(i & 1 ? 164 : 8), (int16_t)(8 + 56 * (i >> 1)), 148, 50}));
-        if (DevPtyBay(i).y + DevPtyBay(i).h + DEV_DROP > kDevPtyNote.y || DevPtyBay(i).y + DevPtyBay(i).h + DEV_DROP > kDevPtyCancel.y) {
-            fprintf(stderr, "Party: bay %d reaches the screen or CANCEL\n", i);
+        if (foot > kDevGridNote.y || foot > kDevSmallNote.y || foot > kDevPtyConfirm.y || foot > kDevGridExit.y) {
+            fprintf(stderr, "Party: bay %d reaches the note, CONFIRM or CANCEL\n", i);
             ++faults;
         }
     }
@@ -277,7 +280,7 @@ static int PartyFaults(void)
                     ++faults;
                 }
         }
-    if (kDevPtyLevelScreen.y + kDevPtyLevelScreen.h + 1 > kDevPtyNote.y) {
+    if (kDevPtyLevelScreen.y + kDevPtyLevelScreen.h + 1 > kDevGridNote.y) {
         fprintf(stderr, "Party: the level-up screen (with its light row) reaches the note\n");
         ++faults;
     }
@@ -877,10 +880,10 @@ int main(void)
     const CtrPokeTouchRect batWild[] = {kDevBatFight, kDevBatRow4[0], kDevBatRow4[1], kDevBatRow4[2], kDevBatRow4[3]};
     const CtrPokeTouchRect batMoves[] = {kDevBatMove[0], kDevBatMove[1], kDevBatMove[2], kDevBatMove[3], kDevBatCancel};
     const CtrPokeTouchRect ptyBays[] = {DevPtyBay(0), DevPtyBay(1), DevPtyBay(2), DevPtyBay(3), DevPtyBay(4), DevPtyBay(5),
-                                        kDevPtyCancel};
+                                        kDevGridExit};
     const CtrPokeTouchRect ptyMulti[] = {DevPtyBay(0), DevPtyBay(1), DevPtyBay(2), DevPtyBay(3), DevPtyBay(4), DevPtyBay(5),
-                                         kDevPtyConfirm, kDevPtyCancelLow};
-    const CtrPokeTouchRect ptyOk[] = {kDevPtyCancel};
+                                         kDevPtyConfirm, kDevGridExit};
+    const CtrPokeTouchRect ptyOk[] = {kDevGridExit};
     const CtrPokeTouchRect sumKeys[] = {DevGridTab(4, 0), DevGridTab(4, 1), DevGridTab(4, 2), DevGridTab(4, 3), kDevGridUp,
                                         kDevGridDown, kDevGridExit};
     const CtrPokeTouchRect bagList[] = {DevGridTab(3, 0), DevGridTab(3, 1), DevGridTab(3, 2), kDevGridUp, kDevGridDown, kDevGridExit};
@@ -937,8 +940,7 @@ int main(void)
         {"battle BAG (4)", kDevBatRow4[0]}, {"battle BALL", kDevBatRow4[1]}, {"battle POKeMON (4)", kDevBatRow4[2]},
         {"battle RUN (4)", kDevBatRow4[3]}, {"battle move 0", kDevBatMove[0]}, {"battle move 1", kDevBatMove[1]},
         {"battle move 2", kDevBatMove[2]}, {"battle move 3", kDevBatMove[3]}, {"battle CANCEL", kDevBatCancel},
-        {"Party note", kDevPtyNote}, {"Party CANCEL", kDevPtyCancel}, {"Party CONFIRM", kDevPtyConfirm},
-        {"Party CANCEL (several)", kDevPtyCancelLow}, {"Party menu's screen", kDevPtyMenuNote},
+        {"Party CONFIRM", kDevPtyConfirm}, {"Party menu's screen", kDevPtyMenuNote},
         {"Party level-up screen", kDevPtyLevelScreen}, {"Party bay 0", DevPtyBay(0)}, {"Party bay 5", DevPtyBay(5)},
         {"Summary column", kDevSumColumn}, {"Summary picture", kDevSumPic}, {"Summary switch", kDevSumIvSwitch},
         {"Summary switch's touch", kDevSumIvSwitchHit}, {"Summary row 0", DevSumRow(0)}, {"Summary CANCEL row", DevSumRow(4)},

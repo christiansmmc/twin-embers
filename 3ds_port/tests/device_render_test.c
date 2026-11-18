@@ -1839,16 +1839,16 @@ static void SuiteBattle(void)
 
 /* ---- party: the bays, the action menu, YES / NO, a message, the level up, picking several (boards B · POKeMON) -------- */
 
-/* The board's Party: CHARMELEON 112/112 Lv36 (the cursor), PIDGEOTTO 62/94 Lv31, RATICATE 24/70 poisoned, NIDORINO
- * 0/76 fainted, ONIX 5/64 Lv25 and a hole; the menu's rows the board's (SUMMARY, SWITCH, ITEM, CUT, FLY, CANCEL) and two
- * more for a menu of eight. Names as FireRed has them, each its species' own. */
+/* The board's Party (def_party): CHARMELEON ♂ 112/112 Lv36 (the cursor), PIDGEOTTO ♀ 62/94 Lv31, RATICATE ♂ 24/70
+ * poisoned, NIDORINO ♂ 0/76 fainted, ONIX ♂ 5/64 Lv25 and a hole; the menu's rows the board's (SUMMARY, SWITCH, ITEM,
+ * CUT, FLY, CANCEL) and two more for a menu of eight. Names as FireRed has them, each its species' own. */
 static CtrBattleView PtyBoard(void)
 {
     static const struct {
         const char *name;
-        int level, hp, max, status;
-    } kMon[5] = {{"CHARMELEON", 36, 112, 112, 0}, {"PIDGEOTTO", 31, 62, 94, 0}, {"RATICATE", 28, 24, 70, 1},
-                 {"NIDORINO", 30, 0, 76, 0}, {"ONIX", 25, 5, 64, 0}};
+        int level, hp, max, status, gender;
+    } kMon[5] = {{"CHARMELEON", 36, 112, 112, 0, 0}, {"PIDGEOTTO", 31, 62, 94, 0, 1}, {"RATICATE", 28, 24, 70, 1, 0},
+                 {"NIDORINO", 30, 0, 76, 0, 0}, {"ONIX", 25, 5, 64, 0, 0}};
     static const char *const kMenu[8] = {"SUMMARY", "SWITCH", "ITEM", "CUT", "FLY", "CANCEL", "SURF", "STRENGTH"};
     CtrBattleView v;
     CtrBattleParty *p = &v.pty;
@@ -1867,6 +1867,7 @@ static CtrBattleView PtyBoard(void)
         p->hp[i] = (uint16_t)kMon[i].hp;
         p->maxHp[i] = (uint16_t)kMon[i].max;
         p->status[i] = (uint8_t)kMon[i].status;
+        p->gender[i] = (uint8_t)kMon[i].gender;
         p->icon[i] = (uint16_t)(i + 1);
         strcpy(p->name[i], kMon[i].name);
         p->nameIsSpecies[i] = 1;
@@ -1941,25 +1942,50 @@ static void SuiteParty(void)
 
     CtrBattleUi_Draw(canvas, &old);
     DevCheckBattle(&old, &v);
-    /* the plan's suite: the bays and CANCEL hit where they are drawn; the hole not hit */
+    /* the plan's suite (def_party, bay 0 sunk): the bays and CANCEL, the dark key in the exit corner, hit where they are
+     * drawn; the hole not hit */
     for (i = 0; i < 5; ++i) AssertHits(BatHitV, &v, DevPtyBay(i), BUI_PTY_SLOT + i);
+    AssertHits(BatHitV, &v, kDevGridExit, BUI_PTY_CANCEL); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0);
     assert(CtrBattleUi_Hit(&v, 238, 145) == -1 && at(238, 150) == DevBlend(DEV_SHELL_RED, 0, 72));      /* the hole */
-    AssertKey(DevPtyBay(0), DEV_LOOK_KEY, 1); AssertKey(DevPtyBay(3), DEV_LOOK_FAINT, 0); AssertHits(BatHitV, &v, kDevPtyCancel, BUI_PTY_CANCEL);
-    /* the board's pieces: the chosen bay's LED; RATICATE's PSN and NIDORINO's FNT at the right; NIDORINO's HP grey;
-     * CHARMELEON's bar, ONIX's numbers in the low ink; the screen's words; CANCEL dark */
+    AssertKey(DevPtyBay(0), DEV_LOOK_KEY, 1); AssertKey(DevPtyBay(3), DEV_LOOK_FAINT, 0);
+    assert(at(47, 41) == DEV_HP_GREEN && at(46, 41) == DEV_HP_FRAME);                                   /* the bar from x+38 */
+    assert(Count(8, 8, 304, 170, DEV_HP_LABEL) == 0);                                                   /* no "HP" tag on any bay */
+    assert(Count(46, 18, 110, 11, DEV_MALE) > 0 && Count(202, 14, 110, 11, DEV_FEMALE) > 0);           /* CHARMELEON ♂, PIDGEOTTO ♀ */
+    assert(Count(14, 196, 216, 30, DEV_INK) > 0 && Count(8, 180, 304, 9, DEV_INK) == 0);               /* the words on the footer */
+    /* the board's pieces: the chosen bay's LED; RATICATE's PSN (10 tall from faceY + 38) and NIDORINO's FNT at the right;
+     * NIDORINO's bar framed as any (no grey frame), its numbers in the faint ink; CHARMELEON's bar 56 wide; the level
+     * small in DEV_KEY_INK2 (capitals faceY + 39), ending 8 px in; ONIX's numbers in the low ink; CANCEL's word */
     assert(LedAt(DevPtyBay(0)) && at(128, 105) == DEV_PSN && at(284, 105) == DEV_FNT);
-    assert(at(202, 93) == UI_RGB(0x8A, 0x8A, 0x8A) && at(60, 41) == DEV_HP_FRAME && at(61, 42) == DEV_HP_GREEN);
+    assert(at(146, 102) == DEV_PSN && at(146, 111) == DEV_PSN && at(146, 101) != DEV_PSN && at(146, 112) != DEV_PSN);
+    assert(at(202, 93) == DEV_HP_FRAME && at(101, 41) == DEV_HP_FRAME && at(100, 41) == DEV_HP_GREEN && at(102, 41) != DEV_HP_FRAME);
+    assert(Count(258, 91, 46, 7, DEV_FAINT_INK) > 0);
+    assert(Count(110, 49, 38, 7, DEV_KEY_INK2) > 0 && Count(110, 46, 38, 3, DEV_KEY_INK2) == 0 && Count(148, 40, 8, 20, DEV_KEY_INK2) == 0);
     assert(Count(100, 145, 48, 9, DEV_LOW_INK) > 0 && Count(120, 33, 28, 9, DEV_LOW_INK) == 0);
-    assert(Count(14, 186, 210, 40, DEV_INK) > 0 && Count(46, 19, 90, 8, DEV_SUNK_INK) > 0 && Count(202, 75, 90, 8, DEV_FAINT_INK) > 0);
-    AssertKey(kDevPtyCancel, DEV_LOOK_DARK, 0); assert(Count(238, 180, 74, 50, DEV_DARK_INK) > 0 && Count(8, 64, 148, 53, DEV_LED) == 0);
+    assert(Count(46, 19, 90, 8, DEV_SUNK_INK) > 0 && Count(202, 75, 90, 8, DEV_FAINT_INK) > 0);
+    assert(Count(244, 190, 68, 40, DEV_DARK_INK) > 0 && Count(8, 64, 148, 53, DEV_LED) == 0);
     for (i = 0; i < 6; ++i)                                                    /* icons at 1:1, not hopping */
         if (i != 5) assert(at(DevPtyBay(i).x + 4 + 2, DevPtyBay(i).y + (i ? 0 : 2) + 9 + 2) != DevKeyFace(i == 3 ? DEV_LOOK_FAINT : DEV_LOOK_KEY, !i));
     shot("bays");
     /* the touch sinks one key of the group: a bay, CANCEL; the cursor on CANCEL (FireRed's slot 7) sinks it */
     v.pressed = BUI_PTY_SLOT + 2; DevCheckBattle(&old, &v); AssertKey(DevPtyBay(2), DEV_LOOK_KEY, 1); AssertKey(DevPtyBay(0), DEV_LOOK_KEY, 0);
-    v.pressed = BUI_PTY_CANCEL; DevCheckBattle(&old, &v); AssertKey(DevPtyBay(0), DEV_LOOK_KEY, 0); assert(LedAt(kDevPtyCancel));
-    v.pressed = -1; v.pty.cursor = -1; v.pty.button = 1; DevCheckBattle(&old, &v); assert(LedAt(kDevPtyCancel));
-    v.pty.cursor = 0; v.pty.button = -1; DevCheckBattle(&old, &v); assert(Count(238, 180, 74, 53, DEV_LED) == 0);
+    v.pressed = BUI_PTY_CANCEL; DevCheckBattle(&old, &v); AssertKey(DevPtyBay(0), DEV_LOOK_KEY, 0); assert(LedAt(kDevGridExit));
+    v.pressed = -1; v.pty.cursor = -1; v.pty.button = 1; DevCheckBattle(&old, &v); assert(LedAt(kDevGridExit));
+    v.pty.cursor = 0; v.pty.button = -1; DevCheckBattle(&old, &v); assert(Count(244, 190, 68, 43, DEV_LED) == 0);
+    /* the gender sign: drawn (a change redraws), none for a Pokemon without one; a name as wide as the bay is cut to leave
+     * the sign its room, short of the LED's column (x + w - 14) */
+    v.pty.gender[2] ^= 1; assert(DevWhole(DevCheckBattle(&old, &v)));
+    assert(Count(46, 72, 110, 11, DEV_FEMALE) > 0 && Count(46, 72, 110, 11, DEV_MALE) == 0);
+    v.pty.gender[2] = 2; DevCheckBattle(&old, &v); assert(Count(46, 64, 110, 50, DEV_MALE) == 0 && Count(46, 64, 110, 50, DEV_FEMALE) == 0);
+    v.pty.gender[2] = 0; DevCheckBattle(&old, &v);
+    {
+        uint8_t keep = fontWidths[0xc7];                                       /* M, 12 px: the name overruns the bay */
+
+        fontWidths[0xc7] = 12; memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        strcpy(v.pty.name[0], "MMMMMMMMMM"); v.pty.nameIsSpecies[0] = 0; DevCheckBattle(&old, &v);
+        assert(Count(46, 18, 96, 11, DEV_MALE) > 0 && Count(142, 8, 14, 52, DEV_MALE) == 0);
+        fontWidths[0xc7] = keep; memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        strcpy(v.pty.name[0], "CHARMELEON"); v.pty.nameIsSpecies[0] = 1; DevCheckBattle(&old, &v);
+    }
     /* not drawn: the icons' frames, the column layout, the battle's own fields */
     v.pty.iconFrame[1] = 3; v.pty.lead = 2; v.activeFrame = 1; v.cursor = 2; v.move[0].present = 1; v.activeHp = 9;
     v.party[3] = 2; v.bag.count = 3; v.ball = CTR_QUICK_BALL_READY; v.target[1].present = 1; v.showCursor = 1;
@@ -1974,24 +2000,40 @@ static void SuiteParty(void)
 
     /* FORCED (a Pokemon must be sent out): CANCEL grey, never taken; FireRed's cursor can still be on it (SEND OUT
      * then fails), and then it is the chosen key, sunk with its LED, grey all the same; a touch on a bay is chosen */
-    v.pty.mode = BUI_PTY_FORCED; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 275, 205) == -1 && CtrBattleUi_Hit(&v, 302, 190) == -1);
-    assert(at(245, 200) == DevBlend(DEV_SHELL_RED, DevKeyFace(DEV_LOOK_DARK, 0), 128) && at(302, 187) != DevBlend(DEV_SHELL_RED, DEV_LED, 128));
+    v.pty.mode = BUI_PTY_FORCED; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 278, 210) == -1);
+    assert(CtrBattleUi_Hit(&v, 275, 205) == -1 && CtrBattleUi_Hit(&v, 302, 190) == -1 && Count(14, 196, 216, 30, DEV_INK) > 0);
+    assert(at(245, 200) == DevBlend(DEV_SHELL_RED, DevKeyFace(DEV_LOOK_DARK, 0), 128) && at(302, 197) != DevBlend(DEV_SHELL_RED, DEV_LED, 128));
     shot("forced");
     v.pty.cursor = -1; v.pty.button = 1; DevCheckBattle(&old, &v); AssertKey(DevPtyBay(0), DEV_LOOK_KEY, 0);
-    assert(at(245, 200) == DevBlend(DEV_SHELL_RED, DevKeyFace(DEV_LOOK_DARK, 1), 128) && at(302, 187) == DevBlend(DEV_SHELL_RED, DEV_LED, 128));
+    assert(at(245, 200) == DevBlend(DEV_SHELL_RED, DevKeyFace(DEV_LOOK_DARK, 1), 128) && at(302, 197) == DevBlend(DEV_SHELL_RED, DEV_LED, 128));
     assert(CtrBattleUi_Hit(&v, 275, 205) == -1);
     shot("forced_cancel");
     v.pressed = BUI_PTY_SLOT + 1; DevCheckBattle(&old, &v); AssertKey(DevPtyBay(1), DEV_LOOK_KEY, 1);
-    assert(at(302, 187) != DevBlend(DEV_SHELL_RED, DEV_LED, 128));
+    assert(at(302, 197) != DevBlend(DEV_SHELL_RED, DEV_LED, 128));
     v.pressed = -1; v.pty.cursor = 0; v.pty.button = -1; DevCheckBattle(&old, &v);
-    v.pty.mode = BUI_PTY_MULTI; v.pty.button = 1; DevCheckBattle(&old, &v);
-    AssertHits(BatHitV, &v, kDevPtyConfirm, BUI_PTY_CONFIRM); AssertHits(BatHitV, &v, kDevPtyCancelLow, BUI_PTY_CANCEL); AssertKey(kDevPtyCancelLow, DEV_LOOK_DARK, 1);
+    /* picking several (the Decisions; no board): the words on the small note, CONFIRM cream 8 px after it, CANCEL in the
+     * exit corner; nothing between the note and CONFIRM, the words not past the small note's paper */
+    v.pty.mode = BUI_PTY_MULTI; DevCheckBattle(&old, &v); AssertHits(BatHitV, &v, kDevPtyConfirm, BUI_PTY_CONFIRM);
+    AssertHits(BatHitV, &v, kDevGridExit, BUI_PTY_CANCEL); assert(CtrBattleUi_Hit(&v, 162, 210) == -1);
+    AssertKey(kDevPtyConfirm, DEV_LOOK_KEY, 0); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0);
+    assert(Count(14, 196, 140, 30, DEV_INK) > 0 && Count(154, 190, 90, 43, DEV_INK) == 0 && at(164, 210) == DEV_SHELL_RED);
+    assert(Count(168, 190, 68, 43, DEV_KEY_INK) > 0);                                                   /* CONFIRM's word */
+    v.pty.button = 1; DevCheckBattle(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1); AssertKey(kDevPtyConfirm, DEV_LOOK_KEY, 0);
     /* picking several: the order on the picked bays, a Pokemon that may not enter grey; the cursor on CONFIRM */
     v.pty.cursor = -1; v.pty.button = 0; v.pty.entry[0] = BUI_PTY_FIRST + 1; v.pty.entry[1] = BUI_PTY_FIRST; v.pty.entry[2] = BUI_PTY_NOT_ABLE;
     v.pty.entry[3] = v.pty.entry[4] = BUI_PTY_ABLE; DevCheckBattle(&old, &v);
     AssertKey(kDevPtyConfirm, DEV_LOOK_KEY, 1); AssertKey(DevPtyBay(2), DEV_LOOK_FAINT, 0); AssertKey(DevPtyBay(0), DEV_LOOK_KEY, 0);
+    assert(LedAt(kDevPtyConfirm) && Count(244, 190, 68, 43, DEV_LED) == 0);
     assert(at(146, 50) == DEV_BLUE_INK && at(302, 50) == DEV_BLUE_INK && at(146, 160) != DEV_BLUE_INK);
     shot("multi");
+    v.pty.entry[4] = BUI_PTY_NOT_ABLE; DevCheckBattle(&old, &v); AssertKey(DevPtyBay(4), DEV_LOOK_FAINT, 0);   /* ONIX may not */
+    assert(Count(110, 159, 38, 7, DEV_FAINT_INK) > 0 && Count(110, 159, 38, 7, DEV_KEY_INK2) == 0);   /* its level faint */
+    v.pty.entry[4] = BUI_PTY_ABLE; DevCheckBattle(&old, &v);
+    /* a message picking several: on the small note with FireRed's arrow at its paper's foot, both keys grey */
+    v.pty.panel = BUI_PTY_TEXT; strcpy(v.pty.message, "CHARMELEON is already in battle!"); DevCheckBattle(&old, &v);
+    assert(at(171, 210) == dim && at(247, 210) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, 128) && Count(14, 196, 140, 30, DEV_INK) > 0);
+    assert(at(144, 222) == DEV_INK2 && at(140, 218) == DEV_INK2 && Count(154, 190, 90, 43, DEV_INK) == 0);
+    v.pty.panel = BUI_PTY_NONE; v.pty.message[0] = 0; DevCheckBattle(&old, &v);
     v.pty.button = 1; v.pty.cursor = 0; memset(v.pty.entry, 0, sizeof(v.pty.entry)); DevCheckBattle(&old, &v);
     v.pty.mode = BUI_PTY_SWITCH; v.pty.panel = BUI_PTY_ACTIONS; v.pty.menuCount = 3; v.pty.menuCursor = 0; v.pty.menuDark = 0x04; DevCheckBattle(&old, &v);
     for (i = 0; i < 3; ++i) AssertHits(BatHitV, &v, DevPtyMenuKey(3, i), BUI_PTY_MENU + i);
@@ -2000,6 +2042,8 @@ static void SuiteParty(void)
     AssertKey(DevPtySlim(3, 0), DEV_LOOK_KEY, 1); AssertKey(DevPtySlim(3, 1), DEV_LOOK_KEY, 0); AssertKey(DevPtySlim(3, 3), DEV_LOOK_FAINT, 0);
     assert(at(100, 8 + 28 * 5 + 12) == DevBlend(DEV_SHELL_RED, 0, 72) && Count(14, 188, 292, 38, DEV_INK) > 0);
     AssertKey(DevPtyMenuKey(3, 0), DEV_LOOK_KEY, 1); AssertKey(DevPtyMenuKey(3, 1), DEV_LOOK_KEY, 0);
+    v.pty.gender[1] ^= 1; assert(DevCheckBattle(&old, &v).count == 0);                                  /* no sign on a slim bay */
+    v.pty.gender[1] ^= 1; assert(DevCheckBattle(&old, &v).count == 0);
     v.pressed = BUI_PTY_MENU + 1; DevCheckBattle(&old, &v); AssertKey(DevPtyMenuKey(3, 1), DEV_LOOK_KEY, 1); AssertKey(DevPtyMenuKey(3, 0), DEV_LOOK_KEY, 0);
     v.pressed = -1; DevCheckBattle(&old, &v);
     strcpy(v.pty.menuName[0], "SHIFT"); strcpy(v.pty.menuName[1], "SUMMARY"); strcpy(v.pty.menuName[2], "CANCEL"); DevCheckBattle(&old, &v);
@@ -2032,25 +2076,35 @@ static void SuiteParty(void)
     shot("yesno");
     v.pty.menuName[5][0] = 'X'; v.pty.menuBlue = 0x20; assert(DevCheckBattle(&old, &v).count == 0);      /* rows past the menu: not drawn */
     v.pty.panel = BUI_PTY_TEXT; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 10, 10) == BUI_PTY_MESSAGE && CtrBattleUi_Hit(&v, 300, 230) == BUI_PTY_MESSAGE);
-    /* a message: on the screen, the keys grey and none chosen */
+    /* a message: on the grid's note with FireRed's arrow at its paper's foot, the keys grey and none chosen */
     strcpy(v.pty.message, "CHARMELEON is already in battle!"); DevCheckBattle(&old, &v);
-    assert(at(11, 33) == dim && at(241, 205) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, 128) && Count(14, 186, 210, 40, DEV_INK) > 0);
+    assert(at(11, 33) == dim && at(247, 205) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, 128) && Count(14, 196, 216, 30, DEV_INK) > 0);
+    assert(at(220, 222) == DEV_INK2 && at(216, 218) == DEV_INK2 && Count(8, 180, 304, 9, DEV_INK) == 0);
     v.pressed = BUI_PTY_MESSAGE; v.pty.menuCount = 5; assert(DevCheckBattle(&old, &v).count == 0);         /* nothing to sink */
     v.pressed = -1; v.pty.menuCount = 2;
     shot("message");
-    v.pty.panel = BUI_PTY_LEVELUP; DevCheckBattle(&old, &v); assert(CtrBattleUi_Hit(&v, 160, 100) == BUI_PTY_MESSAGE); AssertKey(kDevPtyCancel, DEV_LOOK_KEY, 1);
-    /* a level up: the stats and their gains on the tall screen, the message, OK */
+    /* a level up (no board: Call 8): the stats and their gains on the tall screen (to y 184), the message on the grid's
+     * note, OK cream in the exit corner, up, sunk while a touch is held (taken anywhere); nothing else of the Party drawn */
     {
         static const uint16_t kStat[6] = {120, 80, 74, 86, 72, 98};
+        CtrBattleView lv = v, lo = old;
 
-        v.pty.lvSlot = 0; v.pty.lvLevel = 37;
-        for (i = 0; i < 6; ++i) { v.pty.lvStat[i] = kStat[i]; v.pty.lvGain[i] = (int16_t)(2 + (i & 1)); }
-        strcpy(v.pty.message, "CHARMELEON grew to Lv. 37!"); DevCheckBattle(&old, &v);
-        assert(LedAt(kDevPtyCancel) && Count(14, 14, 292, 154, DEV_FX_SUPER) > 0 && Count(14, 14, 292, 20, DEV_INK) > 0);
-        assert(Count(14, 186, 210, 40, DEV_INK) > 0 && at(20, 20) == DEV_PAPER);
-        v.pressed = BUI_PTY_MESSAGE; v.pty.cursor = 3; v.pty.mode = BUI_PTY_TARGET; assert(DevCheckBattle(&old, &v).count == 0);
-        v.pressed = -1; v.pty.cursor = 0; v.pty.mode = BUI_PTY_SWITCH; DevCheckBattle(&old, &v);
+        lv.pty.lvSlot = 0; lv.pty.lvLevel = 37;
+        for (i = 0; i < 6; ++i) { lv.pty.lvStat[i] = kStat[i]; lv.pty.lvGain[i] = (int16_t)(2 + (i & 1)); }
+        strcpy(lv.pty.message, "CHARMELEON grew to Lv. 37!");
+        lv.pty.panel = BUI_PTY_LEVELUP; DevCheckBattle(&lo, &lv); AssertKey(kDevGridExit, DEV_LOOK_KEY, 0);
+        lv.pressed = BUI_PTY_MESSAGE; assert(DevWhole(DevCheckBattle(&lo, &lv))); AssertKey(kDevGridExit, DEV_LOOK_KEY, 1);
+        assert(LedAt(kDevGridExit) && CtrBattleUi_Hit(&lv, 160, 100) == BUI_PTY_MESSAGE && CtrBattleUi_Hit(&lv, 278, 210) == BUI_PTY_MESSAGE);
+        lv.pty.cursor = 3; lv.pty.mode = BUI_PTY_TARGET; assert(DevCheckBattle(&lo, &lv).count == 0);
+        lv.pressed = -1; assert(DevWhole(DevCheckBattle(&lo, &lv))); AssertKey(kDevGridExit, DEV_LOOK_KEY, 0);
+        assert(Count(244, 190, 68, 43, DEV_LED) == 0 && Count(244, 190, 68, 43, DEV_KEY_INK) > 0);        /* OK, up */
+        assert(Count(14, 14, 292, 164, DEV_FX_SUPER) > 0 && Count(14, 14, 292, 20, DEV_INK) > 0 && at(20, 20) == DEV_PAPER);
+        assert(at(100, 177) == DEV_PAPER && at(100, 178) != DEV_PAPER);                                  /* the screen to y 184 */
+        assert(Count(14, 196, 216, 30, DEV_INK) > 0 && Count(8, 180, 304, 9, DEV_INK) == 0);
+        lv.pty.cursor = 0; lv.pty.mode = BUI_PTY_SWITCH; assert(DevCheckBattle(&lo, &lv).count == 0);
         shot("levelup");
+        v = lv;
+        old = lo;
     }
     PtyUpperCase(v);
     CtrBattleUi_Draw(canvas, &old);
@@ -2062,7 +2116,7 @@ static void SuiteParty(void)
     v.state = BUI_BAG; assert(DevWhole(DevCheckBattle(&old, &v)));
     v.state = BUI_PARTY; assert(DevWhole(DevCheckBattle(&old, &v)));
     v.pty.egg[1] = 1; DevCheckBattle(&old, &v); AssertHits(BatHitV, &v, DevPtyBay(1), BUI_PTY_SLOT + 1);   /* an egg: no bar, still a bay */
-    assert(Count(164 + 38, 8 + 29, 100, 9, DEV_HP_FRAME) == 0 && Count(164 + 38, 8 + 29, 100, 9, DEV_HP_LABEL) == 0);
+    assert(Count(164 + 38, 8 + 29, 100, 9, DEV_HP_FRAME) == 0 && Count(164, 8, 148, 53, DEV_FEMALE) == 0);  /* nor a sign */
     for (i = 1; i < 6; ++i) v.pty.present[i] = 0;                                                          /* a party of one */
     DevCheckBattle(&old, &v);
     for (i = 1; i < 6; ++i) { CtrPokeTouchRect r = DevPtyBay(i); assert(CtrBattleUi_Hit(&v, r.x + 74, r.y + 40) == -1 && at(r.x + 74, r.y + 40) == DevBlend(DEV_SHELL_RED, 0, 72)); }

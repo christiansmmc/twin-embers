@@ -125,18 +125,17 @@ static inline CtrPokeTouchRect DevBatBallArrow(const CtrPokeTouchRect *r, int ne
     return a;
 }
 
-/* ---- The Party (boards B · POKeMON and B · POKeMON: menu de ações, 3ds_device_party_impl.h) ------------------------------
- * The field's and the battle's alike. The six bays two to a row in the game's order, the screen under them with what the
- * Party says, CANCEL beside it (picking several: CONFIRM over a shorter CANCEL). With the action menu or YES / NO open
- * (n rows) the bays become a column of slim ones and the rows keys beside them: one column of up to four as on the
- * board, two columns beyond with the slim bays narrowed, as the game's D-pad walks them (3ds_party_grid.h, recipe 0257);
- * the menu's screen takes the whole width under them. A Rare Candy's level up: a tall screen, OK in CANCEL's place. */
-static const CtrPokeTouchRect kDevPtyNote __attribute__((unused)) = {8, 180, 222, 52};
-static const CtrPokeTouchRect kDevPtyCancel __attribute__((unused)) = {238, 180, 74, 50};
-static const CtrPokeTouchRect kDevPtyConfirm __attribute__((unused)) = {238, 180, 74, 22};
-static const CtrPokeTouchRect kDevPtyCancelLow __attribute__((unused)) = {238, 206, 74, 24};
+/* ---- The Party (boards def_party and def_party_menu, 3ds_device_party_impl.h) -----------------------------------------
+ * The field's and the battle's alike. The six bays two to a row in the game's order; under them the grid's note with
+ * what the Party says and CANCEL, the dark key in the exit corner (kDevGridNote, kDevGridExit); picking several (the
+ * Decisions) the small note (kDevSmallNote), CONFIRM 8 px after it and CANCEL in the exit corner. With the action menu or
+ * YES / NO open (n rows) the bays become a column of slim ones and the rows keys beside them: one column of up to four as
+ * on the board, two columns beyond with the slim bays narrowed, as the game's D-pad walks them (3ds_party_grid.h, recipe
+ * 0257); the menu's screen takes the whole width under them. A Rare Candy's level up: a tall screen over the grid's
+ * note, OK in the exit corner. */
+static const CtrPokeTouchRect kDevPtyConfirm __attribute__((unused)) = {168, 190, 68, 40};
 static const CtrPokeTouchRect kDevPtyMenuNote __attribute__((unused)) = {8, 182, 304, 50};
-static const CtrPokeTouchRect kDevPtyLevelScreen __attribute__((unused)) = {8, 8, 304, 166};
+static const CtrPokeTouchRect kDevPtyLevelScreen __attribute__((unused)) = {8, 8, 304, 176};
 
 /* Slot i's bay (0-5): left to right, then down. */
 static inline CtrPokeTouchRect DevPtyBay(int i)
@@ -214,7 +213,8 @@ static inline CtrPokeTouchRect DevBagMenuKey(int n, int i)
 /* ---- The shapes the views without a board share (plan 3) ------------------------------------------------------------
  * No board draws these views: they draw on the grid's names and these few. Keys across the screen (DevAcross: the
  * battle's rows); a list's rows h tall on the grid's screen's paper (DevListRow; DevTallRow: the Pokedex's list, the
- * relearner's); the small note (a screen) with two small keys and the grid's exit beside it; a tall screen over a wide
+ * relearner's); the small note (a screen) with two small keys and the grid's exit beside it (the Party picking several:
+ * its CONFIRM, kDevPtyConfirm, in the keys' place); a tall screen over a wide
  * key; the tall note with BACK beside it (kDevTallNote, kDevTallBack: the frame's, the move to forget's, the Trainer
  * Card's and the Pokedex page's BACK until their boards' tasks); a question's note beside YES and
  * NO (where HOME's third and sixth keys are). */

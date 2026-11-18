@@ -664,6 +664,12 @@ int main(void)
 }
 ''')
 
+    def test_party_fill_copies_gender(self):
+        """The B Party's bays show each Pokemon's gender sign (def_party): the fill copies the Party snapshot's (0 male,
+        1 female, 2 none, CtrBottomParty_Gender) beside the name."""
+        fill = (ROOT / '3ds_port/src/3ds_bottom_battle_fill_impl.h').read_text(encoding='utf-8')
+        self.assertIn('p->gender[i] = s->gender[i];', function(fill, 'BattlePartyFill'))
+
     def test_touch_shows_where_it_goes(self):
         """The owner saw the arrow go to a touched tab or Pokemon, back to where it was, then to it again. A Party slot
         touched (the Party takes the touch on its next frame) is shown as the selection until the Party's cursor is
