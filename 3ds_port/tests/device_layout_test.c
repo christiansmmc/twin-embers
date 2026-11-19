@@ -159,19 +159,20 @@ static int HomeFaults(void)
     return faults;
 }
 
-/* The battle (boards B · Comandos and B · Golpes): the brief's numbers; each screen with its light row above the keys
- * under it; the quick ball's arrows on its key's face. */
+/* The battle (boards def_fight and def_moves): the brief's numbers (the commands def_fight's, owner O1: a trainer's three
+ * keys of 96, a wild battle's four of 73, at y 168 and 62 tall; the moves' four keys of 148x84 from the top); the
+ * commands' screen with its light row above FIGHT; the moves' lower keys with their drops clear of the grid's footer; the
+ * quick ball's arrows on its key's face. */
 static int BattleFaults(void)
 {
     int faults = 0;
 
-    assert(Same(kDevBatScreen, (CtrPokeTouchRect){8, 8, 304, 88}) && Same(kDevBatMoveScreen, (CtrPokeTouchRect){8, 8, 304, 56}));
-    assert(Same(kDevBatFight, (CtrPokeTouchRect){8, 104, 304, 56}) && Same(kDevBatCancel, (CtrPokeTouchRect){236, 212, 76, 20}));
+    assert(Same(kDevBatScreen, (CtrPokeTouchRect){8, 8, 304, 92}) && Same(kDevBatFight, (CtrPokeTouchRect){8, 108, 304, 48}));
     for (int i = 0; i < 3; ++i)
-        assert(Same(kDevBatRow3[i], (CtrPokeTouchRect){(int16_t)(8 + 104 * i), 170, 96, 60}));
+        assert(Same(kDevBatRow3[i], (CtrPokeTouchRect){(int16_t)(8 + 104 * i), 168, 96, 62}));
     for (int i = 0; i < 4; ++i) {
-        assert(Same(kDevBatRow4[i], (CtrPokeTouchRect){(int16_t)(8 + 77 * i), 170, 73, 60}));
-        assert(Same(kDevBatMove[i], (CtrPokeTouchRect){(int16_t)(i & 1 ? 164 : 8), (int16_t)(i < 2 ? 72 : 142), 148, 62}));
+        assert(Same(kDevBatRow4[i], (CtrPokeTouchRect){(int16_t)(8 + 77 * i), 168, 73, 62}));
+        assert(Same(kDevBatMove[i], (CtrPokeTouchRect){(int16_t)(i & 1 ? 164 : 8), (int16_t)(i < 2 ? 8 : 98), 148, 84}));
     }
     for (int next = 0; next < 2; ++next) {
         const CtrPokeTouchRect *k = &kDevBatRow4[1];
@@ -183,10 +184,15 @@ static int BattleFaults(void)
             ++faults;
         }
     }
-    if (kDevBatScreen.y + kDevBatScreen.h + 1 > kDevBatFight.y || kDevBatMoveScreen.y + kDevBatMoveScreen.h + 1 > kDevBatMove[0].y) {
-        fprintf(stderr, "battle: a screen (with its light row) reaches its keys\n");
+    if (kDevBatScreen.y + kDevBatScreen.h + 1 > kDevBatFight.y) {
+        fprintf(stderr, "battle: the commands' screen (with its light row) reaches FIGHT\n");
         ++faults;
     }
+    for (int i = 2; i < 4; ++i)         /* their drops end by 186, 4 px over the grid's footer (y 190) */
+        if (kDevBatMove[i].y + kDevBatMove[i].h + DEV_DROP > 186) {
+            fprintf(stderr, "battle: the moves' lower key %d ends past 186 with its drop\n", i);
+            ++faults;
+        }
     return faults;
 }
 
@@ -353,8 +359,8 @@ static int BagFaults(void)
 /* The grid (def_spec): TOPO y 8-32 (the tabs, DevGridTab, or the title, kDevGridTitle), MEIO y 40-184 (the screen with
  * ▲▼ beside it, the wide screen, or a narrow screen with the key column at x 204: DevGridColumnKey), RODAPÉ y 190-232
  * (the note with the exit beside it, or the wide note); a list's five rows, 24 tall and 26 apart, on its screen's
- * paper. The tall note and BACK (the frame's, the Trainer Card's, the Pokedex page's and the move to forget's until
- * their tasks) keep their numbers. */
+ * paper. The tall note and BACK (the frame's, the Trainer Card's and the Pokedex page's until their tasks) keep their
+ * numbers. */
 static int GridFaults(void)
 {
     const CtrPokeTouchRect paper = PaperOf(kDevGridScreen), narrowPaper = PaperOf(kDevGridScreenNarrow);
@@ -405,53 +411,53 @@ static int GridFaults(void)
     return faults;
 }
 
-/* The move to forget's and the relearner's own rectangles: today's numbers, which were the Summary's and the Bag's (the
- * move to forget's slots right of its column on its screen's paper, one under the other; the relearner's YES and NO
- * right of its narrow screens). */
+/* The move to forget (def_learn) on the grid's wide screen (kDevGridWide): its column and the picture in it on the
+ * paper, the four moves' slots and the new one's right of the column, 22 tall and 24 apart (the board's exception to
+ * the list rule), the rule between the fourth and the new one, as wide as the slots. (The relearner, def_relearn, has
+ * no rectangle of its own: the grid's list page, and YES / NO in the grid's column beside its narrow screen.) */
 static int LearnFaults(void)
 {
-    const CtrPokeTouchRect paper = PaperOf(kDevLearnScreen);
+    const CtrPokeTouchRect paper = PaperOf(kDevGridWide);
     int faults = 0;
 
-    assert(Same(kDevLearnScreen, (CtrPokeTouchRect){8, 40, 304, 140}) && Same(kDevLearnColumn, (CtrPokeTouchRect){14, 46, 104, 128}));
-    assert(Same(kDevLearnPic, (CtrPokeTouchRect){34, 82, 64, 64}));
-    assert(Same(kDevRlNarrow, (CtrPokeTouchRect){8, 40, 184, 144}) && Same(kDevRlDescNarrow, (CtrPokeTouchRect){8, 190, 184, 42}));
-    assert(Same(DevRlKey(0), (CtrPokeTouchRect){200, 40, 112, 30}) && Same(DevRlKey(1), (CtrPokeTouchRect){200, 78, 112, 38}));
+    assert(Same(kDevLearnColumn, (CtrPokeTouchRect){14, 46, 104, 132}) && Same(kDevLearnPic, (CtrPokeTouchRect){34, 76, 64, 64}));
+    assert(Same(kDevLearnRule, (CtrPokeTouchRect){124, 146, 176, 1}) && Same(DevLearnSlot(4), (CtrPokeTouchRect){124, 150, 176, 22}));
     for (int i = 0; i < 5; ++i) {
         CtrPokeTouchRect r = DevLearnSlot(i);
 
-        assert(Same(r, (CtrPokeTouchRect){124, (int16_t)(52 + 24 * i), 176, 22}));
-        if (!Within(r, paper, 0) || r.x < kDevLearnColumn.x + kDevLearnColumn.w || (i > 0 && r.y < DevLearnSlot(i - 1).y + 22)) {
-            fprintf(stderr, "the move to forget: slot %d leaves the paper right of the column, or meets the one above\n", i);
+        if (i < 4)
+            assert(Same(r, (CtrPokeTouchRect){124, (int16_t)(48 + 24 * i), 176, 22}));
+        if (!Within(r, paper, 0) || r.x < kDevLearnColumn.x + kDevLearnColumn.w + 6 || r.h != 22
+            || (i > 0 && r.y < DevLearnSlot(i - 1).y + 24)) {
+            fprintf(stderr, "the move to forget: slot %d leaves the paper right of the column, is not 22 tall, or comes "
+                            "within 2 px of the one above\n", i);
             ++faults;
         }
     }
-    if (!Within(kDevLearnColumn, paper, 0) || !Within(kDevLearnPic, kDevLearnColumn, 0)
-        || kDevLearnScreen.y + kDevLearnScreen.h + 1 > kDevTallNote.y) {
-        fprintf(stderr, "the move to forget: the column leaves the paper, the picture the column, or the screen meets the note\n");
+    if (!Within(kDevLearnColumn, paper, 0) || !Within(kDevLearnPic, kDevLearnColumn, 0) || !Within(kDevLearnRule, paper, 0)
+        || kDevLearnColumn.y != paper.y || kDevLearnColumn.y + kDevLearnColumn.h != paper.y + paper.h
+        || kDevLearnRule.y < DevLearnSlot(3).y + DevLearnSlot(3).h + 2 || kDevLearnRule.y + kDevLearnRule.h + 2 > DevLearnSlot(4).y
+        || kDevLearnRule.x != DevLearnSlot(4).x || kDevLearnRule.w != DevLearnSlot(4).w) {
+        fprintf(stderr, "the move to forget: the column leaves the paper or does not run its height, the picture leaves "
+                        "the column, or the rule is not between the fourth slot and the new one, as wide as they are\n");
         ++faults;
     }
-    for (int i = 0; i < 2; ++i)
-        if (DevRlKey(i).x < kDevRlNarrow.x + kDevRlNarrow.w || DevRlKey(i).x < kDevRlDescNarrow.x + kDevRlDescNarrow.w) {
-            fprintf(stderr, "the relearner: key %d reaches the narrow screens\n", i);
-            ++faults;
-        }
     return faults;
 }
 
 /* The shapes the views without a board share (plan 3): DevAcross gives the boarded rows back (the battle's wild row
- * and its moves' top row) and fits n keys of 1-8 across; the tall rows (DevTallRow: the Pokedex's list, the relearner's)
- * on the list's paper and a narrow one; the small note with its two keys and CLOSE beside it, the tall screen over the
- * wide key, the question's note beside YES / NO. */
+ * and its moves' keys) and fits n keys of 1-8 across; the tall rows (DevTallRow: the Pokedex's list) on the list's
+ * paper; the small note with its two keys and CLOSE beside it, the tall screen over the wide key, the question's note
+ * beside YES / NO. */
 static int SharedFaults(void)
 {
-    const CtrPokeTouchRect paper = {14, 46, 248, 132}, narrowPaper = {14, 46, 172, 132};
+    const CtrPokeTouchRect paper = {14, 46, 248, 132};
     int faults = 0;
 
     for (int i = 0; i < 4; ++i)
-        assert(Same(DevAcross(4, i, 170, 60), kDevBatRow4[i]));
-    for (int i = 0; i < 2; ++i)
-        assert(Same(DevAcross(2, i, 72, 62), kDevBatMove[i]));
+        assert(Same(DevAcross(4, i, 168, 62), kDevBatRow4[i]));
+    for (int i = 0; i < 4; ++i)
+        assert(Same(DevAcross(2, i % 2, 8 + 90 * (i / 2), 84), kDevBatMove[i]));
     for (int n = 1; n <= 8; ++n) {
         CtrPokeTouchRect last = DevAcross(n, n - 1, 8, 24);
 
@@ -465,10 +471,10 @@ static int SharedFaults(void)
             assert(!Overlap(DevAcross(n, i - 1, 8, 24), DevAcross(n, i, 8, 24)));
     }
     for (int i = 0; i < 5; ++i) {
-        CtrPokeTouchRect r = DevTallRow(i, 0), n = DevTallRow(i, 1);
+        CtrPokeTouchRect r = DevTallRow(i);
 
-        assert(Same(r, (CtrPokeTouchRect){16, (int16_t)(48 + 24 * i), 244, 24}) && Same(n, (CtrPokeTouchRect){16, r.y, 168, 24}));
-        if (!Within(r, paper, 0) || !Within(n, narrowPaper, 0)) {
+        assert(Same(r, (CtrPokeTouchRect){16, (int16_t)(48 + 24 * i), 244, 24}));
+        if (!Within(r, paper, 0)) {
             fprintf(stderr, "a tall row %d leaves its paper\n", i);
             ++faults;
         }
@@ -500,7 +506,7 @@ static int OptionsFaults(void)
     for (int i = 0; i < PT_OPT_MAX; ++i) {
         CtrPokeTouchRect r = DevOptRow(i);
 
-        assert(Same(r, (CtrPokeTouchRect){16, (int16_t)(48 + 18 * i), 244, 18}) && Same(r, DevListRow(i, 0, 18)));
+        assert(Same(r, (CtrPokeTouchRect){16, (int16_t)(48 + 18 * i), 244, 18}) && Same(r, DevListRow(i, 18)));
         if (!Within(r, paper, 0)) {
             fprintf(stderr, "OPTIONS: row %d leaves the list's paper\n", i);
             ++faults;
@@ -643,18 +649,21 @@ static int DexFaults(void)
     return faults;
 }
 
-/* The field's choices: n keys (1-8) in FireRed's one column (two past four, going down first) or a grid of 2 or 3
- * columns, every key above the question's note and BACK, which stand side by side under them; a grid of one column is
- * the one column's layout (no key past the screen). (The move to forget's and the relearner's own rectangles:
- * LearnFaults.) */
+/* The field's choices on the grid (boards def_choice_yesno, def_choice_list, def_choice_grid): n keys (1-8) in
+ * FireRed's one column (YES / NO two tall keys; up to four across the screen, 38 tall and 44 apart; five to eight in two
+ * columns going down first, the left one always four) or FireRed's grid of 2 or 3 columns across; every key's drop ends
+ * above the footer (the grid's note and its exit, BACK); a grid of one column is the one column's layout. (The move to
+ * forget's own rectangles: LearnFaults.) */
 static int ChoiceFaults(void)
 {
     static const int kCols[4] = {0, 1, 2, 3};
     int faults = 0;
 
-    assert(Same(kDevChoiceNote, (CtrPokeTouchRect){8, 160, 228, 72}) && Same(kDevChoiceBack, (CtrPokeTouchRect){244, 160, 68, 70}));
-    assert(Same(DevChoiceKey(6, 0, 3), (CtrPokeTouchRect){164, 8, 148, 40}) && Same(DevChoiceKey(4, 0, 3), (CtrPokeTouchRect){8, 116, 304, 32}));
-    assert(Same(DevChoiceKey(8, 3, 7), (CtrPokeTouchRect){112, 96, 96, 40}) && Same(DevChoiceKey(8, 2, 7), (CtrPokeTouchRect){164, 116, 148, 32}));
+    assert(Same(DevChoiceKey(2, 0, 0), (CtrPokeTouchRect){8, 8, 304, 84}) && Same(DevChoiceKey(2, 0, 1), (CtrPokeTouchRect){8, 100, 304, 84}));
+    assert(Same(DevChoiceKey(4, 0, 3), (CtrPokeTouchRect){8, 140, 304, 38}) && Same(DevChoiceKey(5, 0, 3), (CtrPokeTouchRect){8, 140, 148, 38}));
+    assert(Same(DevChoiceKey(5, 0, 4), (CtrPokeTouchRect){164, 8, 148, 38}) && Same(DevChoiceKey(8, 0, 7), (CtrPokeTouchRect){164, 140, 148, 38}));
+    assert(Same(DevChoiceKey(6, 3, 4), (CtrPokeTouchRect){112, 52, 96, 38}) && Same(DevChoiceKey(8, 3, 7), (CtrPokeTouchRect){112, 96, 96, 38}));
+    assert(Same(DevChoiceKey(8, 2, 7), (CtrPokeTouchRect){164, 140, 148, 38}));
     for (int n = 1; n <= 8; ++n)
         for (int i = 0; i < n; ++i)
             if (!Same(DevChoiceKey(n, 1, i), DevChoiceKey(n, 0, i))) {
@@ -666,15 +675,11 @@ static int ChoiceFaults(void)
             for (int i = 0; i < n; ++i) {
                 CtrPokeTouchRect k = DevChoiceKey(n, kCols[c], i);
 
-                if (k.y + k.h + DEV_DROP > kDevChoiceNote.y || k.y + k.h + DEV_DROP > kDevChoiceBack.y) {
-                    fprintf(stderr, "choice: key %d of %d (%d columns) reaches the note or BACK\n", i, n, kCols[c]);
+                if (k.y + k.h + DEV_DROP > kDevGridNote.y || k.y + k.h + DEV_DROP > kDevGridExit.y) {
+                    fprintf(stderr, "choice: key %d of %d (%d columns) reaches the footer\n", i, n, kCols[c]);
                     ++faults;
                 }
             }
-    if (kDevChoiceNote.x + kDevChoiceNote.w > kDevChoiceBack.x || kDevChoiceNote.y != kDevChoiceBack.y) {
-        fprintf(stderr, "choice: the note meets BACK, or they are not side by side\n");
-        ++faults;
-    }
     return faults;
 }
 
@@ -848,7 +853,8 @@ int main(void)
                                          kDevHomeKey[5], kDevHomeRun, kDevHomeSpeed};
     const CtrPokeTouchRect batTrainer[] = {kDevBatFight, kDevBatRow3[0], kDevBatRow3[1], kDevBatRow3[2]};
     const CtrPokeTouchRect batWild[] = {kDevBatFight, kDevBatRow4[0], kDevBatRow4[1], kDevBatRow4[2], kDevBatRow4[3]};
-    const CtrPokeTouchRect batMoves[] = {kDevBatMove[0], kDevBatMove[1], kDevBatMove[2], kDevBatMove[3], kDevBatCancel};
+    const CtrPokeTouchRect batMoves[] = {kDevBatMove[0], kDevBatMove[1], kDevBatMove[2], kDevBatMove[3], kDevGridExit};
+    const CtrPokeTouchRect batSafari[] = {kDevBatMove[0], kDevBatMove[1], kDevBatMove[2], kDevBatMove[3]};
     const CtrPokeTouchRect ptyBays[] = {DevPtyBay(0), DevPtyBay(1), DevPtyBay(2), DevPtyBay(3), DevPtyBay(4), DevPtyBay(5),
                                         kDevGridExit};
     const CtrPokeTouchRect ptyMulti[] = {DevPtyBay(0), DevPtyBay(1), DevPtyBay(2), DevPtyBay(3), DevPtyBay(4), DevPtyBay(5),
@@ -875,9 +881,9 @@ int main(void)
     const CtrPokeTouchRect dexCategory[] = {DevDexSlot(0), DevDexSlot(1), DevDexSlot(2), DevDexSlot(3), kDevSmallKey[0],
                                             kDevSmallKey[1], kDevGridExit};
     const CtrPokeTouchRect dexPage[] = {kDevDexArea, kDevDexCry, kDevTallBack}, dexAdded[] = {kDevWideKey};
-    const CtrPokeTouchRect learnKeys[] = {kDevTallBack};
+    const CtrPokeTouchRect learnKeys[] = {kDevGridExit};
     const CtrPokeTouchRect relearnList[] = {kDevGridUp, kDevGridDown, kDevGridExit};
-    const CtrPokeTouchRect relearnYesNo[] = {DevRlKey(0), DevRlKey(1)};
+    const CtrPokeTouchRect relearnYesNo[] = {DevGridColumnKey(40, 36, 30, 0), DevGridColumnKey(40, 36, 30, 1)};
     const CtrPokeTouchRect boxKeys[] = {kDevBoxPrev, kDevBoxNext, kDevBoxParty, kDevBoxClose};
     const CtrPokeTouchRect boxYesNo[] = {DevBoxMenuKey(2, 0), DevBoxMenuKey(2, 1)};
     const CtrPokeTouchRect boxChooser[] = {kDevBoxPrev, kDevBoxNext, kDevBoxChoose, kDevBoxCancel};
@@ -905,11 +911,11 @@ int main(void)
         {"HOME name", kDevHomeName}, {"HOME region line", kDevHomeRegion}, {"HOME rule", kDevHomeRule},
         {"HOME region key", kDevHomeMapKey}, {"HOME FLY", kDevHomeFly}, {"HOME TIME", kDevHomeTime},
         {"HOME cell 0", DevHomeCell(0)}, {"HOME cell 5", DevHomeCell(5)},
-        {"battle screen", kDevBatScreen}, {"battle moves' screen", kDevBatMoveScreen}, {"battle FIGHT", kDevBatFight},
+        {"battle screen", kDevBatScreen}, {"battle FIGHT", kDevBatFight},
         {"battle BAG (3)", kDevBatRow3[0]}, {"battle POKeMON (3)", kDevBatRow3[1]}, {"battle RUN (3)", kDevBatRow3[2]},
         {"battle BAG (4)", kDevBatRow4[0]}, {"battle BALL", kDevBatRow4[1]}, {"battle POKeMON (4)", kDevBatRow4[2]},
         {"battle RUN (4)", kDevBatRow4[3]}, {"battle move 0", kDevBatMove[0]}, {"battle move 1", kDevBatMove[1]},
-        {"battle move 2", kDevBatMove[2]}, {"battle move 3", kDevBatMove[3]}, {"battle CANCEL", kDevBatCancel},
+        {"battle move 2", kDevBatMove[2]}, {"battle move 3", kDevBatMove[3]},
         {"Party CONFIRM", kDevPtyConfirm}, {"Party slim bay 5", DevPtySlim(5)}, {"Party menu key 5", DevPtyMenuKey(5)},
         {"Party level-up screen", kDevPtyLevelScreen}, {"Party bay 0", DevPtyBay(0)}, {"Party bay 5", DevPtyBay(5)},
         {"Summary column", kDevSumColumn}, {"Summary picture", kDevSumPic}, {"Summary switch", kDevSumIvSwitch},
@@ -925,7 +931,7 @@ int main(void)
         {"small note", kDevSmallNote}, {"small key 0", kDevSmallKey[0]}, {"small key 1", kDevSmallKey[1]},
         {"tall screen", kDevTallScreen}, {"tall note", kDevTallNote}, {"tall BACK", kDevTallBack}, {"wide key", kDevWideKey},
         {"question's note", kDevAskNote},
-        {"question's YES", kDevAskYes}, {"question's NO", kDevAskNo}, {"tall row 4", DevTallRow(4, 0)},
+        {"question's YES", kDevAskYes}, {"question's NO", kDevAskNo}, {"tall row 4", DevTallRow(4)},
         {"OPTIONS row 0", DevOptRow(0)}, {"OPTIONS row 6", DevOptRow(PT_OPT_MAX - 1)}, {"OPTIONS FRAME sample", kDevOptSample},
         {"OPTIONS look panel", kDevOptLook},
         {"SAVE row 0", DevSaveRow(0)}, {"SAVE row 4", DevSaveRow(4)}, {"SAVE icon", kDevSaveSprite},
@@ -939,11 +945,10 @@ int main(void)
         {"Pokedex slot 3", DevDexSlot(3)}, {"Pokedex picture", kDevDexPic}, {"Pokedex data", kDevDexData},
         {"Pokedex footprint", kDevDexFoot}, {"Pokedex rule", kDevDexRule}, {"Pokedex entry", kDevDexEntry},
         {"Pokedex AREA", kDevDexArea}, {"Pokedex CRY", kDevDexCry},
-        {"move to forget's screen", kDevLearnScreen}, {"move to forget's column", kDevLearnColumn},
-        {"move to forget's picture", kDevLearnPic}, {"move to forget's slot 4", DevLearnSlot(4)},
-        {"relearner's narrow screen", kDevRlNarrow}, {"relearner's narrow description", kDevRlDescNarrow},
-        {"relearner's YES", DevRlKey(0)}, {"relearner's NO", DevRlKey(1)},
-        {"choice note", kDevChoiceNote}, {"choice BACK", kDevChoiceBack}, {"choice key 7 of 8", DevChoiceKey(8, 0, 7)},
+        {"move to forget's column", kDevLearnColumn}, {"move to forget's picture", kDevLearnPic},
+        {"move to forget's slot 0", DevLearnSlot(0)}, {"move to forget's rule", kDevLearnRule},
+        {"move to forget's slot 4", DevLearnSlot(4)},
+        {"choice YES", DevChoiceKey(2, 0, 0)}, {"choice NO", DevChoiceKey(2, 0, 1)}, {"choice key 7 of 8", DevChoiceKey(8, 0, 7)},
         {"choice grid key 7 of 8", DevChoiceKey(8, 3, 7)},
         {"naming screen", kDevNameScreen}, {"naming OK", DevNameTop(4)}, {"naming key 3,7", DevNameKey(8, 3, 7)},
         {"naming symbol 3,5", DevNameKey(6, 3, 5)},
@@ -963,6 +968,7 @@ int main(void)
     };
     const DevGroup groups[] = {DEV_GROUP("HOME", homeKeys), DEV_GROUP("battle, a trainer", batTrainer),
                                DEV_GROUP("battle, wild", batWild), DEV_GROUP("battle moves", batMoves),
+                               DEV_GROUP("Safari", batSafari),
                                DEV_GROUP("Party", ptyBays), DEV_GROUP("Party, several", ptyMulti),
                                DEV_GROUP("Party level up", ptyOk), DEV_GROUP("Party menu", ptyMenu),
                                DEV_GROUP("Summary", sumKeys),
@@ -996,7 +1002,7 @@ int main(void)
 
             for (int i = 0; i < n; ++i)
                 choiceKeys[c][n - 1][i] = DevChoiceKey(n, cols, i);
-            choiceKeys[c][n - 1][n] = kDevChoiceBack;
+            choiceKeys[c][n - 1][n] = kDevGridExit;
             snprintf(choiceName[c][n - 1], sizeof(choiceName[c][n - 1]), "choice of %d (%d columns)", n, cols);
             choiceGroups[c][n - 1] = (DevGroup){choiceName[c][n - 1], choiceKeys[c][n - 1], n + 1};
             faults += GroupFaults(&choiceGroups[c][n - 1]);

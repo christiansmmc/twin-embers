@@ -103,25 +103,27 @@ static inline CtrPokeTouchRect DevHomeCell(int i)
     return r;
 }
 
-/* ---- The battle (boards B · Comandos and B · Golpes, 3ds_device_battle_impl.h) -----------------------------------------
- * The commands (ACTION; IDLE shows them dimmed): the screen with the lead, FIGHT across, and under it a row of three
- * keys (BAG, POKeMON, RUN: a trainer) or of four (BAG, the quick ball, POKeMON, RUN: a wild battle). The moves (MOVE),
- * a double battle's targets (TARGET) and the Safari Zone's BALL BAIT ROCK RUN (SAFARI): the short screen and four keys
- * in the controller's 2x2 order; MOVE and TARGET add CANCEL, a dark pill. The quick ball's arrows are on its key. */
-static const CtrPokeTouchRect kDevBatScreen __attribute__((unused)) = {8, 8, 304, 88};
-static const CtrPokeTouchRect kDevBatMoveScreen __attribute__((unused)) = {8, 8, 304, 56};
-static const CtrPokeTouchRect kDevBatFight __attribute__((unused)) = {8, 104, 304, 56};
-static const CtrPokeTouchRect kDevBatRow3[3] __attribute__((unused)) = {{8, 170, 96, 60}, {112, 170, 96, 60}, {216, 170, 96, 60}};
-static const CtrPokeTouchRect kDevBatRow4[4] __attribute__((unused)) = {
-    {8, 170, 73, 60}, {85, 170, 73, 60}, {162, 170, 73, 60}, {239, 170, 73, 60},
+/* ---- The battle (boards def_fight and def_moves, 3ds_device_battle_impl.h) ---------------------------------------------
+ * The commands (def_fight; ACTION, IDLE shows them dimmed): the screen with the lead, FIGHT across, and under it at y 168
+ * a row of three keys of 96 (BAG, POKeMON, RUN: a trainer, the board) or of four of 73 (BAG, the quick ball, POKeMON,
+ * RUN: a wild battle, owner O1), 62 tall; no exit key (B does nothing there). The moves (MOVE, def_moves), a double
+ * battle's targets (TARGET) and the Safari Zone's BALL BAIT ROCK RUN (SAFARI): four keys of 148x84 from the top in the
+ * controller's 2x2 order, the lower two's drops ending by 186; under them the grid's footer: the note with BACK in the
+ * exit corner for MOVE and TARGET (kDevGridNote, kDevGridExit), the note across for Safari (kDevGridNoteWide). The
+ * quick ball's arrows are on its key. */
+static const CtrPokeTouchRect kDevBatScreen __attribute__((unused)) = {8, 8, 304, 92};
+static const CtrPokeTouchRect kDevBatFight __attribute__((unused)) = {8, 108, 304, 48};
+static const CtrPokeTouchRect kDevBatRow3[3] __attribute__((unused)) = {{8, 168, 96, 62}, {112, 168, 96, 62}, {216, 168, 96, 62}};
+static const CtrPokeTouchRect kDevBatRow4[4] __attribute__((unused)) = {     /* DevAcross(4, i, 168, 62) */
+    {8, 168, 73, 62}, {85, 168, 73, 62}, {162, 168, 73, 62}, {239, 168, 73, 62},
 };
-static const CtrPokeTouchRect kDevBatMove[4] __attribute__((unused)) = {
-    {8, 72, 148, 62}, {164, 72, 148, 62}, {8, 142, 148, 62}, {164, 142, 148, 62},
+static const CtrPokeTouchRect kDevBatMove[4] __attribute__((unused)) = {     /* DevAcross(2, i % 2, 8 + 90 * (i / 2), 84) */
+    {8, 8, 148, 84}, {164, 8, 148, 84}, {8, 98, 148, 84}, {164, 98, 148, 84},
 };
-static const CtrPokeTouchRect kDevBatCancel __attribute__((unused)) = {236, 212, 76, 20};
 #define DEV_BAT_ARROW_SLOP 3    /* the quick ball's arrows answer this much round themselves (on their key) */
 
-/* The quick ball's arrow (previous, or `next`) on its key r: the key's lower corners, under the ball. */
+/* The quick ball's arrow (previous, or `next`) on its key r: the key's lower corners, under the ball (on the 62-tall key,
+ * 4 px of face under it). */
 static inline CtrPokeTouchRect DevBatBallArrow(const CtrPokeTouchRect *r, int next)
 {
     CtrPokeTouchRect a = {(int16_t)(next ? r->x + r->w - 22 : r->x + 2), (int16_t)(r->y + 38), 20, 20};
@@ -219,12 +221,11 @@ static inline CtrPokeTouchRect DevBagMenuKey(int n, int i)
 
 /* ---- The shapes the views without a board share (plan 3) ------------------------------------------------------------
  * No board draws these views: they draw on the grid's names and these few. Keys across the screen (DevAcross: the
- * battle's rows); a list's rows h tall on the grid's screen's paper (DevListRow; DevTallRow: the Pokedex's list, the
- * relearner's); the small note (a screen) with two small keys and the grid's exit beside it (the Party picking several:
+ * battle's rows); a list's rows h tall on the grid's screen's paper (DevListRow; DevTallRow: the Pokedex's list); the
+ * small note (a screen) with two small keys and the grid's exit beside it (the Party picking several:
  * its CONFIRM, kDevPtyConfirm, in the keys' place); a tall screen over a wide
- * key; the tall note with BACK beside it (kDevTallNote, kDevTallBack: the frame's, the move to forget's, the Trainer
- * Card's and the Pokedex page's BACK until their boards' tasks); a question's note beside YES and
- * NO. */
+ * key; the tall note with BACK beside it (kDevTallNote, kDevTallBack: the frame's, the Trainer Card's and the Pokedex
+ * page's BACK until their boards' tasks); a question's note beside YES and NO. */
 static const CtrPokeTouchRect kDevSmallNote __attribute__((unused)) = {8, 190, 152, 42};
 static const CtrPokeTouchRect kDevSmallKey[2] __attribute__((unused)) = {{168, 190, 32, 40}, {204, 190, 32, 40}};
 static const CtrPokeTouchRect kDevTallScreen __attribute__((unused)) = {8, 8, 304, 172};
@@ -235,23 +236,22 @@ static const CtrPokeTouchRect kDevAskNote __attribute__((unused)) = {8, 156, 200
 static const CtrPokeTouchRect kDevAskYes __attribute__((unused)) = {216, 156, 96, 36};
 static const CtrPokeTouchRect kDevAskNo __attribute__((unused)) = {216, 198, 96, 34};
 
-/* Row i of a list h tall a row on kDevGridScreen's paper, or (`narrow`) on the paper of a screen 184 wide (the
- * relearner's kDevRlNarrow). */
-static inline CtrPokeTouchRect DevListRow(int i, int narrow, int h)
+/* Row i of a list h tall a row on kDevGridScreen's paper. */
+static inline CtrPokeTouchRect DevListRow(int i, int h)
 {
-    CtrPokeTouchRect r = {16, (int16_t)(48 + h * i), (int16_t)(narrow ? 168 : 244), (int16_t)h};
+    CtrPokeTouchRect r = {16, (int16_t)(48 + h * i), 244, (int16_t)h};
 
     return r;
 }
 
-/* Row i (0-4) of a list of tall rows (24 px, no gap) on the same papers: the Pokedex's list, the relearner's. */
-static inline CtrPokeTouchRect DevTallRow(int i, int narrow)
+/* Row i (0-4) of a list of tall rows (24 px, no gap) on the same paper: the Pokedex's list. */
+static inline CtrPokeTouchRect DevTallRow(int i)
 {
-    return DevListRow(i, narrow, 24);
+    return DevListRow(i, 24);
 }
 
 /* Key i of n (1-8) across x 8..312, at y and h tall: 8 px apart up to three keys, 4 beyond. (n 3 at y 8 are the
- * Pokedex's tabs, DevDexTabKey; n 4 at y 170 the battle's wild row, n 2 at y 72 its moves' top row.) */
+ * Pokedex's tabs, DevDexTabKey; n 4 at y 168 the battle's wild row, n 2 at y 8 and 98, 84 tall, its moves' keys.) */
 static inline CtrPokeTouchRect DevAcross(int n, int i, int y, int h)
 {
     int g = n <= 3 ? 8 : 4, w = (304 - g * (n - 1)) / n;
@@ -284,7 +284,7 @@ static inline CtrPokeTouchRect DevOptSection(int s)
 /* Row i (0 to PT_OPT_MAX - 1) of OPTIONS. */
 static inline CtrPokeTouchRect DevOptRow(int i)
 {
-    return DevListRow(i, 0, DEV_OPT_ROW_H);
+    return DevListRow(i, DEV_OPT_ROW_H);
 }
 
 /* Level k of a row of `count` levels on row i: PREV and NEXT shared out from x 136, a level taking the columns whose
@@ -391,56 +391,48 @@ static inline CtrPokeTouchRect DevDexSlot(int i)
     return r;
 }
 
-/* ---- The field's choices, the move to forget, the relearner (no board; 3ds_device_choice_impl.h, _learn_impl.h,
- * _relearn_impl.h) ---------------------------------------------------------------------------------------------------
- * A choice: FireRed's rows as keys across the screen (DevChoiceKey), the message box's question on the note under them
- * (kDevChoiceNote) and BACK beside it. The move to forget: FireRed's question on the grid's title, its screen
- * (kDevLearnScreen: the Pokemon in its column, kDevLearnColumn, its picture in kDevLearnPic; the four moves and the new
- * one in DevLearnSlot(0..4)), the tall note (the description) and BACK. The relearner is the grid's list page: the
- * question on the title, five tall rows with ▲ ▼, the description on the note and CANCEL (FireRed's CANCEL row) in the
- * exit; YES / NO beside the narrow screens (kDevRlNarrow, kDevRlDescNarrow) in DevRlKey(i). Each its own copy of the
- * numbers it drew with (the Summary's and the Bag's), so neither moves with them. */
-static const CtrPokeTouchRect kDevChoiceNote __attribute__((unused)) = {8, 160, 228, 72};
-static const CtrPokeTouchRect kDevChoiceBack __attribute__((unused)) = {244, 160, 68, 70};
-static const CtrPokeTouchRect kDevLearnScreen __attribute__((unused)) = {8, 40, 304, 140};
-static const CtrPokeTouchRect kDevLearnColumn __attribute__((unused)) = {14, 46, 104, 128};
-static const CtrPokeTouchRect kDevLearnPic __attribute__((unused)) = {34, 82, 64, 64};
-static const CtrPokeTouchRect kDevRlNarrow __attribute__((unused)) = {8, 40, 184, 144};
-static const CtrPokeTouchRect kDevRlDescNarrow __attribute__((unused)) = {8, 190, 184, 42};
+/* ---- The field's choices (boards def_choice_*), the move to forget (def_learn), the relearner
+ * (3ds_device_choice_impl.h, _learn_impl.h, _relearn_impl.h) -------------------------------------------------------
+ * A choice: FireRed's rows as keys above the footer (DevChoiceKey), the message box's question on the grid's note and
+ * BACK in its exit (kDevGridNote, kDevGridExit). The move to forget: FireRed's question on the grid's title; the grid's
+ * wide screen (kDevGridWide) with the Pokemon in its column (kDevLearnColumn, its picture in kDevLearnPic) and the four
+ * moves and the new one in DevLearnSlot(0..4), rows 22 tall and 24 apart (the board's exception to the list rule), a
+ * rule over the new one (kDevLearnRule); the description and the cursor's row's hint on the grid's note, BACK in its
+ * exit (kDevGridNote, kDevGridExit). The relearner (def_relearn) is the grid's list page and has no rectangle of its
+ * own: the question on the title, the moves in the list's rows (DevGridRow) with ▲ ▼, the cursor's move on the note
+ * and CANCEL (FireRed's CANCEL row) in the exit; a question on the narrow screen (kDevGridScreenNarrow) with YES and NO
+ * in the column beside it (DevGridColumnKey(40, 36, 30, i): the Decision, no key in the exit corner), the move on the
+ * note. */
+static const CtrPokeTouchRect kDevLearnColumn __attribute__((unused)) = {14, 46, 104, 132};
+static const CtrPokeTouchRect kDevLearnPic __attribute__((unused)) = {34, 76, 64, 64};
+static const CtrPokeTouchRect kDevLearnRule __attribute__((unused)) = {124, 146, 176, 1};
 
-/* Slot i (0-3 a move, 4 the new one) of the move to forget. */
+/* Slot i of the move to forget: 0-3 its moves, 22 tall and 24 apart from the paper's top + 2; 4 the new one, under the
+ * rule. */
 static inline CtrPokeTouchRect DevLearnSlot(int i)
 {
-    CtrPokeTouchRect r = {124, (int16_t)(52 + 24 * i), 176, 22};
+    CtrPokeTouchRect r = {124, (int16_t)(i < 4 ? 48 + 24 * i : 150), 176, 22};
 
     return r;
 }
 
-/* The relearner's YES (0) and NO (1) beside its narrow screens. */
-static inline CtrPokeTouchRect DevRlKey(int i)
-{
-    CtrPokeTouchRect r = {200, (int16_t)(i ? 78 : 40), 112, (int16_t)(i ? 38 : 30)};
-
-    return r;
-}
-
-/* Key i of a choice of n (1-8): FireRed's one column (cols 0, or a grid of one) in one column up to four keys and in two
- * beyond, going down first as FireRed's list does; a grid of `cols` columns across, as FireRed's grid goes. Up to three
- * rows 40 tall, four 32, 4 px apart from the top. */
+/* Key i of a choice of n (1-8) from the top of the screen: FireRed's grid (cols 2 or more) across, as its grid goes;
+ * its one column (cols 0, or a grid of one) two tall keys for two (YES / NO), one column across the screen up to four,
+ * and two columns for five to eight, going down first as FireRed's list does, the left one always four. The keys 38 tall
+ * and 44 apart, YES / NO 84 and 92. */
 static inline CtrPokeTouchRect DevChoiceKey(int n, int cols, int i)
 {
-    int c, rows, h, col, row;
+    CtrPokeTouchRect r = {8, (int16_t)(8 + 44 * i), 304, 38};
 
-    if (cols < 2)
-        cols = 0;
-    c = cols > 0 ? cols : n > 4 ? 2 : 1;
-    rows = (n + c - 1) / c;
-    if (rows < 1)
-        rows = 1;
-    col = cols > 0 ? i % c : i / rows;
-    row = cols > 0 ? i / c : i % rows;
-    h = rows <= 3 ? 40 : 32;
-    return DevAcross(c, col, 8 + (h + 4) * row, h);
+    if (cols >= 2)
+        return DevAcross(cols, i % cols, 8 + 44 * (i / cols), 38);
+    if (n > 4)
+        return DevAcross(2, i / 4, 8 + 44 * (i % 4), 38);
+    if (n == 2) {
+        r.y = (int16_t)(8 + 92 * i);
+        r.h = 84;
+    }
+    return r;
 }
 
 /* ---- The naming keyboard (no board; 3ds_device_naming_impl.h) --------------------------------------------------------

@@ -121,6 +121,7 @@ extern int CtrFieldChoice_Count(void);
 extern int CtrFieldChoice_Columns(void);
 extern int CtrFieldChoice_Cursor(void);
 extern void CtrFieldChoice_Label(int index, char *out, int size);
+extern void CtrFieldChoice_Price(int index, char *out, int size);
 extern int CtrFieldChoice_Prompt(char *out, int size);
 /* The BG0 window of the last field choice drawn below, while it is still up (menu.c, recipe 0180). */
 extern int CtrFieldChoice_WindowRect(int *x, int *y, int *w, int *h);

@@ -291,7 +291,8 @@ typedef struct {
 
 /* A choice of the field (a script's multichoice, YES/NO or grid, the PC's menus) drawn by the port as the red device
  * (3ds_device_choice_impl.h), a remote for FireRed's menu: its rows as keys (cols > 0: a grid of that many columns),
- * the cursor's, and the question of the message box. A row is asked of the menu and taken with its A; BACK is its B. */
+ * each with its price when FireRed's row has one (empty when not), the cursor's, and the question of the message box.
+ * A row is asked of the menu and taken with its A; BACK is its B. */
 #define PT_CHOICE_MAX 8
 enum { PT_CHOICE_HIT_ROW = 100 };
 typedef struct {
@@ -300,6 +301,7 @@ typedef struct {
     int8_t cursor;
     int16_t pressed;                /* the hit code under a held touch, or -1 */
     char label[PT_CHOICE_MAX][24];
+    char price[PT_CHOICE_MAX][12];  /* sized by the longest, the bike's "¥1,000,000" (11 bytes in UTF-8), and its NUL */
     char prompt[160];
 } CtrPokeTouchChoice;
 
@@ -588,9 +590,9 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo, uint8_t shell);
 /*
  * The battle screen (3ds_device_battle_impl.h, CtrBattleUi_*): the whole lower screen while FireRed's battle is on
  * the upper one, drawn as the red device. While the player's controller waits at the action menu: a screen with the
- * lead and the party's six balls, FIGHT across, BAG, POKeMON and RUN below; at the move list, the chosen move on the
- * screen (type, category, power, accuracy, description) and the four move keys and CANCEL; at any other moment the
- * action screen with its keys grey.
+ * lead and the party's six balls, FIGHT across, BAG, POKeMON and RUN below; at the move list, the four move keys, the
+ * chosen move in the footer (type, category, STAB, power, accuracy, description) and BACK (BUI_CANCEL); at any other
+ * moment the action screen with its keys grey.
  * Everything shown is what the controller reports: the screen has no state of its own. In a wild battle a fourth button
  * between BAG and POKeMON throws a ball at once (the quick ball: the ball's own icon and count, arrows or a swipe
  * across it for the others, CTR_ACTION_BALL as the controller's cursor). In the battle Bag (BUI_BAG, the Bag FireRed

@@ -316,7 +316,7 @@ static void LearnSnapshot(Snapshot *s, int mode)
 #include "3ds_bottom_mail_impl.h"
 #include "3ds_bottom_easychat_impl.h"
 
-/* The field's choice as FireRed's menu has it: its rows' labels, the cursor, the message box's question. */
+/* The field's choice as FireRed's menu has it: its rows' labels and prices, the cursor, the message box's question. */
 static void ChoiceSnapshot(Snapshot *s, int mode)
 {
     CtrPokeTouchChoice *c = &s->touch.choice;
@@ -328,8 +328,10 @@ static void ChoiceSnapshot(Snapshot *s, int mode)
     c->cols = (uint8_t)CtrFieldChoice_Columns();
     c->cursor = (int8_t)CtrFieldChoice_Cursor();
     c->pressed = (int16_t)(sChoiceTap.down && sChoiceTap.inside ? sChoiceTap.code : -1);
-    for (int i = 0; i < c->count; ++i)
+    for (int i = 0; i < c->count; ++i) {
         CtrFieldChoice_Label(i, c->label[i], sizeof(c->label[i]));
+        CtrFieldChoice_Price(i, c->price[i], sizeof(c->price[i]));
+    }
     if (CtrBottomStorage_PCMenu())
         CtrBottomStorage_PCMessage(c->prompt, sizeof(c->prompt));
     else
