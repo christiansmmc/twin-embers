@@ -352,8 +352,9 @@ static int DevOptSame(const CtrPokeTouchView *a, const CtrPokeTouchView *b)
     int look = b->optLook.on && DevOptRows(b) <= 4;
 
     if (a->optSection != b->optSection || a->optSectionCount != b->optSectionCount || a->optKey != b->optKey
-        || (a->optPageCount > 1) != (b->optPageCount > 1) || a->optSectionPages != b->optSectionPages
-        || (b->optSectionPages > 1 && (a->optSectionPage != b->optSectionPage || strcmp(a->optPageName, b->optPageName)))
+        || (a->optPageCount > 1) != (b->optPageCount > 1) || (a->optSectionPages > 1) != (b->optSectionPages > 1)
+        || (b->optSectionPages > 1 && (a->optSectionPages != b->optSectionPages || a->optSectionPage != b->optSectionPage
+                                       || strcmp(a->optPageName, b->optPageName)))
         || DevOptRows(a) != DevOptRows(b)
         || a->optSelected != b->optSelected || a->optPressed != b->optPressed
         || (b->optPressed >= 0 && a->optZone != b->optZone) || a->optFrameShow != b->optFrameShow

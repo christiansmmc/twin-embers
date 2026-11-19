@@ -223,8 +223,12 @@ static void SuiteOptions(void)
         memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
         CtrPokeTouch_Draw(canvas, &old);
     }
+    v.optSectionPages = 2; assert(DevWhole(DevCheckTouch(&old, &v)) && Count(DevOptDot(2).x, DevOptDot(2).y, 5, 5, DEV_PAPER_LINE) == 0);
+    v.optSectionPages = 3; assert(DevWhole(DevCheckTouch(&old, &v)));
     v.optSectionPages = 1; DevCheckTouch(&old, &v); assert(Count(16, 158, 244, 18, DEV_INK2) == 0 && Count(16, 158, 244, 18, DEV_PAPER_LINE) == 0);
     v.optSectionPage = 3; strcpy(v.optPageName, "Wilds"); assert(DevCheckTouch(&old, &v).count == 0);
+    v.optSectionPages = 0; assert(DevCheckTouch(&old, &v).count == 0);                    /* 0 or 1 page: drawn alike */
+    v.optSectionPages = 1; assert(DevCheckTouch(&old, &v).count == 0);
     /* the note: the description in the small font, three lines 10 apart from capitals 198 (the third's 218: with a
      * descender on every small glyph, SmallDescenders, it ends on the paper's last row, 225, and none reaches the bezel
      * under it); a text that needs a fourth line is left out there and counted */
