@@ -13,7 +13,8 @@
  *
  * Words (decision 5): FireRed's labels (which v0.6.0 title-cased) and the port's title through DevUpper; the port's
  * FLIP and BACK in capitals; the name as typed; the numbers and the records' values as the card gives them. The title,
- * the name and IDNo. cut at their room are counted in sDevKeyCut.
+ * the name and IDNo. cut at their room, and a row whose label would meet its value (DevColumnRow), are counted in
+ * sDevKeyCut.
  *
  * Redraw: the screen whole when what it draws differs (DevCardSame), and nothing else.
  *

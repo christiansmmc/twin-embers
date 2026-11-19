@@ -66,6 +66,43 @@ static void CardUpperCase(CtrPokeTouchView v)
     TouchSamePixels(&cased, &v, 1, "the records' labels in v0.6.0's case and in capitals");
 }
 
+/* The card at FireRed's widest (trainer_card.c, the port's CtrBottomCard_*): ID 65535, money 999999, 386 caught, 999:59
+ * played (the port caps the hours); the back's five records in FireRed's order with their widest values and FireRed's
+ * labels (UNION TRADES & BATTLES the longest; HALL OF FAME DEBUT with its two trailing spaces). */
+static CtrPokeTouchView CardMaxima(void)
+{
+    static const char *const kRecord[PT_CARD_ROWS][2] = {
+        {"HALL OF FAME DEBUT  ", "999:59:59"}, {"LINK BATTLES", "W:9999  L:9999"}, {"POK\xC3\xA9MON TRADES", "65535"},
+        {"UNION TRADES & BATTLES", "65535"}, {"BERRY CRUSH", "65535"},
+    };
+    CtrPokeTouchView v = CardBoard();
+
+    v.card.id = 65535;
+    v.card.money = 999999;
+    v.card.caught = 386;
+    v.card.hours = 999;
+    v.card.minutes = 59;
+    for (int i = 0; i < PT_CARD_ROWS; ++i) {
+        strcpy(v.card.row[i].label, kRecord[i][0]);
+        strcpy(v.card.row[i].value, kRecord[i][1]);
+    }
+    return v;
+}
+
+/* A DevColumnRow at box top y from x to `right` as drawn: the label (in capitals, as the card draws it) small from x,
+ * the value ending at `right`, and at least DEV_COLUMN_GAP px between them with no ink of either. */
+static void CardGap(int y, const char *label, const char *value, int x, int right)
+{
+    char upper[32];
+    int end, from;
+
+    DevUpper(upper, label, sizeof(upper));
+    end = x + DevSmallTextWidth(upper);
+    from = right - DevTextWidth(value);
+    assert(from - end >= DEV_COLUMN_GAP && Count(x, y + 4, end - x, 7, DEV_INK2) > 0 && Count(from, y + 2, right - from, 9, DEV_INK) > 0
+           && Count(end, y, from - end, 16, DEV_INK) == 0 && Count(end, y, from - end, 16, DEV_INK2) == 0);
+}
+
 /* The strip over the screen's paper in the card's colour for `stars` (either side): the colour whole along its top and
  * bottom rows and right of the stars, TRAINER CARD white from (22, capitals 21) over the colour darkened, the four
  * stars' places 13 apart from (241, 19), each 11 px over its shadow 1 px right and down: the first `stars` in gold, the
@@ -250,6 +287,23 @@ static void SuiteCard(void)
     sDevKeyCut = 0; strcpy(a.card.name, "MMMMMMM"); CtrPokeTouch_Draw(canvas, &a); assert(sDevKeyCut == 0);
     strcpy(a.card.label[1], "IDENTIFICATION"); CtrPokeTouch_Draw(canvas, &a);
     assert(sDevKeyCut == 1 && Count(298 - DevTextWidth("12345") - 6, 46, 6, 7, DEV_INK2) == 0);
+    sDevKeyCut = 0;
+    /* FireRed's widest card (CardMaxima): each row's label and value apart by paper and nothing cut, on either side */
+    a = CardMaxima(); CtrPokeTouch_Draw(canvas, &a); assert(sDevKeyCut == 0);
+    r = DevCardRow(1); CardGap(r.y, a.card.label[2], "\xC2\xA5" "999999", r.x, r.x + r.w);
+    r = DevCardRow(2); CardGap(r.y, a.card.label[4], "386", r.x, r.x + r.w);
+    r = DevCardRow(3); CardGap(r.y, a.card.label[5], "999:59", r.x, r.x + r.w);
+    a.card.back = 1; CtrPokeTouch_Draw(canvas, &a); assert(sDevKeyCut == 0);
+    for (int i = 0; i < PT_CARD_ROWS; ++i) {
+        r = DevCardBackRow(i);
+        CardGap(r.y, a.card.row[i].label, a.card.row[i].value, r.x, r.x + r.w);
+    }
+    /* a row too wide (never FireRed's) is counted once, its value whole and its label cut DEV_COLUMN_GAP px short of it */
+    a = CardMaxima(); strcpy(a.card.label[2], "MMMMMMMMMMMMMMM"); strcpy(a.card.label[3], "999999999999999");
+    a.card.money = 4294967295u; CtrPokeTouch_Draw(canvas, &a);
+    r = DevCardRow(1); s = r.x + r.w - DevTextWidth("9999999999999994294967295");
+    assert(sDevKeyCut == 1 && s > r.x + DEV_COLUMN_GAP && Count(s, r.y + 2, 4, 9, DEV_INK) > 0
+           && Count(s - DEV_COLUMN_GAP, r.y, DEV_COLUMN_GAP, r.h, DEV_INK2) == 0 && Count(r.x, r.y + 4, 4, 7, DEV_INK2) > 0);
     sDevKeyCut = 0;
     CtrPokeTouch_Draw(canvas, &co);
 

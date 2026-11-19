@@ -1297,11 +1297,18 @@ UI_FN void DevLabelValue(const CtrPokeTouchRect *r, const char *label, const cha
 }
 
 /* "LABEL value" across a column from x to `right` at box top y: the label small in the secondary ink (capitals y + 4),
- * the value in the paper's ink ending at `right` (capitals y + 3). */
+ * the value whole in the paper's ink ending at `right` (capitals y + 3), at least DEV_COLUMN_GAP px of paper between
+ * them. A row that does not fit (the label, the gap and the value wider than the column; the value alone, with no
+ * label) is counted in sDevKeyCut, the label cut DEV_COLUMN_GAP px short of the value. */
+#define DEV_COLUMN_GAP 6
 UI_FN void DevColumnRow(int y, const char *label, const char *value, int x, int right)
 {
-    DevSmallText(label, x, y + 4, DEV_INK2, right);
-    DevText(value, right - DevTextWidth(value), y + 3, right);
+    int from = right - DevTextWidth(value);
+
+    if (DevSmallTextWidth(label) + (label[0] ? DEV_COLUMN_GAP : 0) > from - x)
+        ++sDevKeyCut;
+    DevSmallText(label, x, y + 4, DEV_INK2, from - DEV_COLUMN_GAP);
+    DevText(value, from, y + 3, right);
 }
 
 /* A field view's BACK (or CLOSE) in key r with `word`, while the view shows it (backVisible): a dark key, sunk under a
