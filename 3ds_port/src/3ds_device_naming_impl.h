@@ -1,9 +1,10 @@
-/* The naming keyboard as the red device (no board; plan 3), included by 3ds_poketouch.c after a choice: a row of the
+/* The naming keyboard as the red device (board def_naming), included by 3ds_poketouch.c after a choice: a row of the
  * field dispatcher (3ds_device_field_impl.h), shown while view->name.on and there is no GBA picture (DevNameShown). A
  * remote for FireRed's own keyboard (3ds_poketouch.h CtrPokeTouchName): the name's screen (the icon of a Pokemon being
- * named, FireRed's question over a slot for each character the name takes: a character typed, an underline under an
- * empty one, darker under the next, the gender sign after them); five keys across under it, the three pages (ABC, abc,
- * 123), DELETE and OK; the page's keys in four rows of FireRed's 8 columns (6 for its symbols), every place of them a key
+ * named in its box, FireRed's question and the counter "3 / 7" over a slot for each character the name takes: a
+ * character typed, an underline under every slot, the next's blue, the gender sign after them; the slots where they
+ * are with or without an icon); five keys across under it, the three pages (ABC, abc, 123), DELETE and OK; the page's
+ * keys in four rows of FireRed's 8 columns (6 for its symbols), every place of them a key
  * (a short row ends in space keys: FireRed's rows are zero-filled, and 0x00 is its space), a place given as EOS (0xff)
  * neither drawn nor hit. The page shown is sunk, or the page key held. FireRed's cursor sinks its key, or on
  * its button column DELETE (row 1) or OK (row 2), or (row 0, the page button) lights the LED of the page key its A turns
@@ -149,48 +150,67 @@ static void FNSpaceMark(int cx, int y, uint16_t c)
 
 /* ---- The keyboard ------------------------------------------------------------------------------------------------------ */
 
-/* A Pokemon's icon (FireRed's, its first frame) at half size, its top-left at (x, y). */
-static void DevNameIcon(unsigned species, int x, int y)
+/* A Pokemon's icon (FireRed's 32x32, its first frame) at 1:1 from (16, 8), its pixels outside kDevNameIcon not drawn
+ * (the board's 24x24 box: the Pokemon, not the icon's empty rows and columns): its columns 4-27 and rows 8-31 (none of
+ * FireRed's 387 icons has a pixel above row 8; many reach row 31: Charizard, Onix, Lugia, Ho-Oh). */
+static void DevNameIcon(unsigned species)
 {
     static unsigned char tiles[PT_MON_ICON_BYTES];  /* the bridge writes the icon's two frames */
     static unsigned short pal[16];
     static uint8_t px[32 * 32];
     static uint16_t pal565[16];
+    const CtrPokeTouchRect *box = &kDevNameIcon;
+    const int x = 16, y = 8;
 
-    DevArt(DEV_ART_ICON, x, y, 16, 16);
+    DevArt(DEV_ART_ICON, box->x, box->y, box->w, box->h);
     if (!CtrPokeTouch_MonIcon(species, 0, 0, tiles, pal))
         return;
     FDTiles(tiles, 32, 32, px);
     FDPal(pal, pal565);
-    DevIconPixels(px, pal565, x, y, 1, 0);
+    for (int py = box->y; py < box->y + box->h; ++py)
+        for (int qx = box->x; qx < box->x + box->w; ++qx) {
+            uint8_t c = px[(py - y) * 32 + qx - x];
+
+            if (c)
+                Px(qx, py, pal565[c]);
+        }
 }
 
-/* The name's screen: a Pokemon's icon at the left (one being named), FireRed's question small in the secondary ink, under
- * it a slot for each character the name takes (16 apart at most, 248 shared out): a character typed centred on its
- * slot, an underline under an empty one, in the paper's ink under the next to be typed; the gender sign after them. */
+/* The name's screen (def_naming): a Pokemon's icon in its box at the left (one being named; the box the paper's
+ * otherwise), FireRed's question small in the secondary ink from DEV_NAME_TITLE_X and, ending at DEV_NAME_COUNT_RIGHT,
+ * the counter of the characters typed and the most the name takes ("3 / 7"; both capitals 17: the question cut 8 px
+ * before the counter, and counted in sDevKeyCut); under them a slot for each character the name takes (DevNameSlot,
+ * where they are with or without an icon): a character typed in the title's ink from 2 px into its slot, capitals 28;
+ * an underline under every slot, in the paper's line, the mark's blue under the next to be typed; the gender sign after
+ * them. */
 static void DevNameEntry(const CtrPokeTouchName *n)
 {
-    CtrPokeTouchRect paper = DevScreen(&kDevNameScreen);
-    int x = paper.x + (n->species ? 24 : 6), top = paper.y + 14, pitch = n->maxChars ? 248 / n->maxChars : 16;
-    char text[66], g[3];
+    const int smallTop = 17;                            /* the question's and the counter's capitals */
+    int count = n->maxChars < PT_NAME_MAX ? n->maxChars : PT_NAME_MAX, from;
+    char text[66], counter[12], g[3];
 
-    if (pitch > 16)
-        pitch = 16;
+    DevScreen(&kDevNameScreen);
     if (n->species)
-        DevNameIcon(n->species, paper.x + 4, paper.y + 6);
+        DevNameIcon(n->species);
+    snprintf(counter, sizeof(counter), "%u / %u", (unsigned)n->len, (unsigned)n->maxChars);
+    from = DEV_NAME_COUNT_RIGHT - DevSmallTextWidth(counter);
+    DevSmallText(counter, from, smallTop, DEV_INK2, DEV_NAME_COUNT_RIGHT);
     FNText(n->title, (int)sizeof(n->title), text, (int)sizeof(text));
-    DevSmallText(text, x, paper.y + 3, DEV_INK2, paper.x + paper.w - 4);
-    for (int i = 0; i < n->maxChars && i < PT_NAME_MAX; ++i) {
-        int sx = x + pitch * i, sw = pitch - 2;
+    if (DevSmallTextWidth(text) > from - 8 - DEV_NAME_TITLE_X)
+        ++sDevKeyCut;                                   /* cut before the counter */
+    DevSmallText(text, DEV_NAME_TITLE_X, smallTop, DEV_INK2, from - 8);
+    for (int k = 0; k < count; ++k) {
+        CtrPokeTouchRect s = DevNameSlot(k);
 
-        if (i < n->len) {
-            FNChar(n->text[i], g);
-            DevText(g, sx + (sw - DevTextWidth(g)) / 2, top, sx + pitch);
-        } else
-            DevRect(sx, paper.y + 25, sw, 1, i == n->len ? DEV_INK : DEV_INK_SH);
+        DevRect(s.x, s.y + s.h - 1, s.w, 1, k == n->len ? DEV_MARK_ON : DEV_PAPER_LINE);
+        if (k >= n->len)
+            continue;
+        if (DevTextWidth(FNChar(n->text[k], g)) > s.w)
+            ++sDevKeyCut;                               /* wider than its slot and the gap after it: left out */
+        DevTextInk(g, s.x + 2, s.y + 2, s.x + 2 + s.w, DEV_TITLE_INK, DEV_INK_SH);
     }
     if (n->gender)
-        DevGender(n->gender == 2, x + pitch * n->maxChars + 2, top);
+        DevGender(n->gender == 2, DevNameSlot(count).x + 2, DevNameSlot(count).y + 1);
 }
 
 /* The five keys across: the page keys (the page shown sunk, or the one held; FireRed's cursor on its page button lights

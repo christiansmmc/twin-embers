@@ -426,7 +426,10 @@ static void DevBagRows(const DevBagPage *p, int held)
         int top = r.y + DEV_BAG_CAPS_Y, right = r.x + r.w - DEV_BAG_PAD, nameRight = right;
 
         DevRow(&r, chosen);
-        DevItemIcon(p->row[i].item, r.x + DEV_BAG_ICON_X, r.y + DEV_BAG_ICON_Y, 1);
+        if (p->row[i].item) {
+            DevArt(DEV_ART_ITEM, r.x + DEV_BAG_ICON_X, r.y + DEV_BAG_ICON_Y, 12, 12);
+            DevItemIcon(p->row[i].item, r.x + DEV_BAG_ICON_X, r.y + DEV_BAG_ICON_Y, 1);
+        }
         if (p->row[i].right[0]) {
             int w = DevTextWidth(p->row[i].right);
 
@@ -471,8 +474,10 @@ static void DevBagDesc(const DevBagPage *p)
     int x = DEV_BAG_READ_X, top = paper.y + 3, right = paper.x + paper.w - 4, first = x;
     char text[48];
 
-    if (p->selItem)
+    if (p->selItem) {
+        DevArt(DEV_ART_ITEM, kDevBagDescIcon.x, kDevBagDescIcon.y, kDevBagDescIcon.w, kDevBagDescIcon.h);
         DevItemIcon(p->selItem, kDevBagDescIcon.x, kDevBagDescIcon.y, 0);
+    }
     if (DevBagNarrow(p)) {
         DevReadText(p->read, &paper, DEV_BAG_READ_X, right, top, DEV_SMALL_LINE_TIGHT);
         return;

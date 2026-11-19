@@ -1,14 +1,15 @@
-/* ---- naming: the naming keyboard as the red device, through the field dispatcher (no board; plan 3 Task 5) ---------
+/* ---- naming: the naming keyboard as the red device, through the field dispatcher (board def_naming) ---------------
  * Included by device_render_test.c before its kSuites. (The Pokemon's icon is the harness's CtrPokeTouch_MonIcon, in
  * STUB_ICON while a suite sets monArt.) */
 
 /* The name's screen's paper (kDevNameScreen 6 px in) and, on it, the rows of the characters' capitals (from NAME_TOP,
- * UI_TEXT_H) and of the underlines (NAME_LINE); the slots from x 20, or 38 beside a Pokemon's icon at (18, 20), each 14
- * wide and 16 apart for a name of up to 15. */
+ * UI_TEXT_H) and of the underlines (NAME_LINE); the slots (DevNameSlot) from x 54 with or without an icon, each 14 wide
+ * and 16 apart; the question's and the counter's capitals (NAME_SMALL_TOP). */
 static const CtrPokeTouchRect kNamePaper = {14, 14, 292, 28};
 #define NAME_TOP 28
 #define NAME_LINE 39
-#define NAME_SLOT(i) (20 + 16 * (i))
+#define NAME_SMALL_TOP 17
+#define NAME_SLOT(i) (DevNameSlot(i).x)
 
 static CtrPokeTouchView gNameOld;
 
@@ -62,8 +63,8 @@ static void NameFill(CtrPokeTouchView *v, uint8_t page)
     }
 }
 
-/* The keyboard as 3ds_bottom.c gives it (FieldNameFill): the capitals' page, a name of 7 with three typed, a
- * port-written question, the cursor on the first key, nothing held, no Pokemon, no BACK (DELETE is its B). */
+/* The keyboard as 3ds_bottom.c gives it (FieldNameFill): the capitals' page, a name of 7 with three typed (the board's
+ * RED), a port-written question, the cursor on the first key, nothing held, no Pokemon, no BACK (DELETE is its B). */
 static CtrPokeTouchView NameBoard(void)
 {
     CtrPokeTouchView v;
@@ -74,11 +75,30 @@ static CtrPokeTouchView NameBoard(void)
     v.name.maxChars = 7;
     v.name.pressed = -1;
     NameFill(&v, 1);
-    NameCodes(v.name.text, PT_NAME_MAX, "Kit");
+    NameCodes(v.name.text, PT_NAME_MAX, "RED");
     v.name.len = 3;
     NameCodes(v.name.title, (int)sizeof(v.name.title), "Name for this test?");
     snprintf(v.bar[0], PT_BAR_LEN, "Name");                     /* the bar: not drawn by the keyboard */
     return v;
+}
+
+/* The counter as the last draw told it (the trace): `text` (the characters typed and the most the name takes) small in
+ * the secondary ink, capitals NAME_SMALL_TOP, ending at DEV_NAME_COUNT_RIGHT; the only small text on that row not from
+ * the question's x. */
+static void NameCounter(const char *text)
+{
+    int found = 0;
+
+    for (int i = 0; i < gTraceCount; ++i)
+        if (gTrace[i].op == DEV_TRACE_TEXT && gTrace[i].b == 1 && gTrace[i].y == NAME_SMALL_TOP && gTrace[i].x != DEV_NAME_TITLE_X) {
+            if (strcmp(gTrace[i].s, text) || gTrace[i].x + gTrace[i].w != DEV_NAME_COUNT_RIGHT || gTrace[i].a != DEV_INK2) {
+                fprintf(stderr, "naming: the counter \"%s\" at %d..%d, wanted \"%s\" ending at %d\n", gTrace[i].s,
+                        gTrace[i].x, gTrace[i].x + gTrace[i].w, text, DEV_NAME_COUNT_RIGHT);
+                assert(0);
+            }
+            ++found;
+        }
+    assert(found == 1);
 }
 
 /* Review Focus 1: on each of FireRed's pages every key it has is hit where it is drawn (every place of its columns: the
@@ -159,9 +179,16 @@ static void NameDeleteInCapitals(const CtrPokeTouchView *v)
 static void NameWords(CtrPokeTouchView v)
 {
     CtrPokeTouchView cased = v;
+    int typed = 0;
 
-    NameCodes(cased.name.text, PT_NAME_MAX, "KIT");
-    TouchSamePixels(&cased, &v, 0, "the name, as typed");
+    /* each character has its own slot, so a wider small letter moves nothing (TouchSamePixels cannot tell): the trace
+     * says what each slot's text is, FireRed's code as typed (Red's e, 0xd9, not E's 0xbf) */
+    NameCodes(cased.name.text, PT_NAME_MAX, "Red");
+    CtrPokeTouch_Draw(canvas, &cased);
+    for (int i = 0; i < gTraceCount; ++i)
+        if (gTrace[i].op == DEV_TRACE_TEXT && gTrace[i].x == DevNameSlot(1).x + 2 && gTrace[i].y == NAME_TOP)
+            typed += !strcmp(gTrace[i].s, "\x01\xd9") ? 1 : 100;
+    assert(typed == 1);
     cased = v;
     NameCodes(cased.name.title, (int)sizeof(cased.name.title), "NAME FOR THIS TEST?");
     TouchSamePixels(&cased, &v, 0, "the question, as FireRed writes it");
@@ -180,6 +207,7 @@ static void SuiteNaming(void)
     static const int kPageKey[3] = {2, 0, 1};   /* the page key of FireRed's page 0, 1, 2 */
     CtrPokeTouchView v = NameBoard(), other;
     CtrPokeTouchRect r;
+    uint8_t keepW;
     int i, q;
 
     gNameOld = v;
@@ -199,18 +227,53 @@ static void SuiteNaming(void)
     }
     v = NameBoard(); v.name.curCol = 3; v.name.curRow = 2; v.name.pressed = PT_NAME_HIT_KEY + 1 * PT_NAME_COLS + 5;
     DevCheckTouch(&gNameOld, &v); NameSunk(&v, 1 * PT_NAME_COLS + 5, -1);
-    v.name.pressed = -1; v.name.len = 0; memset(v.name.text, 0xff, sizeof(v.name.text)); DevCheckTouch(&gNameOld, &v);
-    assert(Count(NAME_SLOT(0), NAME_LINE, 14, 1, DEV_INK) == 14 && Count(NAME_SLOT(0), NAME_TOP, 14, UI_TEXT_H, DEV_INK) == 0);
-    for (i = 1; i < 7; ++i) assert(Count(NAME_SLOT(i), NAME_LINE, 14, 1, DEV_INK_SH) == 14);
-    assert(Count(NAME_SLOT(7), NAME_LINE, 306 - NAME_SLOT(7), 1, DEV_INK_SH) == 0);
-    v.name.maxChars = 10; NameCodes(v.name.text, PT_NAME_MAX, "Kitkatkitk"); v.name.len = 10; DevCheckTouch(&gNameOld, &v);
-    assert(Count(kNamePaper.x, NAME_LINE, kNamePaper.w, 1, DEV_INK) == 0 && Count(kNamePaper.x, NAME_LINE, kNamePaper.w, 1, DEV_INK_SH) == 0);
-    for (i = 0; i < 10; ++i) assert(Count(NAME_SLOT(i), NAME_TOP, 14, UI_TEXT_H, DEV_INK) > 0);
+    v.name.pressed = -1; v.name.len = 0; memset(v.name.text, 0xff, sizeof(v.name.text)); DevCheckTouch(&gNameOld, &v); NameCounter("0 / 7");
+    assert(Count(NAME_SLOT(0), NAME_LINE, 14, 1, DEV_MARK_ON) == 14 && Count(NAME_SLOT(0), NAME_TOP, 14, UI_TEXT_H, DEV_TITLE_INK) == 0);
+    for (i = 1; i < 7; ++i) assert(Count(NAME_SLOT(i), NAME_LINE, 14, 1, DEV_PAPER_LINE) == 14);
+    assert(Count(NAME_SLOT(7), NAME_LINE, 306 - NAME_SLOT(7), 1, DEV_PAPER_LINE) == 0 && CountIn(kNamePaper, DEV_TITLE_INK) == 0);
+    v.name.maxChars = 10; NameCodes(v.name.text, PT_NAME_MAX, "Kitkatkitk"); v.name.len = 10; DevCheckTouch(&gNameOld, &v); NameCounter("10 / 10");
+    assert(Count(kNamePaper.x, NAME_LINE, kNamePaper.w, 1, DEV_MARK_ON) == 0 && Count(kNamePaper.x, NAME_LINE, kNamePaper.w, 1, DEV_PAPER_LINE) == 10 * 14);
+    for (i = 0; i < 10; ++i) assert(Count(NAME_SLOT(i), NAME_TOP, 14, UI_TEXT_H, DEV_TITLE_INK) > 0);
+    /* "10 / 10": from x 262 on, ending at 298 */
+    assert(Count(262, NAME_SMALL_TOP, 37, 7, DEV_INK2) > 0 && Count(299, 14, 7, 28, DEV_INK2) == 0 && Count(200, 14, 62, 28, DEV_INK2) == 0);
     v = NameBoard(); v.name.gender = 1; DevCheckTouch(&gNameOld, &v);
-    assert(Count(NAME_SLOT(7) + 2, NAME_TOP, 8, 10, DEV_MALE) > 0 && CountIn(kNamePaper, DEV_FEMALE) == 0);
-    v.name.gender = 2; DevCheckTouch(&gNameOld, &v); assert(Count(NAME_SLOT(7) + 2, NAME_TOP, 8, 10, DEV_FEMALE) > 0 && CountIn(kNamePaper, DEV_MALE) == 0);
+    assert(Count(NAME_SLOT(7) + 2, 27, 8, 10, DEV_MALE) == CountIn(kNamePaper, DEV_MALE) && CountIn(kNamePaper, DEV_MALE) > 0 && CountIn(kNamePaper, DEV_FEMALE) == 0);
+    v.name.gender = 2; DevCheckTouch(&gNameOld, &v); assert(Count(NAME_SLOT(7) + 2, 27, 8, 10, DEV_FEMALE) > 0 && CountIn(kNamePaper, DEV_MALE) == 0);
     v.name.gender = 0; DevCheckTouch(&gNameOld, &v); assert(CountIn(kNamePaper, DEV_MALE) == 0 && CountIn(kNamePaper, DEV_FEMALE) == 0);
     v.mapGroup ^= 1; v.speed ^= 1; assert(DevCheckTouch(&gNameOld, &v).count == 0);
+
+    /* the name strip (def_naming): every slot's underline in the paper's line, the next to type's in the mark's blue; a
+     * typed letter in the title's ink from its slot's x + 2; FireRed's question from 52 and the counter "3 / 7" ending
+     * at 298 (capitals 17); a full name no blue; a Pokemon's icon (a whole 32x32 square) 1:1 from (16, 8) clipped to its
+     * 24x24 box, the question and the slots where they were */
+    v = NameBoard(); DevCheckTouch(&gNameOld, &v);
+    for (i = 0; i < 7; ++i) assert(Count(NAME_SLOT(i), NAME_LINE, 14, 1, i == 3 ? DEV_MARK_ON : DEV_PAPER_LINE) == 14);
+    assert(Count(NAME_SLOT(0) + 2, 28, 12, 9, DEV_TITLE_INK) > 0 && Count(52, 17, 50, 7, DEV_INK2) > 0);
+    assert(Count(NAME_SLOT(0), 14, 2, 28, DEV_TITLE_INK) == 0 && Count(51, 14, 1, 12, DEV_INK2) == 0);
+    assert(Count(262, 17, 37, 7, DEV_INK2) > 0 && Count(299, 14, 7, 28, DEV_INK2) == 0);                  /* "3 / 7" */
+    NameCounter("3 / 7");
+    assert(CountIn(kDevNameIcon, DEV_PAPER) == 24 * 24);                                                    /* no icon */
+    v.name.len = 7; DevCheckTouch(&gNameOld, &v); assert(Count(14, 39, 292, 1, DEV_MARK_ON) == 0);          /* full */
+    NameCounter("7 / 7");
+    monArt = 2; v.name.species = 4; DevCheckTouch(&gNameOld, &v);                                          /* a whole 32x32 square */
+    assert(CountIn(kDevNameIcon, STUB_ICON) == 24 * 24 && Count(16, 8, 4, 32, STUB_ICON) == 0 && Count(44, 8, 4, 32, STUB_ICON) == 0);
+    assert(CountIn(kNamePaper, STUB_ICON) == 24 * 24);
+    assert(Count(52, 17, 50, 7, DEV_INK2) > 0);                                                            /* the column does not move */
+    v.name.len ^= 1; assert(DevWhole(DevCheckTouch(&gNameOld, &v)));
+    monArt = 0;
+    /* FireRed's question cut before the counter (8 px short of it) and counted: 31 glyphs 8 wide */
+    v = NameBoard(); memset(v.name.title, 0xbb + ('W' - 'A'), 31); v.name.title[31] = 0xff;
+    keepW = smallWidths[0xbb + ('W' - 'A')]; smallWidths[0xbb + ('W' - 'A')] = 8; memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    q = sDevKeyCut; CtrPokeTouch_Draw(canvas, &v);
+    assert(sDevKeyCut == q + 1 && Count(52, 17, 8, 7, DEV_INK2) > 0);
+    r.x = (int16_t)(DEV_NAME_COUNT_RIGHT - DevSmallTextWidth("3 / 7")); assert(Count(r.x - 8, 14, 8, 12, DEV_INK2) == 0 && Count(r.x, 14, 8, 12, DEV_INK2) > 0);
+    smallWidths[0xbb + ('W' - 'A')] = keepW; memset(sDevSmallReady, 0, sizeof(sDevSmallReady)); sDevKeyCut = 0;
+    /* a typed character wider than its 14 px (from 2 px into its slot to the next slot) left out and counted */
+    keepW = fontWidths[0xbb + ('R' - 'A')]; fontWidths[0xbb + ('R' - 'A')] = 15; memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    v = NameBoard(); q = sDevKeyCut; CtrPokeTouch_Draw(canvas, &v);
+    assert(sDevKeyCut == q + 1 && Count(NAME_SLOT(0), NAME_TOP, 16, UI_TEXT_H, DEV_TITLE_INK) == 0 && Count(NAME_SLOT(1), NAME_TOP, 14, UI_TEXT_H, DEV_TITLE_INK) > 0);
+    fontWidths[0xbb + ('R' - 'A')] = keepW; memset(sPtFontReady, 0, sizeof(sPtFontReady)); sDevKeyCut = 0;
+    v = NameBoard(); DevCheckTouch(&gNameOld, &v);
 
     /* the keys: FireRed's character on each, a space key its mark alone (the letters' column 6, and the places a short
      * row leaves: column 7 of the letters' last two rows, column 5 of the symbols' rows 0, 1, 3); the cursor's key sunk
@@ -236,16 +299,25 @@ static void SuiteNaming(void)
     v.name.pressed = -1; v.name.curCol = 0; DevCheckTouch(&gNameOld, &v); NameSunk(&v, 0, -1);
     assert(Count(8, 56, 304, 27, DEV_LED) > 0);  /* the page shown's own */
 
-    /* the screen: the question small in the secondary ink over the slots (none, nothing); a Pokemon's icon at half size
-     * with the slots beside it; the most a name takes */
-    assert(Count(kNamePaper.x, kNamePaper.y, kNamePaper.w, 12, DEV_INK2) > 0);
-    memset(v.name.title, 0xff, sizeof(v.name.title)); DevCheckTouch(&gNameOld, &v); assert(CountIn(kNamePaper, DEV_INK2) == 0);
+    /* the screen: the question small in the secondary ink over the slots (none, nothing; the counter stays); a Pokemon's
+     * icon 1:1 from (16, 8) in its box, its rows 8-31 (the harness's 24x24 square in a clear border of 4: rows 12-35, so
+     * the box's rows 16-35, its last four the paper's) with the slots where they were, and none (the box the paper's) once
+     * it goes; the most a name takes, the gender sign after it short of the counter */
+    assert(Count(DEV_NAME_TITLE_X, kNamePaper.y, 200, 12, DEV_INK2) > 0);
+    memset(v.name.title, 0xff, sizeof(v.name.title)); DevCheckTouch(&gNameOld, &v);
+    assert(Count(kNamePaper.x, kNamePaper.y, 262 - kNamePaper.x, kNamePaper.h, DEV_INK2) == 0 && Count(262, NAME_SMALL_TOP, 37, 7, DEV_INK2) > 0);
     monArt = 1; v = NameBoard(); v.name.species = 4; DevCheckTouch(&gNameOld, &v);
-    assert(Count(18, 20, 16, 16, STUB_ICON) == 12 * 12 && CountIn(kNamePaper, STUB_ICON) == 12 * 12);
-    assert(Count(NAME_SLOT(3) + 18, NAME_LINE, 14, 1, DEV_INK) == 14 && Count(NAME_SLOT(0) + 18, NAME_TOP, 14, UI_TEXT_H, DEV_INK) > 0);
-    v.name.species = 0; DevCheckTouch(&gNameOld, &v); assert(CountIn(kNamePaper, STUB_ICON) == 0 && Count(NAME_SLOT(3), NAME_LINE, 14, 1, DEV_INK) == 14);
+    assert(Count(20, 16, 24, 20, STUB_ICON) == 24 * 20 && CountIn(kNamePaper, STUB_ICON) == 24 * 20);
+    assert(at(20, 35) == STUB_ICON && at(20, 36) == DEV_PAPER && at(43, 35) == STUB_ICON && at(44, 35) != STUB_ICON);
+    assert(CountIn(kDevNameIcon, DEV_PAPER) == 24 * 24 - 24 * 20);   /* the icon's clear pixels: the paper behind it */
+    assert(Count(NAME_SLOT(3), NAME_LINE, 14, 1, DEV_MARK_ON) == 14 && Count(NAME_SLOT(0), NAME_TOP, 14, UI_TEXT_H, DEV_TITLE_INK) > 0);
+    v.name.species = 0; DevCheckTouch(&gNameOld, &v);
+    assert(CountIn(kNamePaper, STUB_ICON) == 0 && CountIn(kDevNameIcon, DEV_PAPER) == 24 * 24 && Count(NAME_SLOT(3), NAME_LINE, 14, 1, DEV_MARK_ON) == 14);
     monArt = 0;
-    v.name.maxChars = PT_NAME_MAX; DevCheckTouch(&gNameOld, &v); assert(Count(NAME_SLOT(PT_NAME_MAX - 1), NAME_LINE, 14, 1, DEV_INK_SH) == 14);
+    v.name.maxChars = PT_NAME_MAX; v.name.gender = 2; DevCheckTouch(&gNameOld, &v); NameCounter("3 / 12");
+    assert(Count(NAME_SLOT(PT_NAME_MAX - 1), NAME_LINE, 14, 1, DEV_PAPER_LINE) == 14 && Count(NAME_SLOT(PT_NAME_MAX), NAME_LINE, 306 - NAME_SLOT(PT_NAME_MAX), 1, DEV_PAPER_LINE) == 0);
+    assert(Count(NAME_SLOT(PT_NAME_MAX) + 2, 27, 8, 10, DEV_FEMALE) > 0 && Count(NAME_SLOT(PT_NAME_MAX) + 2, 27, 8, 10, DEV_FEMALE) == CountIn(kNamePaper, DEV_FEMALE));
+    assert(Count(NAME_SLOT(PT_NAME_MAX) + 10, 14, 262 - NAME_SLOT(PT_NAME_MAX) - 10, 28, DEV_INK2) == 0 && Count(262, NAME_SMALL_TOP, 37, 7, DEV_INK2) > 0);
 
     /* no BACK (DELETE is FireRed's B): nothing hit where a view's BACK is, even with BACK asked for */
     v = NameBoard(); v.backVisible = v.backEnabled = 1; DevCheckTouch(&gNameOld, &v);

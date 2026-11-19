@@ -627,6 +627,17 @@ int main(void) {
     CtrFieldChoice_Split(a, l, p, 2); assert(l[0] == 0xC0 && l[1] == 0xFF);
     return 0; }''')
 
+    def test_box_menu_reports_cancel(self):
+        """A PC box menu's CANCEL goes to the exit corner (def_box_menu) only when FireRed's last row is CANCEL: the
+        wallpaper menus end in a scenery. The bridge reports it from the row's text id (recipe 0268, the tasks' file only)."""
+        name = '0268-box-menu-reports-cancel.json'
+        self.assertIn('b->menuCancel = b->menuCount > 0 && gStorage->menuItems[b->menuCount - 1].textId == MENU_TEXT_CANCEL;',
+                      additions(name, 'src/pokemon_storage_system_tasks.c'))
+        doc = json.loads((ROOT / 'patches/pokefirered' / name).read_text())
+        self.assertEqual([f['path'] for f in doc['files']], ['src/pokemon_storage_system_tasks.c'])
+        self.assertRegex((ROOT / '3ds_port/include/3ds_poketouch.h').read_text(encoding='utf-8'),
+                         r'uint8_t menu\[PT_BOX_MENU_MAX\]\[16\];\s*uint8_t menuCancel;')
+
     def test_device_drawers_write_non_ascii_as_escapes(self):
         """A string literal in a device drawer holds ASCII and backslash escapes only (UTF-8 spelled as bytes, as the codebase
         does): a raw non-ASCII character there is saved as other bytes and draws the wrong letters (ES YES was "S" plus two
@@ -1478,6 +1489,26 @@ int main(void) {
                            '(uint8_t)CtrOptions_Shell();\n')
         self.assertLess(frame.index('SnapshotState(&state,'), fill)
         self.assertLess(fill, frame.index('memcmp(&state, &sShown, sizeof(state))'))
+
+    def test_box_fill_adds_the_types(self):
+        """The PC box's footer shows the pointed Pokemon's type chips (def_box): the port fills them after FireRed's box
+        (BoxSnapshot, after CtrBottomStorage_BoxFill) from the Pokedex's own types, none (-1) for an egg, an empty
+        place or a Pokemon not caught (CtrBottomDex_Types tells none then)."""
+        fill = (ROOT / '3ds_port/src/3ds_bottom_field_fill_impl.h').read_text(encoding='utf-8')
+        snapshot = function(fill, 'BoxSnapshot')
+        call = ('CtrBottomDex_Types(b->mon.species, types, b->monTypeName[0], b->monTypeName[1], '
+                'sizeof(b->monTypeName[0]))')
+        self.assertIn(call, snapshot)
+        self.assertLess(snapshot.index('CtrBottomStorage_BoxFill(b)'), snapshot.index(call))
+        self.assertRegex(snapshot, r'if \(b->mon\.species && !b->mon\.egg\)\s+' + re.escape(call))
+        self.assertIn('b->monType[0] = (int8_t)types[0];', snapshot)
+        self.assertIn('b->monType[1] = (int8_t)types[1];', snapshot)
+        self.assertRegex(snapshot, r'int types\[2\] = \{-1, -1\};')
+        header = (ROOT / '3ds_port/include/3ds_poketouch.h').read_text(encoding='utf-8')
+        box = header[header.index('typedef struct {\n    uint8_t on, state;'):header.index('} CtrPokeTouchBox;')]
+        last = box.strip().splitlines()[-2:]
+        self.assertIn('int8_t monType[2];', last[0], 'monType and monTypeName end the box')
+        self.assertIn('char monTypeName[2][12];', last[1], 'monType and monTypeName end the box')
 
     def test_box_chooser_cancel_sends_b(self):
         """The PC box's chooser (DEPOSIT's, JUMP's) has no CANCEL of FireRed's: its CANCEL key is the view's BACK while

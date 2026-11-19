@@ -445,11 +445,25 @@ static inline CtrPokeTouchRect DevChoiceKey(int n, int cols, int i)
     return r;
 }
 
-/* ---- The naming keyboard (no board; 3ds_device_naming_impl.h) --------------------------------------------------------
- * The name's screen across the top (the Pokemon's icon, FireRed's question, the name's slots and the gender sign); under
- * it five keys across (DevNameTop: ABC, abc and 123 turning to FireRed's pages, DELETE, OK); under them the page's keys
- * in four rows (DevNameKey: FireRed's 8 columns, 34 wide, or its symbols' 6, 47 wide). */
+/* ---- The naming keyboard (def_naming; 3ds_device_naming_impl.h) ------------------------------------------------------
+ * The name's screen across the top: the icon's box at its left (kDevNameIcon: a Pokemon's icon, or the paper), FireRed's
+ * question from DEV_NAME_TITLE_X and the counter ending at DEV_NAME_COUNT_RIGHT (both small, capitals 17), under them
+ * the name's slots (DevNameSlot: from x 54 with or without an icon) and the gender sign after the last; under it five
+ * keys across (DevNameTop: ABC, abc and 123 turning to FireRed's pages, DELETE, OK); under them the page's keys in four
+ * rows (DevNameKey: FireRed's 8 columns, 34 wide, or its symbols' 6, 47 wide). */
 static const CtrPokeTouchRect kDevNameScreen __attribute__((unused)) = {8, 8, 304, 40};
+static const CtrPokeTouchRect kDevNameIcon __attribute__((unused)) = {20, 16, 24, 24};
+#define DEV_NAME_TITLE_X     52     /* FireRed's question's x */
+#define DEV_NAME_COUNT_RIGHT 298    /* the counter's right end */
+
+/* The place of the name's character k (0 to PT_NAME_MAX; the gender sign's at k == maxChars): 14 wide, 16 apart from x
+ * 54, its character's capitals at y 28 and its underline its last row (y 39). */
+static inline CtrPokeTouchRect DevNameSlot(int k)
+{
+    CtrPokeTouchRect r = {(int16_t)(54 + 16 * k), 26, 14, 14};
+
+    return r;
+}
 
 /* Key i (0-4) across under the screen: ABC (FireRed's page 1, the capitals), abc (page 2, the small letters), 123 (page
  * 0, the symbols), DELETE, OK. */
@@ -464,68 +478,73 @@ static inline CtrPokeTouchRect DevNameKey(int cols, int r, int c)
     return DevAcross(cols, c, 88 + 36 * r, 32);
 }
 
-/* ---- The PC box (no board; 3ds_device_box_impl.h) --------------------------------------------------------------------
- * The box's screen on the left: its paper is FireRed's 160x144 wallpaper at 1:1 (owner decision 2), the box's name on
- * the wallpaper's own band at its top (kDevBoxTitle, a row), the thirty places 24 px apart under it (DevBoxCell, rows),
- * or with the cursor in the Party the Party's rows on the same paper (DevBoxPartyRow, 6 its CANCEL). The right column:
- * ◀ ▶, PARTY, CLOSE BOX (dark) and the hand's screen; the note across under them all. A menu, YES / NO or the marks:
- * the keys stand in the right column (DevBoxMenuKey) and the note is narrow (kDevBoxNoteNarrow). The box chooser: ◀ ▶
- * and the chosen box's key (kDevBoxChoose) under them, the note narrow and CANCEL (kDevBoxCancel, dark) beside it. */
-static const CtrPokeTouchRect kDevBoxScreen __attribute__((unused)) = {8, 8, 172, 156};
-static const CtrPokeTouchRect kDevBoxTitle __attribute__((unused)) = {14, 14, 160, 24};
+/* ---- The PC box (def_box; 3ds_device_box_impl.h) -------------------------------------------------------------------
+ * The box's screen on the left (kDevBoxScreen, owner decision O3: plain paper, no wallpaper): the box's name on the band
+ * at its top (kDevBoxTitle, a row), the thirty places 24 px apart under it (DevBoxCell, rows), or with the cursor in the
+ * Party the Party's six rows on the same screen (DevBoxPartyRow: Call 12), their CANCEL in the grid's exit. The right
+ * column: ◀ ▶ (kDevBoxPrev, kDevBoxNext), the hand's screen (kDevBoxHand), PARTY POKéMON (kDevBoxParty) and the box's
+ * count (kDevBoxCount, a screen) one under the other; CLOSE, a dark key, in the grid's exit (kDevGridExit) and the footer
+ * on the grid's note (kDevGridNote) in every state. A menu or the marks: their keys in the column (DevBoxMenuKey,
+ * DEV_BOX_COLUMN at most), a menu's CANCEL row and the marks' CANCEL in the grid's exit (a menu without CANCEL: the view's
+ * BACK there). YES / NO: two tall keys in the column (kDevBoxYes, kDevBoxNo: def_choice_yesno's), BACK in the grid's
+ * exit. The box chooser: ◀ ▶ and the chosen box's key in the hand's place (kDevBoxChoose), PARTY POKéMON and the count as
+ * in the box, CANCEL in the grid's exit. */
+static const CtrPokeTouchRect kDevBoxScreen __attribute__((unused)) = {8, 8, 172, 176};
+static const CtrPokeTouchRect kDevBoxTitle __attribute__((unused)) = {14, 14, 160, 20};
 static const CtrPokeTouchRect kDevBoxPrev __attribute__((unused)) = {188, 8, 58, 24};
 static const CtrPokeTouchRect kDevBoxNext __attribute__((unused)) = {254, 8, 58, 24};
-static const CtrPokeTouchRect kDevBoxParty __attribute__((unused)) = {188, 40, 124, 32};
-static const CtrPokeTouchRect kDevBoxClose __attribute__((unused)) = {188, 80, 124, 32};
-static const CtrPokeTouchRect kDevBoxHand __attribute__((unused)) = {188, 120, 124, 44};
-static const CtrPokeTouchRect kDevBoxNote __attribute__((unused)) = {8, 172, 304, 60};
-static const CtrPokeTouchRect kDevBoxNoteNarrow __attribute__((unused)) = {8, 172, 172, 60};
-static const CtrPokeTouchRect kDevBoxChoose __attribute__((unused)) = {188, 40, 124, 72};
-static const CtrPokeTouchRect kDevBoxCancel __attribute__((unused)) = {188, 172, 124, 56};
+static const CtrPokeTouchRect kDevBoxHand __attribute__((unused)) = {188, 40, 124, 60};
+static const CtrPokeTouchRect kDevBoxParty __attribute__((unused)) = {188, 108, 124, 40};
+static const CtrPokeTouchRect kDevBoxCount __attribute__((unused)) = {188, 156, 124, 28};
+static const CtrPokeTouchRect kDevBoxChoose __attribute__((unused)) = {188, 40, 124, 60};
+static const CtrPokeTouchRect kDevBoxYes __attribute__((unused)) = {188, 8, 124, 84};
+static const CtrPokeTouchRect kDevBoxNo __attribute__((unused)) = {188, 100, 124, 84};
+#define DEV_BOX_COLUMN 5        /* the right column's keys at most (FireRed's largest menu: five rows and CANCEL) */
 
-/* Place i (0-29) of the box: six across, five down, on the wallpaper where FireRed puts its icons. */
+/* Place i (0-29) of the box: six across, five down under the band; its square 1 px in (the board's 22x22). */
 static inline CtrPokeTouchRect DevBoxCell(int i)
 {
-    CtrPokeTouchRect r = {(int16_t)(22 + 24 * (i % 6)), (int16_t)(38 + 24 * (i / 6)), 24, 24};
+    CtrPokeTouchRect r = {(int16_t)(22 + 24 * (i % 6)), (int16_t)(34 + 24 * (i / 6)), 24, 24};
 
     return r;
 }
 
-/* The Party's row i (0-5 a slot, 6 its CANCEL) on the box's paper. */
+/* The Party's row i (0-5, a slot) on the box's screen: 24 tall, 26 apart (a list's rows; six: Call 12). FireRed's
+ * seventh row, CANCEL, is the dark key in the grid's exit (kDevGridExit). */
 static inline CtrPokeTouchRect DevBoxPartyRow(int i)
 {
-    CtrPokeTouchRect r = {16, (int16_t)(16 + 20 * i), 156, 20};
+    CtrPokeTouchRect r = {16, (int16_t)(16 + 26 * i), 156, 24};
 
     return r;
 }
 
-/* Key i of n (1-7) in the right column: 44 apart and 40 tall up to five, 32 apart and 28 tall beyond (the box's menu
- * of up to seven, YES / NO, the marks' six). */
-static inline CtrPokeTouchRect DevBoxMenuKey(int n, int i)
+/* Key i (0 to DEV_BOX_COLUMN - 1) of the right column: 30 tall, 36 apart from the top (a menu's rows, YES and NO, the
+ * marks and OK). */
+static inline CtrPokeTouchRect DevBoxMenuKey(int i)
 {
-    int p = n <= 5 ? 44 : 32, h = n <= 5 ? 40 : 28;
-    CtrPokeTouchRect r = {188, (int16_t)(8 + p * i), 124, (int16_t)h};
+    CtrPokeTouchRect r = {188, (int16_t)(8 + 36 * i), 124, 30};
 
     return r;
 }
 
-/* ---- Easy Chat (no board; 3ds_device_easychat_impl.h) ----------------------------------------------------------------
+/* ---- Easy Chat (3ds_device_easychat_impl.h; as def_easychat_edit, def_easychat_groups and def_easychat_list) -------
  * The phrase: FireRed's title and the count on the phrase's screen (kDevEcPhrase), the phrase's n slots as keys in two
- * rows (DevEcChip), BY GROUP and A TO Z across under them (DevEcMode), CLEAR, CANCEL (dark) and CONFIRM across the
- * bottom (DevEcFooter). The groups: the title on the grid's title, the groups' names as keys four across (DevEcCell); the
- * letters: A..Z as keys in FireRed's rows of 6, 6, 7 and 7 (DevEcLetter); both with the toggle and BACK (dark) across the
- * bottom (DevEcToggle). A list: its title over the phrase on two lines (kDevEcListTitle), the words two a row
- * (DevEcRow: rows) on the list's paper (kDevEcList) with the rail on the same paper (kDevEcRail), ▲ ▼ (kDevEcUp,
- * kDevEcDown), the letter strip (kDevEcStrip, a screen; its letters in DevEcStripCell), USE WORD, the toggle and BACK
- * (dark, at the right) across the bottom (DevEcListKey). A question: the phrase's screen and slots dimmed, the question's note, YES and
- * NO (kDevAskNote, kDevAskYes, kDevAskNo). */
+ * rows (DevEcChip), BY GROUP and A TO Z across under them (DevEcMode), CLEAR, CONFIRM in the middle and CANCEL (dark,
+ * in the exit corner) across the bottom (DevEcBottom at y 178, 52 tall). The groups: the phrase and the count on the
+ * grid's title (kDevGridTitle), the groups' names as keys in a window of DEV_EC_GROUP_ROWS rows of three (DevEcCell)
+ * with ▲ ▼ in the grid's column (kDevGridUp, kDevGridDown: DevEcGroupStep); the letters: A..Z as keys in FireRed's rows
+ * of 6, 6, 7 and 7 (DevEcLetter); both over the grid's footer, the note and BACK (dark) in the exit corner (kDevGridNote,
+ * kDevGridExit). A list: its title over the phrase on two lines (kDevEcListTitle), the words two a row (DevEcRow:
+ * rows) on the list's paper (kDevEcList) with the rail on the same paper (kDevEcRail), ▲ ▼ as two tall keys at the
+ * right (kDevEcUp, kDevEcDown), USE WORD, the toggle and BACK (dark, in the exit corner) across the bottom (DevEcBottom
+ * at y 196, 34 tall). A question: the phrase's screen and slots dimmed, the question's note, YES and NO (kDevAskNote,
+ * kDevAskYes, kDevAskNo). */
 static const CtrPokeTouchRect kDevEcPhrase __attribute__((unused)) = {8, 8, 304, 36};
 static const CtrPokeTouchRect kDevEcListTitle __attribute__((unused)) = {8, 6, 304, 40};
 static const CtrPokeTouchRect kDevEcList __attribute__((unused)) = {8, 52, 236, 136};
 static const CtrPokeTouchRect kDevEcRail __attribute__((unused)) = {220, 58, 18, 124};
-static const CtrPokeTouchRect kDevEcUp __attribute__((unused)) = {252, 52, 28, 64};
-static const CtrPokeTouchRect kDevEcDown __attribute__((unused)) = {252, 120, 28, 64};
-static const CtrPokeTouchRect kDevEcStrip __attribute__((unused)) = {284, 52, 28, 136};
+static const CtrPokeTouchRect kDevEcUp __attribute__((unused)) = {252, 52, 60, 62};
+static const CtrPokeTouchRect kDevEcDown __attribute__((unused)) = {252, 122, 60, 62};
 
 /* Slot i of a phrase of n slots (1-9): (n + 1) / 2 across, two rows. */
 static inline CtrPokeTouchRect DevEcChip(int n, int i)
@@ -541,16 +560,41 @@ static inline CtrPokeTouchRect DevEcMode(int i)
     return DevAcross(2, i, 136, 30);
 }
 
-/* The phrase's buttons: 0 CLEAR, 1 CANCEL, 2 CONFIRM. */
-static inline CtrPokeTouchRect DevEcFooter(int i)
+/* Bottom key i at y, h tall, as def_easychat_edit's and def_easychat_list's footers (the phrase's at y 178, 52 tall; a
+ * list's at y 196, 34 tall): 0 from x 8, 108 wide (CLEAR, USE WORD); 1 in the middle from x 124, 112 wide (CONFIRM, the
+ * toggle); 2 in the exit corner from x 244, 68 wide (CANCEL, BACK; dark: kDevGridExit's column). */
+static inline CtrPokeTouchRect DevEcBottom(int i, int y, int h)
 {
-    return DevAcross(3, i, 178, 52);
+    CtrPokeTouchRect r = {(int16_t)(i == 0 ? 8 : i == 1 ? 124 : 244), (int16_t)y,
+                          (int16_t)(i == 0 ? 108 : i == 1 ? 112 : 68), (int16_t)h};
+
+    return r;
 }
 
-/* Group i (0-20): four across, six rows at most. */
+/* Place i (0 to 3 * DEV_EC_GROUP_ROWS - 1) of the groups' window: three across, 84x24, 4 px apart across and 5 down. */
+#define DEV_EC_GROUP_ROWS 5
 static inline CtrPokeTouchRect DevEcCell(int i)
 {
-    return DevAcross(4, i % 4, 40 + 27 * (i / 4), 24);
+    CtrPokeTouchRect r = {(int16_t)(8 + 88 * (i % 3)), (int16_t)(40 + 29 * (i / 3)), 84, 24};
+
+    return r;
+}
+
+/* The group the groups' ▲ (`down` 0) or ▼ walks FireRed's cursor to, a row of three up or down: from the cursor's
+ * group, or from the window's first group while the cursor is not on a group (FireRed's blue box); ▼ from the row
+ * before a short last row to the last group. -1 where there is no row that way, and both ways while the groups fit one
+ * window (Call 13). The drawer's and the touch's (3ds_bottom_easychat_impl.h) one rule. */
+static inline int DevEcGroupStep(const CtrPokeTouchEasy *e, int down)
+{
+    int n = e->groupCount, base = e->cell >= 0 && e->cell < n ? e->cell : 3 * e->groupFirst;
+
+    if (n <= 3 * DEV_EC_GROUP_ROWS)
+        return -1;
+    if (!down)
+        return base / 3 > 0 ? base - 3 : -1;
+    if (base / 3 >= (n - 1) / 3)
+        return -1;
+    return base + 3 < n - 1 ? base + 3 : n - 1;
 }
 
 /* Letter i (0-25, A..Z) where FireRed's A-Z keys lie: rows of 6, 6, 7 and 7 (from letters 0, 6, 12, 19), seven places
@@ -562,31 +606,10 @@ static inline CtrPokeTouchRect DevEcLetter(int i)
     return DevAcross(7, i - (6 * r + (r == 3)), 40 + 32 * r, 28);
 }
 
-/* The groups' and the letters' bottom keys: 0 the toggle to the other order, 1 BACK. */
-static inline CtrPokeTouchRect DevEcToggle(int i)
-{
-    return DevAcross(2, i, 206, 26);
-}
-
 /* Row place k (0-11) of the list: two words a row, six rows, left of the rail. */
 static inline CtrPokeTouchRect DevEcRow(int k)
 {
     CtrPokeTouchRect r = {(int16_t)(16 + 102 * (k % 2)), (int16_t)(60 + 20 * (k / 2)), 100, 20};
-
-    return r;
-}
-
-/* A list's bottom keys: 0 USE WORD, 1 the toggle, 2 BACK (at the right, as every view's and the groups' BACK). */
-static inline CtrPokeTouchRect DevEcListKey(int i)
-{
-    return DevAcross(3, i, 196, 36);
-}
-
-/* Letter i (0-25) of the strip, thirteen down in two columns: its place, the lit letter's box; the letter's capitals
- * from 1 px in (x 291 + 8 * column, y 60 + 9 * row). */
-static inline CtrPokeTouchRect DevEcStripCell(int i)
-{
-    CtrPokeTouchRect r = {(int16_t)(290 + 8 * (i / 13)), (int16_t)(59 + 9 * (i % 13)), 8, 9};
 
     return r;
 }

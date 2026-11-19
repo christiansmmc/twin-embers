@@ -163,30 +163,39 @@ static void DevHomeLabel(const CtrPokeTouchView *v)
     if (!DevHomeLabelRect(v, &r))
         return;
     DevUpper(name, v->bar[0], sizeof(name));
-    Fill(r.x, r.y, r.w, r.h, DEV_BEZEL);
-    Fill(r.x + 1, r.y + 1, r.w - 2, r.h - 2, DEV_PAPER);
+    DevRect(r.x, r.y, r.w, r.h, DEV_BEZEL);
+    DevRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2, DEV_PAPER);
     DevText(name, r.x + 6, r.y + 4, r.x + r.w - 5);
 }
 
-/* The window whole: the map (the sea's blue without its art), the player, the destination's cursor and name, the region
- * key and FLY. Paints only the window. */
+/* One of the window's icons (FireRed's 16x16: the player, the cursor) centred on (cx, cy), announced as its art: every
+ * cell has room for it in the window (the harness pins it). */
+static void DevHomeMarker(const struct Icon *icon, int frame, int cx, int cy)
+{
+    DevArt(DEV_ART_ICON, cx - MARKER / 2, cy - MARKER / 2, MARKER, MARKER);
+    IconDraw(icon, frame, cx, cy);
+}
+
+/* The window whole: the map (its art; the sea's blue until it is ready), the player, the destination's cursor and name,
+ * the region key and FLY. Paints only the window. */
 static void DevHomeWindow(const CtrPokeTouchView *v)
 {
     int x, y;
 
-    if (MapReady(v))
+    if (MapReady(v)) {
+        DevArt(DEV_ART_MAP, PT_HOME_X, PT_HOME_Y, PT_HOME_W, PT_HOME_H);
         for (int dx = 0; dx < PT_HOME_W; ++dx)
             memcpy(sCanvas + (size_t)(PT_HOME_X + dx) * H + (H - PT_HOME_Y - PT_HOME_H), sHomeMapCols[dx], sizeof(sHomeMapCols[dx]));
-    else
-        Fill(PT_HOME_X, PT_HOME_Y, PT_HOME_W, PT_HOME_H, C_MAP_WAIT);
+    } else
+        DevRect(PT_HOME_X, PT_HOME_Y, PT_HOME_W, PT_HOME_H, C_MAP_WAIT);
     if (sPlayer.key != v->playerFemale)
         IconBuild(&sPlayer, v->playerFemale, CtrPokeTouch_MapPlayerIcon);
     if (CtrPokeTouch_HomeCellPoint(v, v->playerX, v->playerY, &x, &y))
-        IconDraw(&sPlayer, 0, x, y);
+        DevHomeMarker(&sPlayer, 0, x, y);
     if (CtrPokeTouch_HomeCellPoint(v, v->cursorX, v->cursorY, &x, &y)) {
         if (sCursor.key != 0)
             IconBuild(&sCursor, 0, CtrPokeTouch_MapCursorIcon);
-        IconDraw(&sCursor, v->cursorFrame, x, y);
+        DevHomeMarker(&sCursor, v->cursorFrame, x, y);
     }
     DevHomeLabel(v);
     DevHomeMapKey(v);
@@ -207,9 +216,10 @@ static void DevHomeParty(const CtrPokeTouchView *v)
             continue;
         }
         if (v->pressed == PT_HOME_PARTY + i) {
-            DevRound(c.x, c.y, c.w, c.h, 4, DEV_BEZEL);
-            DevRound(c.x + 1, c.y + 1, c.w - 2, c.h - 2, 3, DEV_PAPER);
+            DevRoundRect(c.x, c.y, c.w, c.h, 4, DEV_BEZEL);
+            DevRoundRect(c.x + 1, c.y + 1, c.w - 2, c.h - 2, 3, DEV_PAPER);
         }
+        DevArt(DEV_ART_ICON, c.x + 7, c.y + 4, 16, 16);
         DevMonIcon(i, v->partyIcon[i], c.x + 7, c.y + 4, 1, v->party[i] == 2);
         if (!(v->partyEgg >> i & 1))
             DevHpBar(c.x + 4, c.y + 25, 22, 4, v->partyHp[i], 100);
@@ -283,7 +293,7 @@ static void DevHomePanel(const CtrPokeTouchView *v)
 
     DevHomeSmallWrap(line, kDevHomeRegion.x, kDevHomeRegion.y + 2 - (two ? DEV_LINE_H : 0), kDevHomeRegion.w, two ? 2 : 1,
                      DEV_INK2);
-    Fill(kDevHomeRule.x, kDevHomeRule.y, kDevHomeRule.w, kDevHomeRule.h, DEV_RULE);
+    DevRect(kDevHomeRule.x, kDevHomeRule.y, kDevHomeRule.w, kDevHomeRule.h, DEV_RULE);
     DevHomeParty(v);
     DevHomeTime(v);
 }
@@ -359,6 +369,7 @@ static void DevHomeKey(int id, const CtrPokeTouchView *v)
     if (lw > room)
         lw = room;
     x0 = r->x + (r->w - (DEV_HOME_ICON + DEV_HOME_GAP + lw)) / 2;
+    DevArt(DEV_ART_ICON, x0, iy, DEV_HOME_ICON, DEV_HOME_ICON);
     if (soft)
         PokeTouch_SoftDraw(soft, x0, iy, 1);
     else
@@ -389,9 +400,9 @@ static void DevHomeRun(const CtrPokeTouchView *v)
     DevHomeWordAt(r, faceY, sunk, x0, lw, run);
     ledX = x0 + lw + DEV_HOME_GAP;
     if (v->running)
-        DevLedPixels(ledX, faceY + DEV_HOME_LED_TOP, DEV_HOME_LED, DevKeyFace(DEV_LOOK_KEY, sunk));
+        DevLed(ledX, faceY + DEV_HOME_LED_TOP, DEV_HOME_LED, DevKeyFace(DEV_LOOK_KEY, sunk));
     else
-        DevDisc(ledX, faceY + DEV_HOME_LED_TOP, DEV_HOME_LED, DEV_KEY_EDGE);
+        DevSpot(ledX, faceY + DEV_HOME_LED_TOP, DEV_HOME_LED, DEV_KEY_EDGE);
     if (!v->enabled[PT_RUN])
         DevDim(r);
 }

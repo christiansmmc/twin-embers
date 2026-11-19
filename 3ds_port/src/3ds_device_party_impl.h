@@ -202,6 +202,7 @@ static void DevPtyBayKey(const CtrBattleParty *p, int i, int sunk)
     uint16_t ink = DevKeyInk(look, sunk), shadow = DevKeyInkShadow(look, sunk);
     char name[24];
 
+    DevArt(DEV_ART_ICON, r.x + 4, faceY + 9, 32, 32);
     DevMonIcon(i, p->icon[i], r.x + 4, faceY + 9, 0, grey);
     end = DevGlyphs(DevPtyName(p, i, name, sizeof(name)), r.x + 38, faceY + 10 - 3,
                     r.x + r.w - 14 - (sign ? DEV_PTY_SIGN : 0), ink, shadow, 0);
@@ -233,6 +234,7 @@ static void DevPtySlimKey(const CtrBattleParty *p, int i)
     ink = DevKeyInk(look, sunk);
     shadow = DevKeyInkShadow(look, sunk);
     faceY = DevKey(&r, look, sunk, 5);
+    DevArt(DEV_ART_ICON, r.x + 6, faceY + 4, 16, 16);
     DevMonIcon(i, p->icon[i], r.x + 6, faceY + 4, 1, grey);
     DevTextInk(DevPtyName(p, i, name, sizeof(name)), r.x + 29, faceY + 4, r.x + 140, ink, shadow);
     if (p->egg[i])
@@ -368,7 +370,7 @@ static void DevPtyLevelUp(const CtrBattleView *v)
     for (int k = 0; k < 6; ++k) {
         int x = paper.x + 8 + 142 * (k & 1), y = paper.y + 36 + 36 * (k >> 1), right;
 
-        Fill(x, y, 134, 28, DEV_PAPER2);
+        DevRect(x, y, 134, 28, DEV_PAPER2);
         DevText2(kLabel[k], x + 6, y + 10, x + 78);
         snprintf(text, sizeof(text), "%u", (unsigned)p->lvStat[k]);
         right = x + 98;

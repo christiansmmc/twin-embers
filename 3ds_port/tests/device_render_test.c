@@ -344,21 +344,6 @@ int CtrBottomSummary_Pic80(unsigned char *pixels, unsigned short *pal, int *flip
             pixels[y * 40 + x / 2] |= (unsigned char)(SumArtIndex(x, y, 80) << (x & 1) * 4);
     return 1;
 }
-/* A box's wallpaper (the PC box's): none, unless a suite asks for synthetic art (wallArt): every pixel of the 160x144 its
- * own colour, WallArtColor(id, x, y), so where a pixel lands shows. */
-static int wallArt;
-static unsigned short WallArtColor(unsigned id, int x, int y)
-{
-    return (unsigned short)((x & 31) | (y & 31) << 5 | (((x >> 5) + 5 * (y >> 5) + (int)id) & 31) << 10);
-}
-int CtrPokeTouch_Wallpaper(unsigned id, unsigned short *rgb555)
-{
-    if (!wallArt) return 0;
-    for (int i = 0; i < 160 * 144; ++i)
-        rgb555[i] = WallArtColor(id, i % 160, i / 160);
-    return 1;
-}
-
 /* ---- Canvas, shots and the checks every suite shares ------------------------------------------------------------- */
 
 static uint16_t canvas[W * H], reference[W * H];
@@ -405,7 +390,8 @@ static size_t TraceDrawn(const char *s, int w, int small)
 /* DEV_TRACE: a piece kept (a text with nothing drawn left out), or BEGIN, which drops them all. */
 static void TracePiece(int op, int x, int y, int w, int h, int a, int b, const char *s)
 {
-    size_t n = !s ? 0 : op == DEV_TRACE_TEXT && b < 2 ? TraceDrawn(s, w, b) : strlen(s);
+    size_t n = !s ? 0 : op == DEV_TRACE_TEXT && b < 2 ? TraceDrawn(s, w, b)
+             : op == DEV_TRACE_TEXT && b == 3 ? TraceDrawn(s, w / 2, 0) : strlen(s);
 
     if (op == DEV_TRACE_BEGIN) {                /* a new whole draw: what was told before is gone */
         gTraceCount = gTraceLost = 0;
@@ -430,8 +416,8 @@ static void TracePiece(int op, int x, int y, int w, int h, int a, int b, const c
     gTrace[gTraceCount++].s[n] = 0;
 }
 
-/* The colours the views name (the kit's and the plan-3 views' own), as the boards give them: each name's UI_RGB(r, g,
- * b) read back as 0xrrggbb. A board shows a colour drawn as one of these in its board value. */
+/* The colours the views name (the kit's and the views' own), as the boards give them: each name's UI_RGB(r, g, b) read
+ * back as 0xrrggbb. A board shows a colour drawn as one of these in its board value. */
 #pragma push_macro("UI_RGB")
 #undef UI_RGB
 #define UI_RGB(r, g, b) ((unsigned)(r) << 16 | (unsigned)(g) << 8 | (unsigned)(b))
@@ -442,8 +428,10 @@ static const unsigned kTraceRgb[] = {
     DEV_HP_TRACK, DEV_HP_GREEN, DEV_HP_YELLOW, DEV_HP_RED, DEV_HP_LABEL, DEV_EXP, DEV_EXP_LABEL, DEV_FX_SUPER,
     DEV_FX_NOTVERY, DEV_FX_EFFECTIVE, DEV_FX_NONE, DEV_CAT_SPECIAL, DEV_CAT_PHYSICAL, DEV_PSN, DEV_FX_SUPER_SH,
     DEV_FX_NOTVERY_SH, DEV_FX_EFFECTIVE_SH, DEV_CAT_SPECIAL_SH, DEV_LOW_INK, DEV_PP_QUARTER, DEV_PP_HALF, DEV_BLUE_INK,
-    DEV_STAT_UP, DEV_MALE, DEV_FEMALE, DEV_ARROW_OFF, DEV_BOX_TITLE_SH, DEV_KEY_INK2, DEV_TAG_STAB, DEV_TAG_NEW,
+    DEV_STAT_UP, DEV_MALE, DEV_FEMALE, DEV_ARROW_OFF, DEV_KEY_INK2, DEV_TAG_STAB, DEV_TAG_NEW,
     DEV_PAPER_LINE, DEV_PAPER_HOLE, DEV_CARD_STAR_ON, DEV_CARD_COLOURS,
+    DEV_HOME_HOLE, C_MAP_WAIT, DEV_BAT_FIGHT_INK, DEV_BAT_BALL_STATUS, DEV_BAT_BALL_FAINT, DEV_BAT_PIP_QUARTER, DEV_SUM_BAR,
+    DEV_SUM_BAR_TRACK,
 };
 #pragma pop_macro("UI_RGB")
 
@@ -526,11 +514,11 @@ static void TraceJsonText(FILE *f, const char *s)
 static void TraceWrite(const char *state)
 {
     static const char *const kLook[3] = {"key", "dark", "faint"};
-    static const char *const kArt[] = {"icon", "picture", "item", "badge", "wallpaper", "mark", "sprite", "frame",
-                                       "logo", "gba"};
+    static const char *const kArt[] = {"icon", "picture", "item", "badge", "mark", "sprite", "frame", "logo", "gba",
+                                       "map"};
     static const char *const kDir[4] = {"up", "down", "left", "right"};
     static const char *const kOp[] = {"begin", "art", "shell", "screen", "key", "dim", "hole", "row", "rect", "led",
-                                      "text", "chip", "bar", "tri", "disc"};
+                                      "text", "chip", "bar", "tri", "disc", "ring"};
     char path[512], hex[8], hex2[8];
     FILE *f;
 
@@ -561,10 +549,13 @@ static void TraceWrite(const char *state)
             fprintf(f, ", \"radius\": %d", a);
         else if (op == DEV_TRACE_ROW)
             fprintf(f, ", \"chosen\": %d", a);
-        else if (op == DEV_TRACE_RECT)
+        else if (op == DEV_TRACE_RECT) {
             fprintf(f, ", \"fill\": \"%s\"", TraceHex(a, hex));
-        else if (op == DEV_TRACE_TEXT) {
-            fprintf(f, ", \"font\": \"%s\", \"ink\": \"%s\"", b == 1 ? "small" : "normal", TraceHex(a, hex));
+            if (b)
+                fprintf(f, ", \"radius\": %d", b);
+        } else if (op == DEV_TRACE_TEXT) {
+            fprintf(f, ", \"font\": \"%s\", \"ink\": \"%s\"", b == 1 ? "small" : b == 3 ? "large" : "normal",
+                    TraceHex(a, hex));
             if (gTrace[i].h != a)
                 fprintf(f, ", \"shadow\": \"%s\"", TraceHex(gTrace[i].h, hex2));
         } else if (op == DEV_TRACE_CHIP)
@@ -579,6 +570,8 @@ static void TraceWrite(const char *state)
                 fprintf(f, ", \"rim\": \"%s\"", TraceHex(b, hex2));
         } else if (op == DEV_TRACE_ART)
             fprintf(f, ", \"kind\": \"%s\"", kArt[a]);
+        else if (op == DEV_TRACE_RING)
+            fprintf(f, ", \"ink\": \"%s\"", TraceHex(a, hex));
         if (op == DEV_TRACE_TEXT || op == DEV_TRACE_CHIP) {
             fputs(", \"text\": ", f);
             TraceJsonText(f, gTrace[i].s);

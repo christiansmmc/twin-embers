@@ -150,7 +150,7 @@ static unsigned SNumber(const char *s, int after)
     return n;
 }
 
-/* The Pokemon's icon (FireRed's 32x32 icon of the Pokemon shown, a box's too) at `scale`, decoded once per icon. */
+/* The Pokemon's icon (FireRed's 32x32 icon of the Pokemon shown, a box's too) at `scale`, decoded once per icon; art. */
 static void SIcon(const CtrSummaryUiView *v, int x, int y, int scale)
 {
     static unsigned shown;
@@ -176,13 +176,15 @@ static void SIcon(const CtrSummaryUiView *v, int x, int y, int scale)
             pal[i] = GbaColor(c);
         }
     }
-    if (ok)
+    if (ok) {
+        DevArt(DEV_ART_ICON, x, y, 32 * scale, 32 * scale);
         UiImage(pixels, pal, 32, 32, 32, x, y, scale, 1);
+    }
 }
 
 /* The Pokemon's picture, FireRed's Summary's own (the 64x64 front picture, flipped where FireRed flips it), decoded
  * once per Pokemon shown; 0 when there is none (the caller draws the icon). With HeartGold's pictures in the pack
- * (CtrBottomSummary_Pic80) the 80x80 one, whole, centred on the same spot. */
+ * (CtrBottomSummary_Pic80) the 80x80 one, whole, centred on the same spot. Art, where it is drawn. */
 static int SPic(const CtrSummaryUiView *v, int x, int y)
 {
     static unsigned shownSerial, shownIcon;
@@ -220,8 +222,10 @@ static int SPic(const CtrSummaryUiView *v, int x, int y)
             pal[i] = GbaColor(c);
         }
     }
-    if (ok)
+    if (ok) {
+        DevArt(DEV_ART_PICTURE, x - (size - 64) / 2, y - (size - 64) / 2, size, size);
         UiImage(pixels, pal, size, size, size, x - (size - 64) / 2, y - (size - 64) / 2, 1, 1);
+    }
     return ok;
 }
 
@@ -384,7 +388,6 @@ static void DevSumColumn(const CtrSummaryUiView *v)
         snprintf(text, sizeof(text), CTR_TR("Lv%s", "Nv%s", "Lv%s"), DevSumLevel(d));
         DevText(text, x, 66, DEV_SUM_COL_END);
     }
-    DevArt(DEV_ART_PICTURE, kDevSumPic.x, kDevSumPic.y, kDevSumPic.w, kDevSumPic.h);
     if (!SPic(v, kDevSumPic.x, kDevSumPic.y))
         SIcon(v, kDevSumPic.x, kDevSumPic.y, 2);
     if (d->egg)
@@ -521,14 +524,14 @@ static void DevSumSwitch(int iv)
     const CtrPokeTouchRect *r = &kDevSumIvSwitch;
     int hw = (r->w - 8) / 2;
 
-    DevRound(r->x, r->y, r->w, r->h, 7, DEV_BUTTON_EDGE);
-    DevRound(r->x + 1, r->y + 1, r->w - 2, r->h - 2, 6, DEV_WHITE);
+    DevRoundRect(r->x, r->y, r->w, r->h, 7, DEV_BUTTON_EDGE);
+    DevRoundRect(r->x + 1, r->y + 1, r->w - 2, r->h - 2, 6, DEV_WHITE);
     for (int half = 0; half < 2; ++half) {
         const char *word = half ? "IV/EV" : CTR_TR("STATS", "STATS", "STATUS");
         int hx = r->x + 3 + half * (hw + 2), tw = DevSmallTextWidth(word), shown = half == iv;
 
         if (shown)
-            DevRound(hx, r->y + 1, hw, r->h - 2, 5, DEV_SHELL_BLUE);
+            DevRoundRect(hx, r->y + 1, hw, r->h - 2, 5, DEV_SHELL_BLUE);
         if (tw > hw)
             ++sDevKeyCut;
         DevSmallText(word, tw < hw ? hx + (hw - tw) / 2 : hx, r->y + 3, shown ? DEV_WHITE : DEV_INK, hx + hw);

@@ -126,8 +126,10 @@ static void BBagPrepare(int maxH)
     sBBag.ok = 1;
 }
 
+/* v0.6.0's flat icon (RGB565, 0 clear) as it is, its top-left at (x, y): art. */
 static void BFlat(const uint16_t *px, int w, int h, int x, int y)
 {
+    DevArt(DEV_ART_ICON, x, y, w, h);
     for (int v = 0; v < h; ++v)
         for (int u = 0; u < w; ++u)
             if (px[v * w + u])
@@ -139,6 +141,7 @@ static void BFlat(const uint16_t *px, int w, int h, int x, int y)
  * paletted art (`px` into `pal`, 0 clear), `stride` pixels a row. */
 static void DevBatHalfArt(const uint16_t *flat, const uint8_t *px, const uint16_t *pal, int stride, int w, int h, int x, int y)
 {
+    DevArt(DEV_ART_ICON, x, y, (w + 1) / 2, (h + 1) / 2);
     for (int oy = 0; oy < (h + 1) / 2; ++oy)
         for (int ox = 0; ox < (w + 1) / 2; ++ox) {
             int n = 0, r = 0, g = 0, b = 0;
@@ -167,6 +170,7 @@ static void DevBatRowArt(int art, int cx, int y)
     if (art == BX_BAG && (BBagPrepare(DEV_BAT_ICON), sBBag.ok)) {
         int x0 = cx - sBBag.w / 2, y0 = y + (DEV_BAT_ICON - sBBag.h) / 2;
 
+        DevArt(DEV_ART_ICON, x0, y0, sBBag.w, sBBag.h);
         for (int v = 0; v < sBBag.h; ++v)
             for (int u = 0; u < sBBag.w; ++u) {
                 int a = sBBag.a[v * sBBag.w + u];
@@ -202,8 +206,10 @@ static void DevBatFullArt(int art, int x, int y, int *w, int *h, int draw)
     BIconsPrepare();
     *w = sBImg[art == BX_BAIT ? BI_BAIT : BI_ROCK].image.w * sBImg[art == BX_BAIT ? BI_BAIT : BI_ROCK].scale;
     *h = sBImg[art == BX_BAIT ? BI_BAIT : BI_ROCK].image.h * sBImg[art == BX_BAIT ? BI_BAIT : BI_ROCK].scale;
-    if (draw)
+    if (draw) {
+        DevArt(DEV_ART_ICON, x, y, *w, *h);
         BIconAt(art == BX_BAIT ? BI_BAIT : BI_ROCK, x, y);
+    }
 }
 
 /* ---- Where a touch goes: the keys of each state --------------------------------------------------------------------- */
@@ -293,17 +299,18 @@ static uint16_t DevBatInkShadow(int sunk)
 
 /* ---- The commands (board def_fight) and IDLE ------------------------------------------------------------------------- */
 
-/* The lead's icon at 2x: its frame 0's 24x24 from (4, 8), where FireRed's icons sit in their 32x32. */
+/* The lead's icon at 2x: its frame 0's 24x24 from (4, 8), where FireRed's icons sit in their 32x32; art, 48x48. */
 static void DevBatLeadIcon(const CtrBattleView *v)
 {
     if (!v->activeIcon || v->activeSlot >= 6 || !BPartyIcon(v->activeSlot, v->activeIcon))
         return;
+    DevArt(DEV_ART_ICON, DEV_BAT_LEAD_X, DEV_BAT_LEAD_Y, 48, 48);
     for (int y = 0; y < 24; ++y)
         for (int x = 0; x < 24; ++x) {
             uint8_t i = sBPIcon[v->activeSlot].pixels[(8 + y) * 32 + 4 + x];
 
-            if (i)
-                Fill(DEV_BAT_LEAD_X + 2 * x, DEV_BAT_LEAD_Y + 2 * y, 2, 2, sBPIcon[v->activeSlot].pal[i]);
+            for (int k = 0; i && k < 4; ++k)
+                Px(DEV_BAT_LEAD_X + 2 * x + (k & 1), DEV_BAT_LEAD_Y + 2 * y + (k >> 1), sBPIcon[v->activeSlot].pal[i]);
         }
 }
 
@@ -323,7 +330,7 @@ static void DevBatLead(const CtrBattleView *v, int prompt)
         if (!v->party[i])
             DevRing(bx, 20, 9, DEV_BAT_BALL_NONE);
         else
-            DevDisc(bx, 20, 9, v->party[i] == 2 ? DEV_BAT_BALL_FAINT : v->party[i] == 3 ? DEV_BAT_BALL_STATUS : DEV_INK);
+            DevSpot(bx, 20, 9, v->party[i] == 2 ? DEV_BAT_BALL_FAINT : v->party[i] == 3 ? DEV_BAT_BALL_STATUS : DEV_INK);
     }
     if (!v->activeName[0])
         return;
@@ -371,9 +378,10 @@ static void DevBatFightKey(int sunk)
     }
     if (w > r->w - 8)
         ++sDevKeyCut;
+    DevArt(DEV_ART_ICON, x, faceY + (r->h - DEV_BAT_SWORDS) / 2, DEV_BAT_SWORDS, DEV_BAT_SWORDS);
     DevAlphaArt(sDevBatSwords, DEV_BAT_SWORDS, x, faceY + (r->h - DEV_BAT_SWORDS) / 2, DEV_BAT_FIGHT_INK);
-    UiText(word, x + DEV_BAT_SWORDS + DEV_BAT_SWORDS_GAP, faceY + (r->h - 2 * UI_TEXT_H) / 2, DEV_BAT_FIGHT_INK,
-           DevBatInkShadow(sunk), 2, r->x + r->w - 4);
+    DevBigText(word, x + DEV_BAT_SWORDS + DEV_BAT_SWORDS_GAP, faceY + (r->h - 2 * UI_TEXT_H) / 2, DEV_BAT_FIGHT_INK,
+               DevBatInkShadow(sunk), r->x + r->w - 4);
 }
 
 /* BAG, POKeMON, RUN: the art over the word, the pair centred as the board stacks them. */
@@ -392,9 +400,10 @@ static void DevBatBallKey(const CtrBattleView *v, const CtrPokeTouchRect *r, int
     int faceY = DevKey(r, DEV_LOOK_KEY, sunk, 6), cx = r->x + r->w / 2, row = faceY + 38;
     char text[16];
 
-    if (v->ballItem)
+    if (v->ballItem) {
+        DevArt(DEV_ART_ITEM, cx - 12, faceY + 7, 24, 24);
         BItemDraw(v->ballItem, cx - 12, faceY + 7, 1);
-    else
+    } else
         DevBatHalfArt(kFlatBall, NULL, NULL, FLATBALL_W, FLATBALL_W, FLATBALL_H, cx - (FLATBALL_W + 1) / 4,
                       faceY + 19 - (FLATBALL_H + 1) / 4);
     if (v->ball != CTR_QUICK_BALL_READY) {
@@ -548,7 +557,7 @@ static void DevBatPips(const CtrBattleMove *m, int x, int y)
     if (m->pp && n < 1)
         n = 1;
     for (int i = 0; i < 5; ++i)
-        Fill(x + 6 * i, y, 5, 5, i < n ? fill : DEV_KEY_EDGE);
+        DevRect(x + 6 * i, y, 5, 5, i < n ? fill : DEV_KEY_EDGE);
 }
 
 /* "PP n/m" ending at `right`: the numbers in FireRed's PP colours, capitals from `top`; "PP" small in the key's second ink

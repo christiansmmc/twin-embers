@@ -251,9 +251,9 @@ typedef struct {
 } CtrPokeTouchMail;
 
 /* Easy Chat (3ds_device_easychat_impl.h), drawn by the port over the whole lower screen (the upper one keeps FireRed's own): a remote
- * for the game's screen. The phrase as chips, the group menu (or the letters of the A-Z order), a group's word list with its rail and
- * a letter strip, and the game's Yes/No questions over the dimmed phrase. Everything is the game's state (CtrBottomEasyChat_*); the
- * touches are walked to with its own keys (3ds_bottom_easychat_impl.h). */
+ * for the game's screen. The phrase as chips, the group menu in a window of rows of three (or the letters of the A-Z order), a group's
+ * word list with its rail, and the game's Yes/No questions over the dimmed phrase. Everything is the game's state
+ * (CtrBottomEasyChat_*); the touches are walked to with its own keys (3ds_bottom_easychat_impl.h). */
 #define PT_EC_WORDS 9
 #define PT_EC_WORD_LEN 28
 #define PT_EC_GROUPS 21
@@ -263,12 +263,12 @@ typedef struct {
 #define PT_EC_ASK_LEN 48
 enum { PT_EC_EDIT, PT_EC_GROUP, PT_EC_LETTER, PT_EC_LIST };         /* the screen: the phrase, the groups, the letters, a list */
 enum { PT_EC_ASK_NONE, PT_EC_ASK_QUIT, PT_EC_ASK_DELETE, PT_EC_ASK_CONFIRM };
-#define PT_EC_CELL_TOGGLE 26        /* the group and letter screens' A-Z / groups button and BACK, as cells (past Z's 25) */
+#define PT_EC_CELL_TOGGLE 26        /* FireRed's blue box's A-Z / groups and BACK as cells (past Z's 25): BACK drawn, A-Z not */
 #define PT_EC_CELL_BACK 27
 /* Hit codes (CtrPokeTouch_EasyHit). */
 enum { PT_EC_HIT_CHIP = 100, PT_EC_HIT_MODE_GROUPS = 120, PT_EC_HIT_MODE_ALPHA, PT_EC_HIT_DELETE = 130, PT_EC_HIT_CANCEL,
        PT_EC_HIT_CONFIRM, PT_EC_HIT_CELL = 200, PT_EC_HIT_ROW = 300, PT_EC_HIT_UP = 320, PT_EC_HIT_DOWN, PT_EC_HIT_RAIL,
-       PT_EC_HIT_STRIP, PT_EC_HIT_BACK, PT_EC_HIT_TOGGLE, PT_EC_HIT_PLACE, PT_EC_HIT_YES = 340, PT_EC_HIT_NO };
+       PT_EC_HIT_BACK, PT_EC_HIT_TOGGLE, PT_EC_HIT_PLACE, PT_EC_HIT_YES = 340, PT_EC_HIT_NO };
 typedef struct {
     uint8_t on;
     uint8_t screen;                 /* PT_EC_* */
@@ -281,7 +281,7 @@ typedef struct {
     int8_t footer;                  /* the editor's selected button (0 DELETE ALL, 1 QUIT, 2 OK), -1 none */
     int8_t cell;                    /* the group / letter screen's selected cell (PT_EC_CELL_*), -1 none */
     uint8_t groupCount;
-    uint8_t letter;                 /* the strip's lit letter 0..25, 255 none */
+    uint8_t groupFirst;             /* the group menu's window: its first row of three (3ds_device_layout.h DEV_EC_GROUP_ROWS shown) */
     uint16_t listCount;             /* the list: its words, the first row shown, the selected word */
     uint16_t first;
     int16_t word;
@@ -330,10 +330,11 @@ typedef struct {
     uint8_t title[32];              /* FireRed's question, its codes, 0xff ended */
 } CtrPokeTouchName;
 
-/* A PC box drawn by the port (3ds_device_box_impl.h), a remote for FireRed's own box: its name on the wallpaper's band,
- * its thirty places with their icons, PARTY and CLOSE BOX, the Pokemon in hand, the Party when the cursor is in it, the
- * box's menu, its YES/NO, its box chooser, its marks or its message. Texts are FireRed's own codes, 0xff ended.
- * A touch is the PC's own controller (3ds_storage_touch.h hit codes): the cursor walked there and A. */
+/* A PC box drawn by the port (3ds_device_box_impl.h), a remote for FireRed's own box: its name on the band of its plain
+ * paper (no wallpaper: owner decision O3), its thirty places with their icons, PARTY POKéMON and CLOSE, the Pokemon in
+ * hand, how many the box holds, the pointed Pokemon in the footer (its lines, its types, its item), the Party when the
+ * cursor is in it, the box's menu, its YES/NO, its box chooser, its marks or its message. Texts are FireRed's own
+ * codes, 0xff ended. A touch is the PC's own controller (3ds_storage_touch.h hit codes): the cursor walked there and A. */
 #define PT_BOX_SLOTS 30
 #define PT_BOX_MENU_MAX 7
 enum { PT_BOX_STATE_BUSY = 0, PT_BOX_STATE_BOX, PT_BOX_STATE_MENU, PT_BOX_STATE_YESNO, PT_BOX_STATE_CHOOSE,
@@ -349,7 +350,7 @@ typedef struct {
     int8_t area, pos;               /* FireRed's cursor (ST_AREA_*) */
     uint8_t holding;                /* a Pokemon in hand (held) */
     uint8_t box;
-    uint8_t wallpaper;              /* the box's wallpaper (FireRed's WALLPAPER_*) */
+    uint8_t wallpaper;              /* the box's wallpaper (FireRed's WALLPAPER_*): not drawn (owner decision O3) */
     uint8_t boxName[12];
     CtrPokeTouchBoxMon slot[PT_BOX_SLOTS];
     CtrPokeTouchBoxMon party[6];
@@ -362,6 +363,7 @@ typedef struct {
     int8_t menuCursor;
     uint8_t marks;                  /* MARKS: the marks on so far, bit 0 the circle .. bit 3 the heart */
     uint8_t menu[PT_BOX_MENU_MAX][16];
+    uint8_t menuCancel;             /* MENU: its last row is FireRed's CANCEL (recipe 0268; not the wallpaper menus) */
     uint8_t chooseName[12];
     uint8_t chooseCount;
     uint8_t message[48];            /* FireRed's line in the box's window, while it shows */
@@ -375,6 +377,10 @@ typedef struct {
     uint16_t monItem;
     uint8_t itemName[16];
     uint8_t itemDesc[96];
+    /* The Pokemon under the cursor's types (FireRed's TYPE_*, -1 none) and their names, filled by the port
+     * (3ds_bottom_field_fill_impl.h BoxSnapshot: CtrBottomDex_Types; none for an egg or one not caught). */
+    int8_t monType[2];
+    char monTypeName[2][12];
 } CtrPokeTouchBox;
 
 /* The player's Trainer Card drawn by the port (3ds_device_card_impl.h), a remote for FireRed's own card: its front
@@ -543,7 +549,6 @@ int CtrPokeTouch_RelearnHit(const CtrPokeTouchView *view, int x, int y);
  * PT_EC_HIT_CELL + cell, a list row's PT_EC_HIT_ROW + its place among the rows shown), or -1. */
 int CtrPokeTouch_EasyHit(const CtrPokeTouchView *view, int x, int y);
 int CtrPokeTouch_EasyRailTarget(const CtrPokeTouchEasy *ec, int y);   /* the first row the rail's thumb at y stands for (-1: no rail) */
-int CtrPokeTouch_EasyStripLetter(int x, int y);                       /* the letter 0..25 under the strip at (x, y), or -1 */
 /* The row of the field's choice (view->choice.on) under lower-screen point (x, y): PT_CHOICE_HIT_ROW + row, or -1. */
 int CtrPokeTouch_ChoiceHit(const CtrPokeTouchView *view, int x, int y);
 /* The key, tab or button of the naming screen (view->name.on) under lower-screen point (x, y): a PT_NAME_HIT_* code
@@ -557,8 +562,6 @@ int CtrPokeTouch_BoxHit(const CtrPokeTouchView *view, int x, int y);
  * so every buffer given it (or CtrBottomSummary_Icon, CtrBottomParty_Icon) holds that many, the first frame alone too. */
 #define PT_MON_ICON_BYTES 1024
 int CtrPokeTouch_MonIcon(unsigned species, unsigned personality, int egg, unsigned char *tiles, unsigned short *palette);
-/* A box wallpaper's 160x144 picture, as FireRed draws it: BGR555, 0 when there is none. */
-int CtrPokeTouch_Wallpaper(unsigned id, unsigned short *rgb555);
 /* A mark's 8x8 shape (0 circle .. 3 heart) from FireRed's marking sheet: 0 none, 3 the mark, 4 its edge. */
 int CtrPokeTouch_MarkShape(int mark, unsigned char *indexes);
 int CtrBottomStorage_BoxFill(CtrPokeTouchBox *box);
