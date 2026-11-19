@@ -382,9 +382,14 @@ static void FieldNameFill(CtrPokeTouchView *v, int pressed)
 static void BoxSnapshot(Snapshot *s)
 {
     CtrPokeTouchBox *b = &s->touch.box;
+    int types[2] = {-1, -1};
 
     if (!CtrBottomStorage_BoxFill(b))
         return;
+    if (b->mon.species && !b->mon.egg)
+        CtrBottomDex_Types(b->mon.species, types, b->monTypeName[0], b->monTypeName[1], sizeof(b->monTypeName[0]));
+    b->monType[0] = (int8_t)types[0];
+    b->monType[1] = (int8_t)types[1];
     if (b->state == PT_BOX_STATE_BUSY && sHaveShown && sShown.mode == MODE_STORAGE_BOX && sShown.touch.box.on)
         *b = sShown.touch.box;
     b->pressed = (int16_t)(sStoreTouch.active && sStoreTouch.inside ? sStoreTouch.hit : -1);

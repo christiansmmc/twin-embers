@@ -34,8 +34,8 @@ VIEWS = {'options': 'OPTIONS', 'save': 'SAVE', 'card': 'Cartão de treinador', '
          'choice': 'Escolhas', 'learn': 'Esquecer golpe', 'relearn': 'Relembrar golpe', 'naming': 'Teclado de nomes',
          'box': 'PC: caixas', 'easychat': 'Easy Chat', 'frame': 'Tela do FireRed', 'idle': 'Em repouso'}
 # What a stand-in box says it stands for (art the view draws from the pack, or the project's logo).
-ART = {'icon': 'ÍCONE', 'picture': 'FIGURA', 'item': 'ITEM', 'badge': 'INSÍGNIA', 'wallpaper': 'PAPEL DE PAREDE',
-       'mark': 'MARCA', 'sprite': 'SPRITE', 'frame': 'MOLDURA', 'logo': 'LOGO', 'gba': 'TELA DO FIRERED'}
+ART = {'icon': 'ÍCONE', 'picture': 'FIGURA', 'item': 'ITEM', 'badge': 'INSÍGNIA', 'mark': 'MARCA', 'sprite': 'SPRITE',
+       'frame': 'MOLDURA', 'logo': 'LOGO', 'gba': 'TELA DO FIRERED'}
 
 # The kit's numbers (3ds_device_layout.h, 3ds_device_kit_impl.h) and the boards' CSS for what it draws.
 SINK = 2                            # DEV_SINK: a chosen key's face, lower

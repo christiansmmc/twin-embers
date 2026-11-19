@@ -454,7 +454,7 @@ void CtrPokeTouch_Update(uint16_t *canvas, const CtrPokeTouchView *old, const Ct
 #include "3ds_device_relearn_impl.h"  /* the relearner (a view of the field dispatcher) */
 #include "3ds_device_choice_impl.h"  /* a choice of the field (a view of the field dispatcher) */
 #include "3ds_device_naming_impl.h"  /* the naming keyboard (a view of the field dispatcher; FireRed's codes as text) */
-#include "3ds_device_box_impl.h"  /* the PC box (a view of the field dispatcher; the wallpaper, the icons) */
+#include "3ds_device_box_impl.h"  /* the PC box (a view of the field dispatcher; the icons, the type chips) */
 #include "3ds_device_easychat_impl.h"  /* Easy Chat (the field dispatcher's first row; the whole screen) */
 #include "3ds_device_frame_impl.h"  /* FireRed's picture in its screen (the dispatcher's last row), the idle screen */
 #include "3ds_device_field_impl.h"  /* the field dispatcher: the field's views without a board (last: it names them all) */

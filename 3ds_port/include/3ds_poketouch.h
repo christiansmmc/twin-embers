@@ -330,10 +330,11 @@ typedef struct {
     uint8_t title[32];              /* FireRed's question, its codes, 0xff ended */
 } CtrPokeTouchName;
 
-/* A PC box drawn by the port (3ds_device_box_impl.h), a remote for FireRed's own box: its name on the wallpaper's band,
- * its thirty places with their icons, PARTY and CLOSE BOX, the Pokemon in hand, the Party when the cursor is in it, the
- * box's menu, its YES/NO, its box chooser, its marks or its message. Texts are FireRed's own codes, 0xff ended.
- * A touch is the PC's own controller (3ds_storage_touch.h hit codes): the cursor walked there and A. */
+/* A PC box drawn by the port (3ds_device_box_impl.h), a remote for FireRed's own box: its name on the band of its plain
+ * paper (no wallpaper: owner decision O3), its thirty places with their icons, PARTY POKéMON and CLOSE, the Pokemon in
+ * hand, how many the box holds, the pointed Pokemon in the footer (its lines, its types, its item), the Party when the
+ * cursor is in it, the box's menu, its YES/NO, its box chooser, its marks or its message. Texts are FireRed's own
+ * codes, 0xff ended. A touch is the PC's own controller (3ds_storage_touch.h hit codes): the cursor walked there and A. */
 #define PT_BOX_SLOTS 30
 #define PT_BOX_MENU_MAX 7
 enum { PT_BOX_STATE_BUSY = 0, PT_BOX_STATE_BOX, PT_BOX_STATE_MENU, PT_BOX_STATE_YESNO, PT_BOX_STATE_CHOOSE,
@@ -349,7 +350,7 @@ typedef struct {
     int8_t area, pos;               /* FireRed's cursor (ST_AREA_*) */
     uint8_t holding;                /* a Pokemon in hand (held) */
     uint8_t box;
-    uint8_t wallpaper;              /* the box's wallpaper (FireRed's WALLPAPER_*) */
+    uint8_t wallpaper;              /* the box's wallpaper (FireRed's WALLPAPER_*): not drawn (owner decision O3) */
     uint8_t boxName[12];
     CtrPokeTouchBoxMon slot[PT_BOX_SLOTS];
     CtrPokeTouchBoxMon party[6];
@@ -375,6 +376,10 @@ typedef struct {
     uint16_t monItem;
     uint8_t itemName[16];
     uint8_t itemDesc[96];
+    /* The Pokemon under the cursor's types (FireRed's TYPE_*, -1 none) and their names, filled by the port
+     * (3ds_bottom_field_fill_impl.h BoxSnapshot: CtrBottomDex_Types; none for an egg or one not caught). */
+    int8_t monType[2];
+    char monTypeName[2][12];
 } CtrPokeTouchBox;
 
 /* The player's Trainer Card drawn by the port (3ds_device_card_impl.h), a remote for FireRed's own card: its front
@@ -557,8 +562,6 @@ int CtrPokeTouch_BoxHit(const CtrPokeTouchView *view, int x, int y);
  * so every buffer given it (or CtrBottomSummary_Icon, CtrBottomParty_Icon) holds that many, the first frame alone too. */
 #define PT_MON_ICON_BYTES 1024
 int CtrPokeTouch_MonIcon(unsigned species, unsigned personality, int egg, unsigned char *tiles, unsigned short *palette);
-/* A box wallpaper's 160x144 picture, as FireRed draws it: BGR555, 0 when there is none. */
-int CtrPokeTouch_Wallpaper(unsigned id, unsigned short *rgb555);
 /* A mark's 8x8 shape (0 circle .. 3 heart) from FireRed's marking sheet: 0 none, 3 the mark, 4 its edge. */
 int CtrPokeTouch_MarkShape(int mark, unsigned char *indexes);
 int CtrBottomStorage_BoxFill(CtrPokeTouchBox *box);

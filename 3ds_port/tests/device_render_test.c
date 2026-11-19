@@ -344,21 +344,6 @@ int CtrBottomSummary_Pic80(unsigned char *pixels, unsigned short *pal, int *flip
             pixels[y * 40 + x / 2] |= (unsigned char)(SumArtIndex(x, y, 80) << (x & 1) * 4);
     return 1;
 }
-/* A box's wallpaper (the PC box's): none, unless a suite asks for synthetic art (wallArt): every pixel of the 160x144 its
- * own colour, WallArtColor(id, x, y), so where a pixel lands shows. */
-static int wallArt;
-static unsigned short WallArtColor(unsigned id, int x, int y)
-{
-    return (unsigned short)((x & 31) | (y & 31) << 5 | (((x >> 5) + 5 * (y >> 5) + (int)id) & 31) << 10);
-}
-int CtrPokeTouch_Wallpaper(unsigned id, unsigned short *rgb555)
-{
-    if (!wallArt) return 0;
-    for (int i = 0; i < 160 * 144; ++i)
-        rgb555[i] = WallArtColor(id, i % 160, i / 160);
-    return 1;
-}
-
 /* ---- Canvas, shots and the checks every suite shares ------------------------------------------------------------- */
 
 static uint16_t canvas[W * H], reference[W * H];
@@ -442,7 +427,7 @@ static const unsigned kTraceRgb[] = {
     DEV_HP_TRACK, DEV_HP_GREEN, DEV_HP_YELLOW, DEV_HP_RED, DEV_HP_LABEL, DEV_EXP, DEV_EXP_LABEL, DEV_FX_SUPER,
     DEV_FX_NOTVERY, DEV_FX_EFFECTIVE, DEV_FX_NONE, DEV_CAT_SPECIAL, DEV_CAT_PHYSICAL, DEV_PSN, DEV_FX_SUPER_SH,
     DEV_FX_NOTVERY_SH, DEV_FX_EFFECTIVE_SH, DEV_CAT_SPECIAL_SH, DEV_LOW_INK, DEV_PP_QUARTER, DEV_PP_HALF, DEV_BLUE_INK,
-    DEV_STAT_UP, DEV_MALE, DEV_FEMALE, DEV_ARROW_OFF, DEV_BOX_TITLE_SH, DEV_KEY_INK2, DEV_TAG_STAB, DEV_TAG_NEW,
+    DEV_STAT_UP, DEV_MALE, DEV_FEMALE, DEV_ARROW_OFF, DEV_KEY_INK2, DEV_TAG_STAB, DEV_TAG_NEW,
     DEV_PAPER_LINE, DEV_PAPER_HOLE, DEV_CARD_STAR_ON, DEV_CARD_COLOURS,
 };
 #pragma pop_macro("UI_RGB")
@@ -526,8 +511,7 @@ static void TraceJsonText(FILE *f, const char *s)
 static void TraceWrite(const char *state)
 {
     static const char *const kLook[3] = {"key", "dark", "faint"};
-    static const char *const kArt[] = {"icon", "picture", "item", "badge", "wallpaper", "mark", "sprite", "frame",
-                                       "logo", "gba"};
+    static const char *const kArt[] = {"icon", "picture", "item", "badge", "mark", "sprite", "frame", "logo", "gba"};
     static const char *const kDir[4] = {"up", "down", "left", "right"};
     static const char *const kOp[] = {"begin", "art", "shell", "screen", "key", "dim", "hole", "row", "rect", "led",
                                       "text", "chip", "bar", "tri", "disc"};

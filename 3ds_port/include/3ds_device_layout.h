@@ -478,29 +478,29 @@ static inline CtrPokeTouchRect DevNameKey(int cols, int r, int c)
     return DevAcross(cols, c, 88 + 36 * r, 32);
 }
 
-/* ---- The PC box (no board; 3ds_device_box_impl.h) --------------------------------------------------------------------
- * The box's screen on the left: its paper is FireRed's 160x144 wallpaper at 1:1 (owner decision 2), the box's name on
- * the wallpaper's own band at its top (kDevBoxTitle, a row), the thirty places 24 px apart under it (DevBoxCell, rows),
- * or with the cursor in the Party the Party's rows on the same paper (DevBoxPartyRow, 6 its CANCEL). The right column:
- * ◀ ▶, PARTY, CLOSE BOX (dark) and the hand's screen; the note across under them all. A menu, YES / NO or the marks:
- * the keys stand in the right column (DevBoxMenuKey) and the note is narrow (kDevBoxNoteNarrow). The box chooser: ◀ ▶
- * and the chosen box's key (kDevBoxChoose) under them, the note narrow and CANCEL (kDevBoxCancel, dark) beside it. */
-static const CtrPokeTouchRect kDevBoxScreen __attribute__((unused)) = {8, 8, 172, 156};
-static const CtrPokeTouchRect kDevBoxTitle __attribute__((unused)) = {14, 14, 160, 24};
+/* ---- The PC box (def_box; 3ds_device_box_impl.h) -------------------------------------------------------------------
+ * The box's screen on the left (kDevBoxScreen, owner decision O3: plain paper, no wallpaper): the box's name on the band
+ * at its top (kDevBoxTitle, a row), the thirty places 24 px apart under it (DevBoxCell, rows), or with the cursor in the
+ * Party the Party's rows on the same paper (DevBoxPartyRow, 6 its CANCEL). The right column: ◀ ▶ (kDevBoxPrev,
+ * kDevBoxNext), the hand's screen (kDevBoxHand), PARTY POKéMON (kDevBoxParty) and the box's count (kDevBoxCount, a
+ * screen) one under the other; CLOSE, a dark key, in the grid's exit (kDevGridExit) and the footer on the grid's note
+ * (kDevGridNote) in every state. A menu, YES / NO or the marks: their keys in the column (DevBoxMenuKey, DEV_BOX_COLUMN
+ * at most), a menu's last row and the marks' CANCEL in the grid's exit. The box chooser: ◀ ▶ and the chosen box's key in
+ * the hand's place (kDevBoxChoose), CANCEL in the grid's exit. */
+static const CtrPokeTouchRect kDevBoxScreen __attribute__((unused)) = {8, 8, 172, 176};
+static const CtrPokeTouchRect kDevBoxTitle __attribute__((unused)) = {14, 14, 160, 20};
 static const CtrPokeTouchRect kDevBoxPrev __attribute__((unused)) = {188, 8, 58, 24};
 static const CtrPokeTouchRect kDevBoxNext __attribute__((unused)) = {254, 8, 58, 24};
-static const CtrPokeTouchRect kDevBoxParty __attribute__((unused)) = {188, 40, 124, 32};
-static const CtrPokeTouchRect kDevBoxClose __attribute__((unused)) = {188, 80, 124, 32};
-static const CtrPokeTouchRect kDevBoxHand __attribute__((unused)) = {188, 120, 124, 44};
-static const CtrPokeTouchRect kDevBoxNote __attribute__((unused)) = {8, 172, 304, 60};
-static const CtrPokeTouchRect kDevBoxNoteNarrow __attribute__((unused)) = {8, 172, 172, 60};
-static const CtrPokeTouchRect kDevBoxChoose __attribute__((unused)) = {188, 40, 124, 72};
-static const CtrPokeTouchRect kDevBoxCancel __attribute__((unused)) = {188, 172, 124, 56};
+static const CtrPokeTouchRect kDevBoxHand __attribute__((unused)) = {188, 40, 124, 60};
+static const CtrPokeTouchRect kDevBoxParty __attribute__((unused)) = {188, 108, 124, 40};
+static const CtrPokeTouchRect kDevBoxCount __attribute__((unused)) = {188, 156, 124, 28};
+static const CtrPokeTouchRect kDevBoxChoose __attribute__((unused)) = {188, 40, 124, 60};
+#define DEV_BOX_COLUMN 5        /* the right column's keys at most (FireRed's largest menu: five rows and CANCEL) */
 
-/* Place i (0-29) of the box: six across, five down, on the wallpaper where FireRed puts its icons. */
+/* Place i (0-29) of the box: six across, five down under the band; its square 1 px in (the board's 22x22). */
 static inline CtrPokeTouchRect DevBoxCell(int i)
 {
-    CtrPokeTouchRect r = {(int16_t)(22 + 24 * (i % 6)), (int16_t)(38 + 24 * (i / 6)), 24, 24};
+    CtrPokeTouchRect r = {(int16_t)(22 + 24 * (i % 6)), (int16_t)(34 + 24 * (i / 6)), 24, 24};
 
     return r;
 }
@@ -513,12 +513,11 @@ static inline CtrPokeTouchRect DevBoxPartyRow(int i)
     return r;
 }
 
-/* Key i of n (1-7) in the right column: 44 apart and 40 tall up to five, 32 apart and 28 tall beyond (the box's menu
- * of up to seven, YES / NO, the marks' six). */
-static inline CtrPokeTouchRect DevBoxMenuKey(int n, int i)
+/* Key i (0 to DEV_BOX_COLUMN - 1) of the right column: 30 tall, 36 apart from the top (a menu's rows, YES and NO, the
+ * marks and OK). */
+static inline CtrPokeTouchRect DevBoxMenuKey(int i)
 {
-    int p = n <= 5 ? 44 : 32, h = n <= 5 ? 40 : 28;
-    CtrPokeTouchRect r = {188, (int16_t)(8 + p * i), 124, (int16_t)h};
+    CtrPokeTouchRect r = {188, (int16_t)(8 + 36 * i), 124, 30};
 
     return r;
 }

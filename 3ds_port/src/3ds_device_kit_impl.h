@@ -157,8 +157,8 @@ static int sDevKeyCut __attribute__((unused));
     ((void)(op), (void)(x), (void)(y), (void)(w), (void)(h), (void)(a), (void)(b), (void)(s))
 #endif
 /* The kinds of art a view draws (a board shows a stand-in for each), and the pieces DEV_TRACE is told of. */
-enum { DEV_ART_ICON, DEV_ART_PICTURE, DEV_ART_ITEM, DEV_ART_BADGE, DEV_ART_WALLPAPER, DEV_ART_MARK, DEV_ART_SPRITE,
-       DEV_ART_FRAME, DEV_ART_LOGO, DEV_ART_GBA };
+enum { DEV_ART_ICON, DEV_ART_PICTURE, DEV_ART_ITEM, DEV_ART_BADGE, DEV_ART_MARK, DEV_ART_SPRITE, DEV_ART_FRAME,
+       DEV_ART_LOGO, DEV_ART_GBA };
 enum { DEV_TRACE_BEGIN = 0, DEV_TRACE_ART, DEV_TRACE_SHELL, DEV_TRACE_SCREEN, DEV_TRACE_KEY, DEV_TRACE_DIM, DEV_TRACE_HOLE,
        DEV_TRACE_ROW, DEV_TRACE_RECT, DEV_TRACE_LED, DEV_TRACE_TEXT, DEV_TRACE_CHIP, DEV_TRACE_BAR, DEV_TRACE_TRI,
        DEV_TRACE_DISC };

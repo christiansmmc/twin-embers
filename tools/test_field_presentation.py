@@ -1479,6 +1479,26 @@ int main(void) {
         self.assertLess(frame.index('SnapshotState(&state,'), fill)
         self.assertLess(fill, frame.index('memcmp(&state, &sShown, sizeof(state))'))
 
+    def test_box_fill_adds_the_types(self):
+        """The PC box's footer shows the pointed Pokemon's type chips (def_box): the port fills them after FireRed's box
+        (BoxSnapshot, after CtrBottomStorage_BoxFill) from the Pokedex's own types, none (-1) for an egg, an empty
+        place or a Pokemon not caught (CtrBottomDex_Types tells none then)."""
+        fill = (ROOT / '3ds_port/src/3ds_bottom_field_fill_impl.h').read_text(encoding='utf-8')
+        snapshot = function(fill, 'BoxSnapshot')
+        call = ('CtrBottomDex_Types(b->mon.species, types, b->monTypeName[0], b->monTypeName[1], '
+                'sizeof(b->monTypeName[0]))')
+        self.assertIn(call, snapshot)
+        self.assertLess(snapshot.index('CtrBottomStorage_BoxFill(b)'), snapshot.index(call))
+        self.assertRegex(snapshot, r'if \(b->mon\.species && !b->mon\.egg\)\s+' + re.escape(call))
+        self.assertIn('b->monType[0] = (int8_t)types[0];', snapshot)
+        self.assertIn('b->monType[1] = (int8_t)types[1];', snapshot)
+        self.assertRegex(snapshot, r'int types\[2\] = \{-1, -1\};')
+        header = (ROOT / '3ds_port/include/3ds_poketouch.h').read_text(encoding='utf-8')
+        box = header[header.index('typedef struct {\n    uint8_t on, state;'):header.index('} CtrPokeTouchBox;')]
+        last = box.strip().splitlines()[-2:]
+        self.assertIn('int8_t monType[2];', last[0], 'monType and monTypeName end the box')
+        self.assertIn('char monTypeName[2][12];', last[1], 'monType and monTypeName end the box')
+
     def test_box_chooser_cancel_sends_b(self):
         """The PC box's chooser (DEPOSIT's, JUMP's) has no CANCEL of FireRed's: its CANCEL key is the view's BACK while
         the chooser is up (3ds_device_box_impl.h DevBoxBackKey; the box suite of device_render_test.c pins where it is
