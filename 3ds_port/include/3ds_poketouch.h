@@ -564,8 +564,8 @@ int CtrPokeTouch_MarkShape(int mark, unsigned char *indexes);
 int CtrBottomStorage_BoxFill(CtrPokeTouchBox *box);
 /* Whether the Trainer Card (view->card.on, no GBA picture) is under lower-screen point (x, y): its screen or FLIP. */
 int CtrPokeTouch_CardHit(const CtrPokeTouchView *view, int x, int y);
-/* Whether the letter being read (view->mail.on, no GBA picture) is under lower-screen point (x, y): its screen,
- * which closes it as CLOSE does. */
+/* Whether the letter being read (view->mail.on, no GBA picture) is under lower-screen point (x, y): its screen or the
+ * note under it, either of which closes it as CLOSE does. */
 bool CtrPokeTouch_MailHit(const CtrPokeTouchView *view, int x, int y);
 /* The card's pictures, from FireRed's (trainer_card.c): the trainer's front picture (64x64 4bpp, 8x8 tiles in rows of
  * eight) and the badges (128x16 4bpp: badge i at tiles 2i, 2i + 1 and 2i + 16, 2i + 17). 0 when there is none. */

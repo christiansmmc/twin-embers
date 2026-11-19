@@ -306,22 +306,25 @@ static inline CtrPokeTouchRect DevSaveRow(int i)
     return r;
 }
 
-/* ---- The Trainer Card (def_card_front, _back), the letter (no board; 3ds_device_card_impl.h, _mail_impl.h) ----------
+/* ---- The Trainer Card (def_card_front, _back), the letter (def_mail; 3ds_device_card_impl.h, _mail_impl.h) ----------
  * The Trainer Card: the tall screen, FLIP under it and BACK beside FLIP (kDevTallBack). On both sides the strip across
  * the paper's top (kDevCardStrip) in the card's colour, the title and the four stars in it (DEV_CARD_STAR_*). Its front:
  * the first line (DevCardRow(0): NAME and the name from DEV_CARD_NAME_X, IDNo. from DEV_CARD_ID_X and the ID at its
  * right), the rows left of the trainer's picture (DevCardRow(1-3): MONEY, POKeDEX, TIME; kDevCardPic) and the eight
  * badges' places (DevCardBadge); its back: the name on the first line, the rule under it (kDevCardRule) and the records
- * (DevCardBackRow). The letter: the tall screen (a touch of it closes the letter) with the paper's icon (kDevMailIcon),
- * its name (kDevMailName), a rule (kDevMailRule) and who wrote it (kDevMailFrom); CLOSE, the wide key, under it. */
+ * (DevCardBackRow). The letter: its own screen down to MEIO's end (kDevMailScreen; a touch of it closes the letter) with
+ * the paper's icon centred near its top (kDevMailIcon), its name (kDevMailName), a rule (kDevMailRule) and who wrote it
+ * (kDevMailFrom), one under the other; the grid's note under it (a touch of it closes the letter too) and CLOSE in the
+ * exit corner (kDevGridNote, kDevGridExit). */
 static const CtrPokeTouchRect kDevCardFlip __attribute__((unused)) = {8, 188, 228, 42};
 static const CtrPokeTouchRect kDevCardStrip __attribute__((unused)) = {14, 14, 292, 22};
 static const CtrPokeTouchRect kDevCardPic __attribute__((unused)) = {226, 60, 64, 64};
 static const CtrPokeTouchRect kDevCardRule __attribute__((unused)) = {22, 58, 276, 1};
-static const CtrPokeTouchRect kDevMailIcon __attribute__((unused)) = {148, 40, 24, 24};
-static const CtrPokeTouchRect kDevMailName __attribute__((unused)) = {22, 74, 276, 18};
-static const CtrPokeTouchRect kDevMailRule __attribute__((unused)) = {80, 98, 160, 1};
-static const CtrPokeTouchRect kDevMailFrom __attribute__((unused)) = {22, 106, 276, 18};
+static const CtrPokeTouchRect kDevMailScreen __attribute__((unused)) = {8, 8, 304, 176};
+static const CtrPokeTouchRect kDevMailIcon __attribute__((unused)) = {148, 44, 24, 24};
+static const CtrPokeTouchRect kDevMailName __attribute__((unused)) = {22, 77, 276, 18};
+static const CtrPokeTouchRect kDevMailRule __attribute__((unused)) = {80, 100, 160, 1};
+static const CtrPokeTouchRect kDevMailFrom __attribute__((unused)) = {22, 109, 276, 18};
 #define DEV_CARD_STARS     4    /* the most a card has (FireRed's): the first's top-left at (X, Y), each STEP right of the
                                  * one before, in the strip */
 #define DEV_CARD_STAR_X    241

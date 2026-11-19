@@ -532,13 +532,15 @@ static int OptionsFaults(void)
  * (wide) and NO (the exit corner) 8 apart in one row, a result's OK across both. The card (def_card_front,
  * def_card_back): the strip across the top of the tall screen's paper with the four stars in it; the front's first line
  * under the strip and over the picture, its rows 1-3 left of the picture, the eight badges' places 3 apart under them;
- * the back's rule under the name's line and the five records under it; all on the paper, FLIP beside BACK; the letter's
- * icon (centred), name, rule and writer on the tall screen's paper, one under the other. */
+ * the back's rule under the name's line and the five records under it; all on the paper, FLIP beside BACK. The letter
+ * (def_mail): its own screen (the board's) ending over the grid's note, its icon (centred on it), name, rule and writer
+ * on its paper, one under the other. */
 static int ScreensFaults(void)
 {
     const CtrPokeTouchRect savePaper = PaperOf(kDevSaveScreen), tallPaper = {14, 14, 292, 160};
     const CtrPokeTouchRect stars = {DEV_CARD_STAR_X, DEV_CARD_STAR_Y, DEV_CARD_STAR_STEP * (DEV_CARD_STARS - 1) + 12, 12};
     const CtrPokeTouchRect letter[4] = {kDevMailIcon, kDevMailName, kDevMailRule, kDevMailFrom};
+    const CtrPokeTouchRect letterPaper = PaperOf(kDevMailScreen);
     int faults = 0;
 
     assert(Same(kDevSaveScreen, (CtrPokeTouchRect){8, 8, 304, 132}) && Same(kDevSaveRule[0], (CtrPokeTouchRect){20, 30, 280, 1})
@@ -618,9 +620,16 @@ static int ScreensFaults(void)
         fprintf(stderr, "card: FLIP meets BACK or the screen\n");
         ++faults;
     }
-    assert(kDevMailIcon.x + kDevMailIcon.w / 2 == kDevTallScreen.x + kDevTallScreen.w / 2);
+    assert(Same(kDevMailScreen, (CtrPokeTouchRect){8, 8, 304, 176}) && Same(kDevMailIcon, (CtrPokeTouchRect){148, 44, 24, 24})
+           && Same(kDevMailName, (CtrPokeTouchRect){22, 77, 276, 18}) && Same(kDevMailRule, (CtrPokeTouchRect){80, 100, 160, 1})
+           && Same(kDevMailFrom, (CtrPokeTouchRect){22, 109, 276, 18}));
+    assert(kDevMailIcon.x + kDevMailIcon.w / 2 == kDevMailScreen.x + kDevMailScreen.w / 2);
+    if (kDevMailScreen.y + kDevMailScreen.h + 1 > kDevGridNote.y) {
+        fprintf(stderr, "the letter: its screen meets the note\n");
+        ++faults;
+    }
     for (int i = 0; i < 4; ++i)
-        if (!Within(letter[i], tallPaper, 0) || (i && letter[i - 1].y + letter[i - 1].h > letter[i].y)) {
+        if (!Within(letter[i], letterPaper, 0) || (i && letter[i - 1].y + letter[i - 1].h > letter[i].y)) {
             fprintf(stderr, "the letter: piece %d leaves the paper or meets the one over it\n", i);
             ++faults;
         }
@@ -927,7 +936,7 @@ int main(void)
                                         kDevGridDown, kDevSmallKey[0], kDevSmallKey[1], kDevGridExit};
     const CtrPokeTouchRect askKeys[] = {kDevAskYes, kDevAskNo};
     const CtrPokeTouchRect saveAsk[] = {kDevSaveYes, kDevSaveNo}, saveResult[] = {kDevSaveOk};
-    const CtrPokeTouchRect cardKeys[] = {kDevCardFlip, kDevTallBack}, mailKeys[] = {kDevWideKey};
+    const CtrPokeTouchRect cardKeys[] = {kDevCardFlip, kDevTallBack}, mailKeys[] = {kDevGridExit};
     const CtrPokeTouchRect dexMenu[] = {DevGridTab(3, 0), DevGridTab(3, 1), DevGridTab(3, 2), DevDexItem(0), DevDexItem(1),
                                         DevDexItem(2), DevDexItem(3), DevDexItem(4), DevDexItem(5), kDevSmallKey[0],
                                         kDevSmallKey[1], kDevGridExit};
@@ -994,8 +1003,8 @@ int main(void)
         {"card FLIP", kDevCardFlip}, {"card strip", kDevCardStrip}, {"card picture", kDevCardPic}, {"card first line", DevCardRow(0)},
         {"card row 3", DevCardRow(3)}, {"card badge 0", DevCardBadge(0)}, {"card badge 7", DevCardBadge(7)},
         {"card rule", kDevCardRule}, {"card record 0", DevCardBackRow(0)}, {"card record 4", DevCardBackRow(PT_CARD_ROWS - 1)},
-        {"letter icon", kDevMailIcon}, {"letter name", kDevMailName}, {"letter rule", kDevMailRule},
-        {"letter writer", kDevMailFrom},
+        {"letter screen", kDevMailScreen}, {"letter icon", kDevMailIcon}, {"letter name", kDevMailName},
+        {"letter rule", kDevMailRule}, {"letter writer", kDevMailFrom},
         {"Pokedex menu key 0", DevDexItem(0)}, {"Pokedex menu key 5", DevDexItem(5)}, {"Pokedex slot 0", DevDexSlot(0)},
         {"Pokedex slot 3", DevDexSlot(3)}, {"Pokedex picture", kDevDexPic}, {"Pokedex data", kDevDexData},
         {"Pokedex footprint", kDevDexFoot}, {"Pokedex rule", kDevDexRule}, {"Pokedex entry", kDevDexEntry},
@@ -1032,7 +1041,7 @@ int main(void)
                                DEV_GROUP("Bag how many", bagQty), DEV_GROUP("Bag YES / NO", bagYesNo),
                                DEV_GROUP("OPTIONS", optKeys), DEV_GROUP("a question", askKeys),
                                DEV_GROUP("SAVE asking", saveAsk), DEV_GROUP("SAVE result", saveResult),
-                               DEV_GROUP("Trainer Card", cardKeys), DEV_GROUP("a letter", mailKeys),
+                               DEV_GROUP("Trainer Card", cardKeys), DEV_GROUP("the letter", mailKeys),
                                DEV_GROUP("Pokedex menu", dexMenu), DEV_GROUP("Pokedex list", dexList),
                                DEV_GROUP("Pokedex habitat", dexCategory), DEV_GROUP("Pokedex page", dexPage),
                                DEV_GROUP("Pokedex page added", dexAdded), DEV_GROUP("the move to forget", learnKeys),
