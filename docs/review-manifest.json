@@ -7297,7 +7297,7 @@
   },
   {
    "path": "3ds_port/include/3ds_device_layout.h",
-   "sha256": "db89818e40ebe77655dfb9aa5fb9c37b861e365d3d4840ec2e091bb4cf6ca480",
+   "sha256": "9c4c38b39226b91348fe39801ea17aa4a1d95cbef707d85d4b8ca1739e034858",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7313,7 +7313,7 @@
   },
   {
    "path": "3ds_port/tests/device_layout_test.c",
-   "sha256": "f66448acb2c919fe03fb55604c4f86932e00871a5b5d11593cecd94fecc03501",
+   "sha256": "283c1e37eb2b6b83400a79c65795e7926c792078b0a259f3f4b52068abbbee43",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7321,7 +7321,7 @@
   },
   {
    "path": "3ds_port/tests/device_render_test.c",
-   "sha256": "4626ead6639f9f5a736eb6b66413c8677b7cab2b2be64556b2c4a64fecb28df3",
+   "sha256": "c7b99fb93f7fe3431e3eb9409e26c8ab2f408374e87a447fc1c0b29d0e9d038e",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7489,7 +7489,7 @@
   },
   {
    "path": "3ds_port/src/3ds_device_dex_impl.h",
-   "sha256": "ab658cacc5a3a309479165ac822fd498c1202cfa9276f3ecae20754c5b1481ba",
+   "sha256": "8d1946d2f6fd75395e76c36c339175f528676e4d292591fd5a279ad009b0b5d3",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7497,7 +7497,7 @@
   },
   {
    "path": "3ds_port/tests/device_suite_dex.h",
-   "sha256": "091386fa98df4c93fd81ec06290d0026aece45557f77e6087b534b70af91163e",
+   "sha256": "89fea450cd42b192ba91fe33b85ff07ed4b1a47db52c78df4253fdea5c92dc48",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

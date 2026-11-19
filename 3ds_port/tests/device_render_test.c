@@ -186,11 +186,10 @@ void *CtrData_Load(const char *path, uint32_t *len)
 /* CtrPokeTouch_DexMonPic: device_suite_learn.h's (a species' picture while a suite sets picArt). */
 int CtrPokeTouch_DexMonPic80(unsigned species, unsigned char *pixels, unsigned short *palette)
 { (void)species; (void)pixels; (void)palette; return 0; }
-int CtrPokeTouch_DexMenuIcon(int id, unsigned char *tiles, unsigned short *palette)
-{ (void)id; (void)tiles; (void)palette; return 0; }
 int CtrPokeTouch_DexFootprint(unsigned species, unsigned char *bits)
 { (void)species; (void)bits; return 0; }
-/* CtrPokeTouch_DexCaughtMarker: device_suite_dex.h's (its caught mark while a suite sets dexArt). */
+/* CtrPokeTouch_DexCaughtMarker, CtrPokeTouch_DexMenuIcon: device_suite_dex.h's (its mark and icons while a suite sets
+ * dexArt). */
 /* The Trainer Card's art: none, unless a suite asks for synthetic art (cardArt): the trainer a 48x48 square of index 1
  * (green) in a clear border of 8, every badge a 16x16 square of index 2 (blue). */
 static int cardArt __attribute__((unused));

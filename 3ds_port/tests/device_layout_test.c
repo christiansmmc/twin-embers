@@ -638,35 +638,44 @@ static int ScreensFaults(void)
     return faults;
 }
 
-/* The Pokedex: its three tabs (today's places: three across, 8 px apart); the top menu's six keys a page (three across,
- * two rows) under the tabs and over the small note; a habitat's four slots under the title and over the small note; a
- * Pokemon's page on the tall screen's paper: the picture, the data beside it and short of the footprint, the rule under
- * them and the entry under the rule. */
+/* The Pokedex (def_dex_menu): the top menu's tabs are the grid's three (DevGridTab(3, i), the Bag's pockets' places);
+ * its six keys a page (the board's: three across 8 px apart, two rows 72 apart, 66 tall) and a habitat's four slots on
+ * the same rows lie in MEIO, their drops ending by 187, and apart; a Pokemon's page on the tall screen's paper: the
+ * picture, the data beside it and short of the footprint, the rule under them and the entry under the rule. */
 static int DexFaults(void)
 {
     const CtrPokeTouchRect tallPaper = {14, 14, 292, 160};
     const CtrPokeTouchRect page[5] = {kDevDexPic, kDevDexData, kDevDexFoot, kDevDexRule, kDevDexEntry};
     int faults = 0;
 
-    for (int i = 0; i < 3; ++i)
-        assert(Same(DevDexTabKey(i), DevAcross(3, i, 8, 24)) && Same(DevDexTabKey(i), (CtrPokeTouchRect){(int16_t)(8 + 104 * i), 8, 96, 24}));
     for (int i = 0; i < 6; ++i) {
         CtrPokeTouchRect r = DevDexItem(i);
 
-        assert(Same(r, DevAcross(3, i % 3, 40 + 72 * (i / 3), 68)));
-        if (r.y < DevDexTabKey(0).y + DevDexTabKey(0).h + DEV_DROP || r.y + r.h + DEV_DROP > kDevSmallNote.y) {
-            fprintf(stderr, "Pokedex: menu key %d meets the tabs or the small note\n", i);
+        assert(Same(r, DevAcross(3, i % 3, 40 + 72 * (i / 3), 66))
+               && Same(r, (CtrPokeTouchRect){(int16_t)(8 + 104 * (i % 3)), (int16_t)(40 + 72 * (i / 3)), 96, 66}));
+        if (r.y < kDevGridScreen.y || r.y + r.h + DEV_DROP > 187) {
+            fprintf(stderr, "Pokedex: menu key %d leaves MEIO\n", i);
             ++faults;
         }
+        for (int j = 0; j < i; ++j)
+            if (Overlap(r, DevDexItem(j))) {
+                fprintf(stderr, "Pokedex: menu keys %d and %d meet\n", j, i);
+                ++faults;
+            }
     }
     for (int i = 0; i < 4; ++i) {
         CtrPokeTouchRect r = DevDexSlot(i);
 
-        assert(Same(r, (CtrPokeTouchRect){(int16_t)(8 + 156 * (i % 2)), (int16_t)(40 + 74 * (i / 2)), 148, 70}));
-        if (r.y < kDevGridTitle.y + kDevGridTitle.h + 1 || r.y + r.h + DEV_DROP > kDevSmallNote.y) {
-            fprintf(stderr, "Pokedex: slot %d meets the title or the small note\n", i);
+        assert(Same(r, (CtrPokeTouchRect){(int16_t)(8 + 156 * (i % 2)), (int16_t)(40 + 72 * (i / 2)), 148, 66}));
+        if (r.y < kDevGridScreen.y || r.y + r.h + DEV_DROP > 187) {
+            fprintf(stderr, "Pokedex: slot %d leaves MEIO\n", i);
             ++faults;
         }
+        for (int j = 0; j < i; ++j)
+            if (Overlap(r, DevDexSlot(j))) {
+                fprintf(stderr, "Pokedex: slots %d and %d meet\n", j, i);
+                ++faults;
+            }
     }
     assert(Same(kDevDexPic, (CtrPokeTouchRect){20, 20, 80, 80}) && kDevDexFoot.x == 282 && kDevDexFoot.y == 20
            && kDevDexEntry.w == 280 && kDevDexEntry.h >= 5 * 13);
@@ -913,7 +922,7 @@ int main(void)
     const CtrPokeTouchRect askKeys[] = {kDevAskYes, kDevAskNo};
     const CtrPokeTouchRect saveAsk[] = {kDevSaveYes, kDevSaveNo}, saveResult[] = {kDevSaveOk};
     const CtrPokeTouchRect cardKeys[] = {kDevCardFlip, kDevTallBack}, mailKeys[] = {kDevWideKey};
-    const CtrPokeTouchRect dexMenu[] = {DevDexTabKey(0), DevDexTabKey(1), DevDexTabKey(2), DevDexItem(0), DevDexItem(1),
+    const CtrPokeTouchRect dexMenu[] = {DevGridTab(3, 0), DevGridTab(3, 1), DevGridTab(3, 2), DevDexItem(0), DevDexItem(1),
                                         DevDexItem(2), DevDexItem(3), DevDexItem(4), DevDexItem(5), kDevSmallKey[0],
                                         kDevSmallKey[1], kDevGridExit};
     const CtrPokeTouchRect dexList[] = {kDevGridUp, kDevGridDown, kDevGridExit};
@@ -981,7 +990,6 @@ int main(void)
         {"card rule", kDevCardRule}, {"card record 0", DevCardBackRow(0)}, {"card record 4", DevCardBackRow(PT_CARD_ROWS - 1)},
         {"letter icon", kDevMailIcon}, {"letter name", kDevMailName}, {"letter rule", kDevMailRule},
         {"letter writer", kDevMailFrom},
-        {"Pokedex tab 0", DevDexTabKey(0)}, {"Pokedex tab 2", DevDexTabKey(2)},
         {"Pokedex menu key 0", DevDexItem(0)}, {"Pokedex menu key 5", DevDexItem(5)}, {"Pokedex slot 0", DevDexSlot(0)},
         {"Pokedex slot 3", DevDexSlot(3)}, {"Pokedex picture", kDevDexPic}, {"Pokedex data", kDevDexData},
         {"Pokedex footprint", kDevDexFoot}, {"Pokedex rule", kDevDexRule}, {"Pokedex entry", kDevDexEntry},

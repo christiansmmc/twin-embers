@@ -250,8 +250,9 @@ static inline CtrPokeTouchRect DevTallRow(int i)
     return DevListRow(i, 24);
 }
 
-/* Key i of n (1-8) across x 8..312, at y and h tall: 8 px apart up to three keys, 4 beyond. (n 3 at y 8 are the
- * Pokedex's tabs, DevDexTabKey; n 4 at y 168 the battle's wild row, n 2 at y 8 and 98, 84 tall, its moves' keys.) */
+/* Key i of n (1-8) across x 8..312, at y and h tall: 8 px apart up to three keys, 4 beyond. (n 3 at y 40 and 112, 66
+ * tall, are the Pokedex menu's keys, DevDexItem; n 4 at y 168 the battle's wild row, n 2 at y 8 and 98, 84 tall, its
+ * moves' keys.) */
 static inline CtrPokeTouchRect DevAcross(int n, int i, int y, int h)
 {
     int g = n <= 3 ? 8 : 4, w = (304 - g * (n - 1)) / n;
@@ -369,16 +370,17 @@ static inline CtrPokeTouchRect DevCardBadge(int i)
     return r;
 }
 
-/* ---- The Pokedex (no board; 3ds_device_dex_impl.h) ------------------------------------------------------------------
- * The top menu: its three sections as tabs (DevDexTabKey), the shown section's rows as keys six to a page (DevDexItem:
- * FireRed's menu icon over the row's name), the counts in the small note with ▲ ▼ (kDevSmallKey) turning the pages,
- * CLOSE (FireRed's CLOSE POKeDEX row) in the grid's exit (kDevGridExit). An ordered list: its order on the grid's
- * title, the grid's screen with five tall rows (DevTallRow) and ▲ ▼, the selected Pokemon's types and kind on the
- * grid's note, BACK in the exit. A habitat's page: the habitat and the page on the title, its Pokemon in four slots
- * (DevDexSlot: the picture beside the number and the name), the selected one in the small note, ◀ ▶ (the small keys)
- * and BACK. A Pokemon's page: the tall screen (the picture in kDevDexPic, the number, name, kind, types, height and
- * weight in kDevDexData, the footprint in kDevDexFoot, the entry in kDevDexEntry under kDevDexRule), AREA, CRY and the
- * BACK (kDevTallBack) under it; the page a catch has just added: OK, the wide key, instead. */
+/* ---- The Pokedex (the top menu: def_dex_menu; 3ds_device_dex_impl.h) -----------------------------------------------
+ * The top menu: its three sections as the grid's tabs (DevGridTab(3, i)), the shown section's rows as keys six to a
+ * page in MEIO (DevDexItem: FireRed's menu icon over the row's name), SEEN and OWNED in the small note with ▲ ▼
+ * (kDevSmallKey) turning the pages, CLOSE (FireRed's CLOSE POKeDEX row) in the grid's exit (kDevGridExit). An ordered
+ * list: its order on the grid's title, the grid's screen with five tall rows (DevTallRow) and ▲ ▼, the selected
+ * Pokemon's types and kind on the grid's note, BACK in the exit. A habitat's page (no board: the menu's grid): the
+ * habitat and the page on the title, its Pokemon in four slots on the menu's rows (DevDexSlot: the picture beside the
+ * number and the name), the selected one in the small note, ◀ ▶ (the small keys) and BACK in the exit. A Pokemon's
+ * page: the tall screen (the picture in kDevDexPic, the number, name, kind, types, height and weight in kDevDexData,
+ * the footprint in kDevDexFoot, the entry in kDevDexEntry under kDevDexRule), AREA, CRY and the BACK (kDevTallBack)
+ * under it; the page a catch has just added: OK, the wide key, instead. */
 static const CtrPokeTouchRect kDevDexPic __attribute__((unused)) = {20, 20, 80, 80};
 static const CtrPokeTouchRect kDevDexData __attribute__((unused)) = {110, 20, 168, 80};
 static const CtrPokeTouchRect kDevDexFoot __attribute__((unused)) = {282, 20, 16, 16};
@@ -387,22 +389,16 @@ static const CtrPokeTouchRect kDevDexEntry __attribute__((unused)) = {20, 108, 2
 static const CtrPokeTouchRect kDevDexArea __attribute__((unused)) = {8, 188, 110, 42};
 static const CtrPokeTouchRect kDevDexCry __attribute__((unused)) = {126, 188, 110, 42};
 
-/* Tab i (0-2) of the top menu: three across, 8 px apart (today's places). */
-static inline CtrPokeTouchRect DevDexTabKey(int i)
-{
-    return DevAcross(3, i, 8, 24);
-}
-
-/* Key i (0-5) of the top menu's page: three across, two rows. */
+/* Key i (0-5) of the top menu's page: three across (96 wide, 8 apart), two rows 72 apart, 66 tall (the board's). */
 static inline CtrPokeTouchRect DevDexItem(int i)
 {
-    return DevAcross(3, i % 3, 40 + 72 * (i / 3), 68);
+    return DevAcross(3, i % 3, 40 + 72 * (i / 3), 66);
 }
 
-/* Slot i (0-3) of a habitat's page: two across, two rows. */
+/* Slot i (0-3) of a habitat's page: two across, on the menu's two rows (66 tall, 72 apart). */
 static inline CtrPokeTouchRect DevDexSlot(int i)
 {
-    CtrPokeTouchRect r = {(int16_t)(8 + 156 * (i % 2)), (int16_t)(40 + 74 * (i / 2)), 148, 70};
+    CtrPokeTouchRect r = {(int16_t)(8 + 156 * (i % 2)), (int16_t)(40 + 72 * (i / 2)), 148, 66};
 
     return r;
 }
