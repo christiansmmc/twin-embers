@@ -158,6 +158,63 @@ static void DexUpperCase(CtrPokeTouchView v)
     TouchSamePixels(&cased, &v, 0, "the entry, as FireRed writes it");
 }
 
+/* HT and WT as each language's FireRed shows them, to the tenth: feet and inches and pounds in English, metres and
+ * kilograms in Spanish and German (decimetres and hectograms over ten); unknown for one not caught. Ivysaur (10 dm,
+ * 130 hg) and Wailord (145 dm, 3980 hg: FireRed's 47'07" and 877.4 lbs.). */
+static void DexHeightWeight(const CtrPokeTouchDex *page)
+{
+    CtrPokeTouchDex d = *page;
+    char value[32];
+
+    d.sel.flags = 3; d.height = 10; d.weight = 130;
+    DevDexHeight(&d, value, sizeof(value)); assert(!strcmp(value, CTR_TR("3'03\"", "1.0 m", "1.0 m")));
+    DevDexWeight(&d, value, sizeof(value)); assert(!strcmp(value, CTR_TR("28.7 lbs.", "13.0 kg", "13.0 kg")));
+    d.height = 145; d.weight = 3980;
+    DevDexHeight(&d, value, sizeof(value)); assert(!strcmp(value, CTR_TR("47'07\"", "14.5 m", "14.5 m")));
+    DevDexWeight(&d, value, sizeof(value)); assert(!strcmp(value, CTR_TR("877.4 lbs.", "398.0 kg", "398.0 kg")));
+    d.sel.flags = 1;
+    DevDexHeight(&d, value, sizeof(value)); assert(!strcmp(value, CTR_TR("??" "'??\"", "??.? m", "??.? m")));
+    DevDexWeight(&d, value, sizeof(value)); assert(!strcmp(value, CTR_TR("????.? lbs.", "????.? kg", "????.? kg")));
+}
+
+/* FireRed's widest names (ten capitals) fit beside the tag on a catch's page in every language, with FireRed's own
+ * widths for that one draw (the label-fit build's stub is wider than FireRed's small font: REGISTRIERT 63 px against
+ * 59): its capitals, digits and "o" 6 px, "." 5, so "No.040" 35 and the name from 153 to 213; the tag's small letters
+ * 5 px but I and T 4, so REGISTERED and REGISTRADO 56 on their chips (the name's room to 218) and REGISTRIERT 59 (to
+ * 215). Nothing counted, the name's ink whole and 4 px clear of the chip. The canvas shows `page` again after. */
+static void DexWidestBesideTag(const CtrPokeTouchView *page)
+{
+    static const char kTagLetters[] = "REGSADO";
+    static uint8_t keepNormal[256], keepSmall[256];
+    CtrPokeTouchView v = *page;
+    int w, tagX;
+
+    memcpy(keepNormal, fontWidths, sizeof(keepNormal));
+    memcpy(keepSmall, smallWidths, sizeof(keepSmall));
+    for (unsigned c = 0xbb; c <= 0xd4; ++c)             /* A..Z */
+        fontWidths[c] = 6;
+    for (unsigned c = 0xa1; c <= 0xaa; ++c)             /* 0..9 */
+        fontWidths[c] = 6;
+    fontWidths[0xe3] = 6;                               /* o */
+    fontWidths[0xad] = 5;                               /* . */
+    for (const char *p = kTagLetters; *p; ++p)
+        smallWidths[0xbb + (*p - 'A')] = 5;
+    smallWidths[0xbb + ('I' - 'A')] = smallWidths[0xbb + ('T' - 'A')] = 4;
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    strcpy(v.dex.sel.name, "Wigglytuff"); v.dex.sel.number = 40; v.dex.added = 1;
+    w = DevSmallTextWidth(DevDexNewWord()) + 8; tagX = 278 - w;
+    assert(DevTextWidth("No.040") == 35 && DevTextWidth("WIGGLYTUFF") == 60 && w == CTR_TR(56, 56, 59));
+    sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &v); assert(sDevKeyCut == 0);
+    assert(Count(200, 22, 13, 8, DEV_INK) > 0 && Count(tagX - 4, 14, 4, 20, DEV_INK) == 0
+           && at(tagX, 20) == DEV_TAG_NEW);
+    memcpy(fontWidths, keepNormal, sizeof(keepNormal));
+    memcpy(smallWidths, keepSmall, sizeof(keepSmall));
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    CtrPokeTouch_Draw(canvas, page);
+}
+
 /* A port-written entry in capitals: three lines of 280 px in the stub's and FireRed's widths, six with its capitals 12
  * wide. */
 static const char kFiveLines[] = "PORT WORDS FOR THIS TEST THAT NEED A FIFTH LINE ON THE PAGE ONCE EVERY CAPITAL "
@@ -427,6 +484,7 @@ static void SuiteDex(void)
            && Count(200, 90, 40, 9, DEV_INK) > 0 && Count(230, 76, 10, 9, DEV_INK) > 0
            && Count(230, 90, 10, 9, DEV_INK) > 0);
     assert(Count(14, 107, 292, 7, DEV_INK) == 0 && Count(20, 129, 280, 9, DEV_INK) > 0);    /* the entry's lines 1-2 */
+    DexHeightWeight(&v.dex);
     /* an entry of five lines: four drawn (the fourth's capitals at 157, nothing between the third's and it), the fifth
      * left out and counted, once a draw; three lines as the fonts are (the capitals made 12 wide for that one draw, as
      * the choice suite's priced label: no font makes 199 bytes of words five lines of 280 px; drawn without BACK, whose
@@ -464,14 +522,8 @@ static void SuiteDex(void)
     assert(at(247, 214) == DEV_SUNK && at(60, 214) == DEV_SUNK && Count(278 - w, 20, w, 14, DEV_TAG_NEW) > 0);
     av.dex.pressed = -1; assert(DevWhole(DevCheckTouch(&old, &av))); AssertKey(kDevWideKey, DEV_LOOK_KEY, 0);
     /* the name ends 4 px before the tag, or 4 px before the footprint without it: one wider (W made 16 px) is cut there
-     * and counted, once a draw. FireRed's widest names (ten capitals: 60 px in its font and in the stub's 6 px, to
-     * x 213-214) fit beside REGISTERED and REGISTRADO. German's REGISTRIERT is 59 px wide on its chip in FireRed's
-     * small font (the name's room to 215) but 63 with the stub's 5 px small glyphs (to 211): the label-fit build's stub
-     * is wider than FireRed's there, so German leaves this one check out */
-#if !CTR_LANG_DE
-    other = av; strcpy(other.dex.sel.name, "Wigglytuff"); other.dex.sel.number = 40;
-    sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &other); assert(sDevKeyCut == 0);
-#endif
+     * and counted, once a draw */
+    DexWidestBesideTag(&av);
     {
         uint8_t keepW = fontWidths[0xd1];                                   /* FireRed's W */
 

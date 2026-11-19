@@ -385,13 +385,21 @@ static const char *DevDexName(const CtrPokeTouchDexMon *m, const char *unseen, c
     return out;
 }
 
-/* FireRed's own conversions: feet and inches, pounds to the tenth (v0.6.0's); unknown for one not caught. */
+/* Height and weight as each language's FireRed shows them, to the tenth: in English feet and inches and pounds
+ * (FireRed's own conversions, v0.6.0's), in Spanish and German metres and kilograms (the species' decimetres and
+ * hectograms over ten); unknown for one not caught. */
+#define DEV_DEX_METRIC (CTR_LANG_ES || CTR_LANG_DE)
+
 static void DevDexHeight(const CtrPokeTouchDex *d, char *out, size_t size)
 {
     unsigned inches, feet;
 
     if (!(d->sel.flags & 2)) {
-        snprintf(out, size, "??" "'??\"");
+        snprintf(out, size, DEV_DEX_METRIC ? "??.? m" : "??" "'??\"");
+        return;
+    }
+    if (DEV_DEX_METRIC) {
+        snprintf(out, size, "%u.%u m", d->height / 10u, d->height % 10u);
         return;
     }
     inches = 10000u * d->height / 254u;
@@ -408,6 +416,10 @@ static void DevDexWeight(const CtrPokeTouchDex *d, char *out, size_t size)
 
     if (!(d->sel.flags & 2)) {
         snprintf(out, size, "????.? %s", CtrUiText(UIS_DEX_LBS));
+        return;
+    }
+    if (DEV_DEX_METRIC) {                               /* UIS_DEX_LBS is "kg" there */
+        snprintf(out, size, "%u.%u %s", d->weight / 10u, d->weight % 10u, CtrUiText(UIS_DEX_LBS));
         return;
     }
     lbs = (unsigned)d->weight * 100000u / 4536u;
