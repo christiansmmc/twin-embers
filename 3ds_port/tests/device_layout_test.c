@@ -746,13 +746,32 @@ static int ChoiceFaults(void)
     return faults;
 }
 
-/* The naming keyboard: its screen across the top, the five keys across under it (the three pages, DELETE, OK), and
- * under them four rows of FireRed's 8 columns (34 wide) or of its symbols' 6 (47 wide). */
+/* The naming keyboard (def_naming): its screen across the top (the icon's box on its paper left of the first slot, the
+ * slots from x 54 16 apart, the gender sign after the longest name ending before the counter's place from x 262), the
+ * five keys across under it (the three pages, DELETE, OK), and under them four rows of FireRed's 8 columns (34 wide) or
+ * of its symbols' 6 (47 wide). */
 static int NamingFaults(void)
 {
+    const CtrPokeTouchRect paper = PaperOf(kDevNameScreen);
     int faults = 0;
 
-    assert(Same(kDevNameScreen, (CtrPokeTouchRect){8, 8, 304, 40}));
+    assert(Same(kDevNameScreen, (CtrPokeTouchRect){8, 8, 304, 40}) && Same(kDevNameIcon, (CtrPokeTouchRect){20, 16, 24, 24}));
+    assert(Same(DevNameSlot(0), (CtrPokeTouchRect){54, 26, 14, 14}) && Same(DevNameSlot(3), (CtrPokeTouchRect){102, 26, 14, 14}));
+    assert(DEV_NAME_TITLE_X == 52 && DEV_NAME_COUNT_RIGHT == 298);
+    if (!Within(kDevNameIcon, paper, 0) || kDevNameIcon.x + kDevNameIcon.w > DevNameSlot(0).x
+        || kDevNameIcon.x + kDevNameIcon.w > DEV_NAME_TITLE_X) {
+        fprintf(stderr, "naming: the icon's box leaves the paper or meets the question or the first slot\n");
+        ++faults;
+    }
+    for (int k = 0; k <= PT_NAME_MAX; ++k)
+        if (!Within(DevNameSlot(k), paper, 0)) {
+            fprintf(stderr, "naming: slot %d leaves the paper\n", k);
+            ++faults;
+        }
+    if (DevNameSlot(PT_NAME_MAX).x + 2 + 8 > 262 || DEV_NAME_COUNT_RIGHT > paper.x + paper.w) {
+        fprintf(stderr, "naming: the gender sign after the longest name reaches the counter, or the counter the bezel\n");
+        ++faults;
+    }
     for (int i = 0; i < 5; ++i)
         assert(Same(DevNameTop(i), DevAcross(5, i, 56, 24)));
     for (int r = 0; r < 4; ++r)
@@ -1016,7 +1035,8 @@ int main(void)
         {"choice YES", DevChoiceKey(2, 0, 0)}, {"choice NO", DevChoiceKey(2, 0, 1)}, {"choice key 7 of 8", DevChoiceKey(8, 0, 7)},
         {"choice grid key 7 of 8", DevChoiceKey(8, 3, 7)},
         {"naming screen", kDevNameScreen}, {"naming OK", DevNameTop(4)}, {"naming key 3,7", DevNameKey(8, 3, 7)},
-        {"naming symbol 3,5", DevNameKey(6, 3, 5)},
+        {"naming symbol 3,5", DevNameKey(6, 3, 5)}, {"naming icon", kDevNameIcon}, {"naming slot 0", DevNameSlot(0)},
+        {"naming gender sign's slot", DevNameSlot(PT_NAME_MAX)},
         {"box screen", kDevBoxScreen}, {"box band", kDevBoxTitle}, {"box place 0", DevBoxCell(0)},
         {"box place 29", DevBoxCell(29)}, {"box Party row 0", DevBoxPartyRow(0)}, {"box CANCEL row", DevBoxPartyRow(6)},
         {"box previous", kDevBoxPrev}, {"box next", kDevBoxNext}, {"box PARTY", kDevBoxParty}, {"box CLOSE BOX", kDevBoxClose},

@@ -445,11 +445,25 @@ static inline CtrPokeTouchRect DevChoiceKey(int n, int cols, int i)
     return r;
 }
 
-/* ---- The naming keyboard (no board; 3ds_device_naming_impl.h) --------------------------------------------------------
- * The name's screen across the top (the Pokemon's icon, FireRed's question, the name's slots and the gender sign); under
- * it five keys across (DevNameTop: ABC, abc and 123 turning to FireRed's pages, DELETE, OK); under them the page's keys
- * in four rows (DevNameKey: FireRed's 8 columns, 34 wide, or its symbols' 6, 47 wide). */
+/* ---- The naming keyboard (def_naming; 3ds_device_naming_impl.h) ------------------------------------------------------
+ * The name's screen across the top: the icon's box at its left (kDevNameIcon: a Pokemon's icon, or the paper), FireRed's
+ * question from DEV_NAME_TITLE_X and the counter ending at DEV_NAME_COUNT_RIGHT (both small, capitals 17), under them
+ * the name's slots (DevNameSlot: from x 54 with or without an icon) and the gender sign after the last; under it five
+ * keys across (DevNameTop: ABC, abc and 123 turning to FireRed's pages, DELETE, OK); under them the page's keys in four
+ * rows (DevNameKey: FireRed's 8 columns, 34 wide, or its symbols' 6, 47 wide). */
 static const CtrPokeTouchRect kDevNameScreen __attribute__((unused)) = {8, 8, 304, 40};
+static const CtrPokeTouchRect kDevNameIcon __attribute__((unused)) = {20, 16, 24, 24};
+#define DEV_NAME_TITLE_X     52     /* FireRed's question's x */
+#define DEV_NAME_COUNT_RIGHT 298    /* the counter's right end */
+
+/* The place of the name's character k (0 to PT_NAME_MAX; the gender sign's at k == maxChars): 14 wide, 16 apart from x
+ * 54, its character's capitals at y 28 and its underline its last row (y 39). */
+static inline CtrPokeTouchRect DevNameSlot(int k)
+{
+    CtrPokeTouchRect r = {(int16_t)(54 + 16 * k), 26, 14, 14};
+
+    return r;
+}
 
 /* Key i (0-4) across under the screen: ABC (FireRed's page 1, the capitals), abc (page 2, the small letters), 123 (page
  * 0, the symbols), DELETE, OK. */
