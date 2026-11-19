@@ -37,6 +37,32 @@ FAIL should include the screen text or `/3ds/twinembers/port.log` lines.
 - [ ] OPTIONS shows seven rows; every change survives a save and restart.
 - [ ] PC storage: move, withdraw and deposit Pokémon by touch.
 
+## The lower screen (the red device)
+
+Touch each view on the console and compare with the Azahar run. Rows follow the design canvas.
+
+- [ ] HOME: every key, RUN on and off (the light), SPD 1x-4x, the play time ticking a minute, the party cells.
+- [ ] Party: the field's Party, a battle's switch, a forced send-out, a Rare Candy's level up, an item's target.
+- [ ] Party actions: a Pokémon with CUT and FLY. The D-pad walks the column with wrap, the window follows to the 7th action and to CANCEL, CANCEL works by the exit key, SWITCH's YES / NO.
+- [ ] Summary: each tab, ▲▼ through the party (grey in the move details), a move's details and CANCEL, a swap, the IV/EV switch, an egg, BACK, a battle's Summary. CONTACT: SCRATCH says YES; a status move and FLAMETHROWER say NO.
+- [ ] Bag: the three pockets, the TM Case, the Berry Pouch, a mart's BUY, the item PC's WITHDRAW ITEM, the mailbox, the battle's Bag. Tap rows, ▲▼, drag (one item per 26 px), CLOSE at the end.
+- [ ] Bag menu: USE / GIVE / TOSS (how many, YES / NO) / REGISTER. CANCEL by the exit key and by B. The Berry Pouch's CHECK TAG. The battle's USE.
+- [ ] Battle commands: a wild battle (the quick ball, its arrows and swipe), a trainer battle, RUN blocked.
+- [ ] Moves: FIGHT and each move (the footer follows the cursor), BACK, a double battle's target, the Safari Zone.
+- [ ] Choices: a nurse's YES / NO, the PC's menu (4 + 1), the Viridian school's grid, BACK on each. Prices: the Celadon roof's drinks, a Game Corner prize counter, the coin seller, the Cerulean bike shop (its price shows).
+- [ ] Forget a move: a Rare Candy at four moves. Tap an old move twice (forgotten), the new one twice (skipped), an HM (refused), BACK.
+- [ ] Relearner (Two Island): a row, ▲▼, a move's footer, YES / NO, CANCEL with one tap.
+- [ ] OPTIONS: ▲▼ through the six pages (the tabs never rename), the page line and dots on GRAPHICS' three pages, FRAME's sample, a look's panel. COMPANION and EXP SHARE: a tap on each word, between two words, at the row's right end (EN/DE COMPANION is drawn small).
+- [ ] SAVE from HOME: YES / NO by touch and by ← → ↑ ↓ (no wrap), B; a save (the writing screen, then "RED SAVED THE GAME." and OK); an overwrite question starts on NO and → and ↓ keep NO; after a failed overwrite it reopens on NO.
+- [ ] Trainer Card: the stars' colour, FLIP by the key and by a tap on the card, BACK.
+- [ ] Pokédex: the three tabs (▲▼ grey on LISTS and SEARCH), HABITATS' pages, a habitat's page with ◀ ▶, CLOSE; KANTO's list (top, bottom, tap twice, ▲▼, a drag); a page's AREA, CRY, BACK; a new catch (REGISTERED, OK). ES/DE ROM: height and weight in m and kg; is the decimal separator a comma ("1,0 m")? Today it prints "1.0 m".
+- [ ] Letter: read one from the Bag's mail. CLOSE, a tap on the screen, a tap on the note.
+- [ ] FireRed's picture and idle: the Fame Checker and a Pokédex AREA map (BACK); the idle screen after a while.
+- [ ] Naming: the player's name at a new game (or a Pokémon's nickname with its icon), the three pages, DELETE, OK, the counter.
+- [ ] PC box: move a Pokémon across boxes (IN HAND), PARTY POKéMON, CLOSE, MOVE ITEMS, the chooser. The cursor into the Party (rows, CANCEL in the corner), the chooser (JUMP), a message (a tap anywhere).
+- [ ] PC menus: a Pokémon's menu (CANCEL by the corner and by B), the box title's menu, WALLPAPER's scenery menus (the corner sends B), MARK (CANCEL), RELEASE's YES / NO and BACK.
+- [ ] Easy Chat: a profile's phrase (CLEAR with its question, CONFIRM, CANCEL by touch and by B, the D-pad on the footer); a group's words (rows, the rail, ▲▼ at both ends, USE WORD, A TO Z, BACK); BY GROUP (the window by ▲▼ and by the D-pad to the last groups, a group, BACK; A TO Z's letters and BACK).
+
 ## Gameplay
 
 - [ ] Several wild and trainer battles: menus, moves, switching, Pokémon cries.

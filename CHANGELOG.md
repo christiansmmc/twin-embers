@@ -6,7 +6,23 @@ Twin Embers is a port of Pokémon FireRed (pret/pokefirered) to the Nintendo 3DS
 
 ### Changed
 
-- **The lower screen is now "the red device".** Every view (HOME, battle, Party, Summary, Bag, OPTIONS, SAVE, the Pokédex, the Trainer Card, the mail, the PC box, naming, Easy Chat and the rest) is drawn as a console shell with the screen embedded in it, cream keys that sink with a green light and dark keys to leave. FireRed's own picture (the AREA map and the screens the GBA draws) sits inside an embedded screen too. HOME has six keys: POKéDEX, POKéMON, BAG, your name for the Trainer Card, SAVE and OPTION.
+- **The lower screen is now "the red device".** Every view (HOME, battle, Party, Summary, Bag, OPTIONS, SAVE, the Pokédex, the Trainer Card, the mail, the PC box, naming, Easy Chat and the rest) is drawn as a console shell with the screen embedded in it, cream keys that sink with a green light and dark keys to leave. FireRed's own picture (the AREA map and the screens the GBA draws) sits inside an embedded screen too. The layouts below are the final "Definitiva" ones.
+- **HOME** has eight keys of 73x34: POKéDEX, POKéMON, BAG, your name for the Trainer Card, SAVE, OPTION, RUN (with a light that is on while running) and SPD. The panel shows the party cells and the play time.
+- **The Party** shows a gender sign and no HP chip. Its actions are one scrolling column of six, following FireRed's cursor to the 7th action and to CANCEL, with CANCEL in the exit corner. Picking several has its own CONFIRM key.
+- **The Summary** has four fixed tabs (INFO, STATS, MOVES, MEMO), ▲▼ in the standard column, and a CONTACT line in the move details that says whether the move makes contact (recipe 0266).
+- **The Bag** shows five rows, 24 tall and 26 apart, in every list (field Bag, TM Case, Berry Pouch, mart BUY, item PC, mailbox, battle Bag); a drag moves one item per 26 px. Its menu rises in the right column with CANCEL in the exit corner.
+- **The battle's commands** are four keys of 73 (BAG, BALL, POKéMON, RUN) when the quick ball is offered, three of 96 otherwise. **The moves** are four keys with the chosen move's type, category, STAB, POW/ACC and description in the footer; TARGET and the Safari Zone share the layout.
+- **Field choices** have YES/NO as two tall keys, lists of up to four in one column with the price on the right, and five to eight in two columns. Priced labels (Celadon drinks, Game Corner prizes and coins, the bike shop) are split into a name and a price (recipe 0267); the bike shop now shows its price.
+- **Forgetting a move** shows the four moves plus the new one with a hint in the footer for each row. **The move relearner** has rows 26 apart, a fixed type chip and "PP n", and the move's description in the footer.
+- **OPTIONS** keeps its section names; a page line ("PAGE 2/3 · LOOKS") with dots shows the page, and COMPANION and EXP SHARE use word-sized boxes with the chosen one outlined. In English and German COMPANION is drawn in the small font to fit.
+- **SAVE** shows the place as its title, the facts and the question below, a wide YES and a dark NO, and a progress bar while writing. The D-pad no longer wraps: ← ↑ choose YES and → ↓ choose NO, as FireRed does, and a failed overwrite reopens on NO.
+- **The Trainer Card** takes its title strip's colour from its stars (FireRed's five Kanto colours), shows missing badges as round holes, and has FLIP and BACK keys.
+- **The Pokédex** has LISTS, HABITATS and SEARCH tabs, five list rows with the caught mark and the types and category in the footer, a page with HT/WT and a four-line entry, and REGISTERED for a new catch. In Spanish and German the height and weight are shown in metres and kilograms (before, a pounds number appeared with "kg").
+- **The letter** has a larger screen, a note that says it is on the upper screen, and CLOSE in the exit corner; a tap on the note closes it too.
+- **Naming** shows a counter of the letters typed on its name strip, and the Pokémon's icon when it is a nickname.
+- **The PC box** sits on plain paper, shows what is IN HAND, the box's count and the types of the pointed Pokémon. Its menus (a Pokémon's, the box title's, WALLPAPER's, MARK, RELEASE) use the right column with CANCEL in the exit corner (recipe 0268); the Party, the box chooser and its messages follow the same look.
+- **Easy Chat** has a footer of CLEAR, CONFIRM and CANCEL on the phrase, its groups in a window of three columns with ▲▼ (they walk to the last groups), and the word list on the Definitiva grid with USE WORD, A TO Z and BACK.
+- Every text that a layout has to cut is now counted by the tests in English, Spanish and German, so a silent cut cannot return. There is no change for the player.
 - **OPTIONS has a Shell colour row** (red, blue, green or grey) in place of EMBERS.
 - **HEAL and REMEMBER leave the Party's menu.** Their code stays behind the build switch `CTR_PARTY_EXTRAS` (recipe 0264).
 - **The Summary marks the nature's raised and lowered stats** (recipe 0265).
@@ -15,6 +31,8 @@ Twin Embers is a port of Pokémon FireRed (pret/pokefirered) to the Nintendo 3DS
 
 - The ember look (backdrop, rising embers and the EMBERS option), the START column, and the jumps from one view to another: leave a view with its dark key, then pick from HOME.
 - The on-screen X and Y tiles. The X and Y buttons still work.
+- The PC box's wallpaper on the lower screen (the wallpaper choice in the box title's menu stays).
+- Easy Chat's letter strip, and the groups' A TO Z key (A TO Z stays on the phrase and the word list).
 - Removed the optional Facets battle backgrounds from both Builders (the desktop app and command line `--battle-backgrounds`, and the web page's switch). The optional HD battle scenes are unchanged. A data pack made earlier with them keeps working.
 
 ## v0.6.0
