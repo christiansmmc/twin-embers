@@ -1,22 +1,28 @@
-/* The Pokedex as the red device (no board; plan 3), included by 3ds_poketouch.c after the letter: a row of the field
- * dispatcher (3ds_device_field_impl.h), shown while view->dex.on and there is no GBA picture (DevDexShown; its AREA page
- * stays FireRed's picture). A remote for FireRed's own Pokedex (3ds_poketouch.h CtrPokeTouchDex): every cursor is the
- * Pokedex's own (3ds_bottom.c walks them with its keys); every picture and word is FireRed's but for the port's few.
+/* The Pokedex as the red device (the top menu: board def_dex_menu, plan 04b Task 6; the list: def_dex_list, Task 7; a
+ * Pokemon's page: def_dex_page and def_dex_added, Task 8; the rest plan 3's), included by 3ds_poketouch.c after the
+ * letter: a row of the field dispatcher (3ds_device_field_impl.h), shown while view->dex.on and there is no GBA picture
+ * (DevDexShown; its AREA page stays FireRed's picture). A remote for FireRed's own Pokedex (3ds_poketouch.h
+ * CtrPokeTouchDex): every cursor is the Pokedex's own (3ds_bottom.c walks them with its keys); every picture and word
+ * is FireRed's but for the port's few.
  *
- * The top menu (MENU): its three sections as tabs (DevDexTabKey), the one the cursor is in sunk (CLOSE belongs to the
- * lists: v0.6.0's rule) or the one under a held touch; that section's rows as keys, six to a page (v0.6.0's paging), each
- * FireRed's menu icon over its name, the cursor's sunk, a habitat with nothing seen yet faint; ▲ ▼ with more than one
- * page; SEEN and OWNED on the small note; CLOSE, FireRed's CLOSE POKeDEX row, a dark key sunk while the cursor is on it.
- * An ordered list (LIST): its order on the title (SEEN and OWNED at its right for the numbered ones), five tall rows (the
- * number, the name, a caught one's mark), the cursor's inverted, ▲ ▼ grey where the list goes no further; the selected
- * one's types and kind on the description's screen; BACK. A habitat's page (CATEGORY): the habitat and the page on the
- * title, its Pokemon in up to four slots (the picture of one seen, the number, the name), ◀ ▶ grey where there is no
- * page; the selected one on the small note; BACK. A Pokemon's page (PAGE): its picture, number, name, kind, types (a
- * caught one's), height, weight, footprint and entry on the tall screen; AREA, CRY and BACK; the page a catch has just
- * added: OK alone (the battle's A), the screen taking a touch too. While the Pokedex is busy the last picture is kept
+ * The top menu (MENU): its three sections as the grid's tabs (DevGridTab(3, i)), the one the cursor is in sunk (CLOSE
+ * belongs to the lists: v0.6.0's rule) or the one under a held touch; that section's rows as keys, six to a page
+ * (v0.6.0's paging), each FireRed's 64x48 menu icon over its name in the small font (capitals faceY + 56: Call 16), the
+ * cursor's sunk, a habitat with nothing seen yet beige, its icon half over the face; SEEN and OWNED on the small note;
+ * ▲ ▼ beside it always, grey (and not hit) where there is no page to turn to, so both on a tab of one page; CLOSE,
+ * FireRed's CLOSE POKeDEX row, the dark key in the exit corner, sunk while the cursor is on it.
+ * An ordered list (LIST): its order on the title (SEEN and OWNED at its right for the numbered ones), the grid's five
+ * rows (24 tall, 26 apart: the number, the name, a caught one's mark), the cursor's inverted, ▲ ▼ grey (and not hit)
+ * where the list goes no further; the selected one's types and kind on the grid's note; BACK. A habitat's page
+ * (CATEGORY, no board: the menu's grid): the habitat and the page on the title, its Pokemon in up to four slots on the
+ * menu's rows (the picture of one seen, the number, the name), ◀ ▶ grey where there is no page; the selected one on
+ * the small note; BACK in the exit corner. A Pokemon's page (PAGE): its picture, number, name, kind, types (a caught
+ * one's), height, weight, footprint, the rule and the entry (four lines, a fifth counted) on the tall screen; AREA, CRY
+ * and BACK; the page a catch has just added: REGISTERED by the name and OK alone (the battle's A), up, sunk under a
+ * touch, the screen taking a touch too. While the Pokedex is busy the last picture is kept
  * (FieldDexFill); nothing kept yet, the shell. The chosen key, row or slot is the one under a held touch, else the
- * game's cursor (DevChosen). Every rectangle is 3ds_device_layout.h's, so what is drawn is what a touch takes; the codes
- * are v0.6.0's (PT_DEX_HIT_*).
+ * game's cursor (DevChosen). Every rectangle is 3ds_device_layout.h's, so what is drawn is what a touch takes; the
+ * codes are v0.6.0's (PT_DEX_HIT_*).
  *
  * Words (decision 5): FireRed's menu words, names, kinds and types (which v0.6.0 title-cased) through DevUpper, a menu
  * word without its " POKeMON" or " MODE"; the port's words in capitals; FireRed's entry as it is.
@@ -93,8 +99,11 @@ static void FDPicDrawBig(unsigned species, int x, int y)
         UiImage(sFDPic[slot].px, sFDPic[slot].pal, 64, 64, 64, x, y, 1, 1);
 }
 
-/* A top menu row's icon (FireRed's 64x48), greyed when not `on`; decoded once, by id + 3 (the header, CANCEL, the
- * habitats and the lists). */
+/* A top menu row's icon (FireRed's 64x48) at (x, y): as it is, or (not `on`: a habitat with nothing seen yet, on its
+ * beige key) each colour half over the beige face (DEV_DEX_A_LOCKED, the board's opacity 0.5); decoded once, by id + 3
+ * (the header, CANCEL, the habitats and the lists). */
+#define DEV_DEX_A_LOCKED 128
+
 static struct {
     uint8_t ready, ok;
     uint8_t px[64 * 48];
@@ -117,8 +126,19 @@ static void DevDexIcon(int id, int x, int y, int on)
             FDPal(pal, sDevDexIcon[k].pal);
         }
     }
-    if (sDevDexIcon[k].ok)
-        UiImage(sDevDexIcon[k].px, sDevDexIcon[k].pal, 64, 64, 48, x, y, 1, on);
+    if (!sDevDexIcon[k].ok)
+        return;
+    if (on) {
+        UiImage(sDevDexIcon[k].px, sDevDexIcon[k].pal, 64, 64, 48, x, y, 1, 1);
+        return;
+    }
+    for (int py = 0; py < 48; ++py)
+        for (int px = 0; px < 64; ++px) {
+            uint8_t c = sDevDexIcon[k].px[py * 64 + px];
+
+            if (c)
+                Px(x + px, y + py, DevBlend(DEV_FAINT, sDevDexIcon[k].pal[c], DEV_DEX_A_LOCKED));
+        }
 }
 
 /* FireRed's caught mark (8x8), decoded once. */
@@ -253,19 +273,19 @@ int CtrPokeTouch_DexHit(const CtrPokeTouchView *v, int x, int y)
         return -1;
     switch (d->state) {
     case PT_DEX_STATE_MENU: {
-        int first, count, pages, cancel = DevDexCancelRow(d);
+        int first, count, pages, page, cancel = DevDexCancelRow(d);
 
         for (int i = 0; i < 3; ++i) {
-            CtrPokeTouchRect r = DevDexTabKey(i);
+            CtrPokeTouchRect r = DevGridTab(3, i);
 
             if (DevOnKey(&r, x, y))
                 return PT_DEX_HIT_TAB + i;
         }
-        DevDexGridPage(d, DevDexTab(d), &first, &count, &pages);
-        if (pages > 1 && DevOnKey(&kDevSmallKey[0], x, y))
-            return PT_DEX_HIT_UP;
-        if (pages > 1 && DevOnKey(&kDevSmallKey[1], x, y))
-            return PT_DEX_HIT_DOWN;
+        page = DevDexGridPage(d, DevDexTab(d), &first, &count, &pages);
+        if (DevOnKey(&kDevSmallKey[0], x, y))           /* ▲ ▼ taken only where there is a page to turn to */
+            return page > 0 ? PT_DEX_HIT_UP : -1;
+        if (DevOnKey(&kDevSmallKey[1], x, y))
+            return page < pages - 1 ? PT_DEX_HIT_DOWN : -1;
         for (int i = 0; i < count; ++i) {
             CtrPokeTouchRect r = DevDexItem(i);
 
@@ -280,7 +300,7 @@ int CtrPokeTouch_DexHit(const CtrPokeTouchView *v, int x, int y)
         if (DevOnKey(&kDevGridDown, x, y))
             return d->listFirst + PT_DEX_ROWS < d->listCount ? PT_DEX_HIT_DOWN : -1;
         for (int i = 0; i < PT_DEX_ROWS && d->listFirst + i < d->listCount; ++i) {
-            CtrPokeTouchRect r = DevTallRow(i);
+            CtrPokeTouchRect r = DevGridRow(i, 0);              /* the row itself: the 2 px gaps take nothing */
 
             if (UiIn(&r, x, y))
                 return PT_DEX_HIT_ROW + i;
@@ -345,6 +365,12 @@ static void DevDexHabitat(const CtrPokeTouchDex *d, char *out, size_t size)
         }
 }
 
+/* REGISTERED: the port's word on the page a catch has just added (def_dex_added). */
+static const char *DevDexNewWord(void)
+{
+    return CTR_TR("REGISTERED", "REGISTRADO", "REGISTRIERT");
+}
+
 static void DevDexNumber(unsigned n, char *out, size_t size)
 {
     snprintf(out, size, "No.%03u", n > 999 ? 999 : n);
@@ -359,13 +385,21 @@ static const char *DevDexName(const CtrPokeTouchDexMon *m, const char *unseen, c
     return out;
 }
 
-/* FireRed's own conversions: feet and inches, pounds to the tenth (v0.6.0's); unknown for one not caught. */
+/* Height and weight as each language's FireRed shows them, to the tenth: in English feet and inches and pounds
+ * (FireRed's own conversions, v0.6.0's), in Spanish and German metres and kilograms (the species' decimetres and
+ * hectograms over ten); unknown for one not caught. */
+#define DEV_DEX_METRIC (CTR_LANG_ES || CTR_LANG_DE)
+
 static void DevDexHeight(const CtrPokeTouchDex *d, char *out, size_t size)
 {
     unsigned inches, feet;
 
     if (!(d->sel.flags & 2)) {
-        snprintf(out, size, "??" "'??\"");
+        snprintf(out, size, DEV_DEX_METRIC ? "??.? m" : "??" "'??\"");
+        return;
+    }
+    if (DEV_DEX_METRIC) {
+        snprintf(out, size, "%u.%u m", d->height / 10u, d->height % 10u);
         return;
     }
     inches = 10000u * d->height / 254u;
@@ -384,6 +418,10 @@ static void DevDexWeight(const CtrPokeTouchDex *d, char *out, size_t size)
         snprintf(out, size, "????.? %s", CtrUiText(UIS_DEX_LBS));
         return;
     }
+    if (DEV_DEX_METRIC) {                               /* UIS_DEX_LBS is "kg" there */
+        snprintf(out, size, "%u.%u %s", d->weight / 10u, d->weight % 10u, CtrUiText(UIS_DEX_LBS));
+        return;
+    }
     lbs = (unsigned)d->weight * 100000u / 4536u;
     if (lbs % 10 >= 5)
         lbs += 10;
@@ -397,27 +435,6 @@ static const CtrUiString kDevDexTabWord[3] = {UIS_DEX_LISTS, UIS_DEX_HABITATS, U
 static const CtrUiString kDevDexOrder[6] = {UIS_DEX_KANTO, UIS_DEX_ATOZ, UIS_DEX_TYPE, UIS_DEX_LIGHTEST, UIS_DEX_SMALLEST,
                                             UIS_DEX_NATIONAL};
 
-/* The title's screen: `left` in the paper's ink, `right` (or nothing) small at its right in the secondary ink. */
-static void DevDexTitle(const char *left, const char *right)
-{
-    CtrPokeTouchRect paper = DevScreen(&kDevGridTitle);
-    int top = paper.y + (paper.h - 8) / 2, end = paper.x + paper.w - 6, rw = DevSmallTextWidth(right);
-
-    if (right[0])
-        DevSmallText(right, end - rw, top, DEV_INK2, end);
-    DevText(left, paper.x + 6, top, right[0] ? end - rw - 8 : end);
-}
-
-/* A word in the small font across key r at `top`: centred, or (too wide) cut at the key's edges and counted. */
-static void DevDexKeySmall(const CtrPokeTouchRect *r, int top, const char *s, uint16_t ink)
-{
-    int w = DevSmallTextWidth(s), room = r->w - 8;
-
-    if (w > room)
-        ++sDevKeyCut;
-    DevSmallText(s, w > room ? r->x + 4 : r->x + (r->w - w) / 2, top, ink, r->x + r->w - 4);
-}
-
 /* Whether the menu lists the National Pokedex (FireRed does once the player has it): then its counts are the note's. */
 static int DevDexNationalListed(const CtrPokeTouchDex *d)
 {
@@ -427,7 +444,8 @@ static int DevDexNationalListed(const CtrPokeTouchDex *d)
     return 0;
 }
 
-/* SEEN and OWNED on the small note, a row each: the word small at the left, the count at the right. */
+/* SEEN and OWNED on the small note, a row each 14 tall from 2 px into the paper (def_dex_menu: the words' capitals 201
+ * and 215, the counts' 200 and 214, ending at 148): the word small at the left, the count at the right. */
 static void DevDexCounts(const CtrPokeTouchDex *d)
 {
     CtrPokeTouchRect paper = DevScreen(&kDevSmallNote);
@@ -435,7 +453,7 @@ static void DevDexCounts(const CtrPokeTouchDex *d)
     char label[DEV_DEX_WORD], value[8];
 
     for (int i = 0; i < 2; ++i) {
-        CtrPokeTouchRect row = {(int16_t)(paper.x + 6), (int16_t)(paper.y + 1 + 14 * i), (int16_t)(paper.w - 12), 14};
+        CtrPokeTouchRect row = {(int16_t)(paper.x + 6), (int16_t)(paper.y + 2 + 14 * i), (int16_t)(paper.w - 12), 14};
 
         DevUpper(label, CtrUiText(i ? UIS_DEX_OWNED : UIS_DEX_SEEN), sizeof(label));
         snprintf(value, sizeof(value), "%u", (unsigned)(i ? d->owned[nat] : d->seen[nat]));
@@ -443,7 +461,8 @@ static void DevDexCounts(const CtrPokeTouchDex *d)
     }
 }
 
-/* The top menu (MENU). */
+/* The top menu (MENU, def_dex_menu). A key: FireRed's 64x48 icon 16 px in and 3 under the face's top, its word small
+ * at capitals faceY + 56 (Call 16: the board's stand-in is 44 tall, FireRed's icon 48). */
 static void DevDexMenu(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchDex *d = &v->dex;
@@ -453,7 +472,7 @@ static void DevDexMenu(const CtrPokeTouchView *v)
     char word[DEV_DEX_WORD];
 
     for (int i = 0; i < 3; ++i) {
-        CtrPokeTouchRect r = DevDexTabKey(i);
+        CtrPokeTouchRect r = DevGridTab(3, i);
         int sunk = DevChosen(i, tab, pressTab), faceY = DevKey(&r, DEV_LOOK_KEY, sunk, 5);
 
         DevUpper(word, CtrUiText(kDevDexTabWord[i]), sizeof(word));
@@ -463,16 +482,15 @@ static void DevDexMenu(const CtrPokeTouchView *v)
     for (int i = 0; i < count; ++i) {
         CtrPokeTouchRect r = DevDexItem(i);
         int row = first + i, look = d->menu[row].locked ? DEV_LOOK_FAINT : DEV_LOOK_KEY;
-        int sunk = DevChosen(row, d->menuCursor, pressRow), faceY = DevKey(&r, look, sunk, 6), ix = r.x + (r.w - 64) / 2;
+        int sunk = DevChosen(row, d->menuCursor, pressRow), faceY = DevKey(&r, look, sunk, 6);
 
-        DevArt(DEV_ART_ICON, ix, faceY + 3, 64, 48);
-        DevDexIcon(d->menu[row].id, ix, faceY + 3, look == DEV_LOOK_KEY);
+        DevArt(DEV_ART_ICON, r.x + 16, faceY + 3, 64, 48);
+        DevDexIcon(d->menu[row].id, r.x + 16, faceY + 3, look == DEV_LOOK_KEY);
         DevDexItemWord(d, row, word, sizeof(word));
-        DevDexKeySmall(&r, faceY + 55, word, DevKeyInk(look, sunk));
+        DevKeySmallWord(&r, faceY + 56, look, sunk, word);
     }
-    if (pages > 1)
-        DevArrowKeys(&kDevSmallKey[0], &kDevSmallKey[1], page > 0, page < pages - 1, pressed == PT_DEX_HIT_UP,
-                     pressed == PT_DEX_HIT_DOWN, 0);
+    DevArrowKeys(&kDevSmallKey[0], &kDevSmallKey[1], page > 0, page < pages - 1, pressed == PT_DEX_HIT_UP,
+                 pressed == PT_DEX_HIT_DOWN, 0);
     DevDexCounts(d);
     if (cancel >= 0) {
         int sunk = DevChosen(cancel, d->menuCursor, pressRow), faceY = DevKey(&kDevGridExit, DEV_LOOK_DARK, sunk, 6);
@@ -481,51 +499,64 @@ static void DevDexMenu(const CtrPokeTouchView *v)
     }
 }
 
-/* A caught one's type chips (the second when it has one), 12 tall from (x, y) and at least 40 wide, ending by `right`;
- * returns the x after them. */
+/* A caught one's type chips (DevTypeChip, 12 tall: the second when it has one) from (x, y), 3 apart, ending by `right`;
+ * a chip that would pass it is left out and counted in sDevKeyCut (FireRed's two widest end far short of it). Returns
+ * the x 3 px after them. */
 static int DevDexTypes(const CtrPokeTouchDex *d, int x, int y, int right)
 {
-    char word[DEV_DEX_WORD];
-
     for (int i = 0; i < 2; ++i) {
-        uint16_t bg;
-        int w;
-
         if (d->type[i] < 0)
             continue;
-        bg = UiTypeColor(d->type[i]);
-        DevUpper(word, d->typeName[i], sizeof(word));
-        w = DevSmallTextWidth(word) + 8;
-        if (w < 40)
-            w = 40;
-        if (x + w > right)
+        if (x + DevTypeChipWidth(d->typeName[i]) > right) {
+            ++sDevKeyCut;
             break;
-        DevChip(x, y, w, 12, word, bg, DevChipShadow(bg));
-        x += w + 3;
+        }
+        x += DevTypeChip(d->typeName[i], d->type[i], x, y, 12) + 3;
     }
     return x;
 }
 
-/* Row i of the list: inverted when chosen; the number, the name ("-----" not seen yet), a caught one's mark at its
- * right. */
+/* A list row's pieces (def_dex_list), from its left and top: the number, the name, the capitals; a caught one's mark
+ * (8x8) DEV_DEX_MARK_IN from its right, its top level with the capitals, the name ending 4 px before it. */
+#define DEV_DEX_NO_X     6
+#define DEV_DEX_NAME_X   52
+#define DEV_DEX_CAPS_Y   8
+#define DEV_DEX_MARK_IN  16
+_Static_assert(PT_DEX_ROWS == DEV_GRID_ROWS, "the Pokedex's list shows the grid's rows");
+
+/* A row's word from x, capitals at `top`, ending by `right`: one wider is cut there and counted in sDevKeyCut (none
+ * FireRed has is: CHARMELEON's and WIGGLYTUFF's 60 px of the name's 172; the number is No.000 to No.999). The page's
+ * name and kind too (DevDexPage). */
+static void DevDexRowWord(const char *s, int x, int top, int right, uint16_t ink, uint16_t shadow)
+{
+    if (DevTextWidth(s) > right - x)
+        ++sDevKeyCut;
+    DevTextInk(s, x, top, right, ink, shadow);
+}
+
+/* Row i of the list (the grid's: 24 tall, 26 apart): inverted when chosen; the number and the name ("-----" not seen
+ * yet) at the same capitals, a caught one's mark at its right. */
 static void DevDexRow(const CtrPokeTouchDexMon *m, int i, int chosen)
 {
-    CtrPokeTouchRect r = DevTallRow(i);
-    int top = r.y + (r.h - UI_TEXT_H) / 2, markX = r.x + r.w - 14;
+    CtrPokeTouchRect r = DevGridRow(i, 0);
+    int top = r.y + DEV_DEX_CAPS_Y, markX = r.x + r.w - DEV_DEX_MARK_IN, nameX = r.x + DEV_DEX_NAME_X;
     uint16_t ink = DevRowInk(chosen), shadow = chosen ? ink : DEV_INK_SH;
     char no[12], name[DEV_DEX_WORD];
 
     DevRow(&r, chosen);
     DevDexNumber(m->number, no, sizeof(no));
-    DevTextInk(no, r.x + 6, top, markX, ink, shadow);
-    DevTextInk(DevDexName(m, "-----", name, sizeof(name)), r.x + 16 + DevTextWidth("No.000"), top, markX - 4, ink, shadow);
+    DevDexRowWord(no, r.x + DEV_DEX_NO_X, top, nameX - 4, ink, shadow);
+    DevDexRowWord(DevDexName(m, "-----", name, sizeof(name)), nameX, top, markX - 4, ink, shadow);
     if (m->flags & 2) {
-        DevArt(DEV_ART_MARK, markX, r.y + 8, 8, 8);
-        DevDexMark(markX, r.y + 8);
+        DevArt(DEV_ART_MARK, markX, r.y + DEV_DEX_CAPS_Y, 8, 8);
+        DevDexMark(markX, r.y + DEV_DEX_CAPS_Y);
     }
 }
 
-/* The ordered list (LIST). */
+/* The ordered list (LIST, def_dex_list): the order and the counts on the title; the grid's five rows, ▲ ▼ grey where
+ * the list goes no further; on the note a caught one's type chips (12 tall, from x 20 at y 205) and its kind small
+ * after them (from 109 with two chips, capitals 208, one line: DevSmallFit, a kind wider than its room cut after the
+ * words that fit, or a single word at the paper's edge, and counted), else "?????"; BACK. */
 static void DevDexList(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchDex *d = &v->dex;
@@ -542,7 +573,7 @@ static void DevDexList(const CtrPokeTouchView *v)
         DevUpper(owned, CtrUiText(UIS_DEX_OWNED), sizeof(owned));
         snprintf(counts, sizeof(counts), "%s %u  %s %u", seen, (unsigned)d->seen[nat], owned, (unsigned)d->owned[nat]);
     }
-    DevDexTitle(title, counts);
+    DevTitleLine(&kDevGridTitle, title, counts);        /* the counts ending at 298, capitals 17 (def_dex_list) */
     DevScreen(&kDevGridScreen);
     for (int i = 0; i < PT_DEX_ROWS && d->listFirst + i < d->listCount; ++i)
         DevDexRow(&d->row[i], i, DevChosen(i, d->listCursor - d->listFirst, pressRow));
@@ -551,38 +582,46 @@ static void DevDexList(const CtrPokeTouchView *v)
     paper = DevScreen(&kDevGridNote);                   /* the selected one: a caught one's types and kind */
     if (d->sel.flags & 2) {
         char kind[DEV_DEX_WORD];
-        int x = DevDexTypes(d, paper.x + 6, paper.y + (paper.h - 12) / 2, paper.x + paper.w - 6);
+        int chipY = paper.y + (paper.h - 12) / 2, right = paper.x + paper.w - 6;
+        int x = DevDexTypes(d, paper.x + 6, chipY, right) + 3;
 
         DevUpper(kind, d->kind, sizeof(kind));
-        DevSmallText(kind, x + 3, paper.y + (paper.h - 7) / 2, DEV_INK2, paper.x + paper.w - 6);
+        DevSmallFit(kind, x, x, chipY + 3, right, 1, DEV_SMALL_LINE, DEV_INK2);
     } else
         DevText("?????", paper.x + 6, paper.y + (paper.h - UI_TEXT_H) / 2, paper.x + paper.w - 6);
     DevFieldBack(v, &kDevGridExit, DevBackWord());
 }
 
-/* Slot i of a habitat's page (m its Pokemon, `sunk` chosen): the picture of one seen beside its number and its name; a
- * caught one's mark at its top-left corner, over the picture (v0.6.0's place). */
+/* Slot i of a habitat's page (m its Pokemon, `sunk` chosen), a key on the menu's rows: the picture of one seen (64x64
+ * at x + 4, faceY + 1: rows faceY + 1 to faceY + 64 of the 66-tall face, up or sunk) beside its number and its name
+ * (from x + 74, capitals faceY + 18 and faceY + 36, ending by x + w - 6: a name wider is cut there and counted in
+ * sDevKeyCut, though none FireRed has is: WIGGLYTUFF's 60 px of the 68); a caught one's mark at its top-left corner,
+ * over the picture (v0.6.0's place: x + 6, faceY + 4). */
 static void DevDexSlotDraw(const CtrPokeTouchDexMon *m, int i, int sunk)
 {
     CtrPokeTouchRect r = DevDexSlot(i);
     int faceY = DevKey(&r, DEV_LOOK_KEY, sunk, 6), x = r.x + 74, end = r.x + r.w - 6;
     uint16_t ink = DevKeyInk(DEV_LOOK_KEY, sunk), shadow = DevKeyInkShadow(DEV_LOOK_KEY, sunk);
     char text[DEV_DEX_WORD];
+    const char *name;
 
     if (m->flags & 1) {
-        DevArt(DEV_ART_PICTURE, r.x + 4, faceY + 3, 64, 64);
-        FDPicDraw(m->species, r.x + 4, faceY + 3, 0);
+        DevArt(DEV_ART_PICTURE, r.x + 4, faceY + 1, 64, 64);
+        FDPicDraw(m->species, r.x + 4, faceY + 1, 0);
     }
     if (m->flags & 2) {
-        DevArt(DEV_ART_MARK, r.x + 6, faceY + 6, 8, 8);
-        DevDexMark(r.x + 6, faceY + 6);
+        DevArt(DEV_ART_MARK, r.x + 6, faceY + 4, 8, 8);
+        DevDexMark(r.x + 6, faceY + 4);
     }
     DevDexNumber(m->number, text, sizeof(text));
-    DevTextInk(text, x, faceY + 20, end, ink, shadow);
-    DevTextInk(DevDexName(m, "?????", text, sizeof(text)), x, faceY + 38, end, ink, shadow);
+    DevTextInk(text, x, faceY + 18, end, ink, shadow);
+    name = DevDexName(m, "?????", text, sizeof(text));
+    if (DevTextWidth(name) > end - x)
+        ++sDevKeyCut;
+    DevTextInk(name, x, faceY + 36, end, ink, shadow);
 }
 
-/* A habitat's page (CATEGORY). */
+/* A habitat's page (CATEGORY): the menu's grid (no board of its own). */
 static void DevDexCategory(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchDex *d = &v->dex;
@@ -593,7 +632,7 @@ static void DevDexCategory(const CtrPokeTouchView *v)
     DevDexHabitat(d, habitat, sizeof(habitat));
     DevUpper(word, CtrUiText(UIS_DEX_PAGE), sizeof(word));
     snprintf(page, sizeof(page), "%s %u/%u", word, (unsigned)d->page, (unsigned)d->pages);
-    DevDexTitle(habitat, page);
+    DevTitleLine(&kDevGridTitle, habitat, page);        /* "PAGE n/m" ending at 298, capitals 17 */
     for (int i = 0; i < d->slots && i < 4; ++i)
         DevDexSlotDraw(&d->mon[i], i, DevChosen(i, d->slot, pressSlot));
     DevArrowKeys(&kDevSmallKey[0], &kDevSmallKey[1], d->canPrev, d->canNext, d->pressed == PT_DEX_HIT_PREV,
@@ -607,45 +646,66 @@ static void DevDexCategory(const CtrPokeTouchView *v)
     DevFieldBack(v, &kDevGridExit, DevBackWord());
 }
 
-/* A Pokemon's page (PAGE): the picture (HeartGold's 80x80 when the pack has it, else the 64x64 centred), the number and
- * the name, the kind, a caught one's types, height and weight beside it, the footprint, the rule and the entry; AREA,
- * CRY and BACK, or the page a catch added: OK. */
+/* A Pokemon's page (PAGE, def_dex_page): the picture (HeartGold's 80x80 when the pack has it, else the 64x64 centred);
+ * the number and the name at capitals 22 (the name ending 4 px before the footprint, or before REGISTERED, and cut
+ * there and counted when wider), the kind at 38 (likewise at the footprint), a caught one's types at y 57; HT and WT on
+ * DevDexDataRow (the label small, the value ending at 240); the footprint; the rule (DEV_RULE) and the entry under it,
+ * four lines from capitals 115, DEV_DEX_ENTRY_PITCH apart: an entry that needs a fifth is cut after the fourth and
+ * counted. AREA, CRY and BACK; or the page a catch added (def_dex_added): REGISTERED on its chip (DEV_TAG_NEW, 14 tall,
+ * the word's small width and 8, ending at the data's right, 278, at its top) and OK alone, up, sunk only while a touch
+ * holds it or the screen (the fill's PT_DEX_HIT_CONTINUE: either goes on with the battle). */
+#define DEV_DEX_ENTRY_LINES 4
+#define DEV_DEX_ENTRY_PITCH 14
+#define DEV_DEX_TAG_H       14
+
 static void DevDexPage(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchDex *d = &v->dex;
     const CtrPokeTouchRect *data = &kDevDexData;
-    int caught = (d->sel.flags & 2) != 0, x = data->x, right = data->x + data->w;
-    CtrPokeTouchRect row = {data->x, (int16_t)(data->y + 52), 120, 14};
+    int caught = (d->sel.flags & 2) != 0, x = data->x, right = data->x + data->w, nameRight = right;
     char no[12], word[DEV_DEX_WORD], value[32];
 
     DevScreen(&kDevTallScreen);
     DevArt(DEV_ART_PICTURE, kDevDexPic.x, kDevDexPic.y, kDevDexPic.w, kDevDexPic.h);
     FDPicDrawBig(d->sel.species, kDevDexPic.x + 8, kDevDexPic.y + 8);
+    if (d->added) {                                     /* REGISTERED, the name ending 4 px before it */
+        const char *tag = DevDexNewWord();
+        int w = DevSmallTextWidth(tag) + 8;
+
+        DevChip(right - w, data->y, w, DEV_DEX_TAG_H, tag, DEV_TAG_NEW, DevChipShadow(DEV_TAG_NEW));
+        nameRight = right - w - 4;
+    }
     DevDexNumber(d->sel.number, no, sizeof(no));
     DevText2(no, x, data->y + 2, right);
     DevUpper(word, d->sel.name, sizeof(word));
-    DevText(word, x + DevTextWidth(no) + 8, data->y + 2, right);
+    DevDexRowWord(word, x + DevTextWidth(no) + 8, data->y + 2, nameRight, DEV_INK, DEV_INK_SH);
     if (caught)
         DevUpper(word, d->kind, sizeof(word));
-    DevText2(caught ? word : "?????", x, data->y + 18, right);
+    DevDexRowWord(caught ? word : "?????", x, data->y + 18, right, DEV_INK2, DEV_INK2);
     if (caught)
         DevDexTypes(d, x, data->y + 37, right);
-    DevUpper(word, CtrUiText(UIS_DEX_HT), sizeof(word));
-    DevDexHeight(d, value, sizeof(value));
-    DevLabelValue(&row, word, value);
-    row.y = (int16_t)(row.y + row.h);
-    DevUpper(word, CtrUiText(UIS_DEX_WT), sizeof(word));
-    DevDexWeight(d, value, sizeof(value));
-    DevLabelValue(&row, word, value);
+    for (int i = 0; i < 2; ++i) {
+        CtrPokeTouchRect row = DevDexDataRow(i);
+
+        DevUpper(word, CtrUiText(i ? UIS_DEX_WT : UIS_DEX_HT), sizeof(word));
+        if (i)
+            DevDexWeight(d, value, sizeof(value));
+        else
+            DevDexHeight(d, value, sizeof(value));
+        DevLabelValue(&row, word, value);
+    }
     DevArt(DEV_ART_MARK, kDevDexFoot.x, kDevDexFoot.y, kDevDexFoot.w, kDevDexFoot.h);
     DevDexFootprint(d->sel.species, kDevDexFoot.x, kDevDexFoot.y);
-    DevRect(kDevDexRule.x, kDevDexRule.y, kDevDexRule.w, kDevDexRule.h, DEV_INK_SH);
-    DevWrap(d->desc, kDevDexEntry.x, kDevDexEntry.y + 1, kDevDexEntry.w, 5, DEV_INK, DEV_INK_SH);
+    DevRect(kDevDexRule.x, kDevDexRule.y, kDevDexRule.w, kDevDexRule.h, DEV_RULE);
+    if (DevWrapLines(d->desc, kDevDexEntry.w, DEV_DEX_ENTRY_LINES + 1) > DEV_DEX_ENTRY_LINES)
+        ++sDevKeyCut;                                   /* the fifth line and on left out */
+    DevWrapPitch(d->desc, kDevDexEntry.x, kDevDexEntry.y + 3, kDevDexEntry.w, DEV_DEX_ENTRY_LINES, DEV_DEX_ENTRY_PITCH,
+                 DEV_INK, DEV_INK_SH);
     if (d->added) {                                     /* OK: the battle's A, the only key */
-        int faceY = DevKey(&kDevWideKey, DEV_LOOK_KEY, 1, 6);
+        int sunk = d->pressed == PT_DEX_HIT_CONTINUE, faceY = DevKey(&kDevWideKey, DEV_LOOK_KEY, sunk, 6);
 
         DevUpper(word, CtrUiText(UIS_OK), sizeof(word));
-        DevKeyWord(&kDevWideKey, faceY, DEV_LOOK_KEY, 1, word);
+        DevKeyWord(&kDevWideKey, faceY, DEV_LOOK_KEY, sunk, word);
         return;
     }
     for (int k = 0; k < 2; ++k) {

@@ -461,20 +461,20 @@ static void DevBagArrows(const DevBagPage *p, int held, int dim)
 }
 
 /* The footer, the grid's note: the selected item's icon and, in the list (or under a message), a TM's type and how many
- * the Bag holds of a mart's item in chips (9 tall) before FireRed's description (the small font, three lines
- * DEV_SMALL_LINE apart: capitals 198, 208, 218; a longer one cut and counted), all from DEV_BAG_READ_X; with the
- * item's menu, YES / NO or how many open, what the page reads there ("... is selected.", the question) from the same
- * x. */
+ * the Bag holds of a mart's item in chips (9 tall, on the first line) before FireRed's description (the small font,
+ * three lines DEV_SMALL_LINE_TIGHT apart: capitals 199, 208, 217, the first's accents and the third's descenders on the
+ * paper; a longer one cut and counted), all from DEV_BAG_READ_X; with the item's menu, YES / NO or how many open, what
+ * the page reads there ("... is selected.", the question) from the same x. */
 static void DevBagDesc(const DevBagPage *p)
 {
     CtrPokeTouchRect paper = DevScreen(&kDevGridNote);
-    int x = DEV_BAG_READ_X, top = paper.y + 2, right = paper.x + paper.w - 4, first = x;
+    int x = DEV_BAG_READ_X, top = paper.y + 3, right = paper.x + paper.w - 4, first = x;
     char text[48];
 
     if (p->selItem)
         DevItemIcon(p->selItem, kDevBagDescIcon.x, kDevBagDescIcon.y, 0);
     if (DevBagNarrow(p)) {
-        DevReadText(p->read, &paper, DEV_BAG_READ_X, right, top, DEV_SMALL_LINE);
+        DevReadText(p->read, &paper, DEV_BAG_READ_X, right, top, DEV_SMALL_LINE_TIGHT);
         return;
     }
     if (!p->selItem)
@@ -496,7 +496,7 @@ static void DevBagDesc(const DevBagPage *p)
         DevChip(first, top, w, 9, text, DEV_BLUE_INK, DevChipShadow(DEV_BLUE_INK));
         first += w + 4;
     }
-    DevSmallFit(p->desc, first, x, top, right, 3, DEV_SMALL_LINE, DEV_INK);
+    DevSmallFit(p->desc, first, x, top, right, 3, DEV_SMALL_LINE_TIGHT, DEV_INK);
 }
 
 /* The item's menu or YES / NO (DevBagMenuRect): the actions (YES) cream in the grid's column, their words from x + 10;

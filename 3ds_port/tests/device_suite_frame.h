@@ -1,12 +1,15 @@
-/* ---- frame, idle: FireRed's picture in an embedded screen, and the idle screen (no board; plan 3 Task 8) ------------
+/* ---- frame, idle: FireRed's picture in an embedded screen, and the idle screen (def_frame, def_idle) --------------
  * Included by device_render_test.c before its kSuites: two suites, frame and idle. Port-written words stand in for the
  * bar's. */
 
-/* The papers of the note (the Summary's beside BACK, and across without it), where the title's capitals start and
- * where the hints' two lines (the small font, DEV_SMALL_LINE_TIGHT apart) start; the room of a line beside BACK. */
-static const CtrPokeTouchRect kFrameNotePaper = {14, 194, 216, 32}, kFrameWidePaper = {14, 194, 292, 32};
-#define FRAME_TITLE_Y 196
-#define FRAME_HINT_Y 208
+/* The papers of the note (the grid's beside BACK, kDevGridNote, and across without it, kDevGridNoteWide), where the
+ * title's capitals start (199: 3 rows in, so the game's accents, 3 over them, stay off the bezel), alone (206: centred
+ * down the paper) and where the hints' two lines (the small font, DEV_SMALL_LINE_TIGHT apart: 209 / 218, the footer
+ * rule) start; the room of a line beside BACK. */
+static const CtrPokeTouchRect kFrameNotePaper = {14, 196, 216, 30}, kFrameWidePaper = {14, 196, 292, 30};
+#define FRAME_TITLE_Y 199
+#define FRAME_ALONE_Y 206
+#define FRAME_HINT_Y 209
 #define FRAME_HINT_X (14 + 6)
 #define FRAME_HINT_ROOM (216 - 12)
 #define FRAME_SCREW DevBlend(DEV_SHELL_RED, 0x0000, DEV_A_SCREW)
@@ -36,7 +39,7 @@ static int FrameRow(const CtrPokeTouchView *v)
 /* BACK (a dark key) up or sunk: its face (the same colour either way) and the LED a sunk key lights. */
 static void FrameBack(int sunk)
 {
-    const CtrPokeTouchRect r = kDevTallBack;
+    const CtrPokeTouchRect r = kDevGridExit;
 
     AssertKey(r, DEV_LOOK_DARK, sunk);
     assert((Count(r.x, r.y, r.w, r.h + DEV_DROP, DEV_LED) > 0) == sunk);
@@ -81,7 +84,8 @@ static void SuiteFrame(void)
 {
     static const uint16_t kScrew[4][2] = {{4, 4}, {315, 4}, {4, 234}, {315, 234}};
     CtrPokeTouchView v = FrameBoard(), old = v, other;
-    uint8_t keepSmall[256];
+    uint8_t keepSmall[256], keepNormal[256];
+    char title[PT_BAR_LEN];
     int x, y;
 
     CtrPokeTouch_Draw(canvas, &old);
@@ -91,9 +95,11 @@ static void SuiteFrame(void)
     for (y = -1; y <= H; ++y) for (x = -1; x <= W; ++x) {                                       /* every point, and one past each edge */
         int in = x >= PT_VIEW_X && x < PT_VIEW_X + PT_VIEW_W && y >= PT_VIEW_Y && y < PT_VIEW_Y + PT_VIEW_H, gx, gy;
         assert(CtrPokeTouch_ViewportToGba(x, y, &gx, &gy) == in && (!in || (gx == x - PT_VIEW_X && gy == y - PT_VIEW_Y))); }
-    AssertHits(BackV, &v, kDevTallBack, 1); v.backPressed = 1; DevCheckTouch(&old, &v); AssertKey(kDevTallBack, DEV_LOOK_DARK, 1);
+    AssertHits(BackV, &v, kDevGridExit, 1); v.backPressed = 1; DevCheckTouch(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);
+    assert(Count(20, FRAME_TITLE_Y, 120, 8, DEV_INK) > 0 && Count(20, FRAME_TITLE_Y - 1, 120, 1, DEV_INK) == 0 && Count(20, 209, 200, 7, DEV_INK2) > 0 && Count(20, 218, 200, 7, DEV_INK2) > 0);
     v.backEnabled = 0; v.backPressed = 0; DevCheckTouch(&old, &v); assert(at(247, 209) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, 128));
-    v.backVisible = 0; DevCheckTouch(&old, &v); assert(!CtrPokeTouch_BackHit(&v, 278, 209) && at(278, 209) != DEV_SHELL_RED);
+    v.backVisible = 0; DevCheckTouch(&old, &v); assert(Count(14, 196, 292, 30, DEV_PAPER) > 0 && !BackV(&v, 278, 209));
+    assert(!CtrPokeTouch_BackHit(&v, 278, 209) && at(278, 209) == DEV_PAPER);
     v.viewport = 0; DevCheckTouch(&old, &v); assert(at(160, 90) == DEV_PAPER);                   /* nothing to show: an empty screen, never the embers */
     v.mapGroup ^= 1; v.speed ^= 1; assert(DevCheckTouch(&old, &v).count == 0); assert(sDevKeyCut == 0);
 
@@ -124,11 +130,22 @@ static void SuiteFrame(void)
     assert(Count(kFrameNotePaper.x, kFrameNotePaper.y, kFrameNotePaper.w, FRAME_HINT_Y - 2 - kFrameNotePaper.y, DEV_INK2) == 0
            && Count(kFrameNotePaper.x, FRAME_HINT_Y, kFrameNotePaper.w, 16, DEV_INK) == 0);     /* (an apostrophe's 2 rows over) */
     assert(at(237, 209) == DEV_SHELL_RED && at(kFrameNotePaper.x + kFrameNotePaper.w - 1, 200) == DEV_PAPER);
+    assert(at(228, 195) == DEV_BEZEL && at(228, 196) == DEV_PAPER && at(228, 225) == DEV_PAPER && at(228, 226) == DEV_BEZEL);
+    /* the hints' second line is the note's last (capitals 218): with a descender on every small glyph (the game's g, p,
+     * q, y and comma have theirs in glyph row 11: SmallDescenders) it ends on the paper's last row, 225, and none reaches
+     * the bezel under it */
+    SmallDescenders(1); CtrPokeTouch_Draw(canvas, &v);
+    assert(Count(20, 218, 204, 7, DEV_INK2) > 0 && Count(20, 225, 204, 1, DEV_INK2) > 0 && Count(14, 226, 216, 5, DEV_INK2) == 0);
+    SmallDescenders(0);
+    /* the title is the note's first line: with an accent on every glyph (Accents) none reaches the bezel over it */
+    Accents(1); CtrPokeTouch_Draw(canvas, &v); assert(BezelOver(14, 216)); Accents(0);
+    CtrPokeTouch_Draw(canvas, &old);
     /* no hints: the title alone, centred down the paper */
     v.bar[1][0] = v.bar[2][0] = 0; assert(DevWhole(DevCheckTouch(&old, &v)));
     assert(Count(kFrameNotePaper.x, kFrameNotePaper.y, kFrameNotePaper.w, kFrameNotePaper.h, DEV_INK2) == 0);
-    assert(Count(kFrameNotePaper.x, kFrameNotePaper.y, kFrameNotePaper.w, 11, DEV_INK) == 0
-           && Count(kFrameNotePaper.x, kFrameNotePaper.y + 11, kFrameNotePaper.w, UI_TEXT_H, DEV_INK) > 0);
+    assert(Count(kFrameNotePaper.x, kFrameNotePaper.y, kFrameNotePaper.w, FRAME_ALONE_Y - kFrameNotePaper.y, DEV_INK) == 0
+           && Count(kFrameNotePaper.x, FRAME_ALONE_Y, kFrameNotePaper.w, 1, DEV_INK) > 0
+           && Count(kFrameNotePaper.x, FRAME_ALONE_Y, kFrameNotePaper.w, UI_TEXT_H, DEV_INK) > 0);
     /* one hint short enough: one line */
     strcpy(v.bar[2], "Back is the B button."); DevCheckTouch(&old, &v);
     assert(Count(kFrameNotePaper.x, FRAME_HINT_Y, kFrameNotePaper.w, 7, DEV_INK2) > 0
@@ -143,6 +160,9 @@ static void SuiteFrame(void)
     strcpy(v.bar[1], "Port words that run on too long"); strcpy(v.bar[2], "Back.");
     DevCheckTouch(&old, &v); assert(sDevKeyCut == 0);
     assert(FrameHintInk(0, FRAME_HINT_X + 100) > 0 && FrameHintInk(1, FRAME_HINT_X + 60) > 0);
+    SmallDescenders(1); CtrPokeTouch_Draw(canvas, &v);                          /* wrapped: the second line's too */
+    assert(Count(20, 225, 204, 1, DEV_INK2) > 0 && Count(14, 226, 216, 5, DEV_INK2) == 0 && sDevKeyCut == 0);
+    SmallDescenders(0); CtrPokeTouch_Draw(canvas, &old);
     strcpy(v.bar[1], "Port words for this test, and on and on"); strcpy(v.bar[2], "More port words that two lines drop");
     DevCheckTouch(&old, &v); sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &v);         /* one draw: one cut */
     assert(sDevKeyCut == 1 && FrameHintInk(1, FRAME_HINT_X + FRAME_HINT_ROOM / 2) > 0);    /* line 2 past its middle */
@@ -150,19 +170,62 @@ static void SuiteFrame(void)
     memcpy(smallWidths, keepSmall, sizeof(keepSmall));
     memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
     CtrPokeTouch_Draw(canvas, &old);
+    /* with capitals 8 px wide in the normal font, a title wider than its line: cut where the line ends (6 px short of
+     * the paper's) and counted, once a draw */
+    memcpy(keepNormal, fontWidths, sizeof(keepNormal));
+    for (unsigned c = 0xbb; c <= 0xd4; ++c)        /* A..Z */
+        fontWidths[c] = 8;
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    v = FrameBoard(); strcpy(v.bar[0], "Port words for a title too long");
+    DevUpper(title, v.bar[0], sizeof(title)); assert(DevTextWidth(title) > FRAME_HINT_ROOM);
+    DevCheckTouch(&old, &v); sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &v);          /* one draw: one cut */
+    assert(sDevKeyCut == 1 && Count(FRAME_HINT_X + FRAME_HINT_ROOM - 20, FRAME_TITLE_Y, 20, UI_TEXT_H, DEV_INK) > 0
+           && Count(FRAME_HINT_X + FRAME_HINT_ROOM, kFrameNotePaper.y, 6, kFrameNotePaper.h, DEV_INK) == 0);
+    sDevKeyCut = 0;
+    memcpy(fontWidths, keepNormal, sizeof(keepNormal));
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    CtrPokeTouch_Draw(canvas, &old);
+    /* the port's widest bars that reach the frame, in this build's language as 3ds_bottom.c gives them (the PC's
+     * sub-screens, a move or item's prompts, FireRed's own screens; the ES and DE label-fit builds draw them with glyphs
+     * 6 px wide): each drawn whole, nothing counted */
+    {
+        const char *const bars[3][3] = {
+            {CTR_TR("Pok\xC3\xA9mon storage system", "Sistema almacenamiento", "Pok\xC3\xA9mon-Lagersystem"),
+             CTR_TR("Use the game's own controls.", "Usa los controles del juego.", "Nutze die Spielsteuerung."), ""},
+            {CTR_TR("Move / item", "Ataque / objeto", "Attacke / Item"),
+             CTR_TR("Use A and B to follow the prompts.", "Usa A y B para seguir las indicaciones.",
+                    "Nutze A und B gem\xC3\xA4\xC3\x9F Anweisung."), ""},
+            {CTR_TR("Hall of Fame", "Hall de la Fama", "Ruhmeshalle"),
+             CTR_TR("Use the game's own controls.", "Usa los controles del juego.", "Nutze die Spielsteuerung."),
+             CTR_TR("Back is the B button.", "Atr\xC3\xA1s es el bot\xC3\xB3n B.", "Zur\xC3\xBC" "ck entspricht Taste B.")}};
+
+        for (int i = 0; i < 3; ++i) {
+            v = FrameBoard();
+            for (int j = 0; j < 3; ++j)
+                snprintf(v.bar[j], PT_BAR_LEN, "%s", bars[i][j]);
+            DevCheckTouch(&old, &v); sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &v);
+            assert(sDevKeyCut == 0 && FrameHintInk(0, FRAME_HINT_X) > 0);
+        }
+    }
     /* without BACK the note goes across, its paper where BACK was */
     v = FrameBoard(); v.backVisible = 0; DevCheckTouch(&old, &v);
     assert(at(300, 199) == DEV_PAPER && at(kFrameWidePaper.x + kFrameWidePaper.w - 1, 200) == DEV_PAPER && at(312, 209) == DEV_SHELL_RED);
-    assert(Count(kDevTallBack.x, kFrameWidePaper.y, kFrameWidePaper.x + kFrameWidePaper.w - kDevTallBack.x, kFrameWidePaper.h, DEV_BEZEL) == 0);
+    assert(Count(kDevGridExit.x, kFrameWidePaper.y, kFrameWidePaper.x + kFrameWidePaper.w - kDevGridExit.x, kFrameWidePaper.h, DEV_BEZEL) == 0);
+    assert(at(300, 195) == DEV_BEZEL && at(300, 225) == DEV_PAPER && at(300, 226) == DEV_BEZEL);
+    SmallDescenders(1); CtrPokeTouch_Draw(canvas, &v);                          /* across: the same rows */
+    assert(Count(20, 225, 286, 1, DEV_INK2) > 0 && Count(14, 226, 292, 5, DEV_INK2) == 0);
+    SmallDescenders(0);
+    Accents(1); CtrPokeTouch_Draw(canvas, &v); assert(BezelOver(14, 292)); Accents(0);
+    CtrPokeTouch_Draw(canvas, &old);
     /* BACK: a dark key with BACK's word, sunk with its LED under a touch, grey while it cannot be used (a touch on it then
      * sinks nothing), hit where it is drawn and nowhere else; gone with the note across when it is not shown */
     v = FrameBoard(); DevCheckTouch(&old, &v); FrameBack(0);
-    assert(Count(kDevTallBack.x, kDevTallBack.y, kDevTallBack.w, kDevTallBack.h, DEV_DARK_INK) > 0);
-    AssertHits(BackV, &v, kDevTallBack, 1);
+    assert(Count(kDevGridExit.x, kDevGridExit.y, kDevGridExit.w, kDevGridExit.h, DEV_DARK_INK) > 0);
+    AssertHits(BackV, &v, kDevGridExit, 1);
     assert(!BackV(&v, 180, 210) && !BackV(&v, 160, 90) && !BackV(&v, 100, 210));     /* not v0.6.0's BACK place, the picture, the note */
     v.backPressed = 1; DevCheckTouch(&old, &v); FrameBack(1);
     v.backEnabled = 0; DevCheckTouch(&old, &v);
-    assert(at(247, 209) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, DEV_A_DIM) && Count(kDevTallBack.x, kDevTallBack.y, kDevTallBack.w, kDevTallBack.h + DEV_DROP, DEV_LED) == 0);
+    assert(at(247, 209) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, DEV_A_DIM) && Count(kDevGridExit.x, kDevGridExit.y, kDevGridExit.w, kDevGridExit.h + DEV_DROP, DEV_LED) == 0);
     v.backPressed = 0; assert(DevCheckTouch(&old, &v).count == 0);                     /* not usable: never drawn held */
     v.backVisible = 0; DevCheckTouch(&old, &v);
     for (y = 0; y < H; y += 3)

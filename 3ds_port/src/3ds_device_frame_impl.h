@@ -1,14 +1,15 @@
-/* FireRed's picture in an embedded screen, and the idle screen, as the red device (no board; plan 3), included by
- * 3ds_poketouch.c after the field's views and before their dispatcher.
+/* FireRed's picture in an embedded screen, and the idle screen, as the Definitiva draws them (def_frame, def_idle),
+ * included by 3ds_poketouch.c after the field's views and before their dispatcher.
  *
  * The frame is the field dispatcher's last row (3ds_device_field_impl.h): it draws any field view no other row draws
  * (DevFrameShown: not HOME, not the Bag). FireRed's own screen in the viewport (the PC's menus, a link card, FireRed's
  * own Summary, the Pokedex's AREA page, the Fame Checker...) is drawn by the GPU on the paper of an embedded screen
  * centred across the top: the paper is black under it, at PT_VIEW_X/Y (the one place of the picture, where a touch is a
- * GBA point). With no picture the screen is empty (its paper), never the ember look. Under it the note: the bar's title
- * in the normal font and its two hints in the small font and the secondary ink, one a line (the title alone centred down
- * the paper); BACK beside it (kDevTallBack) while the view shows it, a dark key (sunk under a held touch, grey
- * while it cannot be used), else the note across. The shell has its four screws, as every view's. Every rectangle is
+ * GBA point). With no picture the screen is empty (its paper), never the ember look. Under it the grid's footer: the
+ * note (kDevGridNote) with the bar's title in the normal font (capitals 199) and its two hints in the small font and the
+ * secondary ink under it (capitals 209 and 218), one a line (the title alone centred down the paper); BACK in the exit
+ * (kDevGridExit) while the view shows it, a dark key (sunk under a held touch, grey while it cannot be used), else the
+ * wide note across (kDevGridNoteWide). The shell has its four screws, as every view's. Every rectangle is
  * 3ds_device_layout.h's, so what is drawn is what a touch takes.
  *
  * Words (decision 5): the bar (v0.6.0 title-cased it) through DevUpper.
@@ -25,18 +26,22 @@ static int DevFrameShown(const CtrPokeTouchView *v)
     return !DevHomeShown(v) && !DevBagShown(v);
 }
 
-/* The note under the picture: the title (bar[0]) in the normal font at the paper's top and the hints (bar[1], bar[2])
- * in the small font and the secondary ink under it, one a line while each fits (all of the port's do, in the three
- * languages), else as one text wrapped into the two lines, what they cannot hold dropped and counted (sDevKeyCut);
- * without hints the title alone, centred down the paper. */
+/* The note under the picture: the title (bar[0]) in the normal font, its capitals 3 px into the paper (199: an accent,
+ * 3 over them, stays off the bezel), and the hints (bar[1], bar[2]) in the small font and the secondary ink under it,
+ * capitals 13 and 22 px in (209 and 218: the footer's last line, its descenders on the paper's last row), one a line
+ * while each fits, else as one text wrapped into the two lines (DevSmallFit: what they cannot hold dropped and counted
+ * in sDevKeyCut; the port's widest bars fit in the three languages); without hints the title alone, centred down the
+ * paper. A title wider than its line is cut 6 px short of the paper's end and counted. */
 static void DevFrameNote(const CtrPokeTouchView *v)
 {
-    CtrPokeTouchRect paper = DevScreen(v->backVisible ? &kDevTallNote : &kDevViewNoteWide);
+    CtrPokeTouchRect paper = DevScreen(v->backVisible ? &kDevGridNote : &kDevGridNoteWide);
     char title[PT_BAR_LEN], hint[2][PT_BAR_LEN], text[2 * PT_BAR_LEN + 1];
-    int x = paper.x + 6, right = paper.x + paper.w - 6, top = paper.y + 14, any = v->bar[1][0] || v->bar[2][0];
+    int x = paper.x + 6, right = paper.x + paper.w - 6, top = paper.y + 13, any = v->bar[1][0] || v->bar[2][0];
 
     DevUpper(title, v->bar[0], sizeof(title));
-    DevText(title, x, any ? paper.y + 2 : paper.y + (paper.h - UI_TEXT_H) / 2, right);
+    if (DevTextWidth(title) > right - x)
+        ++sDevKeyCut;
+    DevText(title, x, any ? paper.y + 3 : paper.y + (paper.h - UI_TEXT_H) / 2, right);
     if (!any)
         return;
     DevUpper(hint[0], v->bar[1], sizeof(hint[0]));
@@ -48,9 +53,7 @@ static void DevFrameNote(const CtrPokeTouchView *v)
         return;
     }
     snprintf(text, sizeof(text), "%s %s", hint[0], hint[1]);
-    DevSmallWrap(text, x, x, top, right, 2, DEV_SMALL_LINE_TIGHT, DEV_INK2);
-    if (DevSmallWrapRun(text, x, x, top, right, 3, DEV_SMALL_LINE_TIGHT, DEV_INK2, 0) > 2)
-        ++sDevKeyCut;
+    DevSmallFit(text, x, x, top, right, 2, DEV_SMALL_LINE_TIGHT, DEV_INK2);
 }
 
 /* The frame whole (after DevBegin: the dispatcher's). */
@@ -63,7 +66,7 @@ static void DevFrameDraw(const CtrPokeTouchView *v)
         Fill(PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H, 0x0000);       /* covered by the GPU's picture */
     }
     DevFrameNote(v);
-    DevFieldBack(v, &kDevTallBack, DevBackWord());
+    DevFieldBack(v, &kDevGridExit, DevBackWord());
 }
 
 /* ---- The dispatcher's row: whether two views draw the same, where BACK is ------------------------------------------- */
@@ -78,10 +81,10 @@ static int DevFrameSame(const CtrPokeTouchView *a, const CtrPokeTouchView *b)
     return !a->viewport == !b->viewport && DevFieldBackSame(a, b);
 }
 
-/* BACK (kDevTallBack) while the view shows it. */
+/* BACK (kDevGridExit) while the view shows it. */
 static const CtrPokeTouchRect *DevFrameBackKey(const CtrPokeTouchView *v)
 {
-    return v->backVisible ? &kDevTallBack : NULL;
+    return v->backVisible ? &kDevGridExit : NULL;
 }
 
 /* ---- The idle screen --------------------------------------------------------------------------------------------- */

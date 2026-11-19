@@ -64,9 +64,11 @@ bool CtrPokeTouch_HomeRibbonHit(int x, int y);                         /* the re
  * ◀ value ▶ (3ds_device_layout.h DevOptRow). On a row, the label selects it (its description goes to
  * the small note), ◀ steps the value back and the value or ▶ steps it forward; the ◀ ▶ keys under
  * the rows step the row described. A row of levels (COMPANION's OFF / FOLLOW / BE IT) shows all its
- * values side by side instead, the chosen one boxed: a touch on one picks it (zone PT_OPT_ZONE_SEG +
- * its index). The keys (PT_OPT_KEY_*): a section's (its first page) across the top, ▲ ▼ (the page
- * before, after). */
+ * values instead, each in a box its word's size, the chosen one outlined: a touch on one, or on the
+ * half of a gap beside it, picks it (zone PT_OPT_ZONE_SEG + its index). The keys (PT_OPT_KEY_*): a
+ * section's across the top (named by its first page, which it opens, whichever of its pages is
+ * shown), ▲ ▼ (the page before, after). Under the rows a section of several pages says which is
+ * shown (its page line, PAGE 2/3 and the page's name, and its dots). */
 #define PT_OPT_MAX 7
 #define PT_OPT_LABEL_LEN 16
 #define PT_OPT_VALUE_LEN 12
@@ -93,10 +95,13 @@ typedef struct {
     uint16_t palette[16];           /* 15-bit colours, 0 clear */
 } CtrPokeTouchLook;
 /* The SAVE screen (the facts come from FireRed's save window, ctr_poketouch.h CtrSave_*), the red device's
- * (3ds_device_save_impl.h): the game's save information on the screen, the dialogue (bar[]) on the note under
- * it and beside the note YES / NO (SAVE_CONFIRM), nothing (SAVE_WRITING) or OK (SAVE_SUCCESS, SAVE_ERROR). */
+ * (3ds_device_save_impl.h, boards def_save_*): on its screen the place (bar[0]) as the title, the game's save
+ * information and under it the dialogue (bar[1], bar[2]); under the screen YES wide and NO in the exit corner
+ * (SAVE_CONFIRM), the same two beige and not hit while the bar on the screen shows the port's own steps
+ * (SAVE_WRITING: saveStep of PT_SAVE_STEPS), or OK across both (SAVE_SUCCESS, SAVE_ERROR). */
 enum { SAVE_CONFIRM, SAVE_WRITING, SAVE_SUCCESS, SAVE_ERROR };
 enum { PT_SAVE_NONE, PT_SAVE_FIRST, PT_SAVE_SECOND };  /* the button: YES or OK, NO */
+#define PT_SAVE_STEPS 2
 /* Contextual bar text: three lines of FireRed's font inside 228 pixels. */
 #define PT_BAR_LINES 3
 #define PT_BAR_LEN 40
@@ -111,7 +116,7 @@ enum { PT_SAVE_NONE, PT_SAVE_FIRST, PT_SAVE_SECOND };  /* the button: YES or OK,
 
 /* The first item a list of `count` items shows in `rows` rows with FireRed's cursor at `cursor`: the cursor's row in the
  * middle (rows / 2 above it) where the list allows, the window held at the list's ends. The Bag's lists, the field's and
- * the battle's (PT_BAG_ROWS, BUI_BAG_ROWS). */
+ * the battle's (PT_BAG_ROWS, BUI_BAG_ROWS), and the Pokedex's (PT_DEX_ROWS). */
 static inline int CtrPokeTouch_ListFirst(int cursor, int count, int rows)
 {
     int first = cursor - rows / 2, last = count - rows < 0 ? 0 : count - rows;
@@ -444,7 +449,9 @@ typedef struct {
     uint8_t optPage;            /* 0-based page index in OPTIONS */
     uint8_t optPageCount;       /* total pages in OPTIONS */
     uint8_t optSection, optSectionCount;   /* the section the page is in (Settings, Graphics, QoL, Nuzlocke) and how many there are */
-    char optSectionName[PT_OPT_SECTIONS][PT_OPT_SECTION_LEN];   /* the section keys' words: the shown section's is its page's name */
+    char optSectionName[PT_OPT_SECTIONS][PT_OPT_SECTION_LEN];   /* the section keys' words: each its section's first page's name */
+    uint8_t optSectionPage, optSectionPages;    /* the page shown's place in its section (1 based) and the section's pages */
+    char optPageName[PT_OPT_SECTION_LEN];       /* the page shown's own name (Graphics, Looks, Wilds...): the page line's */
     int8_t optKey;              /* the key (PT_OPT_KEY_*) under a held touch, or -1 */
     uint8_t optCount;           /* its rows on the current page */
     uint8_t optSelected;        /* the chosen row, the one the note describes (within the current page) */
@@ -463,6 +470,7 @@ typedef struct {
     uint8_t saveState;          /* SAVE_* */
     uint8_t saveSel;            /* the selected button: 0 YES, 1 NO */
     uint8_t savePressed;        /* PT_SAVE_* under a held touch */
+    uint8_t saveStep;           /* SAVE_WRITING: the port's steps taken of PT_SAVE_STEPS (the bar's fill) */
     uint8_t saveBadges;         /* badges earned, 0-8 */
     uint8_t saveHasDex;         /* the Pokedex line is shown */
     uint8_t saveMinutes;        /* the play clock */
@@ -494,17 +502,15 @@ bool CtrPokeTouch_BackHit(const CtrPokeTouchView *view, int x, int y);
 
 /* The OPTIONS row and zone (PT_OPT_ZONE_*) under a bottom-screen pixel of the view shown (OPTIONS,
  * no GBA picture); false when none. On a row of levels any zone but LABEL is the level there
- * (PT_OPT_ZONE_SEG + CtrPokeTouch_OptionSegment); ◀ ▶ under the rows are the row described's
- * PREV / NEXT. */
+ * (PT_OPT_ZONE_SEG + its index: its box and the gaps beside it to their middles,
+ * 3ds_device_options_impl.h DevOptLevelAt); ◀ ▶ under the rows are the row described's PREV / NEXT. */
 bool CtrPokeTouch_OptionHit(const CtrPokeTouchView *view, int x, int y, int *row, int *zone);
-/* On a row of `count` levels, the one under bottom-screen column `x` (the zone was not LABEL). */
-int CtrPokeTouch_OptionSegment(int x, int count);
-/* The OPTIONS key under a bottom-screen pixel: PT_OPT_KEY_SECTION + a section, PT_OPT_KEY_UP,
- * PT_OPT_KEY_DOWN (with more than one page), else -1. */
+/* The OPTIONS key under a bottom-screen pixel: PT_OPT_KEY_SECTION + a section (the grid's tabs),
+ * PT_OPT_KEY_UP, PT_OPT_KEY_DOWN (while there is more than one page: always, the six wrap), else -1. */
 int CtrPokeTouch_OptionKey(const CtrPokeTouchView *view, int x, int y);
 
-/* SAVE's key under a bottom-screen pixel (PT_SAVE_*) for the dialogue state: YES and NO while
- * confirming, OK (PT_SAVE_FIRST, in YES's place) after a result, none while writing. */
+/* SAVE's key under a bottom-screen pixel (PT_SAVE_*) for the dialogue state, as the keys are drawn: YES and NO
+ * while confirming, OK (PT_SAVE_FIRST, across both places) after a result, none while writing (YES and NO beige). */
 int CtrPokeTouch_SaveHit(int x, int y, int state);
 
 bool CtrPokeTouch_FlyHit(int x, int y);          /* HOME's FLY key, while it is drawn */
@@ -558,8 +564,8 @@ int CtrPokeTouch_MarkShape(int mark, unsigned char *indexes);
 int CtrBottomStorage_BoxFill(CtrPokeTouchBox *box);
 /* Whether the Trainer Card (view->card.on, no GBA picture) is under lower-screen point (x, y): its screen or FLIP. */
 int CtrPokeTouch_CardHit(const CtrPokeTouchView *view, int x, int y);
-/* Whether the letter being read (view->mail.on, no GBA picture) is under lower-screen point (x, y): its screen,
- * which closes it as CLOSE does. */
+/* Whether the letter being read (view->mail.on, no GBA picture) is under lower-screen point (x, y): its screen or the
+ * note under it, either of which closes it as CLOSE does. */
 bool CtrPokeTouch_MailHit(const CtrPokeTouchView *view, int x, int y);
 /* The card's pictures, from FireRed's (trainer_card.c): the trainer's front picture (64x64 4bpp, 8x8 tiles in rows of
  * eight) and the badges (128x16 4bpp: badge i at tiles 2i, 2i + 1 and 2i + 16, 2i + 17). 0 when there is none. */

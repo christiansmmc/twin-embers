@@ -509,8 +509,11 @@ static void BattleFill(CtrBattleView *v)
     }
 }
 
-/* SAVE's view: FireRed's own save information (the facts SaveStatToString prints), the player's
- * icon key, and the dialogue's text for the state. No BACK: NO and B leave. */
+/* SAVE's view: FireRed's own save information (the facts SaveStatToString prints), the player's icon key, the place
+ * (HOME's CtrPokeTouch_Location) on bar[0] as the screen's title, and the dialogue's two halves for the state on bar[1]
+ * and bar[2] (the port's words, the boards'; the drawer joins them). While the game is written, the port's steps taken
+ * of PT_SAVE_STEPS (YES shows the writing screen, the next frame writes: the screen drawn during the write has one).
+ * No BACK: NO and B leave. */
 static void SaveFill(CtrPokeTouchView *v)
 {
     unsigned minutes = CtrSave_PlayMinutes();
@@ -519,6 +522,7 @@ static void SaveFill(CtrPokeTouchView *v)
     v->saveState = (uint8_t)sSave.state;
     v->saveSel = (uint8_t)sSave.sel;
     v->savePressed = (uint8_t)(sSave.down && sSave.inside ? sSave.down : PT_SAVE_NONE);
+    v->saveStep = (uint8_t)(sSave.state == SAVE_WRITING ? PT_SAVE_STEPS - sSave.wait : 0);
     v->playerFemale = (uint8_t)(CtrPokeTouch_PlayerFemale() != 0);
     CtrPokeTouch_PlayerName(v->playerName, (int)sizeof(v->playerName));
     v->saveBadges = (uint8_t)CtrSave_BadgeCount();
@@ -527,25 +531,28 @@ static void SaveFill(CtrPokeTouchView *v)
     v->saveHours = (uint16_t)CtrSave_PlayHours();
     v->saveMinutes = (uint8_t)(minutes > 59 ? 59 : minutes);
     v->saveMoney = CtrSave_Money();
+    CtrPokeTouch_Location(v->bar[0], PT_BAR_LEN);
+    v->bar[1][0] = v->bar[2][0] = 0;
     switch (sSave.state) {
     case SAVE_WRITING:
-        snprintf(v->bar[0], PT_BAR_LEN, CTR_TR("Saving...", "Guardando...", "Speichern..."));
-        snprintf(v->bar[1], PT_BAR_LEN, CTR_TR("Don't turn off the power.", "No apagues la consola.", "Nicht ausschalten."));
+        snprintf(v->bar[1], PT_BAR_LEN, CTR_TR("SAVING...", "GUARDANDO...", "SPEICHERN..."));
+        snprintf(v->bar[2], PT_BAR_LEN, CTR_TR("DON'T TURN OFF THE POWER.", "NO APAGUES LA CONSOLA.", "NICHT AUSSCHALTEN."));
         break;
     case SAVE_SUCCESS:
-        snprintf(v->bar[0], PT_BAR_LEN, CTR_TR("Game saved!", "\xc2\xa1Partida guardada!", "Spiel gespeichert!"));
+        snprintf(v->bar[1], PT_BAR_LEN, CTR_TR("%s SAVED THE GAME.", "%s GUARD\xC3\x93 LA PARTIDA.", "%s HAT GESPEICHERT."),
+                 v->playerName);
         break;
     case SAVE_ERROR:
-        snprintf(v->bar[0], PT_BAR_LEN, CTR_TR("Could not save.", "No se pudo guardar.", "Speichern fehlgeschlagen."));
-        snprintf(v->bar[1], PT_BAR_LEN, CTR_TR("Try again.", "Prueba otra vez.", "Bitte erneut versuchen."));
+        snprintf(v->bar[1], PT_BAR_LEN, CTR_TR("COULD NOT SAVE.", "NO SE PUDO GUARDAR.", "SPEICHERN FEHLGESCHLAGEN."));
+        snprintf(v->bar[2], PT_BAR_LEN, CTR_TR("TRY AGAIN.", "PRUEBA OTRA VEZ.", "BITTE ERNEUT VERSUCHEN."));
         break;
     default:
         if (CtrSave_IsDifferentFile()) {
-            snprintf(v->bar[0], PT_BAR_LEN, CTR_TR("Another game is saved.", "Ya hay otra partida.", "Anderer Spielstand da."));
-            snprintf(v->bar[1], PT_BAR_LEN, CTR_TR("Overwrite it?", "\xc2\xbfSobrescribirla?", "\xc3\x9c" "berschreiben?"));
+            snprintf(v->bar[1], PT_BAR_LEN, CTR_TR("ANOTHER GAME IS SAVED.", "YA HAY OTRA PARTIDA.", "ANDERER SPIELSTAND DA."));
+            snprintf(v->bar[2], PT_BAR_LEN, CTR_TR("OVERWRITE IT?", "\xC2\xBFSOBRESCRIBIRLA?", "\xC3\x9C" "BERSCHREIBEN?"));
         } else {
-            snprintf(v->bar[0], PT_BAR_LEN, CTR_TR("Save your game?", "\xc2\xbfGuardar la partida?", "Spiel speichern?"));
-            v->bar[1][0] = 0;
+            snprintf(v->bar[1], PT_BAR_LEN, CTR_TR("WOULD YOU LIKE TO SAVE THE GAME?", "\xC2\xBFQUIERES GUARDAR LA PARTIDA?",
+                                                   "M\xC3\x96" "CHTEST DU SPEICHERN?"));
         }
         break;
     }

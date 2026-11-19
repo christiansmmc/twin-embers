@@ -231,8 +231,8 @@ int CtrOptions_PageCount(void) { return PAGES; }
 
 const char *CtrOptions_PageName(int page)
 {
-    /* A page's own short name (a section key's word while the page is shown: it has to fit the key): the looks page is a page of the
-     * Graphics section, whose key says LOOKS while it is shown. */
+    /* A page's own short name: a section's first page's is its key's word (it has to fit the key: Settings, Graphics, QoL, Nuzlocke);
+     * every page's is its page line's (PAGE 2/3 and LOOKS: the looks page of the Graphics section, whose key keeps its name). */
     static const char *const names[] = {CTR_TR("Settings", "Ajustes", "Optionen"), CTR_TR("Graphics", "Gr\xC3\xA1" "ficos", "Grafik"),
                                         CTR_TR("Looks", "Aspectos", "Looks"), CTR_TR("Wilds", "Salvajes", "Wilde"), CTR_TR("QoL", "QoL", "QoL"),
                                         CTR_TR("Nuzlocke", "Nuzlocke", "Nuzlocke")};
@@ -408,7 +408,7 @@ static void LookPreview(CtrPokeTouchView *v, int selected)
 
 void CtrOptions_Fill(CtrPokeTouchView *v, int selected)
 {
-    int page, base, count;
+    int page, base, count, of = 1;
 
     if (v == NULL)
         return;
@@ -422,9 +422,11 @@ void CtrOptions_Fill(CtrPokeTouchView *v, int selected)
     v->optPageCount = (uint8_t)PAGES;
     v->optSection = (uint8_t)CtrOptions_SectionOf(page);
     v->optSectionCount = SECTIONS;
-    for (int s = 0; s < SECTIONS; ++s)                  /* the section shown by its page's name, the others by their first */
-        snprintf(v->optSectionName[s], sizeof(v->optSectionName[s]), "%.11s",
-                 CtrOptions_PageName(s == v->optSection ? page : CtrOptions_SectionFirstPage(s)));
+    for (int s = 0; s < SECTIONS; ++s)                  /* every section key by its first page's name, whichever page is shown */
+        snprintf(v->optSectionName[s], sizeof(v->optSectionName[s]), "%.11s", CtrOptions_PageName(CtrOptions_SectionFirstPage(s)));
+    v->optSectionPage = (uint8_t)CtrOptions_SectionPage(page, &of);
+    v->optSectionPages = (uint8_t)of;
+    snprintf(v->optPageName, sizeof(v->optPageName), "%.11s", CtrOptions_PageName(page));
     v->optCount = (uint8_t)count;
     v->optSelected = (uint8_t)(selected - base);
     for (int i = 0; i < PT_OPT_MAX; ++i) {

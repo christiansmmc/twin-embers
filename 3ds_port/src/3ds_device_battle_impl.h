@@ -640,7 +640,7 @@ static void DevBatMoves(const CtrBattleView *v)
 
         DevReadText(CTR_TR("Which POK\xC3\xA9MON should the move hit?", "\xC2\xBF" "A qu\xC3\xA9 POK\xC3\xA9MON ataca?",
                            "Welches POK\xC3\xA9MON angreifen?"),
-                    &paper, paper.x + 6, paper.x + paper.w - 6, paper.y + 2, DEV_SMALL_LINE);
+                    &paper, paper.x + 6, paper.x + paper.w - 6, paper.y + 3, DEV_SMALL_LINE_TIGHT);
     }
     faceY = DevKey(&kDevGridExit, DEV_LOOK_DARK, sunk, 6);
     DevKeyWord(&kDevGridExit, faceY, DEV_LOOK_DARK, sunk, DevBackWord());
@@ -660,7 +660,7 @@ static void DevBatSafari(const CtrBattleView *v, int idle)
     paper = DevScreen(&kDevGridNoteWide);
     if (!idle)
         DevReadText(CTR_TR("What will you do?", "\xC2\xBF" "Qu\xC3\xA9 vas a hacer?", "Was tun?"), &paper, paper.x + 6,
-                    paper.x + paper.w - 6, paper.y + 2, DEV_SMALL_LINE);
+                    paper.x + paper.w - 6, paper.y + 3, DEV_SMALL_LINE_TIGHT);
     for (int i = 0; i < 4; ++i) {
         const CtrPokeTouchRect *r = &kDevBatMove[i];
         int sunk = !idle && DevChosen(i, v->cursor, v->pressed), faceY = DevKey(r, DEV_LOOK_KEY, sunk, 6), aw, ah, ww, x0;

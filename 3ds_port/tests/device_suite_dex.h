@@ -1,9 +1,15 @@
-/* ---- dex: the Pokedex as the red device, through the field dispatcher (no board; plan 3 Task 3) -----------------------
- * Included by device_render_test.c before its kSuites. Also the harness's caught mark: CtrPokeTouch_DexCaughtMarker gives
- * an 8x8 tile in STUB_MARK while a suite sets dexArt (none otherwise, as the other art stubs). */
+/* ---- dex: the Pokedex as the red device, through the field dispatcher (the menu and a habitat's page on the grid,
+ * def_dex_menu; the list on the grid's five rows, def_dex_list; a Pokemon's page and a catch's, def_dex_page and
+ * def_dex_added; plan 3 Task 3, plan 04b Tasks 6-8) -------------------------------------------------------------------
+ * Included by device_render_test.c before its kSuites. Also the harness's caught mark and menu icons while a suite sets
+ * dexArt (none otherwise, as the other art stubs): CtrPokeTouch_DexCaughtMarker an 8x8 tile in STUB_MARK,
+ * CtrPokeTouch_DexMenuIcon a 64x48 frame 1 px wide in STUB_DEX_ICON (the board's stand-in's border). */
 
 #define DEX_ART_MAGENTA 0x7c1f                  /* GBA BGR555 */
+#define DEX_ART_GREEN 0x03e0
 #define STUB_MARK GbaColor(DEX_ART_MAGENTA)
+#define STUB_DEX_ICON GbaColor(DEX_ART_GREEN)
+#define STUB_DEX_ICON_PIXELS (2 * 64 + 2 * 46)
 static int dexArt;
 
 int CtrPokeTouch_DexCaughtMarker(unsigned char *tiles, unsigned short *palette)
@@ -12,10 +18,32 @@ int CtrPokeTouch_DexCaughtMarker(unsigned char *tiles, unsigned short *palette)
     memset(tiles, 0x11, 32); memset(palette, 0, 32); palette[1] = DEX_ART_MAGENTA; return 1;
 }
 
+int CtrPokeTouch_DexMenuIcon(int id, unsigned char *tiles, unsigned short *palette)
+{
+    (void)id;
+    if (!dexArt) return 0;
+    memset(tiles, 0, 64 * 48 / 2); memset(palette, 0, 32); palette[1] = DEX_ART_GREEN;
+    for (int y = 0; y < 48; ++y)                            /* 4bpp tiles, eight across: index 1 on the frame */
+        for (int x = 0; x < 64; ++x)
+            if (x == 0 || x == 63 || y == 0 || y == 47)
+                tiles[((y / 8) * 8 + x / 8) * 32 + (y % 8) * 4 + (x % 8) / 2] |= (unsigned char)(1 << ((x & 1) * 4));
+    return 1;
+}
+
 /* What the Pokedex hits under a point (CtrPokeTouch_DexHit). */
 static int DexHitV(const void *view, int x, int y)
 {
     return CtrPokeTouch_DexHit((const CtrPokeTouchView *)view, x, y);
+}
+
+/* Whether the last whole draw told the kit's trace art of `kind` in {x, y, w, h} (DevArt: a board's stand-in). */
+static int DexArtAt(int kind, int x, int y, int w, int h)
+{
+    for (int i = 0; i < gTraceCount; ++i)
+        if (gTrace[i].op == DEV_TRACE_ART && gTrace[i].a == kind && gTrace[i].x == x && gTrace[i].y == y
+            && gTrace[i].w == w && gTrace[i].h == h)
+            return 1;
+    return 0;
 }
 
 /* The fixture's rows read back: the row item key i shows on the habitats' first page (the rows after the second header),
@@ -130,31 +158,192 @@ static void DexUpperCase(CtrPokeTouchView v)
     TouchSamePixels(&cased, &v, 0, "the entry, as FireRed writes it");
 }
 
+/* HT and WT as each language's FireRed shows them, to the tenth: feet and inches and pounds in English, metres and
+ * kilograms in Spanish and German (decimetres and hectograms over ten); unknown for one not caught. Ivysaur (10 dm,
+ * 130 hg) and Wailord (145 dm, 3980 hg: FireRed's 47'07" and 877.4 lbs.). */
+static void DexHeightWeight(const CtrPokeTouchDex *page)
+{
+    CtrPokeTouchDex d = *page;
+    char value[32];
+
+    d.sel.flags = 3; d.height = 10; d.weight = 130;
+    DevDexHeight(&d, value, sizeof(value)); assert(!strcmp(value, CTR_TR("3'03\"", "1.0 m", "1.0 m")));
+    DevDexWeight(&d, value, sizeof(value)); assert(!strcmp(value, CTR_TR("28.7 lbs.", "13.0 kg", "13.0 kg")));
+    d.height = 145; d.weight = 3980;
+    DevDexHeight(&d, value, sizeof(value)); assert(!strcmp(value, CTR_TR("47'07\"", "14.5 m", "14.5 m")));
+    DevDexWeight(&d, value, sizeof(value)); assert(!strcmp(value, CTR_TR("877.4 lbs.", "398.0 kg", "398.0 kg")));
+    d.sel.flags = 1;
+    DevDexHeight(&d, value, sizeof(value)); assert(!strcmp(value, CTR_TR("??" "'??\"", "??.? m", "??.? m")));
+    DevDexWeight(&d, value, sizeof(value)); assert(!strcmp(value, CTR_TR("????.? lbs.", "????.? kg", "????.? kg")));
+}
+
+/* FireRed's widest names (ten capitals) fit beside the tag on a catch's page in every language, with FireRed's own
+ * widths for that one draw (the label-fit build's stub is wider than FireRed's small font: REGISTRIERT 63 px against
+ * 59): its capitals, digits and "o" 6 px, "." 5, so "No.040" 35 and the name from 153 to 213; the tag's small letters
+ * 5 px but I and T 4, so REGISTERED and REGISTRADO 56 on their chips (the name's room to 218) and REGISTRIERT 59 (to
+ * 215). Nothing counted, the name's ink whole and 4 px clear of the chip. The canvas shows `page` again after. */
+static void DexWidestBesideTag(const CtrPokeTouchView *page)
+{
+    static const char kTagLetters[] = "REGSADO";
+    static uint8_t keepNormal[256], keepSmall[256];
+    CtrPokeTouchView v = *page;
+    int w, tagX;
+
+    memcpy(keepNormal, fontWidths, sizeof(keepNormal));
+    memcpy(keepSmall, smallWidths, sizeof(keepSmall));
+    for (unsigned c = 0xbb; c <= 0xd4; ++c)             /* A..Z */
+        fontWidths[c] = 6;
+    for (unsigned c = 0xa1; c <= 0xaa; ++c)             /* 0..9 */
+        fontWidths[c] = 6;
+    fontWidths[0xe3] = 6;                               /* o */
+    fontWidths[0xad] = 5;                               /* . */
+    for (const char *p = kTagLetters; *p; ++p)
+        smallWidths[0xbb + (*p - 'A')] = 5;
+    smallWidths[0xbb + ('I' - 'A')] = smallWidths[0xbb + ('T' - 'A')] = 4;
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    strcpy(v.dex.sel.name, "Wigglytuff"); v.dex.sel.number = 40; v.dex.added = 1;
+    w = DevSmallTextWidth(DevDexNewWord()) + 8; tagX = 278 - w;
+    assert(DevTextWidth("No.040") == 35 && DevTextWidth("WIGGLYTUFF") == 60 && w == CTR_TR(56, 56, 59));
+    sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &v); assert(sDevKeyCut == 0);
+    assert(Count(200, 22, 13, 8, DEV_INK) > 0 && Count(tagX - 4, 14, 4, 20, DEV_INK) == 0
+           && at(tagX, 20) == DEV_TAG_NEW);
+    memcpy(fontWidths, keepNormal, sizeof(keepNormal));
+    memcpy(smallWidths, keepSmall, sizeof(keepSmall));
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
+    CtrPokeTouch_Draw(canvas, page);
+}
+
+/* A port-written entry in capitals: three lines of 280 px in the stub's and FireRed's widths, six with its capitals 12
+ * wide. */
+static const char kFiveLines[] = "PORT WORDS FOR THIS TEST THAT NEED A FIFTH LINE ON THE PAGE ONCE EVERY CAPITAL "
+                                 "IS DRAWN TWELVE PIXELS WIDE SO THE FIFTH IS COUNTED";
+
 /* The plan's suite (every key, row and slot hit where it is drawn; ▲ ▼ grey and not hit at the list's ends; the
  * seen-only row without its mark and its page without type chips; BACK where drawn), the review's checks (a touch
  * chooses, the menu's pages and tabs, CLOSE, what is not drawn, BACK's states, the ways in and out, upper case), then
  * the states for the eye. */
 static void SuiteDex(void)
 {
-    CtrPokeTouchView v = DexBoard(), old = v, other;
-    CtrPokeTouchRect r0, r2, r;
-    int i;
+    CtrPokeTouchView v = DexBoard(), old = v, other, lv, cv, av;
+    CtrPokeTouchRect r;
+    uint8_t keep[256];
+    unsigned c;
+    int i, w;
 
     dexArt = 1;
+    memset(sDevDexIcon, 0, sizeof(sDevDexIcon));            /* the icons decoded again, with the stub's art */
     CtrPokeTouch_Draw(canvas, &old);
-    /* the plan's suite */
+    /* the plan's suite (def_dex_menu): the grid's tabs; the keys 66 tall, each label small at capitals faceY + 56
+     * with its shadow (Call 16), MOUNTAIN beige; SEEN and OWNED (capitals 201 / 215, the counts ending at 148); ▲ grey
+     * on the first page and not hit, ▼ hit; CLOSE; LISTS' one page: ▲ ▼ grey, neither hit */
     v = DexBoard(); DevCheckTouch(&old, &v); assert(DrawnBy(&v, DevDexShown));
-    for (i = 0; i < 3; ++i) AssertHits(DexHitV, &v, DevDexTabKey(i), PT_DEX_HIT_TAB + i);
-    AssertKey(DevDexTabKey(1), DEV_LOOK_KEY, 1);
+    for (i = 0; i < 3; ++i) AssertHits(DexHitV, &v, DevGridTab(3, i), PT_DEX_HIT_TAB + i);
+    AssertKey(DevGridTab(3, 1), DEV_LOOK_KEY, 1);
     for (i = 0; i < 6; ++i) AssertHits(DexHitV, &v, DevDexItem(i), PT_DEX_HIT_ITEM + ItemRow(&v, i));
-    AssertKey(DevDexItem(1), DEV_LOOK_KEY, 1); AssertKey(DevDexItem(5), DEV_LOOK_FAINT, 0);
-    AssertHits(DexHitV, &v, kDevSmallKey[0], PT_DEX_HIT_UP); AssertHits(DexHitV, &v, kDevSmallKey[1], PT_DEX_HIT_DOWN); AssertHits(DexHitV, &v, kDevGridExit, PT_DEX_HIT_ITEM + CancelRow(&v)); assert(!CtrPokeTouch_BackHit(&v, 278, 210));
-    v.dex.state = PT_DEX_STATE_LIST; DevCheckTouch(&old, &v); for (i = 0; i < 5; ++i) AssertRowHits(DexHitV, &v, DevTallRow(i), PT_DEX_HIT_ROW + i);
-    assert(CtrPokeTouch_DexHit(&v, 294, 73) == -1 && Count(276, 40, 36, 66, DEV_ARROW_OFF) > 0); AssertHits(DexHitV, &v, kDevGridDown, PT_DEX_HIT_DOWN); AssertHits(BackV, &v, kDevGridExit, 1);
-    r0 = DevTallRow(0); r2 = DevTallRow(2); assert(Count(r0.x + r0.w - 14, r0.y, 14, r0.h, STUB_MARK) > 0 && Count(r2.x + r2.w - 14, r2.y, 14, r2.h, STUB_MARK) == 0);
-    v.dex.listFirst = 146; v.dex.listCursor = 150; DevCheckTouch(&old, &v); assert(CtrPokeTouch_DexHit(&v, 294, 147) == -1); AssertHits(DexHitV, &v, kDevGridUp, PT_DEX_HIT_UP);
+    r = DevDexItem(5); AssertKey(r, DEV_LOOK_FAINT, 0); assert(Count(r.x + 4, r.y + 56, r.w - 8, 7, DEV_FAINT_INK) > 0);  /* MOUNTAIN */
+    r = DevDexItem(1); AssertKey(r, DEV_LOOK_KEY, 1); assert(Count(r.x + 4, r.y + 59, r.w - 8, 8, DEV_SUNK_INK_SH) > 0);   /* its label's shadow */
+    assert(Count(20, 201, 40, 7, DEV_INK2) > 0 && Count(110, 200, 38, 9, DEV_INK) > 0 && Count(149, 196, 5, 30, DEV_INK) == 0);
+    assert(Count(14, 196, 140, 5, DEV_INK2) == 0 && Count(14, 196, 140, 3, DEV_INK) == 0 && Count(20, 208, 40, 7, DEV_INK2) == 0);
+    assert(Count(20, 215, 40, 7, DEV_INK2) > 0 && Count(110, 214, 38, 8, DEV_INK) > 0);
+    SmallDescenders(1); CtrPokeTouch_Draw(canvas, &v);                        /* OWNED's descenders on the paper */
+    assert(Count(20, 222, 40, 1, DEV_INK2) > 0 && Count(14, 226, 140, 5, DEV_INK2) == 0);
+    SmallDescenders(0); CtrPokeTouch_Draw(canvas, &old);
+    assert(DexHitV(&v, 184, 210) == -1); AssertHits(DexHitV, &v, kDevSmallKey[1], PT_DEX_HIT_DOWN);
+    AssertHits(DexHitV, &v, kDevGridExit, PT_DEX_HIT_ITEM + DevDexCancelRow(&v.dex)); assert(!CtrPokeTouch_BackHit(&v, 278, 210));
+    lv = v; lv.dex.menuCursor = 1; DevCheckTouch(&old, &lv);                   /* LISTS: KANTO alone, one page */
+    assert(Count(168, 190, 68, 40, DEV_ARROW_OFF) > 0 && DexHitV(&lv, 184, 210) == -1 && DexHitV(&lv, 220, 210) == -1);
+    /* LIST (def_dex_list, Review Focus 5): the grid's five rows (24 tall, 26 apart) hit on themselves, the 2 px gaps
+     * nothing; a caught one's mark at (x + w - 16, y + 8); the number's capitals at y + 8; the counts ending at 298;
+     * the types' chips from x 20 at y 205, the kind at 109, capitals 208; ▲ grey and not hit at the top; at the end ▼
+     * grey and not hit, ▲ and the fifth row hit; BACK */
+    v.dex.state = PT_DEX_STATE_LIST; DevCheckTouch(&old, &v);
+    for (i = 0; i < PT_DEX_ROWS; ++i) AssertRowHits(DexHitV, &v, DevGridRow(i, 0), PT_DEX_HIT_ROW + i);
+    r = DevGridRow(1, 0); assert(DexHitV(&v, 100, r.y - 1) == -1 && DexHitV(&v, 100, r.y - 2) == -1);      /* the gap */
+    r = DevGridRow(4, 0); assert(DexHitV(&v, 100, r.y - 1) == -1 && DexHitV(&v, 100, r.y + r.h) == -1);
+    for (i = 0; i < PT_DEX_ROWS; ++i) { r = DevGridRow(i, 0); assert((Count(r.x + r.w - 16, r.y + 8, 8, 8, STUB_MARK) > 0) == ((v.dex.row[i].flags & 2) != 0)); }
+    r = DevGridRow(0, 0); assert(DexArtAt(DEV_ART_MARK, r.x + r.w - 16, r.y + 8, 8, 8) && Count(r.x + r.w - 16, r.y + 8, 8, 8, STUB_MARK) == 8 * 8);
+    /* the number from x 22, capitals r.y + 8 (its N's stem their eight rows; FireRed's digits, not the stubs', reach a
+     * row higher: nothing over "No." at r.y + 7, nothing over any of it at r.y + 6) */
+    r = DevGridRow(0, 0); assert(Count(22, r.y + 8, 36, 9, DEV_INK) > 0 && Count(22, r.y + 7, 14, 1, DEV_INK) == 0);
+    assert(Count(22, r.y + 8, 1, 8, DEV_INK) == 8 && Count(22, r.y + 6, 36, 1, DEV_INK) == 0 && Count(21, r.y, 1, r.h, DEV_INK) == 0);
+    /* the name from x + 52 at the same capitals, nothing between the number and it */
+    assert(Count(r.x + 52, r.y + 8, 1, 8, DEV_INK) == 8 && Count(r.x + 44, r.y, 8, r.h, DEV_INK) == 0 && Count(r.x + 52, r.y, 120, 8, DEV_INK) == 0);
+    assert(Count(250, 17, 48, 7, DEV_INK2) > 0 && Count(299, 12, 7, 16, DEV_INK2) == 0);
+    assert(Count(20, 205, 40, 12, UiTypeColor(v.dex.type[0])) > 0 && Count(109, 208, 60, 7, DEV_INK2) > 0);
+    /* the chips 40 wide, 3 apart, 12 tall at 205; the kind's capitals 208 (none above), from 109 */
+    assert(at(20, 205) == UiTypeColor(12) && at(59, 216) == UiTypeColor(12) && at(60, 210) != UiTypeColor(12) && at(19, 210) != UiTypeColor(12));
+    assert(at(63, 205) == UiTypeColor(3) && at(102, 216) == UiTypeColor(3) && at(62, 210) != UiTypeColor(3) && at(103, 210) != UiTypeColor(3));
+    /* (FireRed's é in POKéMON, not the stubs', has its accent a row higher: nothing over SEED at 207, nothing over any
+     * of it at 206) */
+    assert(Count(109, 208, 3, 7, DEV_INK2) > 0 && Count(104, 196, 5, 30, DEV_INK2) == 0 && Count(109, 196, 24, 12, DEV_INK2) == 0);
+    assert(Count(109, 196, 115, 11, DEV_INK2) == 0);
+    /* its descenders on the paper (the footer rule: capitals 208, descenders 215) */
+    SmallDescenders(1); CtrPokeTouch_Draw(canvas, &v);
+    assert(Count(109, 215, 60, 1, DEV_INK2) > 0 && Count(14, 226, 216, 5, DEV_INK2) == 0);
+    SmallDescenders(0); CtrPokeTouch_Draw(canvas, &old);
+    DevCheckTouch(&old, &v);
+    assert(CtrPokeTouch_DexHit(&v, 294, 73) == -1 && Count(276, 40, 36, 66, DEV_ARROW_OFF) > 0); AssertHits(DexHitV, &v, kDevGridDown, PT_DEX_HIT_DOWN);
+    v.dex.listFirst = (int16_t)(v.dex.listCount - PT_DEX_ROWS); v.dex.listCursor = (int16_t)(v.dex.listCount - 1); DevCheckTouch(&old, &v);
+    assert(DexHitV(&v, 294, 147) == -1 && Count(276, 114, 36, 66, DEV_ARROW_OFF) > 0); AssertHits(DexHitV, &v, kDevGridUp, PT_DEX_HIT_UP);
+    for (i = 0; i < PT_DEX_ROWS; ++i) AssertRowHits(DexHitV, &v, DevGridRow(i, 0), PT_DEX_HIT_ROW + i);
+    r = DevGridRow(4, 0); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL);                     /* the last one's row, inverted */
+    AssertHits(BackV, &v, kDevGridExit, 1);
+    /* a name wider than its room (W made 16 px: eleven of them, 176 of the 172) cut 4 px before the mark and counted,
+     * once a draw; FireRed's widest fit (CHARMELEON, WIGGLYTUFF); a kind that needs a second line cut and counted, the
+     * widest kind FireRed's categories make fits */
+    lv = DexBoard(); lv.dex.state = PT_DEX_STATE_LIST; strcpy(lv.dex.row[0].name, "Wigglytuff"); strcpy(lv.dex.kind, "STRING SPIT POK\xC3\xA9MON");
+    DevCheckTouch(&old, &lv); sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &lv); assert(sDevKeyCut == 0);
+    {
+        uint8_t keepW = fontWidths[0xd1];                                   /* FireRed's W */
+
+        fontWidths[0xd1] = 16; memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        strcpy(lv.dex.row[0].name, "WWWWWWWWWWW"); DevCheckTouch(&old, &lv);
+        sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &lv); assert(sDevKeyCut == 1); sDevKeyCut = 0;
+        r = DevGridRow(0, 0); assert(Count(r.x + r.w - 20, r.y, 20, r.h, DEV_INK) == 0 && Count(r.x + r.w - 48, r.y + 8, 28, 8, DEV_INK) > 0);
+        fontWidths[0xd1] = keepW; memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        CtrPokeTouch_Draw(canvas, &old);
+    }
+    strcpy(lv.dex.row[0].name, "Bulbasaur"); strcpy(lv.dex.kind, "WWWWW WWWWW WWWWW WWWWW WWW"); DevCheckTouch(&old, &lv);
+    sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &lv); assert(sDevKeyCut == 1); sDevKeyCut = 0;
+    assert(Count(225, 196, 5, 30, DEV_INK2) == 0);
+    strcpy(lv.dex.kind, "WWWWWWWWWWWWWWWWWWWWWWWWWWW"); DevCheckTouch(&old, &lv);     /* one word wider than its room */
+    sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &lv); assert(sDevKeyCut == 1); sDevKeyCut = 0;
+    assert(Count(109, 208, 100, 7, DEV_INK2) > 0 && Count(225, 196, 5, 30, DEV_INK2) == 0);
+    CtrPokeTouch_Draw(canvas, &old);
     v.dex.state = PT_DEX_STATE_CATEGORY; v.dex.sel = v.dex.mon[v.dex.slot]; DevCheckTouch(&old, &v); for (i = 0; i < 3; ++i) AssertHits(DexHitV, &v, DevDexSlot(i), PT_DEX_HIT_SLOT + i);
     assert(CtrPokeTouch_DexHit(&v, 238, 150) == -1 && CtrPokeTouch_DexHit(&v, 184, 210) == -1); AssertHits(DexHitV, &v, kDevSmallKey[1], PT_DEX_HIT_NEXT);
+    cv = v; cv.dex.slots = 4; cv.dex.mon[3] = cv.dex.row[4]; DevCheckTouch(&old, &cv);   /* cv: a habitat's page of four */
+    for (i = 0; i < 4; ++i) AssertHits(DexHitV, &cv, DevDexSlot(i), PT_DEX_HIT_SLOT + i);
+    AssertHits(BackV, &cv, kDevGridExit, 1); assert(Count(280, 17, 19, 7, DEV_INK2) > 0);   /* "PAGE 1/2" ends at 298 */
+    /* its capitals rows 17-23 (FireRed's digits reach a row higher), its glyphs ending by 298 */
+    assert(Count(240, 12, 66, 4, DEV_INK2) == 0 && Count(240, 23, 66, 1, DEV_INK2) > 0 && Count(240, 24, 66, 4, DEV_INK2) == 0);
+    assert(Count(292, 17, 6, 7, DEV_INK2) > 0 && Count(298, 12, 8, 16, DEV_INK2) == 0);
+    /* a slot (DevDexSlot(1) up, 0 sunk): the picture at (x + 4, faceY + 1), the mark at (x + 6, faceY + 4), the number
+     * and the name from x + 74 at capitals faceY + 18 and faceY + 36 (FireRed's digits reach a row higher) */
+    r = DevDexSlot(1); assert(DexArtAt(DEV_ART_PICTURE, r.x + 4, r.y + 1, 64, 64) && DexArtAt(DEV_ART_MARK, r.x + 6, r.y + 4, 8, 8));
+    assert(Count(r.x + 6, r.y + 4, 8, 8, STUB_MARK) == 8 * 8 && Count(r.x + 68, r.y, 6, r.h, DEV_KEY_INK) == 0 && Count(r.x + 74, r.y + 18, 1, 8, DEV_KEY_INK) == 8);
+    assert(Count(r.x + 74, r.y + 18, 68, 8, DEV_KEY_INK) > 0 && Count(r.x + 74, r.y + 36, 68, 8, DEV_KEY_INK) > 0);
+    assert(Count(r.x + 74, r.y, 68, 17, DEV_KEY_INK) == 0 && Count(r.x + 74, r.y + 26, 68, 10, DEV_KEY_INK) == 0 && Count(r.x + 74, r.y + 44, 68, 22, DEV_KEY_INK) == 0);
+    r = DevDexSlot(0); assert(DexArtAt(DEV_ART_PICTURE, r.x + 4, r.y + DEV_SINK + 1, 64, 64) && Count(r.x + 6, r.y + DEV_SINK + 4, 8, 8, STUB_MARK) == 8 * 8);
+    /* ...on its face, sunk too: DevKey sinks the whole 66-row face (its last row r.y + 67, the one-row drop under it),
+     * the picture's 64 rows from faceY + 1 end on faceY + 64 */
+    assert(DEV_SINK + 1 + 64 <= DEV_SINK + r.h - 1 && at(r.x + 100, r.y + DEV_SINK + r.h - 1) == DEV_SUNK && at(r.x + 100, r.y + DEV_SINK + r.h) != DEV_SUNK);
+    /* a slot's name: the widest FireRed has (WIGGLYTUFF, 60 px of the 68 in its font) fits; one wider (W made 8 px: eleven
+     * of them, 88) is cut at x + w - 6 and counted, once a draw */
+    other = cv; strcpy(other.dex.mon[1].name, "Wigglytuff"); DevCheckTouch(&old, &other);
+    sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &other); assert(sDevKeyCut == 0);
+    {
+        uint8_t keepW = fontWidths[0xd1];                                   /* FireRed's W */
+
+        fontWidths[0xd1] = 8; memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        strcpy(other.dex.mon[1].name, "WWWWWWWWWWW"); DevCheckTouch(&old, &other);
+        sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &other); assert(sDevKeyCut == 1); sDevKeyCut = 0;
+        r = DevDexSlot(1); assert(Count(r.x + r.w - 6, r.y, 6, r.h, DEV_KEY_INK) == 0);   /* nothing past the cut */
+        fontWidths[0xd1] = keepW; memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        CtrPokeTouch_Draw(canvas, &old);
+    }
     v.dex.canPrev = 1; DevCheckTouch(&old, &v); AssertHits(DexHitV, &v, kDevSmallKey[0], PT_DEX_HIT_PREV);
     v.dex.state = PT_DEX_STATE_PAGE; DevCheckTouch(&old, &v); AssertHits(DexHitV, &v, kDevDexArea, PT_DEX_HIT_AREA); AssertHits(DexHitV, &v, kDevDexCry, PT_DEX_HIT_CRY);
     v.dex.sel.flags = 1; DevCheckTouch(&old, &v); assert(Count(110, 56, 196, 14, UiTypeColor(v.dex.type[0])) == 0);        /* seen only: no type chips */
@@ -164,13 +353,22 @@ static void SuiteDex(void)
     /* MENU: HABITATS sunk with its LED, the cursor's habitat sunk, the sixth faint, the others up; ▲ grey on the first
      * page, ▼ dark; the counts in the small note (the words in the secondary ink); CLOSE dark */
     v = DexBoard(); DevCheckTouch(&old, &v);
-    AssertKey(DevDexTabKey(0), DEV_LOOK_KEY, 0); AssertKey(DevDexTabKey(2), DEV_LOOK_KEY, 0);
-    assert(Count(112, 8, 96, 26, DEV_LED) > 0 && Count(8, 8, 96, 26, DEV_LED) == 0 && Count(216, 8, 96, 26, DEV_LED) == 0);
+    AssertKey(DevGridTab(3, 0), DEV_LOOK_KEY, 0); AssertKey(DevGridTab(3, 2), DEV_LOOK_KEY, 0);
+    assert(Count(110, 8, 98, 27, DEV_LED) > 0 && Count(8, 8, 98, 27, DEV_LED) == 0 && Count(212, 8, 98, 27, DEV_LED) == 0);
+    assert(LedAt(DevGridTab(3, 1)) && LedAt(DevDexItem(1)));               /* the board's (197, 14) and (197, 46) */
     for (i = 0; i < 5; ++i)
         if (i != 1) AssertKey(DevDexItem(i), DEV_LOOK_KEY, 0);
     r = DevDexItem(1); assert(Count(r.x, r.y, r.w, r.h + DEV_DROP, DEV_LED) > 0);
     r = DevDexItem(0); assert(Count(r.x, r.y, r.w, r.h + DEV_DROP, DEV_LED) == 0 && Count(r.x, r.y + 52, r.w, 16, DEV_KEY_INK) > 0);
     r = DevDexItem(5); assert(Count(r.x, r.y + 52, r.w, 16, DEV_FAINT_INK) > 0);
+    /* the label's capitals faceY + 56 to + 62 (Call 16), nothing under them but an up key's white shadow row */
+    r = DevDexItem(0); assert(Count(r.x + 4, r.y + 50, r.w - 8, 6, DEV_KEY_INK) == 0 && Count(r.x + 4, r.y + 56, r.w - 8, 1, DEV_KEY_INK) > 0);
+    assert(Count(r.x + 4, r.y + 62, r.w - 8, 1, DEV_KEY_INK) > 0 && Count(r.x + 4, r.y + 63, r.w - 8, 4, DEV_KEY_INK) == 0);
+    /* the icon: FireRed's 64x48 at (x + 16, faceY + 3) as it is; on MOUNTAIN (nothing seen) each colour half over the
+     * beige face */
+    assert(DexArtAt(DEV_ART_ICON, r.x + 16, r.y + 3, 64, 48) && Count(r.x + 16, r.y + 3, 64, 48, STUB_DEX_ICON) == STUB_DEX_ICON_PIXELS);
+    r = DevDexItem(1); assert(DexArtAt(DEV_ART_ICON, r.x + 16, r.y + DEV_SINK + 3, 64, 48) && Count(r.x + 16, r.y + DEV_SINK + 3, 64, 48, STUB_DEX_ICON) == STUB_DEX_ICON_PIXELS);
+    r = DevDexItem(5); assert(Count(r.x + 16, r.y + 3, 64, 48, STUB_DEX_ICON) == 0 && Count(r.x + 16, r.y + 3, 64, 48, DevBlend(DEV_FAINT, STUB_DEX_ICON, DEV_DEX_A_LOCKED)) == STUB_DEX_ICON_PIXELS);
     assert(Count(168, 190, 32, 40, DEV_ARROW_OFF) > 0 && Count(204, 190, 32, 40, DEV_KEY_INK) > 0);
     assert(Count(14, 196, 140, 30, DEV_INK2) > 0 && Count(14, 196, 140, 30, DEV_INK) > 0);
     AssertKey(kDevGridExit, DEV_LOOK_DARK, 0); assert(Count(244, 190, 68, 40, DEV_DARK_INK) > 0 && Count(244, 190, 68, 43, DEV_LED) == 0);
@@ -188,7 +386,7 @@ static void SuiteDex(void)
     v.dex.national = 0; DevCheckTouch(&old, &v);
     assert(CtrPokeTouch_DexGridPageRow(&v, 1) == ItemRow(&v, 6) && CtrPokeTouch_DexGridPageRow(&v, -1) == -1);
     /* a touch chooses: a tab, an item, ▼ (the cursor's item stays sunk); ▲ with no page before it does not sink */
-    v.dex.pressed = PT_DEX_HIT_TAB + 2; DevCheckTouch(&old, &v); AssertKey(DevDexTabKey(2), DEV_LOOK_KEY, 1); AssertKey(DevDexTabKey(1), DEV_LOOK_KEY, 0); AssertKey(DevDexItem(1), DEV_LOOK_KEY, 1);
+    v.dex.pressed = PT_DEX_HIT_TAB + 2; DevCheckTouch(&old, &v); AssertKey(DevGridTab(3, 2), DEV_LOOK_KEY, 1); AssertKey(DevGridTab(3, 1), DEV_LOOK_KEY, 0); AssertKey(DevDexItem(1), DEV_LOOK_KEY, 1);
     v.dex.pressed = (int16_t)(PT_DEX_HIT_ITEM + ItemRow(&v, 3)); DevCheckTouch(&old, &v); AssertKey(DevDexItem(3), DEV_LOOK_KEY, 1); AssertKey(DevDexItem(1), DEV_LOOK_KEY, 0);
     v.dex.pressed = PT_DEX_HIT_DOWN; DevCheckTouch(&old, &v); AssertKey(kDevSmallKey[1], DEV_LOOK_KEY, 1); AssertKey(DevDexItem(1), DEV_LOOK_KEY, 1);
     v.dex.pressed = PT_DEX_HIT_UP; DevCheckTouch(&old, &v); AssertKey(kDevSmallKey[0], DEV_LOOK_KEY, 0);
@@ -201,17 +399,21 @@ static void SuiteDex(void)
     AssertKey(DevDexItem(1), DEV_LOOK_KEY, 1);
     r = DevDexItem(3); assert(CtrPokeTouch_DexHit(&v, r.x + 10, r.y + 10) == -1 && at(r.x + 3, r.y + r.h / 2) == DEV_SHELL_RED);
     assert(Count(168, 190, 32, 40, DEV_KEY_INK) > 0 && Count(204, 190, 32, 40, DEV_ARROW_OFF) > 0);
+    AssertHits(DexHitV, &v, kDevSmallKey[0], PT_DEX_HIT_UP); assert(DexHitV(&v, 220, 210) == -1);
     assert(CtrPokeTouch_DexGridPageRow(&v, -1) == ItemRow(&v, 0) && CtrPokeTouch_DexGridPageRow(&v, 1) == -1);
     assert(CtrPokeTouch_DexTabRow(&v, 0) == 1 && CtrPokeTouch_DexTabRow(&v, 1) == ItemRow(&v, 0) && CtrPokeTouch_DexTabRow(&v, 2) == 13);
-    /* SEARCH: its four keys, no pages; the cursor on CLOSE: the lists' one key, CLOSE sunk, no ▲ ▼ */
-    v.dex.menuCursor = 14; DevCheckTouch(&old, &v); AssertKey(DevDexTabKey(2), DEV_LOOK_KEY, 1); AssertKey(DevDexItem(1), DEV_LOOK_KEY, 1);
+    /* SEARCH: its four keys, one page: ▲ ▼ grey and not hit; the cursor on CLOSE: the lists' one key, CLOSE sunk, ▲ ▼
+     * grey */
+    v.dex.menuCursor = 14; DevCheckTouch(&old, &v); AssertKey(DevGridTab(3, 2), DEV_LOOK_KEY, 1); AssertKey(DevDexItem(1), DEV_LOOK_KEY, 1);
     for (i = 0; i < 4; ++i) AssertHits(DexHitV, &v, DevDexItem(i), PT_DEX_HIT_ITEM + 13 + i);
-    assert(CtrPokeTouch_DexHit(&v, 184, 210) == -1 && at(184, 210) == DEV_SHELL_RED && CtrPokeTouch_DexGridPageRow(&v, 1) == -1);
+    assert(CtrPokeTouch_DexHit(&v, 184, 210) == -1 && CtrPokeTouch_DexHit(&v, 220, 210) == -1 && CtrPokeTouch_DexGridPageRow(&v, 1) == -1);
+    assert(Count(168, 190, 32, 40, DEV_ARROW_OFF) > 0 && Count(204, 190, 32, 40, DEV_ARROW_OFF) > 0 && Count(168, 190, 68, 40, DEV_KEY_INK) == 0);
     v.dex.menuCursor = (int8_t)CancelRow(&v); DevCheckTouch(&old, &v);
-    AssertKey(DevDexTabKey(0), DEV_LOOK_KEY, 1); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1); AssertKey(DevDexItem(0), DEV_LOOK_KEY, 0);
+    AssertKey(DevGridTab(3, 0), DEV_LOOK_KEY, 1); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1); AssertKey(DevDexItem(0), DEV_LOOK_KEY, 0);
     assert(Count(244, 190, 68, 43, DEV_LED) > 0);                   /* CLOSE sunk: the cursor's */
     AssertHits(DexHitV, &v, DevDexItem(0), PT_DEX_HIT_ITEM + 1);
-    r = DevDexItem(1); assert(CtrPokeTouch_DexHit(&v, r.x + 10, r.y + 10) == -1 && CtrPokeTouch_DexHit(&v, 184, 210) == -1 && at(220, 210) == DEV_SHELL_RED);
+    r = DevDexItem(1); assert(CtrPokeTouch_DexHit(&v, r.x + 10, r.y + 10) == -1 && CtrPokeTouch_DexHit(&v, 184, 210) == -1 && CtrPokeTouch_DexHit(&v, 220, 210) == -1);
+    assert(Count(168, 190, 32, 40, DEV_ARROW_OFF) > 0 && Count(204, 190, 32, 40, DEV_ARROW_OFF) > 0);
     assert(CtrPokeTouch_DexGridPageRow(&v, 1) == -1);
 
     /* LIST: the order on the title (SEEN / OWNED at its right for KANTO, none for A TO Z), the cursor's row inverted (or
@@ -219,14 +421,18 @@ static void SuiteDex(void)
      * ▲ grey and ▼ dark at the top; BACK dark, sunk, grey, gone */
     v = DexBoard(); v.dex.state = PT_DEX_STATE_LIST; DevCheckTouch(&old, &v);
     assert(Count(14, 12, 292, 16, DEV_INK) > 0 && Count(160, 12, 146, 16, DEV_INK2) > 0);
-    r = DevTallRow(1); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL && Count(r.x, r.y, 60, r.h, DEV_PAPER) > 0);
-    r = DevTallRow(0); assert(at(r.x + 1, r.y + 1) == DEV_PAPER && Count(r.x, r.y, 60, r.h, DEV_INK) > 0);
-    for (i = 0; i < PT_DEX_ROWS; ++i) { r = DevTallRow(i); assert((Count(r.x + r.w - 14, r.y, 14, r.h, STUB_MARK) > 0) == ((v.dex.row[i].flags & 2) != 0)); }
+    /* def_dex_list: the counts' capitals rows 17-23 (the digits a row higher), their glyphs ending by 298 */
+    assert(Count(160, 12, 146, 4, DEV_INK2) == 0 && Count(160, 23, 146, 1, DEV_INK2) > 0 && Count(160, 24, 146, 4, DEV_INK2) == 0);
+    assert(Count(292, 17, 6, 7, DEV_INK2) > 0 && Count(298, 12, 8, 16, DEV_INK2) == 0);
+    r = DevGridRow(1, 0); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL && Count(r.x, r.y, 60, r.h, DEV_PAPER) > 0);
+    assert(at(r.x + 1, r.y - 1) == DEV_PAPER && at(r.x + 1, r.y - 2) == DEV_PAPER && at(r.x + 1, r.y + r.h) == DEV_PAPER);   /* the gaps: the paper */
+    r = DevGridRow(0, 0); assert(at(r.x + 1, r.y + 1) == DEV_PAPER && Count(r.x, r.y, 60, r.h, DEV_INK) > 0);
+    for (i = 0; i < PT_DEX_ROWS; ++i) { r = DevGridRow(i, 0); assert(Count(r.x, r.y, r.w, r.h, STUB_MARK) == ((v.dex.row[i].flags & 2) ? 8 * 8 : 0)); }
     assert(Count(14, 196, 216, 30, UiTypeColor(12)) > 0 && Count(14, 196, 216, 30, UiTypeColor(3)) > 0 && Count(14, 196, 216, 30, DEV_INK2) > 0);
     assert(Count(276, 114, 36, 66, DEV_KEY_INK) > 0); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0);
     v.dex.pressed = PT_DEX_HIT_ROW + 3; DevCheckTouch(&old, &v);
-    r = DevTallRow(3); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL); r = DevTallRow(1); assert(at(r.x + 1, r.y + 1) == DEV_PAPER);
-    v.dex.pressed = PT_DEX_HIT_DOWN; DevCheckTouch(&old, &v); AssertKey(kDevGridDown, DEV_LOOK_KEY, 1); r = DevTallRow(1); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL);
+    r = DevGridRow(3, 0); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL); r = DevGridRow(1, 0); assert(at(r.x + 1, r.y + 1) == DEV_PAPER);
+    v.dex.pressed = PT_DEX_HIT_DOWN; DevCheckTouch(&old, &v); AssertKey(kDevGridDown, DEV_LOOK_KEY, 1); r = DevGridRow(1, 0); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL);
     v.dex.pressed = -1; DevCheckTouch(&old, &v); v.dex.national = 1; assert(DevCheckTouch(&old, &v).count == 0);  /* the order says whose counts */
     v.dex.order = 1; DevCheckTouch(&old, &v); assert(Count(14, 12, 292, 16, DEV_INK2) == 0);
     v.dex.order = 0; v.dex.sel.flags = 1; DevCheckTouch(&old, &v);
@@ -237,8 +443,8 @@ static void SuiteDex(void)
     v.backEnabled = 1; v.backVisible = 0; DevCheckTouch(&old, &v); assert(at(247, 210) == DEV_SHELL_RED && !BackV(&v, 247, 210));
     v.backVisible = 1; DevCheckTouch(&old, &v);
     /* a list of three: no row past it is drawn or hit, ▲ ▼ grey */
-    v.dex.listCount = 3; DevCheckTouch(&old, &v); r = DevTallRow(3);
-    assert(CtrPokeTouch_DexHit(&v, r.x + 10, r.y + 10) == -1 && Count(r.x, r.y, r.w, 2 * r.h, DEV_INK) == 0);
+    v.dex.listCount = 3; DevCheckTouch(&old, &v); r = DevGridRow(3, 0);
+    assert(CtrPokeTouch_DexHit(&v, r.x + 10, r.y + 10) == -1 && Count(r.x, r.y, r.w, 2 * DEV_GRID_ROW_PITCH, DEV_INK) == 0);
     assert(CtrPokeTouch_DexHit(&v, 294, 147) == -1 && Count(276, 114, 36, 66, DEV_ARROW_OFF) > 0);
 
     /* CATEGORY: the habitat and the page on the title; the cursor's slot sunk (or the one under a held touch), the
@@ -264,19 +470,73 @@ static void SuiteDex(void)
     other.dex.category = 0; TouchSamePixels(&v, &other, 0, "another habitat on the title");
     CtrPokeTouch_Draw(canvas, &old);
 
-    /* PAGE: the type chips of a caught one, the rule, the entry; AREA and CRY up (sunk under a touch), BACK in the
-     * Summary's place; the page a catch added: OK sunk, nothing else hit, no BACK */
+    /* PAGE (def_dex_page): the type chips of a caught one; HT and WT on DevDexDataRow (the labels' capitals 77 and 91,
+     * the values' 76 and 90 ending at 240); the rule at y 106 (DEV_RULE); the entry from capitals 115, 14 apart; AREA
+     * and CRY up (sunk under a touch), BACK in the Summary's place */
     v = DexBoard(); v.dex.state = PT_DEX_STATE_PAGE; DevCheckTouch(&old, &v);
     assert(Count(110, 56, 196, 14, UiTypeColor(12)) > 0 && Count(110, 56, 196, 14, UiTypeColor(3)) > 0);
-    assert(Count(kDevDexRule.x, kDevDexRule.y, kDevDexRule.w, kDevDexRule.h, DEV_INK_SH) == kDevDexRule.w);
-    assert(Count(20, 108, 280, 64, DEV_INK) > 0 && Count(110, 18, 168, 36, DEV_INK) > 0 && Count(110, 70, 120, 30, DEV_INK2) > 0);
+    assert(at(100, 106) == DEV_RULE && Count(20, 115, 280, 9, DEV_INK) > 0 && Count(110, 77, 20, 7, DEV_INK2) > 0
+           && Count(200, 76, 40, 9, DEV_INK) > 0 && Count(241, 72, 40, 30, DEV_INK) == 0);
+    assert(Count(kDevDexRule.x, kDevDexRule.y, kDevDexRule.w, kDevDexRule.h, DEV_RULE) == kDevDexRule.w
+           && at(19, 106) != DEV_RULE && at(300, 106) != DEV_RULE && Count(20, 105, 280, 1, DEV_RULE) == 0
+           && Count(20, 107, 280, 1, DEV_RULE) == 0);
+    assert(Count(110, 76, 20, 1, DEV_INK2) == 0 && Count(110, 91, 20, 7, DEV_INK2) > 0
+           && Count(200, 90, 40, 9, DEV_INK) > 0 && Count(230, 76, 10, 9, DEV_INK) > 0
+           && Count(230, 90, 10, 9, DEV_INK) > 0);
+    assert(Count(14, 107, 292, 7, DEV_INK) == 0 && Count(20, 129, 280, 9, DEV_INK) > 0);    /* the entry's lines 1-2 */
+    DexHeightWeight(&v.dex);
+    /* an entry of five lines: four drawn (the fourth's capitals at 157, nothing between the third's and it), the fifth
+     * left out and counted, once a draw; three lines as the fonts are (the capitals made 12 wide for that one draw, as
+     * the choice suite's priced label: no font makes 199 bytes of words five lines of 280 px; drawn without BACK, whose
+     * German word widens past its key too) */
+    other = v; strcpy(other.dex.desc, kFiveLines); DevCheckTouch(&old, &other); assert(sDevKeyCut == 0);
+    other.backVisible = 0; memcpy(keep, fontWidths, sizeof(keep));
+    for (c = 0xbb; c <= 0xd4; ++c) fontWidths[c] = 12;                               /* A..Z */
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &other);                                /* one draw: one cut */
+    assert(Count(20, 157, 280, 9, DEV_INK) > 0 && sDevKeyCut == 1); sDevKeyCut = 0;
+    assert(Count(20, 143, 280, 9, DEV_INK) > 0 && Count(14, 152, 292, 5, DEV_INK) == 0
+           && Count(14, 167, 292, 7, DEV_INK) == 0);
+    memcpy(fontWidths, keep, sizeof(keep)); memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    CtrPokeTouch_Draw(canvas, &old);                                                  /* the canvas as `old` again */
+    DevCheckTouch(&old, &v);
     AssertKey(kDevDexArea, DEV_LOOK_KEY, 0); AssertKey(kDevDexCry, DEV_LOOK_KEY, 0); AssertKey(kDevTallBack, DEV_LOOK_DARK, 0);
     AssertHits(BackV, &v, kDevTallBack, 1); assert(CtrPokeTouch_DexHit(&v, 160, 90) == -1);
     v.dex.pressed = PT_DEX_HIT_AREA; DevCheckTouch(&old, &v); AssertKey(kDevDexArea, DEV_LOOK_KEY, 1); AssertKey(kDevDexCry, DEV_LOOK_KEY, 0);
     v.dex.pressed = PT_DEX_HIT_CRY; DevCheckTouch(&old, &v); AssertKey(kDevDexCry, DEV_LOOK_KEY, 1);
-    v.dex.pressed = -1; v.dex.added = 1; DevCheckTouch(&old, &v); AssertKey(kDevWideKey, DEV_LOOK_KEY, 1);
-    assert(!BackV(&v, 278, 209) && !BackV(&v, 247, 220) && at(247, 212) == DEV_SUNK && at(60, 212) == DEV_SUNK);
-    v.dex.added = 0; DevCheckTouch(&old, &v);
+    v.dex.pressed = -1; DevCheckTouch(&old, &v);
+    /* the page a catch added (def_dex_added): REGISTERED on its chip (DEV_TAG_NEW, 14 tall, the word's small width and
+     * 8, ending at 278 at y 20, the word white over the chip's shadow); OK alone, up, sunk only under a touch (of it or
+     * of the screen: the fill gives PT_DEX_HIT_CONTINUE for both), the whole drawn again; nothing else hit, no BACK */
+    av = v; av.dex.added = 1; DevCheckTouch(&old, &av); w = DevSmallTextWidth(DevDexNewWord()) + 8;
+    assert(Count(278 - w, 20, w, 14, DEV_TAG_NEW) > 0 && at(279, 27) != DEV_TAG_NEW);
+    AssertKey(kDevWideKey, DEV_LOOK_KEY, 0);
+    assert(at(278 - w, 20) == DEV_TAG_NEW && at(277, 33) == DEV_TAG_NEW && at(277 - w, 27) != DEV_TAG_NEW
+           && at(278 - w, 19) != DEV_TAG_NEW && at(278 - w, 34) != DEV_TAG_NEW && at(278, 27) != DEV_TAG_NEW);
+    assert(Count(278 - w, 20, w, 14, DEV_WHITE) > 0 && Count(278 - w, 20, w, 14, DevChipShadow(DEV_TAG_NEW)) > 0);
+    assert(!BackV(&av, 278, 209) && !BackV(&av, 247, 220) && at(247, 212) == DEV_KEY && at(60, 212) == DEV_KEY);
+    AssertHits(DexHitV, &av, kDevWideKey, PT_DEX_HIT_CONTINUE);
+    assert(CtrPokeTouch_DexHit(&av, 160, 90) == PT_DEX_HIT_CONTINUE);
+    av.dex.pressed = PT_DEX_HIT_CONTINUE; assert(DevWhole(DevCheckTouch(&old, &av)));
+    AssertKey(kDevWideKey, DEV_LOOK_KEY, 1);
+    assert(at(247, 214) == DEV_SUNK && at(60, 214) == DEV_SUNK && Count(278 - w, 20, w, 14, DEV_TAG_NEW) > 0);
+    av.dex.pressed = -1; assert(DevWhole(DevCheckTouch(&old, &av))); AssertKey(kDevWideKey, DEV_LOOK_KEY, 0);
+    /* the name ends 4 px before the tag, or 4 px before the footprint without it: one wider (W made 16 px) is cut there
+     * and counted, once a draw */
+    DexWidestBesideTag(&av);
+    {
+        uint8_t keepW = fontWidths[0xd1];                                   /* FireRed's W */
+
+        fontWidths[0xd1] = 16; memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        other = av; strcpy(other.dex.sel.name, "WWWWWWWWWWW");
+        sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &other); assert(sDevKeyCut == 1); sDevKeyCut = 0;
+        assert(Count(274 - w, 14, 4, 40, DEV_INK) == 0 && Count(238 - w, 22, 36, 8, DEV_INK) > 0);
+        other.dex.added = 0; sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &other); assert(sDevKeyCut == 1); sDevKeyCut = 0;
+        assert(Count(278, 14, 4, 40, DEV_INK) == 0 && Count(242, 22, 36, 8, DEV_INK) > 0);
+        fontWidths[0xd1] = keepW; memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        CtrPokeTouch_Draw(canvas, &old);
+    }
+    DevCheckTouch(&old, &v);
 
     /* BUSY with nothing kept: the shell, nothing hit; what the Pokedex does not draw presents nothing; the shell's
      * colour whole; the ways in and out (HOME; the AREA page: FireRed's picture in the frame's screen, no Pokedex) */
@@ -317,5 +577,6 @@ static void SuiteDex(void)
     v.dex.sel.flags = 1; DevCheckTouch(&old, &v); shot("page_seen");
     v.dex.sel.flags = 3; v.dex.added = 1; DevCheckTouch(&old, &v); shot("added");
     dexArt = 0;
+    memset(sDevDexIcon, 0, sizeof(sDevDexIcon));            /* the stub's icons forgotten */
     assert(sDevKeyCut == 0);                      /* main prints PASS device dex */
 }

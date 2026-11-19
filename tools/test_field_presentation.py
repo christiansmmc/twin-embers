@@ -836,21 +836,15 @@ static void BagPlanStart(const ListScreen *list, int kind, int target, int activ
 { (void)list; sBagPlan.kind = kind; sBagPlan.target = target; sBagPlan.activate = activate; sBagPlan.keys = keys; }
 ''' + drag + '\n' + state + '\n' + code + main)
 
-    def test_dex_list_drags_a_row_per_tall_row(self):
-        """The Pokedex's list on the red device has tall rows (DevTallRow, 3ds_device_layout.h): a finger dragged on it
-        moves the cursor one Pokemon per LIST_DRAG_ROW pixels, the rows' own pitch, so the list follows the finger."""
-        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
-        layout = (ROOT / '3ds_port/include/3ds_device_layout.h').read_text(encoding='utf-8')
-        pitch = int(re.search(r'DevTallRow\(int i\)\s*\{\s*return DevListRow\(i, (\d+)\);', layout).group(1))
-        self.assertEqual(int(re.search(r'#define LIST_DRAG_ROW (\d+)', bottom).group(1)), pitch)
-        self.assertIn('/ LIST_DRAG_ROW', function(bottom, 'ProcessFieldDexTouch'))
-
-    def test_bag_list_drags_a_row_per_grid_row(self):
-        """The Bag-page lists' rows are the grid's, 26 px apart (3ds_device_layout.h): a drag moves one item per row."""
-        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+    def test_lists_drag_a_row_per_grid_row(self):
+        """The Pokédex list's and the Bag-page lists' rows are the grid's, 26 px apart (3ds_device_layout.h): a drag
+        moves one row per row."""
         layout = (ROOT / '3ds_port/include/3ds_device_layout.h').read_text(encoding='utf-8')
         pitch = int(re.search(r'#define DEV_GRID_ROW_PITCH (\d+)', layout).group(1))
-        self.assertEqual(int(re.search(r'#define BAG_DRAG_ROW (\d+)', bottom).group(1)), pitch)
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        for name in ('LIST_DRAG_ROW', 'BAG_DRAG_ROW'):
+            self.assertEqual(int(re.search(r'#define ' + name + r' (\d+)', bottom).group(1)), pitch, name)
+        self.assertIn('/ LIST_DRAG_ROW', function(bottom, 'ProcessFieldDexTouch'))
 
     def run_relearn(self, main):
         """RelearnFill and ProcessRelearnTouch, their state and the game's answers as 3ds_bottom_relearn_impl.h declares
@@ -1356,6 +1350,103 @@ int main(void) {
     Touch(PT_OPT_ZONE_SEG * 100 + 50, 104, PT_OPT_ZONE_SEG * 100 + 50, 104, 0); assert(setRow == 24 && setValue == 0);
     stepRow = -1; Touch(300, 102, 150, 102, 0); assert(sOpt.sel == 22 && stepRow == -1); /* moved to another zone */
     sHaveShown = 0; Touch(300, 102, 300, 102, 0); assert(stepRow == -1);                 /* nothing shown yet */
+    return 0;
+}
+''')
+
+    def test_save_fill_says_the_place_and_the_steps(self):
+        """SAVE's screen is titled with the place (HOME's CtrPokeTouch_Location) and its writing bar shows the port's own
+        steps (plan 04b Task 4)."""
+        fill = function((ROOT / '3ds_port/src/3ds_bottom_battle_fill_impl.h').read_text(encoding='utf-8'), 'SaveFill')
+        self.assertIn('CtrPokeTouch_Location(v->bar[0], PT_BAR_LEN);', fill)
+        self.assertIn('v->saveStep = (uint8_t)(sSave.state == SAVE_WRITING ? PT_SAVE_STEPS - sSave.wait : 0);', fill)
+
+    def test_save_keys_choose_without_wrapping(self):
+        """SAVE's YES / NO by the D-pad as FireRed's own YES / NO (no wrap; UP YES, DOWN NO) now that they sit side by
+        side: LEFT or UP is YES, RIGHT or DOWN is NO, again and again (pressing toward NO never lands on YES, NO when
+        both are pressed); A acts on the key chosen (YES writes, NO only closes), B never writes, nothing while writing.
+        The question opens on NO over another game, and again after a failed save over it (FireRed asks it again,
+        DisplayYesNoMenuDefaultNo); on YES otherwise. The bar starts at no step: the wait is PT_SAVE_STEPS (plan 04b
+        Task 4, fix round 1)."""
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        keys = ''.join(re.findall(r'^#define K_\w+ \(1u << \d+\)\n', bottom, re.M))
+        start = bottom.index('static struct {\n    int state, sel;')
+        state = bottom[start:bottom.index('} sSave;', start) + len('} sSave;')]
+        code = '\n'.join(function(bottom, name) for name in ('OpenSave', 'SaveActivate', 'ProcessSaveInput', 'UpdateSave'))
+        self.run_c('''
+#include <assert.h>
+#include <stdbool.h>
+#include <string.h>
+#include "3ds_input.h"
+#include "3ds_poketouch.h"
+#define CtrLog_Write(...) ((void)0)
+''' + keys + state + '''
+static int sScreen, different, runOk = 1, runs, closes;
+static int CtrSave_IsDifferentFile(void) { return different; }
+static int CtrSave_Run(void) { ++runs; return runOk; }
+static void CloseNative(void) { ++closes; sScreen = PT_NONE; }
+static int SaveActive(void) { return sScreen == PT_SAVE; }
+/* the keys as drawn: asking YES at x < 100 and NO at x >= 200 (y >= 100); a result's OK across; none while writing */
+int CtrPokeTouch_SaveHit(int x, int y, int state)
+{
+    if (y < 100 || state == SAVE_WRITING)
+        return PT_SAVE_NONE;
+    if (state != SAVE_CONFIRM || x < 100)
+        return PT_SAVE_FIRST;
+    return x >= 200 ? PT_SAVE_SECOND : PT_SAVE_NONE;
+}
+''' + code + '''
+static void Key(unsigned key)
+{
+    CtrInput in;
+
+    memset(&in, 0, sizeof(in));
+    in.down = in.held = (uint16_t)key;
+    ProcessSaveInput(&in);
+}
+static void Tap(int x, int y)
+{
+    CtrInput in;
+
+    memset(&in, 0, sizeof(in));
+    in.touchActive = in.touchDown = 1; in.touchX = (uint16_t)x; in.touchY = (uint16_t)y;
+    ProcessSaveInput(&in);
+    in.touchActive = in.touchDown = 0; ProcessSaveInput(&in);
+}
+static void Open(int other) { different = other; runs = closes = 0; OpenSave(); }
+static void Written(void) { UpdateSave(); UpdateSave(); }
+int main(void) {
+    Open(0); assert(sScreen == PT_SAVE && sSave.state == SAVE_CONFIRM && sSave.sel == 0);
+    Open(1); assert(sSave.sel == 1);                                       /* over another game: NO first */
+    Key(K_RIGHT); assert(sSave.sel == 1); Key(K_RIGHT); assert(sSave.sel == 1);  /* toward NO stays NO */
+    Key(K_DOWN); assert(sSave.sel == 1); Key(K_DOWN); assert(sSave.sel == 1);
+    Key(K_LEFT); assert(sSave.sel == 0); Key(K_LEFT); assert(sSave.sel == 0);    /* toward YES stays YES */
+    Key(K_RIGHT); assert(sSave.sel == 1); Key(K_UP); assert(sSave.sel == 0); Key(K_UP); assert(sSave.sel == 0);
+    Key(K_DOWN); assert(sSave.sel == 1);
+    Key(K_LEFT | K_DOWN); assert(sSave.sel == 1); Key(K_UP | K_RIGHT); assert(sSave.sel == 1); /* both: NO */
+    assert(sSave.state == SAVE_CONFIRM && !runs && !closes);
+    Key(K_A); assert(closes == 1 && sSave.state == SAVE_CONFIRM && !runs);        /* A on NO: closed, not written */
+    Open(1); Key(K_LEFT); Key(K_B); assert(closes == 1 && sSave.state == SAVE_CONFIRM && !runs); /* B on YES */
+    Open(0); Key(K_A); assert(sSave.state == SAVE_WRITING && sSave.wait == PT_SAVE_STEPS && !closes);
+    /* while writing nothing: no key, no tap */
+    Key(K_A); Key(K_B); Key(K_LEFT); Key(K_RIGHT); Tap(10, 150); Tap(250, 150);
+    assert(sSave.state == SAVE_WRITING && sSave.sel == 0 && !closes && !runs && !sSave.down);
+    UpdateSave(); assert(sSave.state == SAVE_WRITING && !runs);                 /* the writing screen is shown first */
+    UpdateSave(); assert(sSave.state == SAVE_SUCCESS && runs == 1);
+    Key(K_B); assert(closes == 1 && runs == 1);                                 /* OK by B: closed */
+    Open(0); Key(K_A); Written(); Key(K_A); assert(closes == 1 && runs == 1);   /* OK by A */
+    /* a failed save: OK asks again, NO first over another game, YES first otherwise; B there never writes */
+    runOk = 0;
+    Open(1); Key(K_LEFT); Key(K_A); Written(); assert(sSave.state == SAVE_ERROR && runs == 1);
+    Key(K_A); assert(sSave.state == SAVE_CONFIRM && sSave.sel == 1 && !closes);
+    Key(K_A); assert(closes == 1 && runs == 1);
+    Open(0); Key(K_A); Written(); assert(sSave.state == SAVE_ERROR);
+    Key(K_B); assert(sSave.state == SAVE_CONFIRM && sSave.sel == 0 && runs == 1 && !closes);
+    runOk = 1;
+    /* by touch: a tap on NO only closes, on YES writes; a tap on the cursor's key after the D-pad */
+    Open(1); Tap(250, 150); assert(closes == 1 && !runs && sSave.state == SAVE_CONFIRM);
+    Open(1); Tap(10, 150); assert(sSave.state == SAVE_WRITING && sSave.sel == 0);
+    Written(); Tap(250, 150); assert(closes == 1 && runs == 1);                 /* OK across both places */
     return 0;
 }
 ''')

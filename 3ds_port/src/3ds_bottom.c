@@ -742,11 +742,11 @@ static void PartyEchoMode(int mode)
 }
 
 /* Dragging a list: a finger on a row that moves this far up or down scrolls instead of tapping, one row per
- * LIST_DRAG_ROW pixels (the Pokedex's tall rows, DevTallRow; the Bag-page lists' rows are the grid's, BAG_DRAG_ROW
- * apart: DEV_GRID_ROW_PITCH), the content following the finger. */
+ * LIST_DRAG_ROW pixels on the Pokedex's list and BAG_DRAG_ROW on the Bag-page lists: both the grid's pitch, its rows 26
+ * apart (DEV_GRID_ROW_PITCH, DevGridRow), the content following the finger. */
 #define LIST_DRAG_SLOP 8
 #define BALL_SWIPE_STEP 18      /* pixels across the quick ball for one ball */
-#define LIST_DRAG_ROW 24
+#define LIST_DRAG_ROW 26
 #define BAG_DRAG_ROW 26
 
 /* The field's choice's touch (ProcessChoiceTouch), as the Bag's. */
@@ -2648,7 +2648,7 @@ static void SaveActivate(int which)
     if (sSave.state == SAVE_CONFIRM) {
         if (which == PT_SAVE_FIRST) {
             sSave.state = SAVE_WRITING;     /* shown now; the save runs on the next frame */
-            sSave.wait = 2;
+            sSave.wait = PT_SAVE_STEPS;
             CtrLog_Write(CTR_LOG_VIDEO, "bottom: save requested");
         } else {
             CloseNative();                  /* NO: back to HOME */
@@ -2656,13 +2656,15 @@ static void SaveActivate(int which)
     } else if (sSave.state == SAVE_SUCCESS) {
         CloseNative();
     } else if (sSave.state == SAVE_ERROR) {
-        sSave.state = SAVE_CONFIRM;         /* try again, or cancel */
-        sSave.sel = 0;
+        sSave.state = SAVE_CONFIRM;         /* try again, or cancel: the question again, NO first over another game */
+        sSave.sel = CtrSave_IsDifferentFile() ? 1 : 0;
     }
 }
 
-/* Physical input first: UP and DOWN choose, A acts, B cancels (OK on a result acts on A or B). A held
- * button ignores the touch; no key or touch does anything while the save is being written. */
+/* Physical input first: the D-pad chooses without wrapping, as FireRed's YES / NO does (UP YES, DOWN NO): LEFT or UP
+ * YES, RIGHT or DOWN NO (YES and NO side by side; NO, the safe one, when both are pressed), so pressing toward NO
+ * never lands on YES; A acts on the key chosen, B cancels (OK on a result acts on A or B). A held button ignores the
+ * touch; no key or touch does anything while the save is being written. */
 static void ProcessSaveInput(const CtrInput *in)
 {
     int hit = in->touchActive ? CtrPokeTouch_SaveHit((int)in->touchX, (int)in->touchY, sSave.state) : PT_SAVE_NONE;
@@ -2671,10 +2673,10 @@ static void ProcessSaveInput(const CtrInput *in)
         sSave.down = sSave.inside = 0;
         return;
     }
-    if (in->down & (K_UP | K_DOWN | K_A | K_B)) {
+    if (in->down & (K_UP | K_DOWN | K_LEFT | K_RIGHT | K_A | K_B)) {
         sSave.down = sSave.inside = 0;
-        if (sSave.state == SAVE_CONFIRM && (in->down & (K_UP | K_DOWN)))
-            sSave.sel = !sSave.sel;
+        if (sSave.state == SAVE_CONFIRM && (in->down & (K_UP | K_DOWN | K_LEFT | K_RIGHT)))
+            sSave.sel = (in->down & (K_RIGHT | K_DOWN)) ? 1 : 0;
         else if (in->down & K_A)
             SaveActivate(sSave.state == SAVE_CONFIRM ? PT_SAVE_FIRST + sSave.sel : PT_SAVE_FIRST);
         else if (in->down & K_B)

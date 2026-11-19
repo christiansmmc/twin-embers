@@ -115,7 +115,7 @@ static void DevChoiceDraw(const CtrPokeTouchView *v)
     }
     paper = DevScreen(&kDevGridNote);
     if (c->prompt[0])
-        DevReadText(c->prompt, &paper, paper.x + 6, paper.x + paper.w - 6, paper.y + 2, DEV_SMALL_LINE);
+        DevReadText(c->prompt, &paper, paper.x + 6, paper.x + paper.w - 6, paper.y + 3, DEV_SMALL_LINE_TIGHT);
     DevFieldBack(v, &kDevGridExit, DevBackWord());
 }
 

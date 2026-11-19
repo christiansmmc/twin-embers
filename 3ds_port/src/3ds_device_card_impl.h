@@ -1,15 +1,20 @@
-/* The player's Trainer Card as the red device (no board; plan 3), included by 3ds_poketouch.c after SAVE: a row of the
- * field dispatcher (3ds_device_field_impl.h), shown while view->card.on and there is no GBA picture (DevCardShown; a
- * link card stays FireRed's picture). A remote for FireRed's own card (3ds_poketouch.h CtrPokeTouchCard).
+/* The player's Trainer Card as the red device (def_card_front, def_card_back), included by 3ds_poketouch.c after SAVE:
+ * a row of the field dispatcher (3ds_device_field_impl.h), shown while view->card.on and there is no GBA picture
+ * (DevCardShown; a link card stays FireRed's picture). A remote for FireRed's own card (3ds_poketouch.h
+ * CtrPokeTouchCard).
  *
- * The tall screen. Its front: NAME and the name, IDNo. and the ID across the first line; MONEY, POKeDEX (with a Pokedex)
- * and TIME beside the trainer's front picture; up to five stars; the eight badges' places, a badge earned at 2x, one not
- * yet an empty place. Its back: the name, a rule and FireRed's records. Under the screen FLIP (a touch of it, or of the
- * screen, turns the card with the card's own key), sunk while the card is held, and BACK, a dark key. Every rectangle is
- * 3ds_device_layout.h's, so what is drawn is what a touch takes.
+ * The tall screen. On both sides the strip across its paper's top in the card's colour (FireRed's five Kanto colours
+ * by its stars: blue, green, bronze, silver, gold), TRAINER CARD white in it and the four stars, those the card has in
+ * gold, the rest the colour's light. Its front: NAME and the name, IDNo. and the ID across the first line; MONEY,
+ * POKeDEX (with a Pokedex) and TIME left of the trainer's front picture; the eight badges' places, a badge earned at
+ * 2x, one not yet a hole in the paper. Its back: the name, a rule and FireRed's records. Under the screen FLIP (a touch
+ * of it, or of the screen, turns the card with the card's own key), sunk while the card is held, and BACK, a dark key.
+ * Every rectangle is 3ds_device_layout.h's, so what is drawn is what a touch takes.
  *
- * Words (decision 5): FireRed's labels (which v0.6.0 title-cased) through DevUpper; the port's FLIP and BACK in capitals;
- * the name as typed; the numbers and the records' values as the card gives them.
+ * Words (decision 5): FireRed's labels (which v0.6.0 title-cased) and the port's title through DevUpper; the port's
+ * FLIP and BACK in capitals; the name as typed; the numbers and the records' values as the card gives them. The title,
+ * the name and IDNo. cut at their room, and a row whose label would meet its value (DevColumnRow), are counted in
+ * sDevKeyCut.
  *
  * Redraw: the screen whole when what it draws differs (DevCardSame), and nothing else.
  *
@@ -86,7 +91,7 @@ static void DevCardTrainer(void)
     UiImage(px, pal565, 64, 64, 64, r->x, r->y, 1, 1);
 }
 
-/* The eight badges' places: a badge earned (FireRed's 16x16) at 2x, one not yet the paper's second tone. */
+/* The eight badges' places: a badge earned (FireRed's 16x16) at 2x, one not yet a hole in the paper. */
 static void DevCardBadges(const CtrPokeTouchCard *c)
 {
     static unsigned char tiles[0x400];
@@ -103,7 +108,7 @@ static void DevCardBadges(const CtrPokeTouchCard *c)
         CtrPokeTouchRect r = DevCardBadge(i);
 
         if (!(c->badges & (1u << i))) {
-            DevRect(r.x, r.y, r.w, r.h, DEV_PAPER2);
+            DevPaperHole(r.x, r.y, r.w);
             continue;
         }
         DevArt(DEV_ART_BADGE, r.x, r.y, r.w, r.h);
@@ -114,12 +119,30 @@ static void DevCardBadges(const CtrPokeTouchCard *c)
 
 /* ---- Drawing --------------------------------------------------------------------------------------------------------- */
 
-#define DEV_CARD_WORD 32                        /* a label as drawn */
-#define DEV_CARD_GOLD UI_RGB(0xE8, 0xB8, 0x30)  /* the stars */
+#define DEV_CARD_WORD 32                            /* a label as drawn */
+/* FireRed's Kanto card colours by the stars (0-4): blue, green, bronze, silver, gold (kDevCardColour; the harness's
+ * colour table names them too). */
+#define DEV_CARD_COLOURS UI_RGB(0x5A, 0x8A, 0xC8), UI_RGB(0x3E, 0x9A, 0x5A), UI_RGB(0xB8, 0x7A, 0x3A), \
+                         UI_RGB(0x9A, 0x9A, 0xAA), UI_RGB(0xC8, 0xA0, 0x30)
+#define DEV_CARD_STAR_ON UI_RGB(0xF8, 0xD0, 0x40)   /* a star the card has */
+/* Alphas, of 256 (the board's 45 / 30 / 35 %): white over the colour for a star not had; black over it for the stars'
+ * shadow and the title's. */
+#define DEV_A_CARD_OFF      115
+#define DEV_A_CARD_SH       77
+#define DEV_A_CARD_TITLE_SH 90
+#define DEV_CARD_TITLE_END  (DEV_CARD_STAR_X - 5)   /* 236: the title's room ends short of the stars */
+
+static const uint16_t kDevCardColour[5] = {DEV_CARD_COLOURS};
 
 static int DevCardStars(const CtrPokeTouchCard *c)
 {
     return c->stars < DEV_CARD_STARS ? c->stars : DEV_CARD_STARS;
+}
+
+/* FireRed's card colour for `stars` (0-4; more counts as 4). */
+static uint16_t DevCardColour(int stars)
+{
+    return kDevCardColour[stars < DEV_CARD_STARS ? stars : DEV_CARD_STARS];
 }
 
 static int DevCardRecords(const CtrPokeTouchCard *c)
@@ -127,28 +150,60 @@ static int DevCardRecords(const CtrPokeTouchCard *c)
     return c->rows < PT_CARD_ROWS ? c->rows : PT_CARD_ROWS;
 }
 
-/* The front's first line: NAME (FireRed's label without its ": ") and the name at its left, IDNo. (as FireRed writes
- * it) and the ID at its right; the labels small in the secondary ink. */
+/* The strip (either side): kDevCardStrip in the card's colour, the title white over the colour darkened from (22,
+ * capitals 21) to DEV_CARD_TITLE_END, and the four stars: those the card has in gold, the rest the colour's light, each
+ * over the colour darkened. */
+static void DevCardStrip(const CtrPokeTouchCard *c)
+{
+    const CtrPokeTouchRect *r = &kDevCardStrip;
+    uint16_t colour = DevCardColour(DevCardStars(c)), off = DevBlend(colour, DEV_WHITE, DEV_A_CARD_OFF);
+    uint16_t sh = DevBlend(colour, 0, DEV_A_CARD_SH);
+    char title[DEV_CARD_WORD];
+    int titleX = r->x + 8;
+
+    DevRect(r->x, r->y, r->w, r->h, colour);
+    DevUpper(title, CtrUiText(UIS_CARD_TITLE), sizeof(title));
+    if (DevTextWidth(title) > DEV_CARD_TITLE_END - titleX)
+        ++sDevKeyCut;
+    DevTextInk(title, titleX, r->y + 7, DEV_CARD_TITLE_END, DEV_WHITE, DevBlend(colour, 0, DEV_A_CARD_TITLE_SH));
+    for (int k = 0; k < DEV_CARD_STARS; ++k) {
+        int x = DEV_CARD_STAR_X + DEV_CARD_STAR_STEP * k;
+
+        FCStar(x, DEV_CARD_STAR_Y, k < DevCardStars(c) ? DEV_CARD_STAR_ON : off, sh);
+    }
+}
+
+/* The front's first line (DevCardRow(0), the labels' capitals a row under the values'): NAME (FireRed's label without
+ * its ": ") small in the secondary ink, the name from DEV_CARD_NAME_X (or 6 past a wider NAME) cut 6 px before
+ * IDNo., IDNo. (as FireRed writes it) small from DEV_CARD_ID_X, cut 6 px before the ID, and the ID ending at the line's
+ * right. */
 static void DevCardFirstLine(const CtrPokeTouchCard *c)
 {
     CtrPokeTouchRect r = DevCardRow(0);
-    int smallTop = r.y + (r.h - 7) / 2, top = r.y + (r.h - UI_TEXT_H) / 2, right = r.x + r.w, idX, idLabelX;
+    int right = r.x + r.w, nameEnd = DEV_CARD_ID_X - 6, nameX, idX, idLabelEnd;
     char name[DEV_CARD_WORD], id[16];
 
     DevUpper(name, c->label[0], sizeof(name));
     for (int n = (int)strlen(name); n > 0 && (name[n - 1] == ' ' || name[n - 1] == ':'); --n)
         name[n - 1] = 0;
     snprintf(id, sizeof(id), "%05u", (unsigned)c->id);
+    nameX = r.x + DevSmallTextWidth(name) + 6;
+    if (nameX < DEV_CARD_NAME_X)
+        nameX = DEV_CARD_NAME_X;
     idX = right - DevTextWidth(id);
-    idLabelX = idX - 6 - DevSmallTextWidth(c->label[1]);
-    DevSmallText(name, r.x, smallTop, DEV_INK2, right);
-    DevText(c->name, r.x + DevSmallTextWidth(name) + 6, top, idLabelX - 6);
-    DevSmallText(c->label[1], idLabelX, smallTop, DEV_INK2, idX);
-    DevText(id, idX, top, right);
+    idLabelEnd = idX - 6;
+    if (DevTextWidth(c->name) > nameEnd - nameX)
+        ++sDevKeyCut;
+    if (DevSmallTextWidth(c->label[1]) > idLabelEnd - DEV_CARD_ID_X)
+        ++sDevKeyCut;
+    DevSmallText(name, r.x, r.y + 4, DEV_INK2, nameEnd);
+    DevText(c->name, nameX, r.y + 3, nameEnd);
+    DevSmallText(c->label[1], DEV_CARD_ID_X, r.y + 4, DEV_INK2, idLabelEnd);
+    DevText(id, idX, r.y + 3, right);
 }
 
-/* The front: the first line, MONEY, POKeDEX (with a Pokedex; else TIME takes its row) and TIME beside the trainer's
- * picture, the stars (five at most) and the badges' places. */
+/* The front: the first line, MONEY, POKeDEX (with a Pokedex; else TIME takes its row) and TIME left of the trainer's
+ * picture, and the badges' places. */
 static void DevCardFront(const CtrPokeTouchCard *c)
 {
     char label[DEV_CARD_WORD], value[40];
@@ -159,46 +214,46 @@ static void DevCardFront(const CtrPokeTouchCard *c)
     DevUpper(label, c->label[2], sizeof(label));
     snprintf(value, sizeof(value), "%s%u", c->label[3], (unsigned)c->money);
     r = DevCardRow(row++);
-    DevLabelValue(&r, label, value);
+    DevColumnRow(r.y, label, value, r.x, r.x + r.w);
     if (c->hasDex) {
         DevUpper(label, c->label[4], sizeof(label));
         snprintf(value, sizeof(value), "%u", (unsigned)c->caught);
         r = DevCardRow(row++);
-        DevLabelValue(&r, label, value);
+        DevColumnRow(r.y, label, value, r.x, r.x + r.w);
     }
     DevUpper(label, c->label[5], sizeof(label));
     snprintf(value, sizeof(value), "%u:%02u", (unsigned)c->hours, (unsigned)c->minutes);
     r = DevCardRow(row);
-    DevLabelValue(&r, label, value);
+    DevColumnRow(r.y, label, value, r.x, r.x + r.w);
     DevCardTrainer();
-    for (int i = 0; i < DevCardStars(c); ++i)
-        FCStar(DEV_CARD_STAR_X + DEV_CARD_STAR_STEP * i, DEV_CARD_STAR_Y, DEV_CARD_GOLD, DEV_INK_SH);
     DevCardBadges(c);
 }
 
-/* The back: the name, the rule under it and FireRed's records (the label small at the left, the value at the right). */
+/* The back: the name on the first line, the rule under it and FireRed's records (the label small at the left, the value
+ * at the right). */
 static void DevCardBack(const CtrPokeTouchCard *c)
 {
     CtrPokeTouchRect r = DevCardRow(0);
     char label[DEV_CARD_WORD];
 
-    DevText(c->name, r.x, r.y + (r.h - UI_TEXT_H) / 2, r.x + r.w);
-    DevRect(kDevCardRule.x, kDevCardRule.y, kDevCardRule.w, kDevCardRule.h, DEV_INK_SH);
+    DevText(c->name, r.x, r.y + 3, r.x + r.w);
+    DevRect(kDevCardRule.x, kDevCardRule.y, kDevCardRule.w, kDevCardRule.h, DEV_RULE);
     for (int i = 0; i < DevCardRecords(c); ++i) {
         r = DevCardBackRow(i);
         DevUpper(label, c->row[i].label, sizeof(label));
-        DevLabelValue(&r, label, c->row[i].value);
+        DevColumnRow(r.y, label, c->row[i].value, r.x, r.x + r.w);
     }
 }
 
-/* The card whole (after DevBegin: the dispatcher's): the screen with the side up, FLIP (sunk while the card is held) and
- * BACK. */
+/* The card whole (after DevBegin: the dispatcher's): the screen with its strip and the side up, FLIP (sunk while the
+ * card is held) and BACK. */
 static void DevCardDraw(const CtrPokeTouchView *v)
 {
     int sunk = v->card.pressed != 0, faceY;
 
     DevShell();
     DevScreen(&kDevTallScreen);
+    DevCardStrip(&v->card);
     if (v->card.back)
         DevCardBack(&v->card);
     else
@@ -211,12 +266,13 @@ static void DevCardDraw(const CtrPokeTouchView *v)
 /* ---- The dispatcher's row: whether two views draw the same, where BACK is ------------------------------------------- */
 
 /* Nothing the card draws differs between `a` and `b` (the shell is the dispatcher's): the side up, the hold, the name,
- * BACK, and the front's facts or the back's records. */
+ * the stars (the strip's colour and its stars, on either side), BACK, and the front's facts or the back's records. */
 static int DevCardSame(const CtrPokeTouchView *a, const CtrPokeTouchView *b)
 {
     const CtrPokeTouchCard *p = &a->card, *q = &b->card;
 
-    if (p->back != q->back || !p->pressed != !q->pressed || strcmp(p->name, q->name) || !DevFieldBackSame(a, b))
+    if (p->back != q->back || !p->pressed != !q->pressed || strcmp(p->name, q->name)
+        || DevCardStars(p) != DevCardStars(q) || !DevFieldBackSame(a, b))
         return 0;
     if (q->back) {
         if (DevCardRecords(p) != DevCardRecords(q))
@@ -230,7 +286,7 @@ static int DevCardSame(const CtrPokeTouchView *a, const CtrPokeTouchView *b)
         if ((i != 4 || q->hasDex) && strcmp(p->label[i], q->label[i]))
             return 0;
     return p->id == q->id && p->money == q->money && p->hasDex == q->hasDex && (!q->hasDex || p->caught == q->caught)
-        && p->hours == q->hours && p->minutes == q->minutes && DevCardStars(p) == DevCardStars(q) && p->badges == q->badges;
+        && p->hours == q->hours && p->minutes == q->minutes && p->badges == q->badges;
 }
 
 /* BACK as drawn now: the Summary's place while shown. */
