@@ -2656,14 +2656,15 @@ static void SaveActivate(int which)
     } else if (sSave.state == SAVE_SUCCESS) {
         CloseNative();
     } else if (sSave.state == SAVE_ERROR) {
-        sSave.state = SAVE_CONFIRM;         /* try again, or cancel */
-        sSave.sel = 0;
+        sSave.state = SAVE_CONFIRM;         /* try again, or cancel: the question again, NO first over another game */
+        sSave.sel = CtrSave_IsDifferentFile() ? 1 : 0;
     }
 }
 
-/* Physical input first: the D-pad chooses (YES and NO side by side: LEFT and RIGHT, and UP and DOWN as before), A
- * acts, B cancels (OK on a result acts on A or B). A held button ignores the touch; no key or touch does anything while
- * the save is being written. */
+/* Physical input first: the D-pad chooses without wrapping, as FireRed's YES / NO does (UP YES, DOWN NO): LEFT or UP
+ * YES, RIGHT or DOWN NO (YES and NO side by side; NO, the safe one, when both are pressed), so pressing toward NO
+ * never lands on YES; A acts on the key chosen, B cancels (OK on a result acts on A or B). A held button ignores the
+ * touch; no key or touch does anything while the save is being written. */
 static void ProcessSaveInput(const CtrInput *in)
 {
     int hit = in->touchActive ? CtrPokeTouch_SaveHit((int)in->touchX, (int)in->touchY, sSave.state) : PT_SAVE_NONE;
@@ -2675,7 +2676,7 @@ static void ProcessSaveInput(const CtrInput *in)
     if (in->down & (K_UP | K_DOWN | K_LEFT | K_RIGHT | K_A | K_B)) {
         sSave.down = sSave.inside = 0;
         if (sSave.state == SAVE_CONFIRM && (in->down & (K_UP | K_DOWN | K_LEFT | K_RIGHT)))
-            sSave.sel = !sSave.sel;
+            sSave.sel = (in->down & (K_RIGHT | K_DOWN)) ? 1 : 0;
         else if (in->down & K_A)
             SaveActivate(sSave.state == SAVE_CONFIRM ? PT_SAVE_FIRST + sSave.sel : PT_SAVE_FIRST);
         else if (in->down & K_B)
