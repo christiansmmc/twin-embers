@@ -884,7 +884,9 @@ UI_FN void DevKeySmallWord(const CtrPokeTouchRect *r, int top, int look, int sun
     DevGlyphs(s, x, top - 4, r->x + r->w - 4, DevKeyInk(look, sunk), DevKeyInkShadow(look, sunk), 1);
 }
 
-/* DevSmallWrap's lines, drawn when `draw`, else only counted. */
+/* DevSmallWrap's lines, drawn when `draw`, else only counted. A line always takes its first word: one wider than the
+ * line (from where the line starts to `right`) is drawn cut at `right` and, when drawn, counted in sDevKeyCut (once a
+ * word, a draw); a run that only counts lines counts no cut. */
 UI_FN int DevSmallWrapRun(const char *s, int firstX, int x, int top, int right, int maxLines, int pitch, uint16_t ink,
                           int draw)
 {
@@ -914,8 +916,11 @@ UI_FN int DevSmallWrapRun(const char *s, int firstX, int x, int top, int right, 
             ++lines;                        /* the first word does not fit after what is there: the next line */
             continue;
         }
-        if (draw)
+        if (draw) {
+            if (DevSmallTextWidth(line) > right - from)
+                ++sDevKeyCut;               /* a word alone wider than the line: cut at `right` */
             DevSmallText(line, from, top + lines * pitch, ink, right);
+        }
         ++lines;
         s += fit;
     }
@@ -924,15 +929,15 @@ UI_FN int DevSmallWrapRun(const char *s, int firstX, int x, int top, int right, 
 
 /* Text in the small font wrapped at spaces and line breaks into at most maxLines lines `pitch` apart
  * (DEV_SMALL_LINE_TIGHT: the board's 9 px), ending by `right`: the first from firstX (after what is drawn before it on
- * that line; it starts on the next line when its first word does not fit there), the others from x. Returns the lines
- * used. */
+ * that line; it starts on the next line when its first word does not fit there), the others from x; a word wider than
+ * a whole line cut at `right` and counted in sDevKeyCut (DevSmallWrapRun). Returns the lines used. */
 UI_FN int DevSmallWrap(const char *s, int firstX, int x, int top, int right, int maxLines, int pitch, uint16_t ink)
 {
     return DevSmallWrapRun(s, firstX, x, top, right, maxLines, pitch, ink, 1);
 }
 
-/* DevSmallWrap, and a text that needs more than maxLines lines (the rest left out) counted in sDevKeyCut, as a cut key
- * label is: a footer's words must fit its paper. Returns the lines drawn. */
+/* DevSmallWrap (a word wider than a line counted), and a text that needs more than maxLines lines (the rest left out)
+ * counted in sDevKeyCut, as a cut key label is: a footer's words must fit its paper. Returns the lines drawn. */
 UI_FN int DevSmallFit(const char *s, int firstX, int x, int top, int right, int maxLines, int pitch, uint16_t ink)
 {
     if (DevSmallWrapRun(s, firstX, x, top, right, maxLines + 1, pitch, ink, 0) > maxLines)

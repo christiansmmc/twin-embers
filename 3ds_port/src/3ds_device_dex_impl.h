@@ -534,8 +534,8 @@ static void DevDexRow(const CtrPokeTouchDexMon *m, int i, int chosen)
 
 /* The ordered list (LIST, def_dex_list): the order and the counts on the title; the grid's five rows, ▲ ▼ grey where
  * the list goes no further; on the note a caught one's type chips (12 tall, from x 20 at y 205) and its kind small
- * after them (from 109 with two chips, capitals 208, one line: a kind wider than its room is cut after the words that
- * fit and counted), else "?????"; BACK. */
+ * after them (from 109 with two chips, capitals 208, one line: DevSmallFit, a kind wider than its room cut after the
+ * words that fit, or a single word at the paper's edge, and counted), else "?????"; BACK. */
 static void DevDexList(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchDex *d = &v->dex;
@@ -565,9 +565,7 @@ static void DevDexList(const CtrPokeTouchView *v)
         int x = DevDexTypes(d, paper.x + 6, chipY, right) + 3;
 
         DevUpper(kind, d->kind, sizeof(kind));
-        if (DevSmallTextWidth(kind) > right - x)
-            ++sDevKeyCut;                               /* the words that fit drawn, the rest left out */
-        DevSmallWrap(kind, x, x, chipY + 3, right, 1, DEV_SMALL_LINE, DEV_INK2);
+        DevSmallFit(kind, x, x, chipY + 3, right, 1, DEV_SMALL_LINE, DEV_INK2);
     } else
         DevText("?????", paper.x + 6, paper.y + (paper.h - UI_TEXT_H) / 2, paper.x + paper.w - 6);
     DevFieldBack(v, &kDevGridExit, DevBackWord());

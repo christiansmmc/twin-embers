@@ -879,6 +879,32 @@ static void KitWrapLines(void)
     assert(Count(0, 0, W, H, sh) == 0 && Count(0, 0, W, H, ink) > 0);
 }
 
+/* A small text's word wider than a whole line (DevSmallWrap, DevSmallFit) is drawn cut at `right`, nothing past it, and
+ * counted once a draw: alone, starting the second line, or pushed off a first line that starts further in; a text that
+ * fits its lines counts nothing, nor does a run that only counts lines. */
+static void KitSmallWordCut(void)
+{
+    static const char kWide[] = "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW";       /* 30 W's: over 100 px in either font */
+    char text[64];
+    int x = 20, room = 100, right = x + room;
+
+    assert(DevSmallTextWidth(kWide) > room && DevSmallTextWidth("AB CD") <= room);
+    clear(SENTINEL); sDevKeyCut = 0;
+    assert(DevSmallFit(kWide, x, x, 198, right, 3, DEV_SMALL_LINE, DEV_INK) == 1 && sDevKeyCut == 1);
+    assert(Count(x, 194, room, 12, DEV_INK) > 0 && Count(right, 0, W - right, H, DEV_INK) == 0);
+    snprintf(text, sizeof(text), "AB %s", kWide);
+    clear(SENTINEL); sDevKeyCut = 0;
+    assert(DevSmallFit(text, x, x, 198, right, 3, DEV_SMALL_LINE, DEV_INK) == 2 && sDevKeyCut == 1);
+    assert(Count(x, 198 + DEV_SMALL_LINE, room, 7, DEV_INK) > 0 && Count(right, 0, W - right, H, DEV_INK) == 0);
+    clear(SENTINEL); sDevKeyCut = 0;                        /* the first line from x + 60: the word starts the second */
+    assert(DevSmallWrap(kWide, x + 60, x, 198, right, 3, DEV_SMALL_LINE, DEV_INK) == 2 && sDevKeyCut == 1);
+    assert(Count(x, 194, W - x, 10, DEV_INK) == 0 && Count(right, 0, W - right, H, DEV_INK) == 0);
+    clear(SENTINEL); sDevKeyCut = 0;
+    assert(DevSmallFit("AB CD EF GH IJ KL", x, x, 198, x + DevSmallTextWidth("AB CD"), 3, DEV_SMALL_LINE, DEV_INK) == 3
+           && sDevKeyCut == 0);
+    assert(DevSmallWrapRun(kWide, x, x, 198, right, 3, DEV_SMALL_LINE, DEV_INK, 0) == 1 && sDevKeyCut == 0);
+}
+
 /* The HP and PP colours of FireRed's own battle screens (the top screen shows the same). */
 static void KitBarLevels(void)
 {
@@ -1036,6 +1062,7 @@ static void KitPieces(void)
     sDevKeyCut = 0; DevKeyLabel(&(CtrPokeTouchRect){0, 0, 30, 24}, 0, DEV_LOOK_KEY, 0, "A VERY LONG LABEL"); assert(sDevKeyCut == 1); sDevKeyCut = 0;
     /* a footer's small text that needs more lines than it is given is cut, and counted */
     sDevKeyCut = 0; assert(DevSmallFit(kLongWords, 20, 20, 198, 224, 1, DEV_SMALL_LINE, DEV_INK) == 1 && sDevKeyCut == 1); sDevKeyCut = 0;
+    KitSmallWordCut();                                      /* ...as is a word wider than its line */
     KitRowsThreeToFive();
 }
 

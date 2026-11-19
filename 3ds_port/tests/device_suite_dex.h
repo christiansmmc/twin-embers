@@ -243,6 +243,9 @@ static void SuiteDex(void)
     strcpy(lv.dex.row[0].name, "Bulbasaur"); strcpy(lv.dex.kind, "WWWWW WWWWW WWWWW WWWWW WWW"); DevCheckTouch(&old, &lv);
     sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &lv); assert(sDevKeyCut == 1); sDevKeyCut = 0;
     assert(Count(225, 196, 5, 30, DEV_INK2) == 0);
+    strcpy(lv.dex.kind, "WWWWWWWWWWWWWWWWWWWWWWWWWWW"); DevCheckTouch(&old, &lv);     /* one word wider than its room */
+    sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &lv); assert(sDevKeyCut == 1); sDevKeyCut = 0;
+    assert(Count(109, 208, 100, 7, DEV_INK2) > 0 && Count(225, 196, 5, 30, DEV_INK2) == 0);
     CtrPokeTouch_Draw(canvas, &old);
     v.dex.state = PT_DEX_STATE_CATEGORY; v.dex.sel = v.dex.mon[v.dex.slot]; DevCheckTouch(&old, &v); for (i = 0; i < 3; ++i) AssertHits(DexHitV, &v, DevDexSlot(i), PT_DEX_HIT_SLOT + i);
     assert(CtrPokeTouch_DexHit(&v, 238, 150) == -1 && CtrPokeTouch_DexHit(&v, 184, 210) == -1); AssertHits(DexHitV, &v, kDevSmallKey[1], PT_DEX_HIT_NEXT);
