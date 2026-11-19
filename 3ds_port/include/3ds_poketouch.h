@@ -64,10 +64,11 @@ bool CtrPokeTouch_HomeRibbonHit(int x, int y);                         /* the re
  * ◀ value ▶ (3ds_device_layout.h DevOptRow). On a row, the label selects it (its description goes to
  * the small note), ◀ steps the value back and the value or ▶ steps it forward; the ◀ ▶ keys under
  * the rows step the row described. A row of levels (COMPANION's OFF / FOLLOW / BE IT) shows all its
- * values side by side instead, the chosen one boxed: a touch on one picks it (zone PT_OPT_ZONE_SEG +
- * its index). The keys (PT_OPT_KEY_*): a section's across the top (named by its first page, which it
- * opens, whichever of its pages is shown), ▲ ▼ (the page before, after). Under the rows a section of
- * several pages says which is shown (its page line, PAGE 2/3 and the page's name, and its dots). */
+ * values instead, each in a box its word's size, the chosen one outlined: a touch on one, or on the
+ * half of a gap beside it, picks it (zone PT_OPT_ZONE_SEG + its index). The keys (PT_OPT_KEY_*): a
+ * section's across the top (named by its first page, which it opens, whichever of its pages is
+ * shown), ▲ ▼ (the page before, after). Under the rows a section of several pages says which is
+ * shown (its page line, PAGE 2/3 and the page's name, and its dots). */
 #define PT_OPT_MAX 7
 #define PT_OPT_LABEL_LEN 16
 #define PT_OPT_VALUE_LEN 12
@@ -497,12 +498,9 @@ bool CtrPokeTouch_BackHit(const CtrPokeTouchView *view, int x, int y);
 
 /* The OPTIONS row and zone (PT_OPT_ZONE_*) under a bottom-screen pixel of the view shown (OPTIONS,
  * no GBA picture); false when none. On a row of levels any zone but LABEL is the level there
- * (PT_OPT_ZONE_SEG + CtrPokeTouch_OptionSegment); ◀ ▶ under the rows are the row described's
- * PREV / NEXT. */
+ * (PT_OPT_ZONE_SEG + its index: its box and the gaps beside it to their middles,
+ * 3ds_device_options_impl.h DevOptLevelAt); ◀ ▶ under the rows are the row described's PREV / NEXT. */
 bool CtrPokeTouch_OptionHit(const CtrPokeTouchView *view, int x, int y, int *row, int *zone);
-/* On a row of `count` levels, the one under bottom-screen column `x` (the zone was not LABEL): PREV and
- * NEXT shared out among the levels (3ds_device_layout.h DevOptLevel). */
-int CtrPokeTouch_OptionSegment(int x, int count);
 /* The OPTIONS key under a bottom-screen pixel: PT_OPT_KEY_SECTION + a section (the grid's tabs),
  * PT_OPT_KEY_UP, PT_OPT_KEY_DOWN (while there is more than one page: always, the six wrap), else -1. */
 int CtrPokeTouch_OptionKey(const CtrPokeTouchView *view, int x, int y);

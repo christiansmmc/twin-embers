@@ -5,13 +5,14 @@
  * The grid's list page. Across the top the four sections as the grid's tabs, each named by its first page whichever page
  * is shown, the shown one sunk, or the one under a held touch. The page's rows on the list's screen, the row described
  * inverted (or the one under a held touch): its label, ◀ in PREV, the value centred in the board's box and ▶; a
- * switch's value the port's ON / OFF; a row of levels its levels side by side, the chosen one boxed (a held one boxed
- * instead). ▲ ▼ beside the rows while there are pages to turn (always: the six wrap). Under the rows a section of several
- * pages (GRAPHICS' three) has its page line, PAGE 2/3 · LOOKS, and a dot a page, the shown one's on. Under them the
- * description in the small note (the small font, three lines), ◀ ▶ stepping the row described (sunk while its own zone
- * is held), and BACK, a dark key (grey while it cannot be used). FRAME's sample (the frame chosen, from the pack) under
- * five rows; a look's panel (its walking picture, its name and its artists) under four. Every rectangle is
- * 3ds_device_layout.h's, so what is drawn is what a touch takes.
+ * switch's value the port's ON / OFF; a row of levels its levels in boxes the size of their words, packed right, the
+ * chosen one outlined (a held one instead). ▲ ▼ beside the rows while there are pages to turn (always: the six
+ * wrap). Under the rows a section of several pages (GRAPHICS' three) has its page line, PAGE 2/3 · LOOKS, and a dot a
+ * page, the shown one's on. Under them the description in the small note (the small font, three lines), ◀ ▶ stepping
+ * the row described (sunk while its own zone is held), and BACK, a dark key (grey while it cannot be used). FRAME's
+ * sample (the frame chosen, from the pack) under five rows; a look's panel (its walking picture, its name and its
+ * artists) under four. Every rectangle is 3ds_device_layout.h's, a level's box the row's sized by its word
+ * (DevOptLevelBox), so what is drawn is what a touch takes.
  *
  * Words (decision 5): v0.6.0's words (the sections, the page's name, the labels, the values, the levels, the
  * description, a look's name) through DevUpper; the port's in capitals; a look's credit (its artists' names) as typed.
@@ -35,17 +36,82 @@ static int DevOptLevels(const CtrPokeTouchView *v, int i)
     return v->optSegCount[i] < PT_OPT_SEGS ? v->optSegCount[i] : PT_OPT_SEGS;
 }
 
-/* ---- Where a touch goes ---------------------------------------------------------------------------------------------- */
+/* ---- A row of levels (def_opt_graphics' COMPANION: OFF, FOLLOW, BE IT) ---------------------------------------------
+ * Each level's word (DevUpper'd) in a box of its width + 8, 14 tall from the row's top + 2, the boxes packed right 4
+ * apart, the last ending 10 px before the row's end (x 250): they have the 114 px from PREV (x 136) to there. The
+ * normal font while the set fits there, else the small one (DevOptLevelSmall); a set too wide even small shares the
+ * 114 px out evenly, its words cut in their boxes, and is counted in sDevKeyCut as it is drawn. A touch on PREV or
+ * NEXT is the level there, the gaps split at their middles (DevOptLevelAt). */
 
-int CtrPokeTouch_OptionSegment(int x, int count)
+/* Where row i's levels end: the row's end less 10. */
+static int DevOptLevelEnd(int i)
 {
-    int w = DevOptRow(0).x + DevOptRow(0).w - DEV_OPT_PREV_X, k;
+    CtrPokeTouchRect r = DevOptRow(i);
 
-    if (count <= 0)
-        return 0;
-    k = x < DEV_OPT_PREV_X ? 0 : (x - DEV_OPT_PREV_X) * count / w;
-    return k >= count ? count - 1 : k;
+    return r.x + r.w - 10;
 }
+
+/* Level k's word on row i as drawn, its width in the small font or the normal one. */
+static int DevOptLevelWidth(const CtrPokeTouchView *v, int i, int k, int small)
+{
+    char word[DEV_OPT_WORD];
+
+    DevUpper(word, v->optSegName[i][k], sizeof(word));
+    return small ? DevSmallTextWidth(word) : DevTextWidth(word);
+}
+
+/* What row i's levels need in that font: each word + 8, 4 between them. */
+static int DevOptLevelNeed(const CtrPokeTouchView *v, int i, int small)
+{
+    int n = DevOptLevels(v, i), need = 4 * (n - 1);
+
+    for (int k = 0; k < n; ++k)
+        need += DevOptLevelWidth(v, i, k, small) + 8;
+    return need;
+}
+
+/* 1 when row i's levels in the normal font need more than the 114 px from PREV: they are drawn in the small one. */
+static int DevOptLevelSmall(const CtrPokeTouchView *v, int i)
+{
+    return DevOptLevelNeed(v, i, 0) > DevOptLevelEnd(i) - DEV_OPT_PREV_X;
+}
+
+/* 1 when they need more than that even small: drawn cut (DevOptLevelBox shares the room out), and counted. */
+static int DevOptLevelCut(const CtrPokeTouchView *v, int i)
+{
+    return DevOptLevelSmall(v, i) && DevOptLevelNeed(v, i, 1) > DevOptLevelEnd(i) - DEV_OPT_PREV_X;
+}
+
+/* Level k's box on row i: its word + 8 (in the font DevOptLevelSmall picks) by 14 from the row's top + 2, the boxes
+ * packed right 4 apart, the last ending at DevOptLevelEnd; a set too wide even small has the 114 px shared out evenly. */
+static CtrPokeTouchRect DevOptLevelBox(const CtrPokeTouchView *v, int i, int k)
+{
+    CtrPokeTouchRect r = DevOptRow(i);
+    int n = DevOptLevels(v, i), small = DevOptLevelSmall(v, i), end = DevOptLevelEnd(i);
+    int even = DevOptLevelCut(v, i) ? (end - DEV_OPT_PREV_X - 4 * (n - 1)) / n : 0;
+
+    for (int j = n - 1; j >= k; --j) {
+        r.w = (int16_t)(even ? even : DevOptLevelWidth(v, i, j, small) + 8);
+        r.x = (int16_t)(end - r.w);
+        end = r.x - 4;
+    }
+    r.y = (int16_t)(r.y + 2);
+    r.h = 14;
+    return r;
+}
+
+/* The level of row i under column x of PREV or NEXT: each from the middle of the gap before its box (the first from
+ * PREV) to the middle of the gap after it (the last to the row's end). */
+static int DevOptLevelAt(const CtrPokeTouchView *v, int i, int x)
+{
+    int k = DevOptLevels(v, i) - 1;
+
+    while (k > 0 && x < DevOptLevelBox(v, i, k).x - 2)
+        --k;
+    return k;
+}
+
+/* ---- Where a touch goes ---------------------------------------------------------------------------------------------- */
 
 bool CtrPokeTouch_OptionHit(const CtrPokeTouchView *v, int x, int y, int *row, int *zone)
 {
@@ -65,7 +131,7 @@ bool CtrPokeTouch_OptionHit(const CtrPokeTouchView *v, int x, int y, int *row, i
         *row = i;
         *zone = x < DEV_OPT_PREV_X ? PT_OPT_ZONE_LABEL : x < DEV_OPT_NEXT_X ? PT_OPT_ZONE_PREV : PT_OPT_ZONE_NEXT;
         if (DevOptLevels(v, i) && *zone != PT_OPT_ZONE_LABEL)
-            *zone = PT_OPT_ZONE_SEG + CtrPokeTouch_OptionSegment(x, DevOptLevels(v, i));
+            *zone = PT_OPT_ZONE_SEG + DevOptLevelAt(v, i, x);
         return true;
     }
     return false;
@@ -189,16 +255,17 @@ static void DevOptSections(const CtrPokeTouchView *v)
     }
 }
 
-/* The chosen level's box: a 1 px frame inside its place, in the row's ink. */
+/* The chosen level's outline: 1 px on its box's own edge, in the row's ink. */
 static void DevOptBox(const CtrPokeTouchRect *s, uint16_t ink)
 {
-    DevRect(s->x + 1, s->y + 1, s->w - 2, 1, ink);
-    DevRect(s->x + 1, s->y + s->h - 2, s->w - 2, 1, ink);
-    DevRect(s->x + 1, s->y + 1, 1, s->h - 2, ink);
-    DevRect(s->x + s->w - 2, s->y + 1, 1, s->h - 2, ink);
+    DevRect(s->x, s->y, s->w, 1, ink);
+    DevRect(s->x, s->y + s->h - 1, s->w, 1, ink);
+    DevRect(s->x, s->y + 1, 1, s->h - 2, ink);
+    DevRect(s->x + s->w - 1, s->y + 1, 1, s->h - 2, ink);
 }
 
-/* Row i: inverted when it is the one described (or under a held touch); its label, then ◀ value ▶, or its levels. */
+/* Row i: inverted when it is the one described (or under a held touch); its label, then ◀ value ▶, or its levels (each
+ * word centred in its box, the chosen one or the held one outlined). */
 static void DevOptRowDraw(const CtrPokeTouchView *v, int i)
 {
     CtrPokeTouchRect r = DevOptRow(i);
@@ -212,12 +279,15 @@ static void DevOptRowDraw(const CtrPokeTouchView *v, int i)
     DevOptWord(word, r.x + 6, DEV_OPT_PREV_X, top, 0, ink, shadow);
     if (count) {
         int held = v->optPressed == i && v->optZone >= PT_OPT_ZONE_SEG ? v->optZone - PT_OPT_ZONE_SEG : -1;
+        int small = DevOptLevelSmall(v, i);
 
+        if (DevOptLevelCut(v, i))
+            ++sDevKeyCut;
         for (int k = 0; k < count; ++k) {
-            CtrPokeTouchRect s = DevOptLevel(i, k, count);
+            CtrPokeTouchRect s = DevOptLevelBox(v, i, k);
 
             DevUpper(word, v->optSegName[i][k], sizeof(word));
-            DevFitWord(word, DevFitFont(word, s.w - 4, s.w - 4), s.x + 2, s.w - 4, r.y, r.h, 1, ink, shadow);
+            DevFitWord(word, small, s.x + 4, s.w - 8, s.y, s.h, 1, ink, shadow);
             if (DevChosen(k, v->optSegValue[i], held))
                 DevOptBox(&s, ink);
         }

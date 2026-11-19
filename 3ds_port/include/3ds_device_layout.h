@@ -265,7 +265,9 @@ static inline CtrPokeTouchRect DevAcross(int n, int i, int y, int h)
  * (DevOptRow: 18 tall, no gap, seven fit) with ▲ ▼ (kDevGridUp, kDevGridDown) paging beside them, the description in
  * kDevSmallNote, ◀ ▶ (kDevSmallKey) stepping the row described, BACK in kDevGridExit. A row is three zones: LABEL (its
  * words, from 6 px in), PREV (◀) and NEXT (▶; the value centred in the board's box, DEV_OPT_VALUE_X..+DEV_OPT_VALUE_W,
- * where the widest falls inside NEXT); a row of levels shares PREV and NEXT among its levels. Under the rows a section of
+ * where the widest falls inside NEXT); a row of levels has its levels over PREV and NEXT, each in a box its word's size
+ * packed right to the row's end less 10, each taking the columns to the gaps' middles (the drawer's DevOptLevelBox and
+ * DevOptLevelAt: the boxes are sized by the words). Under the rows a section of
  * several pages has its page line (capitals DEV_OPT_PAGE_Y, from x 22: PAGE 1/3 · GRAPHICS) and a dot a page at the
  * right (DevOptDot); FRAME's sample under the fifth row, left of the dots; the look's panel under the fourth, over the
  * page line. */
@@ -293,18 +295,6 @@ static inline CtrPokeTouchRect DevOptDot(int k)
 {
     CtrPokeTouchRect r = {(int16_t)(226 + 8 * k), DEV_OPT_PAGE_Y, 5, 5};
 
-    return r;
-}
-
-/* Level k of a row of `count` levels on row i: PREV and NEXT shared out from x 136, a level taking the columns whose
- * (x - 136) * count / 124 is k (CtrPokeTouch_OptionSegment's). */
-static inline CtrPokeTouchRect DevOptLevel(int i, int k, int count)
-{
-    CtrPokeTouchRect r = DevOptRow(i);
-    int w = r.x + r.w - DEV_OPT_PREV_X, x0 = DEV_OPT_PREV_X + (w * k + count - 1) / count;
-
-    r.w = (int16_t)(DEV_OPT_PREV_X + (w * (k + 1) + count - 1) / count - x0);
-    r.x = (int16_t)x0;
     return r;
 }
 
