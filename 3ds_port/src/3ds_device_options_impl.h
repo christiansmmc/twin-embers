@@ -1,18 +1,20 @@
-/* OPTIONS as the red device (no board; plan 3), included by 3ds_poketouch.c after the Summary: a row of the field
- * dispatcher (3ds_device_field_impl.h), shown while view->options and there is no GBA picture (DevOptShown).
+/* OPTIONS as the red device (def_opt_settings, def_opt_graphics, def_opt_looks), included by 3ds_poketouch.c after
+ * the Summary: a row of the field dispatcher (3ds_device_field_impl.h), shown while view->options and there is no GBA
+ * picture (DevOptShown).
  *
- * The grid's list page. Across the top the four sections as keys, the shown one sunk (its key says its page's name:
- * LOOKS while GRAPHICS shows its looks page), or the one under a held touch. The page's rows on the list's screen, the
- * row described inverted (or the one under a held touch): its label, ◀ in PREV, the value centred in NEXT and ▶; a
+ * The grid's list page. Across the top the four sections as the grid's tabs, each named by its first page whichever page
+ * is shown, the shown one sunk, or the one under a held touch. The page's rows on the list's screen, the row described
+ * inverted (or the one under a held touch): its label, ◀ in PREV, the value centred in the board's box and ▶; a
  * switch's value the port's ON / OFF; a row of levels its levels side by side, the chosen one boxed (a held one boxed
- * instead). ▲ ▼ beside the rows while there are pages to turn. Under them the description in the small note (the small
- * font, three lines), ◀ ▶ stepping the row described (sunk while its own zone is held), and BACK, a dark key (grey
- * while it cannot be used). FRAME's sample (the frame chosen, from the pack) under five rows; a look's panel (its
- * walking picture, its name and its artists) under four. Every rectangle is 3ds_device_layout.h's, so what is drawn is
- * what a touch takes.
+ * instead). ▲ ▼ beside the rows while there are pages to turn (always: the six wrap). Under the rows a section of several
+ * pages (GRAPHICS' three) has its page line, PAGE 2/3 · LOOKS, and a dot a page, the shown one's on. Under them the
+ * description in the small note (the small font, three lines), ◀ ▶ stepping the row described (sunk while its own zone
+ * is held), and BACK, a dark key (grey while it cannot be used). FRAME's sample (the frame chosen, from the pack) under
+ * five rows; a look's panel (its walking picture, its name and its artists) under four. Every rectangle is
+ * 3ds_device_layout.h's, so what is drawn is what a touch takes.
  *
- * Words (decision 5): v0.6.0's words (the sections, the labels, the values, the levels, the description, a look's name)
- * through DevUpper; the port's in capitals; a look's credit (its artists' names) as typed.
+ * Words (decision 5): v0.6.0's words (the sections, the page's name, the labels, the values, the levels, the
+ * description, a look's name) through DevUpper; the port's in capitals; a look's credit (its artists' names) as typed.
  *
  * Redraw: the screen whole when what it draws differs (DevOptSame), and nothing else. */
 
@@ -74,7 +76,7 @@ int CtrPokeTouch_OptionKey(const CtrPokeTouchView *v, int x, int y)
     if (!DevOptShown(v))
         return -1;
     for (int s = 0; s < v->optSectionCount && s < PT_OPT_SECTIONS; ++s) {
-        CtrPokeTouchRect r = DevOptSection(s);
+        CtrPokeTouchRect r = DevGridTab(4, s);
 
         if (DevOnKey(&r, x, y))
             return PT_OPT_KEY_SECTION + s;
@@ -154,9 +156,9 @@ static int FrameSample(int type, int x, int y)
             Px(x + dx, y + dy, px[sy * 24 + sx]);
         }
     DevUpper(word, CtrUiText(UIS_YES), sizeof(word));
-    DevText(word, x + 14, y + 7, x + w - 6);
+    DevText(word, x + 14, y + 6, x + w - 6);
     DevUpper(word, CtrUiText(UIS_NO), sizeof(word));
-    DevText(word, x + 14, y + 21, x + w - 6);
+    DevText(word, x + 14, y + 18, x + w - 6);
     return 1;
 }
 
@@ -171,7 +173,7 @@ static void DevOptWord(const char *s, int x, int right, int top, int centre, uin
     DevTextInk(s, centre && w < right - x ? x + (right - x - w) / 2 : x, top, right, ink, shadow);
 }
 
-/* The four sections: the shown one sunk, or the one under a held touch. */
+/* The four sections (each its first page's name): the shown one sunk, or the one under a held touch. */
 static void DevOptSections(const CtrPokeTouchView *v)
 {
     int press = v->optKey >= PT_OPT_KEY_SECTION && v->optKey < PT_OPT_KEY_SECTION + PT_OPT_SECTIONS
@@ -179,7 +181,7 @@ static void DevOptSections(const CtrPokeTouchView *v)
     char word[DEV_OPT_WORD];
 
     for (int s = 0; s < v->optSectionCount && s < PT_OPT_SECTIONS; ++s) {
-        CtrPokeTouchRect r = DevOptSection(s);
+        CtrPokeTouchRect r = DevGridTab(4, s);
         int sunk = DevChosen(s, v->optSection, press), faceY = DevKey(&r, DEV_LOOK_KEY, sunk, 5);
 
         DevUpper(word, v->optSectionName[s], sizeof(word));
@@ -224,16 +226,17 @@ static void DevOptRowDraw(const CtrPokeTouchView *v, int i)
     DevTriangle(DEV_OPT_PREV_X + (DEV_OPT_NEXT_X - DEV_OPT_PREV_X) / 2, mid, 2, ink);
     DevUpper(word, !v->optSwitch[i] ? v->optValue[i] : v->optSwitch[i] == 2 ? CTR_TR("ON", "ON", "AN")
                    : CTR_TR("OFF", "OFF", "AUS"), sizeof(word));
-    DevOptWord(word, DEV_OPT_NEXT_X, DEV_OPT_NEXT_X + DEV_OPT_VALUE_W, top, 1, ink, shadow);
+    DevOptWord(word, DEV_OPT_VALUE_X, DEV_OPT_VALUE_X + DEV_OPT_VALUE_W, top, 1, ink, shadow);
     DevTriangle(DEV_OPT_NEXT_ARROW, mid, 3, ink);
 }
 
-/* The look's panel under four rows: its walking picture (facing down) at its own size, its name and its artists. */
+/* The look's panel under four rows (def_opt_looks): its walking picture (facing down) at its own size at (22, 124), its
+ * name from x 62 (capitals 128) and its artists under it (capitals 142), two small lines at most (more is counted). */
 static void DevOptLookPanel(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchLook *l = &v->optLook;
     const CtrPokeTouchRect *r = &kDevOptLook;
-    int px = r->x + 8, py = r->y + (r->h - 32) / 2, textX = px + 32 + 8, right = r->x + r->w - 6;
+    int px = r->x + 6, py = r->y + 2, textX = r->x + 46, right = r->x + r->w - 6;
     char name[DEV_OPT_WORD];
 
     DevRect(r->x, r->y, r->w, r->h, DEV_PAPER2);
@@ -251,31 +254,46 @@ static void DevOptLookPanel(const CtrPokeTouchView *v)
     }
     DevUpper(name, l->name, sizeof(name));
     DevText(name, textX, r->y + 6, right);
-    DevSmallWrap(l->credit, textX, textX, r->y + 20, right, 3, DEV_SMALL_LINE_TIGHT, DEV_INK2);
+    DevSmallFit(l->credit, textX, textX, r->y + 20, right, 2, DEV_SMALL_LINE_TIGHT, DEV_INK2);
 }
 
-/* ▲ ▼ while there are pages: sunk under a held touch. */
-static void DevOptPages(const CtrPokeTouchView *v)
+/* A section of several pages: its page line under the rows, PAGE 2/3 · LOOKS (the small font, the secondary ink, from
+ * x 22, ending by FRAME's sample less 4: cut there, not counted, as FireRed's page names fit), and a dot a page at the
+ * paper's right, the page shown's on. */
+static void DevOptPageLine(const CtrPokeTouchView *v)
 {
-    if (v->optPageCount <= 1)
-        return;
-    for (int i = 0; i < 2; ++i) {
-        const CtrPokeTouchRect *r = i ? &kDevGridDown : &kDevGridUp;
-        int sunk = v->optKey == (i ? PT_OPT_KEY_DOWN : PT_OPT_KEY_UP), faceY = DevKey(r, DEV_LOOK_KEY, sunk, 6);
+    char page[DEV_OPT_WORD], name[DEV_OPT_WORD], line[2 * DEV_OPT_WORD + 16];
 
-        DevTriangle(r->x + r->w / 2, faceY + r->h / 2, i, DevKeyInk(DEV_LOOK_KEY, sunk));
+    if (v->optSectionPages <= 1)
+        return;
+    DevUpper(page, CtrUiText(UIS_DEX_PAGE), sizeof(page));
+    DevUpper(name, v->optPageName, sizeof(name));
+    snprintf(line, sizeof(line), "%s %u/%u \xC2\xB7 %s", page, (unsigned)v->optSectionPage, (unsigned)v->optSectionPages, name);
+    DevSmallText(line, 22, DEV_OPT_PAGE_Y, DEV_INK2, kDevOptSample.x - 4);
+    for (int k = 0; k < v->optSectionPages && k < 3; ++k) {
+        CtrPokeTouchRect d = DevOptDot(k);
+
+        DevSpot(d.x, d.y, d.w, k == v->optSectionPage - 1 ? DEV_MARK_ON : DEV_PAPER_LINE);
     }
 }
 
-/* The row described's description: its two lines as one text, the small font, three lines at most. */
+/* ▲ ▼ while there are pages (always, from the fill: the six wrap, so both are on): sunk under a held touch. */
+static void DevOptPages(const CtrPokeTouchView *v)
+{
+    if (v->optPageCount > 1)
+        DevArrowKeys(&kDevGridUp, &kDevGridDown, 1, 1, v->optKey == PT_OPT_KEY_UP, v->optKey == PT_OPT_KEY_DOWN, 0);
+}
+
+/* The row described's description: its two lines as one text, the small font from x 18 to 150, three lines 10 apart
+ * from capitals 198 (the third's 218: its descenders end on the paper's last row); a text that needs more is counted. */
 static void DevOptNote(const CtrPokeTouchView *v)
 {
-    CtrPokeTouchRect paper = DevScreen(&kDevSmallNote);
     char text[2 * PT_BAR_LEN + 1], upper[2 * PT_BAR_LEN + 1];
 
+    DevScreen(&kDevSmallNote);
     snprintf(text, sizeof(text), "%s %s", v->bar[1], v->bar[2]);
     DevUpper(upper, text, sizeof(upper));
-    DevSmallWrap(upper, paper.x + 4, paper.x + 4, paper.y + 3, paper.x + paper.w - 4, 3, DEV_SMALL_LINE_TIGHT, DEV_INK);
+    DevSmallFit(upper, 18, 18, 198, 150, 3, DEV_SMALL_LINE, DEV_INK);
 }
 
 /* ◀ ▶: they step the row described, sunk while its own zone of that kind is held. */
@@ -305,6 +323,7 @@ static void DevOptDraw(const CtrPokeTouchView *v)
     }
     if (v->optLook.on && DevOptRows(v) <= 4)
         DevOptLookPanel(v);
+    DevOptPageLine(v);
     DevOptPages(v);
     DevOptNote(v);
     DevOptSteps(v);
@@ -333,7 +352,9 @@ static int DevOptSame(const CtrPokeTouchView *a, const CtrPokeTouchView *b)
     int look = b->optLook.on && DevOptRows(b) <= 4;
 
     if (a->optSection != b->optSection || a->optSectionCount != b->optSectionCount || a->optKey != b->optKey
-        || (a->optPageCount > 1) != (b->optPageCount > 1) || DevOptRows(a) != DevOptRows(b)
+        || (a->optPageCount > 1) != (b->optPageCount > 1) || a->optSectionPages != b->optSectionPages
+        || (b->optSectionPages > 1 && (a->optSectionPage != b->optSectionPage || strcmp(a->optPageName, b->optPageName)))
+        || DevOptRows(a) != DevOptRows(b)
         || a->optSelected != b->optSelected || a->optPressed != b->optPressed
         || (b->optPressed >= 0 && a->optZone != b->optZone) || a->optFrameShow != b->optFrameShow
         || (b->optFrameShow && a->optFrameType != b->optFrameType) || (a->optLook.on && DevOptRows(a) <= 4) != look

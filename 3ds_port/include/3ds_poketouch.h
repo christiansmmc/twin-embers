@@ -65,8 +65,9 @@ bool CtrPokeTouch_HomeRibbonHit(int x, int y);                         /* the re
  * the small note), ◀ steps the value back and the value or ▶ steps it forward; the ◀ ▶ keys under
  * the rows step the row described. A row of levels (COMPANION's OFF / FOLLOW / BE IT) shows all its
  * values side by side instead, the chosen one boxed: a touch on one picks it (zone PT_OPT_ZONE_SEG +
- * its index). The keys (PT_OPT_KEY_*): a section's (its first page) across the top, ▲ ▼ (the page
- * before, after). */
+ * its index). The keys (PT_OPT_KEY_*): a section's across the top (named by its first page, which it
+ * opens, whichever of its pages is shown), ▲ ▼ (the page before, after). Under the rows a section of
+ * several pages says which is shown (its page line, PAGE 2/3 and the page's name, and its dots). */
 #define PT_OPT_MAX 7
 #define PT_OPT_LABEL_LEN 16
 #define PT_OPT_VALUE_LEN 12
@@ -444,7 +445,9 @@ typedef struct {
     uint8_t optPage;            /* 0-based page index in OPTIONS */
     uint8_t optPageCount;       /* total pages in OPTIONS */
     uint8_t optSection, optSectionCount;   /* the section the page is in (Settings, Graphics, QoL, Nuzlocke) and how many there are */
-    char optSectionName[PT_OPT_SECTIONS][PT_OPT_SECTION_LEN];   /* the section keys' words: the shown section's is its page's name */
+    char optSectionName[PT_OPT_SECTIONS][PT_OPT_SECTION_LEN];   /* the section keys' words: each its section's first page's name */
+    uint8_t optSectionPage, optSectionPages;    /* the page shown's place in its section (1 based) and the section's pages */
+    char optPageName[PT_OPT_SECTION_LEN];       /* the page shown's own name (Graphics, Looks, Wilds...): the page line's */
     int8_t optKey;              /* the key (PT_OPT_KEY_*) under a held touch, or -1 */
     uint8_t optCount;           /* its rows on the current page */
     uint8_t optSelected;        /* the chosen row, the one the note describes (within the current page) */
@@ -497,10 +500,11 @@ bool CtrPokeTouch_BackHit(const CtrPokeTouchView *view, int x, int y);
  * (PT_OPT_ZONE_SEG + CtrPokeTouch_OptionSegment); ◀ ▶ under the rows are the row described's
  * PREV / NEXT. */
 bool CtrPokeTouch_OptionHit(const CtrPokeTouchView *view, int x, int y, int *row, int *zone);
-/* On a row of `count` levels, the one under bottom-screen column `x` (the zone was not LABEL). */
+/* On a row of `count` levels, the one under bottom-screen column `x` (the zone was not LABEL): PREV and
+ * NEXT shared out among the levels (3ds_device_layout.h DevOptLevel). */
 int CtrPokeTouch_OptionSegment(int x, int count);
-/* The OPTIONS key under a bottom-screen pixel: PT_OPT_KEY_SECTION + a section, PT_OPT_KEY_UP,
- * PT_OPT_KEY_DOWN (with more than one page), else -1. */
+/* The OPTIONS key under a bottom-screen pixel: PT_OPT_KEY_SECTION + a section (the grid's tabs),
+ * PT_OPT_KEY_UP, PT_OPT_KEY_DOWN (while there is more than one page: always, the six wrap), else -1. */
 int CtrPokeTouch_OptionKey(const CtrPokeTouchView *view, int x, int y);
 
 /* SAVE's key under a bottom-screen pixel (PT_SAVE_*) for the dialogue state: YES and NO while

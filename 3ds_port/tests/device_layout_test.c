@@ -493,33 +493,44 @@ static int SharedFaults(void)
     return faults;
 }
 
-/* OPTIONS: the four section keys across the top, the rows on the Bag's list paper (seven fit), a row's zones (LABEL,
- * PREV, NEXT: the value and ▶) with room for a 15-byte label and an 11-byte value at 7 px a glyph, so no German row can
- * cut; FRAME's sample under five rows and the look's panel under four, both on the paper. */
+/* OPTIONS: the four section keys (the grid's tabs) across the top, the rows on the list's paper (seven of 18, no gap), a
+ * row's zones (LABEL, PREV, NEXT: ▶, and the value centred in 152-247, the board's box) with room for a 15-byte label and
+ * an 11-byte value at 7 px a glyph, so no German row can cut, the widest value inside NEXT; under the rows a section's
+ * page line (capitals 164) and its dots at the right; FRAME's sample under five rows and left of the dots, the look's
+ * panel under four and over the page line, all on the paper. */
 static int OptionsFaults(void)
 {
     const CtrPokeTouchRect paper = {14, 46, 248, 132};
     int faults = 0;
 
-    assert(DEV_OPT_LABEL_W >= (PT_OPT_LABEL_LEN - 1) * 7 && 100 - 14 >= (PT_OPT_VALUE_LEN - 1) * 7);
+    assert(DEV_OPT_LABEL_W >= (PT_OPT_LABEL_LEN - 1) * 7 && DEV_OPT_VALUE_W >= (PT_OPT_VALUE_LEN - 1) * 7);
     assert(DevOptRow(0).x + DEV_OPT_LABEL_W == DEV_OPT_PREV_X && DEV_OPT_PREV_X == 136 && DEV_OPT_NEXT_X == 160);
+    assert(DEV_OPT_VALUE_X == 152 && DEV_OPT_VALUE_W == 96 && DEV_OPT_NEXT_ARROW == 252 && DEV_OPT_PAGE_Y == 164);
+    assert(DEV_OPT_VALUE_X + (DEV_OPT_VALUE_W - (PT_OPT_VALUE_LEN - 1) * 7) / 2 >= DEV_OPT_NEXT_X);  /* the widest value */
+    assert(DEV_OPT_VALUE_X > DEV_OPT_PREV_X + (DEV_OPT_NEXT_X - DEV_OPT_PREV_X) / 2 + 2                /* ◀ ends at 150 */
+           && DEV_OPT_VALUE_X + DEV_OPT_VALUE_W <= DEV_OPT_NEXT_ARROW - 2);                             /* ▶ starts at 250 */
     for (int i = 0; i < PT_OPT_MAX; ++i) {
         CtrPokeTouchRect r = DevOptRow(i);
 
-        assert(Same(r, (CtrPokeTouchRect){16, (int16_t)(48 + 18 * i), 244, 18}) && Same(r, DevListRow(i, 18)));
+        assert(Same(r, (CtrPokeTouchRect){16, (int16_t)(48 + 18 * i), 244, 18}));
         if (!Within(r, paper, 0)) {
             fprintf(stderr, "OPTIONS: row %d leaves the list's paper\n", i);
             ++faults;
         }
     }
-    assert(Same(kDevOptSample, (CtrPokeTouchRect){202, 138, 56, 40}) && Same(kDevOptLook, (CtrPokeTouchRect){16, 122, 244, 54}));
+    assert(Same(kDevOptSample, (CtrPokeTouchRect){160, 140, 56, 36}) && Same(kDevOptLook, (CtrPokeTouchRect){16, 122, 244, 36}));
+    for (int k = 0; k < 3; ++k)
+        assert(Same(DevOptDot(k), (CtrPokeTouchRect){(int16_t)(226 + 8 * k), 164, 5, 5}));
     if (!Within(kDevOptSample, paper, 0) || kDevOptSample.y < DevOptRow(4).y + DevOptRow(4).h
-        || !Within(kDevOptLook, paper, 0) || kDevOptLook.y < DevOptRow(3).y + DevOptRow(3).h) {
-        fprintf(stderr, "OPTIONS: FRAME's sample or the look's panel leaves the paper or meets the rows over it\n");
+        || kDevOptSample.x + kDevOptSample.w > DevOptDot(0).x
+        || !Within(kDevOptLook, paper, 0) || kDevOptLook.y < DevOptRow(3).y + DevOptRow(3).h
+        || kDevOptLook.y + kDevOptLook.h > DEV_OPT_PAGE_Y - 2 || !Within(DevOptDot(2), paper, 0)) {
+        fprintf(stderr, "OPTIONS: FRAME's sample, the look's panel or a page dot leaves the paper or meets the rows, "
+                        "the dots or the page line\n");
         ++faults;
     }
     for (int s = 0; s < 4; ++s)
-        if (DevAcross(4, s, 8, 24).y + 24 + DEV_DROP > kDevGridScreen.y) {
+        if (DevGridTab(4, s).y + DevGridTab(4, s).h + DEV_DROP > kDevGridScreen.y) {
             fprintf(stderr, "OPTIONS: section key %d reaches the list's screen\n", s);
             ++faults;
         }
@@ -868,9 +879,8 @@ int main(void)
     const CtrPokeTouchRect bagCase[] = {kDevBagCaseKey, kDevGridUp, kDevGridDown, kDevGridExit};
     const CtrPokeTouchRect bagQty[] = {kDevBagQtyUp, kDevBagQtyDown, kDevBagQtyOk, kDevGridExit};
     const CtrPokeTouchRect bagYesNo[] = {DevGridColumnKey(40, 36, 30, 0), kDevGridExit};
-    const CtrPokeTouchRect optKeys[] = {DevAcross(4, 0, 8, 24), DevAcross(4, 1, 8, 24), DevAcross(4, 2, 8, 24),
-                                        DevAcross(4, 3, 8, 24), kDevGridUp, kDevGridDown, kDevSmallKey[0], kDevSmallKey[1],
-                                        kDevGridExit};
+    const CtrPokeTouchRect optKeys[] = {DevGridTab(4, 0), DevGridTab(4, 1), DevGridTab(4, 2), DevGridTab(4, 3), kDevGridUp,
+                                        kDevGridDown, kDevSmallKey[0], kDevSmallKey[1], kDevGridExit};
     const CtrPokeTouchRect askKeys[] = {kDevAskYes, kDevAskNo};
     const CtrPokeTouchRect saveAsk[] = {kDevAskYes, kDevAskNo}, saveResult[] = {kDevAskYes};
     const CtrPokeTouchRect cardKeys[] = {kDevCardFlip, kDevTallBack}, mailKeys[] = {kDevWideKey};
@@ -933,7 +943,7 @@ int main(void)
         {"question's note", kDevAskNote},
         {"question's YES", kDevAskYes}, {"question's NO", kDevAskNo}, {"tall row 4", DevTallRow(4)},
         {"OPTIONS row 0", DevOptRow(0)}, {"OPTIONS row 6", DevOptRow(PT_OPT_MAX - 1)}, {"OPTIONS FRAME sample", kDevOptSample},
-        {"OPTIONS look panel", kDevOptLook},
+        {"OPTIONS look panel", kDevOptLook}, {"OPTIONS page dot 2", DevOptDot(2)},
         {"SAVE row 0", DevSaveRow(0)}, {"SAVE row 4", DevSaveRow(4)}, {"SAVE icon", kDevSaveSprite},
         {"card FLIP", kDevCardFlip}, {"card picture", kDevCardPic}, {"card first line", DevCardRow(0)},
         {"card row 3", DevCardRow(3)}, {"card badge 0", DevCardBadge(0)}, {"card badge 7", DevCardBadge(7)},

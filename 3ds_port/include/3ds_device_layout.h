@@ -260,31 +260,40 @@ static inline CtrPokeTouchRect DevAcross(int n, int i, int y, int h)
     return r;
 }
 
-/* ---- OPTIONS (no board; 3ds_device_options_impl.h) --------------------------------------------------------------------
- * The grid's list page: the four sections across the top (DevAcross(4, s, 8, 24)), the rows on kDevGridScreen's paper
- * (DevOptRow) with ▲ ▼ (kDevGridUp, kDevGridDown) paging beside them, the description in kDevSmallNote, ◀ ▶
- * (kDevSmallKey) stepping the row described, BACK in kDevGridExit. A row is three zones: LABEL (its words, from 6 px
- * in), PREV (◀) and NEXT (the value, centred in DEV_OPT_VALUE_W, and ▶); a row of levels shares PREV and NEXT among its
- * levels. FRAME's sample under the fifth row, the look's panel under the fourth. */
+/* ---- OPTIONS (def_opt_settings, def_opt_graphics, def_opt_looks; 3ds_device_options_impl.h) ----------------------------
+ * The grid's list page: the four sections as the grid's tabs (DevGridTab(4, s)), the rows on kDevGridScreen's paper
+ * (DevOptRow: 18 tall, no gap, seven fit) with ▲ ▼ (kDevGridUp, kDevGridDown) paging beside them, the description in
+ * kDevSmallNote, ◀ ▶ (kDevSmallKey) stepping the row described, BACK in kDevGridExit. A row is three zones: LABEL (its
+ * words, from 6 px in), PREV (◀) and NEXT (▶; the value centred in the board's box, DEV_OPT_VALUE_X..+DEV_OPT_VALUE_W,
+ * where the widest falls inside NEXT); a row of levels shares PREV and NEXT among its levels. Under the rows a section of
+ * several pages has its page line (capitals DEV_OPT_PAGE_Y, from x 22: PAGE 1/3 · GRAPHICS) and a dot a page at the
+ * right (DevOptDot); FRAME's sample under the fifth row, left of the dots; the look's panel under the fourth, over the
+ * page line. */
 #define DEV_OPT_ROW_H     18
 #define DEV_OPT_LABEL_W   120                               /* LABEL: x 16..135 */
 #define DEV_OPT_PREV_X    136                               /* PREV: x 136..159 (◀ at its middle) */
-#define DEV_OPT_NEXT_X    160                               /* NEXT: x 160..259 (the value in 160..243, ▶ at 252) */
-#define DEV_OPT_VALUE_W   84
+#define DEV_OPT_NEXT_X    160                               /* NEXT: x 160..259 (▶ at 252) */
+#define DEV_OPT_VALUE_X   152                               /* the value, centred in x 152..247 */
+#define DEV_OPT_VALUE_W   96
 #define DEV_OPT_NEXT_ARROW 252
-static const CtrPokeTouchRect kDevOptSample __attribute__((unused)) = {202, 138, 56, 40};
-static const CtrPokeTouchRect kDevOptLook __attribute__((unused)) = {16, 122, 244, 54};
+#define DEV_OPT_PAGE_Y    164                               /* the page line's capitals, the dots' top */
+static const CtrPokeTouchRect kDevOptSample __attribute__((unused)) = {160, 140, 56, 36};
+static const CtrPokeTouchRect kDevOptLook __attribute__((unused)) = {16, 122, 244, 36};
 
-/* Section key s (0-3) of OPTIONS. */
-static inline CtrPokeTouchRect DevOptSection(int s)
-{
-    return DevAcross(4, s, 8, 24);
-}
-
-/* Row i (0 to PT_OPT_MAX - 1) of OPTIONS. */
+/* Row i (0 to PT_OPT_MAX - 1) of OPTIONS: 18 tall, one under the other, on kDevGridScreen's paper. */
 static inline CtrPokeTouchRect DevOptRow(int i)
 {
-    return DevListRow(i, DEV_OPT_ROW_H);
+    CtrPokeTouchRect r = {16, (int16_t)(48 + DEV_OPT_ROW_H * i), 244, DEV_OPT_ROW_H};
+
+    return r;
+}
+
+/* Page k's dot (0-2) of a section of several pages: 5 across, 3 apart, on the page line's rows at the paper's right. */
+static inline CtrPokeTouchRect DevOptDot(int k)
+{
+    CtrPokeTouchRect r = {(int16_t)(226 + 8 * k), DEV_OPT_PAGE_Y, 5, 5};
+
+    return r;
 }
 
 /* Level k of a row of `count` levels on row i: PREV and NEXT shared out from x 136, a level taking the columns whose

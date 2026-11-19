@@ -207,11 +207,20 @@ int main(void)
           "each page has its own short name (a section key's word), none past the last");
     CHECK(CtrOptions_SectionFirstPage(0) == 0 && CtrOptions_SectionFirstPage(1) == 1 && CtrOptions_SectionFirstPage(2) == 4
           && CtrOptions_SectionFirstPage(3) == 5, "a section key opens the section's first page");
+    /* The section keys keep their names (each its first page's); the page shown is told by its place in its section and
+     * its own name (the page line: PAGE 2/3 and LOOKS). */
     memset(&view, 0, sizeof(view));
-    CtrOptions_Fill(&view, 10);
-    CHECK(strcmp(view.optSectionName[0], "Settings") == 0 && strcmp(view.optSectionName[1], "Looks") == 0
-          && strcmp(view.optSectionName[2], "QoL") == 0 && strcmp(view.optSectionName[3], "Nuzlocke") == 0,
-          "the section shown is named by its page (Looks), the others by their first page");
+    CtrOptions_Fill(&view, CtrOptions_PageBase(2));                    /* the looks page */
+    CHECK(strcmp(view.optSectionName[1], "Graphics") == 0 && view.optSectionPage == 2 && view.optSectionPages == 3
+          && strcmp(view.optPageName, "Looks") == 0, "the Graphics key keeps its name; the page is 2 of 3, Looks");
+    CHECK(strcmp(view.optSectionName[0], "Settings") == 0 && strcmp(view.optSectionName[2], "QoL") == 0
+          && strcmp(view.optSectionName[3], "Nuzlocke") == 0, "every section key is named by its first page");
+    CtrOptions_Fill(&view, CtrOptions_PageBase(3));
+    CHECK(strcmp(view.optSectionName[1], "Graphics") == 0 && view.optSectionPage == 3 && strcmp(view.optPageName, "Wilds") == 0, "Wilds: 3 of 3");
+    CtrOptions_Fill(&view, CtrOptions_PageBase(1));
+    CHECK(strcmp(view.optSectionName[1], "Graphics") == 0 && view.optSectionPage == 1 && view.optSectionPages == 3
+          && strcmp(view.optPageName, "Graphics") == 0, "Graphics: 1 of 3");
+    CtrOptions_Fill(&view, 0); CHECK(view.optSectionPage == 1 && view.optSectionPages == 1, "SETTINGS: one page");
     {
         int of = 0;
 
@@ -222,10 +231,12 @@ int main(void)
     }
     memset(&view, 0, sizeof(view));
     CtrOptions_Fill(&view, 11);
-    CHECK(strcmp(view.optSectionName[1], "Looks") == 0 && view.optPage == 2 && view.optSection == 1, "the looks page is named Looks and is in the Graphics section");
+    CHECK(strcmp(view.optSectionName[1], "Graphics") == 0 && strcmp(view.optPageName, "Looks") == 0 && view.optPage == 2
+          && view.optSection == 1, "a row of the looks page: the page Looks, in the Graphics section (its key not renamed)");
     CtrOptions_Fill(&view, 23);
     CHECK(strcmp(view.optSectionName[3], "Nuzlocke") == 0 && strcmp(view.optSectionName[1], "Graphics") == 0 && view.optPage == 5
-          && view.optSection == 3, "the Nuzlocke page is named alone; Graphics by its first page");
+          && view.optSection == 3 && view.optSectionPage == 1 && view.optSectionPages == 1 && strcmp(view.optPageName, "Nuzlocke") == 0,
+          "the Nuzlocke page: a section of one page");
     CHECK(CtrOptions_PageBase(-1) == 0 && CtrOptions_PageBase(6) == 0 && CtrOptions_PageRows(-1) == 0 && CtrOptions_PageRows(6) == 0,
           "a page that does not exist has no rows");
     {
@@ -356,7 +367,8 @@ int main(void)
     memset(&view, 0, sizeof(view));
     CtrOptions_Fill(&view, 15);
     CHECK(view.optPage == 3 && view.optPageCount == 6 && view.optCount == 3 && view.optSelected == 1 && view.optSection == 1 && view.optSectionCount == 4
-          && strcmp(view.optSectionName[1], "Wilds") == 0 && strcmp(view.optLabel[0], "Wild Pokemon") == 0 && view.optLabel[3][0] == 0,
+          && strcmp(view.optSectionName[1], "Graphics") == 0 && strcmp(view.optPageName, "Wilds") == 0 && view.optSectionPage == 3
+          && strcmp(view.optLabel[0], "Wild Pokemon") == 0 && view.optLabel[3][0] == 0,
           "the Wilds page: three rows, the third page of Graphics");
     /* REUSABLE TMS: off by default, a switch that is kept in the settings. */
     CHECK(CtrOptions_ReusableTm() == 0 && CtrSettings_TmReuse() == 0 && CtrOptions_Count(21) == 2, "REUSABLE TMS starts off");
