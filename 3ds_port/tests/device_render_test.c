@@ -1838,6 +1838,8 @@ static void SmallDescenders(int on)
     memset(sDevSmallReady, 0, sizeof(sDevSmallReady));
 }
 
+#include "device_suite_accents.h"     /* Accents; the battle's, the Party's, the Summary's and the Bag's notes */
+
 /* The plan's suite (each key hit where it is drawn, the touch or else the cursor sinks one key, the quick ball's arrows
  * and its grey states, RUN when there is no running, holes for missing moves, nothing hit while idle), the boards'
  * pieces where the boards put them, then the states for the eye. The commands are def_fight's (owner O1): FIGHT across,
@@ -2069,6 +2071,7 @@ static void SuiteBattle(void)
         assert(at(kDevBatMove[i].x + 3, kDevBatMove[i].y + 42) == DevBlend(DEV_SHELL_RED, DEV_KEY, 128) && !LedAt(kDevBatMove[i]));
     assert(Count(14, 196, 292, 30, DEV_INK) == 0 && at(300, 200) == DEV_PAPER);             /* no question */
     shot("idle_safari");
+    AccentsBattle();
     assert(sDevKeyCut == 0);
 }
 
@@ -2395,6 +2398,7 @@ static void SuiteParty(void)
     DevCheckBattle(&old, &v);
     for (i = 1; i < 6; ++i) { CtrPokeTouchRect r = DevPtyBay(i); assert(CtrBattleUi_Hit(&v, r.x + 74, r.y + 40) == -1 && at(r.x + 74, r.y + 40) == DevBlend(DEV_SHELL_RED, 0, 72)); }
     shot("one");
+    AccentsParty();
     assert(sDevKeyCut == 0);                      /* main prints PASS device party */
 }
 
@@ -2804,6 +2808,7 @@ static void SuiteSummary(void)
     assert(Count(14, 46, 248, 132, DEV_INK) == 0 && Count(14, 196, 216, 30, DEV_INK) == 0);
     sv.pressed = SUI_HIT_BACK; DevCheckSummary(&so, &sv); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);
     sumArt = 0;
+    AccentsSummary();
     assert(sDevKeyCut == 0);                      /* main prints PASS device summary */
 }
 
@@ -3042,10 +3047,10 @@ static void SuiteBag(void)
     assert(Count(21, 54, 12, 12, DEV_PAPER) < 12 * 12 && Count(16, 48, 5, 24, DEV_PAPER) == 5 * 24 && Count(21, 48, 12, 6, DEV_PAPER) == 12 * 6);
     assert(Count(38, 56, 60, 8, DEV_INK) > 0 && Count(38, 48, 60, 8, DEV_INK) == 0 && Count(34, 48, 4, 24, DEV_INK) == 0);
     assert(Count(250, 56, 4, 8, DEV_INK) > 0 && Count(254, 48, 6, 24, DEV_INK) == 0);
-    /* the description: the item's icon, FireRed's text in the small font from x 48, capitals 198, 208 and 218 */
-    assert(Count(18, 199, 24, 24, DEV_PAPER) < 24 * 24 && Count(48, 198, 176, 7, DEV_INK) > 0 && Count(48, 218, 176, 7, DEV_INK) > 0
-           && Count(48, 198, 176, 1, DEV_INK) > 0);
-    assert(Count(42, 196, 6, 30, DEV_INK) == 0 && Count(48, 196, 178, 2, DEV_INK) == 0 && Count(48, 216, 178, 2, DEV_INK) == 0);
+    /* the description: the item's icon, FireRed's text in the small font from x 48, capitals 199, 208 and 217 */
+    assert(Count(18, 199, 24, 24, DEV_PAPER) < 24 * 24 && Count(48, 199, 176, 7, DEV_INK) > 0 && Count(48, 217, 176, 7, DEV_INK) > 0
+           && Count(48, 199, 176, 1, DEV_INK) > 0);
+    assert(Count(42, 196, 6, 30, DEV_INK) == 0 && Count(48, 196, 178, 3, DEV_INK) == 0 && Count(48, 215, 178, 2, DEV_INK) == 0);
     AssertKey(kDevGridExit, DEV_LOOK_DARK, 0); assert(Count(244, 190, 68, 40, DEV_DARK_INK) > 0);
     shot("items");
     BagEveryList(v);
@@ -3083,7 +3088,7 @@ static void SuiteBag(void)
     for (i = 0; i < 4; ++i) AssertHits(BagHitV, &v, DevBagMenuKey(5, i), PT_BAG_HIT_MENU + i);
     AssertHits(BagHitV, &v, kDevGridExit, PT_BAG_HIT_MENU + 4); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0); AssertKey(DevBagMenuKey(5, 0), DEV_LOOK_KEY, 1);
     AssertKey(DevGridTab(3, 0), DEV_LOOK_KEY, 1); AssertKey(DevGridTab(3, 1), DEV_LOOK_FAINT, 0); assert(CtrPokeTouch_BagHit(&v, 150, 20) == -1);
-    assert(Count(16, 48, 172, 130, DEV_INK) == 0 && Count(48, 198, 176, 27, DEV_INK) > 0);       /* the list's words grey; "… is selected." */
+    assert(Count(16, 48, 172, 130, DEV_INK) == 0 && Count(48, 199, 176, 27, DEV_INK) > 0);       /* the list's words grey; "… is selected." */
     AssertKey(DevGridTab(3, 2), DEV_LOOK_FAINT, 0); assert(LedAt(DevGridTab(3, 0)) && Count(DevGridTab(3, 1).x, 8, 98, 27, DEV_FAINT_INK) > 0);
     assert(CtrPokeTouch_BagHit(&v, 56, 20) == -1 && CtrPokeTouch_BagHit(&v, 203, 56) == -1 && CtrPokeTouch_BagHit(&v, 204, 187) == -1);
     assert(Same(DevBagMenuKey(5, 0), (CtrPokeTouchRect){204, 40, 108, 30}) && Same(DevBagMenuKey(5, 3), (CtrPokeTouchRect){204, 148, 108, 30}));
@@ -3146,11 +3151,11 @@ static void SuiteBag(void)
     v.bag.menuCursor = 1; DevCheckTouch(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1); AssertKey(DevGridColumnKey(40, 36, 30, 0), DEV_LOOK_KEY, 0);
     v.bag.menuCursor = 0; v.bag.pressed = PT_BAG_HIT_MENU + 1; DevCheckTouch(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);
     v.bag.pressed = -1;
-    /* a question too long for two lines: the small font from x 48, capitals 198, 208 and 218 (each line's top row inked,
+    /* a question too long for two lines: the small font from x 48, capitals 199, 208 and 217 (each line's top row inked,
      * the row over it clear; no apostrophe, which rises over its line's capitals) */
     strcpy(v.bag.prompt, "Port words for a question so long that it takes three lines of the small font."); DevCheckTouch(&old, &v);
-    assert(Count(48, 198, 178, 1, DEV_INK) > 0 && Count(48, 208, 178, 1, DEV_INK) > 0 && Count(48, 218, 178, 1, DEV_INK) > 0);
-    assert(Count(48, 196, 178, 2, DEV_INK) == 0 && Count(48, 207, 178, 1, DEV_INK) == 0 && Count(48, 217, 178, 1, DEV_INK) == 0);
+    assert(Count(48, 199, 178, 1, DEV_INK) > 0 && Count(48, 208, 178, 1, DEV_INK) > 0 && Count(48, 217, 178, 1, DEV_INK) > 0);
+    assert(Count(48, 196, 178, 3, DEV_INK) == 0 && Count(48, 207, 178, 1, DEV_INK) == 0 && Count(48, 216, 178, 1, DEV_INK) == 0);
     assert(Count(42, 196, 6, 30, DEV_INK) == 0 && Count(226, 196, 4, 30, DEV_INK) == 0);
     strcpy(v.bag.prompt, "Throw away 3 of this item?"); DevCheckTouch(&old, &v);
     shot("yesno");
@@ -3168,9 +3173,9 @@ static void SuiteBag(void)
     for (i = 0; i < PT_BAG_ROWS; ++i) { snprintf(v.bag.row[i].name, sizeof(v.bag.row[i].name), "TM%02d DIG", 26 + i); v.bag.row[i].qty = (uint16_t)(i == 4 ? 0 : 1); }
     strcpy(v.bag.row[4].name, "HM01 CUT"); strcpy(v.bag.selName, "DIG"); strcpy(v.bag.closeName, "CLOSE");
     v.bag.moveType = 4; strcpy(v.bag.typeName, "GROUND"); DevCheckTouch(&old, &v);
-    assert(Count(48, 198, 60, 9, UiTypeColor(4)) > 0 && Count(232, 152, 22, 24, DEV_INK) == 0 && Count(232, 126, 22, 24, DEV_INK) > 0);
-    assert(at(48, 198) == UiTypeColor(4) && at(48, 206) == UiTypeColor(4) && at(47, 198) != UiTypeColor(4)
-           && at(48, 197) != UiTypeColor(4) && at(48, 207) != UiTypeColor(4));                    /* the chip 9 tall at (48, 198) */
+    assert(Count(48, 199, 60, 9, UiTypeColor(4)) > 0 && Count(232, 152, 22, 24, DEV_INK) == 0 && Count(232, 126, 22, 24, DEV_INK) > 0);
+    assert(at(48, 199) == UiTypeColor(4) && at(48, 207) == UiTypeColor(4) && at(47, 199) != UiTypeColor(4)
+           && at(48, 198) != UiTypeColor(4) && at(48, 208) != UiTypeColor(4));                    /* the chip 9 tall at (48, 199) */
     shot("tmcase");
     /* a case's item menu: its key stays sunk (it is the list shown), not dimmed */
     v.bag.state = PT_BAG_STATE_ACTIONS; DevCheckTouch(&old, &v); AssertKey(kDevBagCaseKey, DEV_LOOK_KEY, 1); assert(LedAt(kDevBagCaseKey));
@@ -3187,7 +3192,7 @@ static void SuiteBag(void)
     for (i = 0; i < PT_BAG_ROWS; ++i) { strcpy(v.bag.row[i].name, kBagItem[i].name); v.bag.row[i].qty = 0; v.bag.row[i].price = (uint16_t)(200 + 100 * i); }
     strcpy(v.bag.selName, "SUPER POTION"); v.bag.showOwned = 1; v.bag.owned = 2; strcpy(v.bag.closeName, "Cancel"); DevCheckTouch(&old, &v);
     assert(at(9, 20) == DEV_BEZEL && Count(250, 12, 56, 16, DEV_INK) > 0 && Count(222, 48, 32, 24, DEV_INK) > 0);
-    assert(Count(48, 198, 60, 9, DEV_BLUE_INK) > 0 && Count(48, 197, 60, 1, DEV_BLUE_INK) == 0);
+    assert(Count(48, 199, 60, 9, DEV_BLUE_INK) > 0 && Count(48, 198, 60, 1, DEV_BLUE_INK) == 0);
     v.bag.state = PT_BAG_STATE_QUANTITY; v.bag.sale = 1400; DevCheckTouch(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0);
     assert(at(11, 20) == DEV_BEZEL && Count(250, 12, 56, 16, DEV_INK) > 0);                         /* the title not dimmed */
     AssertHits(BagHitV, &v, kDevGridExit, PT_BAG_HIT_QTY_CANCEL);
@@ -3242,6 +3247,7 @@ static void SuiteBag(void)
     bv.pressed = BUI_BAG_MENU + 1; DevCheckBattle(&bo, &bv); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1); AssertKey(DevBagMenuKey(2, 0), DEV_LOOK_KEY, 0);
     bv.pressed = -1;
     bv.bag.menuCount = 0; strcpy(bv.bag.message, "..."); DevCheckBattle(&bo, &bv); assert(CtrBattleUi_Hit(&bv, 5, 5) == BUI_BAG_MESSAGE);
+    AccentsBag();
     assert(sDevKeyCut == 0);                      /* main prints PASS device bag */
 }
 

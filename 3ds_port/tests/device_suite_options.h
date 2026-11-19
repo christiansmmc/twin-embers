@@ -256,14 +256,19 @@ static void SuiteOptions(void)
     v.optSectionPage = 3; strcpy(v.optPageName, "Wilds"); assert(DevCheckTouch(&old, &v).count == 0);
     v.optSectionPages = 0; assert(DevCheckTouch(&old, &v).count == 0);                    /* 0 or 1 page: drawn alike */
     v.optSectionPages = 1; assert(DevCheckTouch(&old, &v).count == 0);
-    /* the note: the description in the small font, three lines 10 apart from capitals 198 (the third's 218: with a
-     * descender on every small glyph, SmallDescenders, it ends on the paper's last row, 225, and none reaches the bezel
-     * under it); a text that needs a fourth line is left out there and counted */
+    /* the note: the description in the small font, three lines 9 apart from capitals 199 (the third's 217: with a
+     * descender on every small glyph, SmallDescenders, it ends by the paper's last row, and none reaches the bezel under
+     * it; with an accent on every glyph, Accents, the first's stay on the paper, none on the bezel over it); a text that
+     * needs a fourth line is left out there and counted */
     v = OptBoard(); strcpy(v.bar[1], "Words words words words words words"); strcpy(v.bar[2], "words words words words words words");
-    DevCheckTouch(&old, &v); assert(Count(18, 218, 132, 7, DEV_INK) > 0 && Count(18, 196, 132, 2, DEV_INK) == 0 && sDevKeyCut == 0);
+    DevCheckTouch(&old, &v); assert(Count(18, 217, 132, 7, DEV_INK) > 0 && Count(18, 196, 132, 3, DEV_INK) == 0 && sDevKeyCut == 0);
+    assert(Count(18, 199, 132, 1, DEV_INK) > 0 && Count(18, 208, 132, 1, DEV_INK) > 0 && Count(18, 207, 132, 1, DEV_INK) == 0
+           && Count(18, 216, 132, 1, DEV_INK) == 0);
     SmallDescenders(1); CtrPokeTouch_Draw(canvas, &v);
-    assert(Count(18, 225, 132, 1, DEV_INK) > 0 && Count(14, 226, 140, 5, DEV_INK) == 0);
-    SmallDescenders(0); CtrPokeTouch_Draw(canvas, &old);
+    assert(Count(18, 224, 132, 1, DEV_INK) > 0 && Count(14, 225, 140, 6, DEV_INK) == 0);
+    SmallDescenders(0);
+    Accents(1); CtrPokeTouch_Draw(canvas, &v); assert(BezelOver(14, 140)); Accents(0);
+    CtrPokeTouch_Draw(canvas, &old);
     other = v; strcpy(other.bar[1], "Abcdefghijklm abcdefghijklm"); strcpy(other.bar[2], "abcdefghijklm abcdefghijklm");
     sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &other); assert(sDevKeyCut == 1); sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &old);
 
@@ -424,6 +429,12 @@ static void SuiteOptions(void)
     assert(OptPiece(DEV_TRACE_ART, 22, 124, 32, 32, NULL) && OptPiece(DEV_TRACE_TEXT, 62, 128, 0, 0, "ASH")
            && OptPiece(DEV_TRACE_TEXT, 62, 142, 0, 0, "By Kalarie") && at(DevOptDot(1).x + 2, DevOptDot(1).y + 2) == DEV_MARK_ON);
     shot("looks");
+    /* a credit wider than its 192 px: its second line's capitals 150, 8 under the first's, so with a descender on every
+     * small glyph (SmallDescenders) it ends on the panel's last row, 157, none on the paper under it */
+    other = v; strcpy(other.optLook.credit, "By Kalarie, and port-written words for more artists than a line holds");
+    SmallDescenders(1); CtrPokeTouch_Draw(canvas, &other);
+    assert(Count(62, 150, 192, 1, DEV_INK2) > 0 && Count(62, 157, 192, 1, DEV_INK2) > 0 && Count(16, 158, 244, 4, DEV_INK2) == 0);
+    SmallDescenders(0); CtrPokeTouch_Draw(canvas, &old);
     /* QoL: EXP SHARE's levels described */
     v = OptPage(4, 2, 6, 3, "Share EXP with your", "team: Half or Full.");
     OptRowSwitch(&v, 0, "Type matchup", 1); OptRowSwitch(&v, 1, "Move details", 1); OptRowSwitch(&v, 2, "Repel again", 0);

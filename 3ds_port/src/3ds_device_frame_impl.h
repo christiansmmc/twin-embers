@@ -6,7 +6,7 @@
  * own Summary, the Pokedex's AREA page, the Fame Checker...) is drawn by the GPU on the paper of an embedded screen
  * centred across the top: the paper is black under it, at PT_VIEW_X/Y (the one place of the picture, where a touch is a
  * GBA point). With no picture the screen is empty (its paper), never the ember look. Under it the grid's footer: the
- * note (kDevGridNote) with the bar's title in the normal font (capitals 198) and its two hints in the small font and the
+ * note (kDevGridNote) with the bar's title in the normal font (capitals 199) and its two hints in the small font and the
  * secondary ink under it (capitals 209 and 218), one a line (the title alone centred down the paper); BACK in the exit
  * (kDevGridExit) while the view shows it, a dark key (sunk under a held touch, grey while it cannot be used), else the
  * wide note across (kDevGridNoteWide). The shell has its four screws, as every view's. Every rectangle is
@@ -26,12 +26,12 @@ static int DevFrameShown(const CtrPokeTouchView *v)
     return !DevHomeShown(v) && !DevBagShown(v);
 }
 
-/* The note under the picture: the title (bar[0]) in the normal font, its capitals 2 px into the paper (198: an accent
- * stays off the bezel), and the hints (bar[1], bar[2]) in the small font and the secondary ink under it, capitals 13 and
- * 22 px in (209 and 218: the footer's last line, its descenders on the paper's last row), one a line while each fits,
- * else as one text wrapped into the two lines (DevSmallFit: what they cannot hold dropped and counted in sDevKeyCut;
- * the port's widest bars fit in the three languages); without hints the title alone, centred down the paper. A title
- * wider than its line is cut 6 px short of the paper's end and counted. */
+/* The note under the picture: the title (bar[0]) in the normal font, its capitals 3 px into the paper (199: an accent,
+ * 3 over them, stays off the bezel), and the hints (bar[1], bar[2]) in the small font and the secondary ink under it,
+ * capitals 13 and 22 px in (209 and 218: the footer's last line, its descenders on the paper's last row), one a line
+ * while each fits, else as one text wrapped into the two lines (DevSmallFit: what they cannot hold dropped and counted
+ * in sDevKeyCut; the port's widest bars fit in the three languages); without hints the title alone, centred down the
+ * paper. A title wider than its line is cut 6 px short of the paper's end and counted. */
 static void DevFrameNote(const CtrPokeTouchView *v)
 {
     CtrPokeTouchRect paper = DevScreen(v->backVisible ? &kDevGridNote : &kDevGridNoteWide);
@@ -41,7 +41,7 @@ static void DevFrameNote(const CtrPokeTouchView *v)
     DevUpper(title, v->bar[0], sizeof(title));
     if (DevTextWidth(title) > right - x)
         ++sDevKeyCut;
-    DevText(title, x, any ? paper.y + 2 : paper.y + (paper.h - UI_TEXT_H) / 2, right);
+    DevText(title, x, any ? paper.y + 3 : paper.y + (paper.h - UI_TEXT_H) / 2, right);
     if (!any)
         return;
     DevUpper(hint[0], v->bar[1], sizeof(hint[0]));

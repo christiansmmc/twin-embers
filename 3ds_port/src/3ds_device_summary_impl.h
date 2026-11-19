@@ -734,8 +734,8 @@ static int DevSumOnMove(const CtrSummaryView *d)
 
 /* The note, on the grid's (paper 14,196,216,30; words from x 20 to 224): on INFO and STATS the ability's name as the
  * note's title and what it does in one small line under it (capitals 212); in the details the chosen move's description
- * in two small lines from the paper's top (while a move is moved, or with none, the hint; nothing in a battle), nothing
- * on CANCEL; else what the page lets one do, read on the paper (DevReadText). */
+ * in two small lines from capitals 199, 9 apart (while a move is moved, or with none, the hint; nothing in a battle),
+ * nothing on CANCEL; else what the page lets one do, read on the paper (DevReadText). */
 static void DevSumNote(const CtrSummaryUiView *v)
 {
     const CtrSummaryView *d = &v->data;
@@ -757,10 +757,10 @@ static void DevSumNote(const CtrSummaryUiView *v)
         const char *text = !DevSumOnMove(d) ? "" : d->swapping || !d->moveDesc[0] ? (DevSumBattle(v) ? "" : SHint(v))
                          : d->moveDesc;
 
-        DevSmallFit(text, x, x, paper.y + 2, right, 2, DEV_SMALL_LINE, DEV_INK);
+        DevSmallFit(text, x, x, paper.y + 3, right, 2, DEV_SMALL_LINE_TIGHT, DEV_INK);
         return;
     }
-    DevReadText(SHint(v), &paper, x, right, paper.y + 2, DEV_SMALL_LINE);
+    DevReadText(SHint(v), &paper, x, right, paper.y + 3, DEV_SMALL_LINE_TIGHT);
 }
 
 /* The tabs (the shown one sunk, or the one under a held touch; beige when they cannot be used), ▲▼ (cream keys, grey and

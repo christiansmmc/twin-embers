@@ -206,9 +206,10 @@ static void SuiteLearn(void)
     assert(Count(124, 146, 176, 1, DEV_RULE) == 176 && at(123, 146) == DEV_PAPER && at(300, 146) == DEV_PAPER);
     assert(Count(124, 145, 176, 1, DEV_PAPER) == 176 && Count(124, 147, 176, 1, DEV_PAPER) == 176);
     /* the footer (the grid's note, its paper 14..229 x 196..225): the cursor's move's description small in the paper's
-     * ink in two lines from x 20, capitals 198 and 208; the hint for the cursor's row small in the secondary ink,
+     * ink in two lines from x 20, capitals 199 and 208; the hint for the cursor's row small in the secondary ink,
      * capitals 218 */
-    assert(Count(20, 198, 204, 7, DEV_INK) > 0 && Count(20, 208, 204, 7, DEV_INK) > 0 && Count(14, 196, 216, 2, DEV_INK) == 0);
+    assert(Count(20, 199, 204, 7, DEV_INK) > 0 && Count(20, 208, 204, 7, DEV_INK) > 0 && Count(14, 196, 216, 3, DEV_INK) == 0
+           && Count(20, 207, 204, 1, DEV_INK) == 0);
     assert(Count(14, 196, 6, 30, DEV_INK) == 0 && Count(224, 196, 6, 30, DEV_INK) == 0 && Count(14, 215, 216, 11, DEV_INK) == 0);
     LearnHint(kLearnForget);
     /* the hint follows the cursor's row: an HM cannot be forgotten, the new one is skipped, another old move forgotten;
@@ -225,12 +226,15 @@ static void SuiteLearn(void)
     assert(DevCheckTouch(&lo, &other).count == 0);                  /* no row: no lock drawn */
     /* the hint is the footer's last line: with a descender on every small glyph (the game's g, p, q, y and comma have
      * theirs in glyph row 11: SmallDescenders) it ends on the paper's last row, 225, and none reaches the bezel under
-     * it; the description's second line keeps its own off the hint */
+     * it; the description's second line keeps its own off the hint. With an accent on every glyph (Accents) the
+     * description's first line keeps its own on the paper, none on the bezel over it */
     lv = LearnBoard(); DevCheckTouch(&lo, &lv);
     SmallDescenders(1); CtrPokeTouch_Draw(canvas, &lv);
     assert(Count(20, 225, 204, 1, DEV_INK2) > 0 && Count(14, 226, 216, 5, DEV_INK2) == 0 && Count(14, 226, 216, 5, DEV_INK) == 0);
     assert(Count(20, 215, 204, 1, DEV_INK) > 0 && Count(14, 216, 216, 10, DEV_INK) == 0);
-    SmallDescenders(0); CtrPokeTouch_Draw(canvas, &lo);
+    SmallDescenders(0);
+    Accents(1); CtrPokeTouch_Draw(canvas, &lv); assert(BezelOver(14, 216)); Accents(0);
+    CtrPokeTouch_Draw(canvas, &lo);
     /* the cursor's move's numbers follow it; another move's do not show */
     other = lv; strcpy(other.learn.row[1].power, "1000"); TouchSamePixels(&lv, &other, 0, "the cursor's move's power");
     other = lv; strcpy(other.learn.row[1].accuracy, "1000"); TouchSamePixels(&lv, &other, 0, "the cursor's move's accuracy");

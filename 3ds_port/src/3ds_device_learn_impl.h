@@ -129,9 +129,10 @@ static void DevLearnRow(const CtrPokeTouchLearn *l, int i, int chosen)
     DevTextInk(l->row[i].pp, DEV_LEARN_PP_RIGHT - DevTextWidth(l->row[i].pp), r.y + 7, DEV_LEARN_PP_RIGHT, ink, ink);
 }
 
-/* The grid's note: the cursor's move's description small in the paper's ink, two lines from capitals 198, and the hint
- * for its row small in the secondary ink, capitals 218 (Call 18: its descenders end on the paper's last row, 225), from
- * x 20 to 224; words that need more lines are cut and counted (DevSmallFit). Empty with the cursor on no row. */
+/* The grid's note: the cursor's move's description small in the paper's ink, two lines from capitals 199 (the game's
+ * accents, 3 over them, on the paper), 9 apart, and the hint for its row small in the secondary ink, capitals 218 (Call
+ * 18: its descenders end on the paper's last row, 225), from x 20 to 224; words that need more lines are cut and counted
+ * (DevSmallFit). Empty with the cursor on no row. */
 static void DevLearnNote(const CtrPokeTouchLearn *l)
 {
     CtrPokeTouchRect paper = DevScreen(&kDevGridNote);
@@ -140,7 +141,7 @@ static void DevLearnNote(const CtrPokeTouchLearn *l)
 
     if (!hint)
         return;
-    DevSmallFit(l->desc, x, x, paper.y + 2, right, 2, DEV_SMALL_LINE, DEV_INK);
+    DevSmallFit(l->desc, x, x, paper.y + 3, right, 2, DEV_SMALL_LINE_TIGHT, DEV_INK);
     DevSmallFit(hint, x, x, paper.y + 22, right, 1, DEV_SMALL_LINE, DEV_INK2);
 }
 

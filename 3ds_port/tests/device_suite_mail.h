@@ -43,7 +43,7 @@ static void MailSmallWidths(int w)
 /* The lines `s` takes on the note (DevMailNoteDraw's), up to `most`. */
 static int MailNoteLines(const char *s, int most)
 {
-    return DevSmallWrapRun(s, 18, 18, 198, 226, most, DEV_SMALL_LINE, DEV_INK, 0);
+    return DevSmallWrapRun(s, 18, 18, 199, 226, most, DEV_SMALL_LINE_TIGHT, DEV_INK, 0);
 }
 
 /* The plan's suite (the screen and the note close the letter, CLOSE in the exit corner, the rule, the note, FROM and
@@ -64,7 +64,7 @@ static void SuiteMail(void)
     assert(CtrPokeTouch_MailHit(&mv, 8, 8) && CtrPokeTouch_MailHit(&mv, 311, 183) && !CtrPokeTouch_MailHit(&mv, 8, 185)
            && CtrPokeTouch_MailHit(&mv, 20, 210) && !CtrPokeTouch_MailHit(&mv, 240, 210) && !CtrPokeTouch_MailHit(&mv, 278, 209));
     AssertHits(BackV, &mv, kDevGridExit, 1); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0); assert(!BackV(&mv, 160, 90));
-    assert(at(100, 100) == DEV_RULE && Count(18, 198, 208, 17, DEV_INK) > 0 && Count(22, 113, 276, 9, DEV_INK2) == 0 && Count(22, 113, 276, 9, DEV_INK) > 0);
+    assert(at(100, 100) == DEV_RULE && Count(18, 199, 208, 16, DEV_INK) > 0 && Count(22, 113, 276, 9, DEV_INK2) == 0 && Count(22, 113, 276, 9, DEV_INK) > 0);
     mv.mail.from[0] = 0; DevCheckTouch(&mo, &mv); assert(Count(22, 109, 276, 18, DEV_INK) == 0);
     mv.mapGroup ^= 1; mv.speed ^= 1; assert(DevCheckTouch(&mo, &mv).count == 0);
 
@@ -90,9 +90,10 @@ static void SuiteMail(void)
     assert(first > kDevMailFrom.x && abs((first - kDevMailFrom.x) - (kDevMailFrom.x + kDevMailFrom.w - 1 - last)) <= 2);
     assert(Count(22, 112, 276, 1, DEV_INK) == 0 && Count(22, 113, 276, 1, DEV_INK) > 0 && Count(22, 113, 276, 9, DEV_INK_SH) > 0
            && Count(22, 109, 276, 18, DEV_INK2) == 0);
-    /* the note: small, from x 18 at capitals 198, nothing past 226; two lines as the stub's widths are */
-    assert(Count(18, 198, 1, 7, DEV_INK) > 0 && Count(14, 196, 216, 2, DEV_INK) == 0 && Count(14, 196, 4, 30, DEV_INK) == 0
-           && Count(226, 196, 4, 30, DEV_INK) == 0 && Count(18, 208, 208, 7, DEV_INK) > 0 && Count(18, 218, 208, 7, DEV_INK) == 0);
+    /* the note: small, from x 18 at capitals 199, nothing past 226; two lines as the stub's widths are, 9 apart */
+    assert(Count(18, 199, 1, 7, DEV_INK) > 0 && Count(14, 196, 216, 3, DEV_INK) == 0 && Count(14, 196, 4, 30, DEV_INK) == 0
+           && Count(226, 196, 4, 30, DEV_INK) == 0 && Count(18, 208, 208, 7, DEV_INK) > 0 && Count(18, 207, 208, 1, DEV_INK) == 0
+           && Count(18, 217, 208, 7, DEV_INK) == 0);
     AssertKey(kDevGridExit, DEV_LOOK_DARK, 0); assert(Count(244, 190, 68, 43, DEV_DARK_INK) > 0);
     /* the note is never cut: with every small glyph and the space 8 px wide (the kit's widest; FireRed's are 4-8, the
      * stub's 5, where each language's note takes two lines) the build's note takes three lines at most, nothing
@@ -101,18 +102,22 @@ static void SuiteMail(void)
     MailSmallWidths(8);
     assert(MailNoteLines(DevMailNote(), 4) <= 3);
     sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &mv); assert(sDevKeyCut == 0);
-    /* the note's three lines (capitals 198 / 208 / 218, Call 4): the German words 8 px wide drawn on the note; with a
-     * descender on each glyph (SmallDescenders) the third ends on the paper's last row, 225, none reaching the bezel
-     * under it, nothing past 226, nothing counted. Twice the words need a fourth line: left out and counted once. The
-     * canvas shows `mo` again after. */
+    /* the note's three lines (capitals 199 / 208 / 217): the German words 8 px wide drawn on the note; with a descender
+     * on each glyph (SmallDescenders) the third ends by the paper's last row, none reaching the bezel under it, nothing
+     * past 226, nothing counted; with an accent on each (Accents: LA CARTA ESTÁ ...) the first's stay on the paper,
+     * none on the bezel over it. Twice the words need a fourth line: left out and counted once. The canvas shows `mo`
+     * again after. */
     if (CTR_TR(0, 0, 1))
         assert(!strcmp(DevMailNote(), kMailNoteDe));
     assert(MailNoteLines(kMailNoteDe, 4) == 3);
     SmallDescenders(1); DevBegin(canvas, mv.shell); DevMailNoteDraw(kMailNoteDe);
-    assert(Count(18, 198, 208, 7, DEV_INK) > 0 && Count(18, 208, 208, 7, DEV_INK) > 0 && Count(18, 218, 208, 7, DEV_INK) > 0);
-    assert(Count(18, 225, 208, 1, DEV_INK) > 0 && Count(14, 226, 216, 5, DEV_INK) == 0 && Count(226, 196, 4, 30, DEV_INK) == 0
+    assert(Count(18, 199, 208, 7, DEV_INK) > 0 && Count(18, 208, 208, 7, DEV_INK) > 0 && Count(18, 217, 208, 7, DEV_INK) > 0);
+    assert(Count(18, 224, 208, 1, DEV_INK) > 0 && Count(14, 225, 216, 6, DEV_INK) == 0 && Count(226, 196, 4, 30, DEV_INK) == 0
            && sDevKeyCut == 0);
     SmallDescenders(0);
+    Accents(1); DevBegin(canvas, mv.shell); DevMailNoteDraw(kMailNoteDe); assert(BezelOver(14, 216) && sDevKeyCut == 0);
+    DevBegin(canvas, mv.shell); DevMailNoteDraw(DevMailNote()); assert(BezelOver(14, 216) && sDevKeyCut == 0);
+    Accents(0);
     snprintf(twice, sizeof(twice), "%s %s", kMailNoteDe, kMailNoteDe);
     assert(MailNoteLines(twice, 5) > 3); DevMailNoteDraw(twice); assert(sDevKeyCut == 1);
     sDevKeyCut = 0;
@@ -121,7 +126,7 @@ static void SuiteMail(void)
     /* the note ends by 226: one word of 42 stub glyphs (210 px, 2 more than the line) is cut there, after the last
      * whole glyph (x 218-222), and counted */
     memset(twice, 'A', 42); twice[42] = 0; DevMailNoteDraw(twice);
-    assert(sDevKeyCut == 1 && Count(218, 198, 4, 7, DEV_INK) > 0 && Count(222, 196, 8, 30, DEV_INK) == 0);
+    assert(sDevKeyCut == 1 && Count(218, 199, 4, 7, DEV_INK) > 0 && Count(222, 196, 8, 30, DEV_INK) == 0);
     sDevKeyCut = 0;
     CtrPokeTouch_Draw(canvas, &mo);
     /* a name or a writer wider than its line (FireRed's are far narrower: here every capital 12 px) is cut at the line's

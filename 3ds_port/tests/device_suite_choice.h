@@ -64,8 +64,8 @@ static void ChoiceUpperCase(CtrPokeTouchView v)
 }
 
 /* The question on the note's paper: one line or two of the normal font (its shadow), centred down the paper; three of
- * the small one (no shadow) from the paper's top + 2, 10 apart; a question that needs more counted once a draw; none,
- * nothing. */
+ * the small one (no shadow) from the paper's top + 3, 9 apart (the first's accents on the paper, Accents; the third's
+ * descenders by its last row, SmallDescenders); a question that needs more counted once a draw; none, nothing. */
 static void ChoiceQuestion(CtrPokeTouchView *old, CtrPokeTouchView v)
 {
     int cut;
@@ -77,12 +77,16 @@ static void ChoiceQuestion(CtrPokeTouchView *old, CtrPokeTouchView v)
     assert(Count(20, 196, 204, 13, DEV_INK) > 0 && Count(20, 211, 204, 15, DEV_INK) > 0);    /* two lines */
     strcpy(v.choice.prompt, kChoiceThree); DevCheckTouch(old, &v);
     assert(CountIn(kChoicePaper, DEV_INK) > 0 && CountIn(kChoicePaper, DEV_INK_SH) == 0);
-    assert(Count(20, 198, 204, 1, DEV_INK) > 0 && Count(20, 208, 204, 1, DEV_INK) > 0 && Count(20, 218, 204, 1, DEV_INK) > 0);
-    assert(Count(20, 196, 204, 2, DEV_INK) == 0 && Count(20, 207, 204, 1, DEV_INK) == 0 && Count(20, 217, 204, 1, DEV_INK) == 0);
+    assert(Count(20, 199, 204, 1, DEV_INK) > 0 && Count(20, 208, 204, 1, DEV_INK) > 0 && Count(20, 217, 204, 1, DEV_INK) > 0);
+    assert(Count(20, 196, 204, 3, DEV_INK) == 0 && Count(20, 207, 204, 1, DEV_INK) == 0 && Count(20, 216, 204, 1, DEV_INK) == 0);
     assert(Count(14, 196, 6, 30, DEV_INK) == 0 && Count(224, 196, 6, 30, DEV_INK) == 0);
+    Accents(1); CtrPokeTouch_Draw(canvas, &v); assert(BezelOver(14, 216)); Accents(0);
+    SmallDescenders(1); CtrPokeTouch_Draw(canvas, &v);
+    assert(Count(20, 224, 204, 1, DEV_INK) > 0 && Count(14, 225, 216, 6, DEV_INK) == 0);
+    SmallDescenders(0); CtrPokeTouch_Draw(canvas, old);
     strcpy(v.choice.prompt, kChoiceLong); DevCheckTouch(old, &v);
     cut = sDevKeyCut; CtrPokeTouch_Draw(canvas, &v);                    /* one draw: one cut */
-    assert(sDevKeyCut == cut + 1 && CountIn(kChoicePaper, DEV_INK_SH) == 0 && Count(20, 218, 204, 1, DEV_INK) > 0);
+    assert(sDevKeyCut == cut + 1 && CountIn(kChoicePaper, DEV_INK_SH) == 0 && Count(20, 217, 204, 1, DEV_INK) > 0);
     sDevKeyCut = 0;
     v.choice.prompt[0] = 0; DevCheckTouch(old, &v); assert(CountIn(kChoicePaper, DEV_INK) == 0);
 }
