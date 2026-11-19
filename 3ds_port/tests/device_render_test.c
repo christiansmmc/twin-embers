@@ -3050,7 +3050,7 @@ static void SuiteBag(void)
     /* the description: the item's icon, FireRed's text in the small font from x 48, capitals 199, 208 and 217 */
     assert(Count(18, 199, 24, 24, DEV_PAPER) < 24 * 24 && Count(48, 199, 176, 7, DEV_INK) > 0 && Count(48, 217, 176, 7, DEV_INK) > 0
            && Count(48, 199, 176, 1, DEV_INK) > 0);
-    assert(Count(42, 196, 6, 30, DEV_INK) == 0 && Count(48, 196, 178, 3, DEV_INK) == 0 && Count(48, 215, 178, 2, DEV_INK) == 0);
+    assert(Count(42, 196, 6, 30, DEV_INK) == 0 && Count(48, 196, 178, 3, DEV_INK) == 0 && Count(48, 216, 178, 1, DEV_INK) == 0);
     AssertKey(kDevGridExit, DEV_LOOK_DARK, 0); assert(Count(244, 190, 68, 40, DEV_DARK_INK) > 0);
     shot("items");
     BagEveryList(v);

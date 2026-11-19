@@ -7321,7 +7321,7 @@
   },
   {
    "path": "3ds_port/tests/device_render_test.c",
-   "sha256": "e3f608e74bc506245b94e1127cea2eb9a2bc91445890124fb337b1de20c0f5f4",
+   "sha256": "614a66544437dbd6144206337387e048f3a1c31b68496a6d34f4fd6994ed8def",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7665,7 +7665,7 @@
   },
   {
    "path": "3ds_port/tests/device_suite_accents.h",
-   "sha256": "23b998e4776d343b6f3ad93bf175e434feaf918e972d59af86e9a87c46999337",
+   "sha256": "786b3edb36cef4e230ef4d68b9fde6e7b933ada63e5762c6da97b5b6980b5495",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

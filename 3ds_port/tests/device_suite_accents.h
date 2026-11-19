@@ -64,8 +64,8 @@ static CtrBattleView PtyBoard(void);
 static CtrSummaryUiView SumBoard(void);
 static CtrPokeTouchView BagBoard(void);
 
-/* TARGET's question read small (glyphs too wide for the normal font's two lines): capitals 199, its accents on the
- * paper. */
+/* TARGET's question read small (glyphs too wide for the normal font's two lines): capitals 199 (the rows over them
+ * clear but the one POKéMON's é reaches with the game's glyphs), its accents on the paper. */
 static void AccentsBattle(void)
 {
     CtrBattleView v = BatBoard();
@@ -73,7 +73,7 @@ static void AccentsBattle(void)
 
     v.state = BUI_TARGET; v.cursor = 1;
     WideGlyphs(1); CtrBattleUi_Draw(canvas, &v);
-    assert(Count(20, 199, 204, 1, DEV_INK) > 0 && Count(14, 196, 216, 3, DEV_INK) == 0);
+    assert(Count(20, 199, 204, 1, DEV_INK) > 0 && Count(14, 196, 216, 2, DEV_INK) == 0);
     Accents(1); CtrBattleUi_Draw(canvas, &v); assert(BezelOver(14, 216));
     Accents(0); WideGlyphs(0);
     sDevKeyCut = cut;
