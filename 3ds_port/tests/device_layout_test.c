@@ -855,22 +855,24 @@ static int BoxFaults(void)
     return faults;
 }
 
-/* Easy Chat: the phrase's screen over its slots (two rows of up to five), the mode keys and the buttons (CLEAR, CONFIRM,
- * CANCEL in the exit corner: def_easychat_edit's); the groups'
- * title over six rows of four, or the letters in FireRed's rows of 6, 6, 7, 7 of seven places, the toggle and BACK
- * under them; a list's title over the list's screen (the rows two a row, the rail on its paper right of them), ▲ ▼ and
- * the strip beside it (its letters on its paper), the bottom keys under them all; a question's note under the slots. */
+/* Easy Chat: the phrase's screen over its slots (two rows of up to five), the mode keys and the buttons (CLEAR,
+ * CONFIRM, CANCEL in the exit corner: def_easychat_edit's); the groups' title over six rows of four, or the letters in
+ * FireRed's rows of 6, 6, 7, 7 of seven places, the toggle and BACK under them; a list's title over the list's screen
+ * (the rows two a row, the rail on its paper right of them), ▲ ▼ beside it, USE WORD, the toggle and BACK (in the exit
+ * corner) under them all (def_easychat_list's); a question's note under the slots. */
 static int EasyChatFaults(void)
 {
     static const int kStart[4] = {0, 6, 12, 19};
-    const CtrPokeTouchRect listPaper = {14, 58, 224, 124}, stripPaper = {290, 58, 16, 124};
+    const CtrPokeTouchRect listPaper = {14, 58, 224, 124};
     int faults = 0;
 
     assert(Same(kDevEcPhrase, (CtrPokeTouchRect){8, 8, 304, 36}) && Same(kDevEcListTitle, (CtrPokeTouchRect){8, 6, 304, 40}));
     assert(Same(kDevEcList, (CtrPokeTouchRect){8, 52, 236, 136}) && Same(kDevEcRail, (CtrPokeTouchRect){220, 58, 18, 124}));
-    assert(Same(kDevEcUp, (CtrPokeTouchRect){252, 52, 28, 64}) && Same(kDevEcDown, (CtrPokeTouchRect){252, 120, 28, 64}));
-    assert(Same(kDevEcStrip, (CtrPokeTouchRect){284, 52, 28, 136}));
-    assert(DevEcListKey(2).x + DevEcListKey(2).w == 312 && DevEcToggle(1).x + DevEcToggle(1).w == 312);   /* BACK at the right */
+    assert(Same(kDevEcUp, (CtrPokeTouchRect){252, 52, 60, 62}) && Same(kDevEcDown, (CtrPokeTouchRect){252, 122, 60, 62}));
+    assert(Same(DevEcBottom(0, 196, 34), (CtrPokeTouchRect){8, 196, 108, 34})             /* USE WORD, the toggle, BACK */
+           && Same(DevEcBottom(1, 196, 34), (CtrPokeTouchRect){124, 196, 112, 34})
+           && Same(DevEcBottom(2, 196, 34), (CtrPokeTouchRect){244, 196, 68, 34}));
+    assert(DevEcBottom(2, 196, 34).x + DevEcBottom(2, 196, 34).w == 312 && DevEcToggle(1).x + DevEcToggle(1).w == 312);   /* BACK at the right */
     for (int n = 1; n <= 9; ++n)
         for (int i = 0; i < n; ++i)
             assert(Same(DevEcChip(n, i), DevAcross((n + 1) / 2, i % ((n + 1) / 2), 52 + 40 * (i / ((n + 1) / 2)), 34)));
@@ -878,9 +880,8 @@ static int EasyChatFaults(void)
            && Same(DevEcBottom(1, 178, 52), (CtrPokeTouchRect){124, 178, 112, 52})
            && Same(DevEcBottom(2, 178, 52), (CtrPokeTouchRect){244, 178, 68, 52}));
     assert(DevEcBottom(2, 178, 52).x == kDevGridExit.x && DevEcBottom(2, 178, 52).w == kDevGridExit.w);   /* the exit corner */
-    for (int i = 0; i < 3; ++i)
-        assert(Same(DevEcListKey(i), DevAcross(3, i, 196, 36))
-               && (i == 2 || (Same(DevEcMode(i), DevAcross(2, i, 136, 30)) && Same(DevEcToggle(i), DevAcross(2, i, 206, 26)))));
+    for (int i = 0; i < 2; ++i)
+        assert(Same(DevEcMode(i), DevAcross(2, i, 136, 30)) && Same(DevEcToggle(i), DevAcross(2, i, 206, 26)));
     for (int i = 0; i < 21; ++i)
         assert(Same(DevEcCell(i), DevAcross(4, i % 4, 40 + 27 * (i / 4), 24)));
     for (int r = 0; r < 4; ++r)
@@ -895,22 +896,12 @@ static int EasyChatFaults(void)
             ++faults;
         }
     }
-    for (int i = 0; i < 26; ++i) {
-        CtrPokeTouchRect c = DevEcStripCell(i);
-
-        assert(c.x + 1 == 291 + 8 * (i / 13) && c.y + 1 == 60 + 9 * (i % 13));      /* the letter's capitals */
-        if (!Within(c, stripPaper, 0)) {
-            fprintf(stderr, "Easy Chat: the strip's letter %d leaves its paper\n", i);
-            ++faults;
-        }
-    }
     if (!Within(kDevEcRail, listPaper, 0) || kDevEcPhrase.y + kDevEcPhrase.h + 1 > DevEcChip(9, 0).y
         || DevEcChip(9, 5).y + DevEcChip(9, 5).h + DEV_DROP > DevEcMode(0).y || DevEcMode(0).y + DevEcMode(0).h + DEV_DROP > DevEcBottom(0, 178, 52).y
         || DevEcCell(20).y + DevEcCell(20).h + DEV_DROP > DevEcToggle(0).y || DevEcLetter(25).y + DevEcLetter(25).h + DEV_DROP > DevEcToggle(0).y
         || kDevGridTitle.y + kDevGridTitle.h + 1 > DevEcCell(0).y || kDevEcListTitle.y + kDevEcListTitle.h + 1 > kDevEcList.y
         || kDevEcList.x + kDevEcList.w + 8 > kDevEcUp.x || kDevEcUp.y + kDevEcUp.h + DEV_DROP > kDevEcDown.y
-        || kDevEcDown.x + kDevEcDown.w + 4 > kDevEcStrip.x || kDevEcList.y + kDevEcList.h + 1 > DevEcListKey(0).y
-        || kDevEcStrip.y + kDevEcStrip.h + 1 > DevEcListKey(0).y || kDevEcDown.y + kDevEcDown.h + DEV_DROP > DevEcListKey(0).y
+        || kDevEcList.y + kDevEcList.h + 1 > DevEcBottom(0, 196, 34).y || kDevEcDown.y + kDevEcDown.h + DEV_DROP > DevEcBottom(0, 196, 34).y
         || DevEcChip(9, 5).y + DevEcChip(9, 5).h + DEV_DROP > kDevAskNote.y) {
         fprintf(stderr, "Easy Chat: its screens and keys meet\n");
         ++faults;
@@ -995,7 +986,8 @@ int main(void)
     const CtrPokeTouchRect boxChooser[] = {kDevBoxPrev, kDevBoxNext, kDevBoxChoose, kDevGridExit};
     const CtrPokeTouchRect boxMarks[] = {DevBoxMenuKey(0), DevBoxMenuKey(1), DevBoxMenuKey(2), DevBoxMenuKey(3),
                                          DevBoxMenuKey(4), kDevGridExit};
-    const CtrPokeTouchRect ecList[] = {kDevEcUp, kDevEcDown, DevEcListKey(0), DevEcListKey(1), DevEcListKey(2)};
+    const CtrPokeTouchRect ecList[] = {kDevEcUp, kDevEcDown, DevEcBottom(0, 196, 34), DevEcBottom(1, 196, 34),
+                                       DevEcBottom(2, 196, 34)};
     const CtrPokeTouchRect ecAsk[] = {kDevAskYes, kDevAskNo};
     const CtrPokeTouchRect frameKeys[] = {kDevGridExit};
     CtrPokeTouchRect bagMenu[PT_BAG_MENU_MAX + 1][PT_BAG_MENU_MAX], choiceKeys[3][8][9], nameKeys[2][5 + 32];
@@ -1071,8 +1063,7 @@ int main(void)
         {"Easy Chat group 20", DevEcCell(20)}, {"Easy Chat letter Z", DevEcLetter(25)}, {"Easy Chat BACK", DevEcToggle(1)},
         {"Easy Chat list title", kDevEcListTitle}, {"Easy Chat list", kDevEcList}, {"Easy Chat row place 11", DevEcRow(11)},
         {"Easy Chat rail", kDevEcRail}, {"Easy Chat up", kDevEcUp}, {"Easy Chat down", kDevEcDown},
-        {"Easy Chat strip", kDevEcStrip}, {"Easy Chat strip's Z", DevEcStripCell(25)}, {"Easy Chat USE WORD", DevEcListKey(0)},
-        {"Easy Chat list BACK", DevEcListKey(2)},
+        {"Easy Chat USE WORD", DevEcBottom(0, 196, 34)}, {"Easy Chat list BACK", DevEcBottom(2, 196, 34)},
         {"FireRed's picture's screen", kDevViewScreen}, {"idle screen", kDevIdleScreen},
     };
     const DevGroup groups[] = {DEV_GROUP("HOME", homeKeys), DEV_GROUP("battle, a trainer", batTrainer),

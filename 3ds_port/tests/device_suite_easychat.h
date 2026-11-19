@@ -1,14 +1,14 @@
 /* ---- easychat: Easy Chat as the red device, through the field dispatcher (plan 3 Task 7; the phrase's title and its
- * footer CLEAR / CONFIRM / CANCEL as the Definitiva's def_easychat_edit) ----------------------------------------------
+ * footer CLEAR / CONFIRM / CANCEL as the Definitiva's def_easychat_edit, the word list as its def_easychat_list) ------
  * Included by device_render_test.c before its kSuites. Port-written words stand in for FireRed's: its words and groups
  * in capitals, as the game has them, its title and question as it writes them. */
 
 /* The papers it draws on (each screen's paper is 6 px in): the phrase's, the groups' title's, the list title's (its two
- * lines: the title from y 16, the phrase from y 30), the list's, the strip's and the question's note's; the rail's track
- * (4 px from x 227) and its thumb (8 px from x 225). */
+ * lines: the title from y 16, the phrase from y 30) and the question's note's; the rail's track (4 px from x 227) and
+ * its thumb (8 px from x 225). */
 static const CtrPokeTouchRect kEcPhrasePaper = {14, 14, 292, 24}, kEcTitlePaper = {14, 12, 292, 22};
 static const CtrPokeTouchRect kEcListLine1 = {14, 12, 292, 13}, kEcListLine2 = {14, 26, 292, 14};
-static const CtrPokeTouchRect kEcStripPaper = {290, 58, 16, 124}, kEcAskPaper = {14, 162, 188, 64};
+static const CtrPokeTouchRect kEcAskPaper = {14, 162, 188, 64};
 #define EC_TRACK_X 227
 #define EC_THUMB_X 225
 #define EC_DIM(c) DevBlend(DEV_SHELL_RED, (c), DEV_A_DIM)    /* a pixel under DevDim, on the red shell */
@@ -32,8 +32,7 @@ static const char *const kEcGroups[PT_EC_GROUPS] = {
 
 /* Easy Chat as 3ds_bottom.c gives it (EasyFill, EasySnapshot): a phrase of nine slots with four words, FireRed's title
  * as it writes it, its cursor on the first slot, nothing held; the groups, a list of sixty words (the first twelve
- * shown) and its title filled for the screens the suite turns to; the strip's letter the first word's. No viewport, no
- * BACK of the view's. */
+ * shown) and its title filled for the screens the suite turns to. No viewport, no BACK of the view's. */
 static CtrPokeTouchView EcBoard(void)
 {
     static const char *const kPhrase[PT_EC_WORDS] = {"HELLO", "KIT", "", "EMBER", "", "", "STONES", "", ""};
@@ -101,14 +100,18 @@ static int EcText(int x, int y, int small, uint16_t ink, const char *s)
     return 0;
 }
 
-/* The phrase's footer key i (DevEcBottom at y 178, 52 tall) reads `word` in the last whole draw: in its look's ink,
- * centred on its face, up or sunk. */
-static int EcFooterWord(int i, int look, int sunk, const char *word)
+/* Key r reads `word` in the last whole draw: in its look's ink, centred on its face, up or sunk. */
+static int EcKeyText(CtrPokeTouchRect r, int look, int sunk, const char *word)
 {
-    CtrPokeTouchRect r = DevEcBottom(i, 178, 52);
     int faceY = r.y + (sunk ? DEV_SINK : 0);
 
     return EcText(r.x + (r.w - DevTextWidth(word)) / 2, faceY + (r.h - UI_TEXT_H) / 2, 0, DevKeyInk(look, sunk), word);
+}
+
+/* The phrase's footer key i (DevEcBottom at y 178, 52 tall) reads `word` (EcKeyText). */
+static int EcFooterWord(int i, int look, int sunk, const char *word)
+{
+    return EcKeyText(DevEcBottom(i, 178, 52), look, sunk, word);
 }
 
 /* ▲ and ▼: each arrow in the key's ink while the list goes that way, grey otherwise (25 px, DevTriangle's). */
@@ -142,13 +145,14 @@ static void EcWords(CtrPokeTouchView v)
     TouchSamePixels(&cased, &v, 0, "the groups' title, as FireRed writes it");
 }
 
-/* The plan's suite (Review Focus 4: the list at its first and last rows, the rail and the strip at both ends, the last
- * row's words hit and nothing after them; the phrase of nine slots with four words, the groups of 21 and of 14, the
- * letters, a 5-word list, A-Z on, the question), then each state's pieces, the words, the ways in and out and the
- * states for the eye. */
+/* The plan's suite (Review Focus 4: the list at its first and last rows, the rail and ▲ ▼ at both ends, the last row's
+ * words hit and nothing after them; the phrase of nine slots with four words, the groups of 21 and of 14, the letters,
+ * a 5-word list, A-Z on, the question), then each state's pieces, the words, the ways in and out and the states for the
+ * eye. */
 static void SuiteEasyChat(void)
 {
     static const int kCode[3] = {PT_EC_HIT_DELETE, PT_EC_HIT_CONFIRM, PT_EC_HIT_CANCEL};   /* the footer's, as drawn */
+    static const int kList[3] = {PT_EC_HIT_PLACE, PT_EC_HIT_TOGGLE, PT_EC_HIT_BACK};       /* the list's, as drawn */
     const char *const kClear = CTR_TR("CLEAR", "BORRAR", "LEEREN"), *const kConfirm = CTR_TR("CONFIRM", "CONFIRMAR", "BEST\xC3\x84TIGEN");
     const char *const kCount = CTR_TR("WORDS 4 OF 9", "PALABRAS 4 DE 9", "W\xC3\x96RTER 4 VON 9");
     CtrPokeTouchView v = EcBoard(), old = v, other;
@@ -169,33 +173,47 @@ static void SuiteEasyChat(void)
     v.ec.screen = PT_EC_LETTER; v.ec.alpha = 1; DevCheckTouch(&old, &v); for (i = 0; i < 26; ++i) AssertHits(EcHitV, &v, DevEcLetter(i), PT_EC_HIT_CELL + i);
     v.ec.screen = PT_EC_LIST; v.ec.alpha = 0; v.ec.listCount = 60; v.ec.first = 0; DevCheckTouch(&old, &v); for (k = 0; k < 12; ++k) AssertRowHits(EcHitV, &v, DevEcRow(k), PT_EC_HIT_ROW + k);
     assert(CtrPokeTouch_EasyRailTarget(&v.ec, 58) == 0 && CtrPokeTouch_EasyRailTarget(&v.ec, 181) == 24);
-    assert(CtrPokeTouch_EasyStripLetter(291, 60) == 0 && CtrPokeTouch_EasyStripLetter(305, 181) == 25 && CtrPokeTouch_EasyStripLetter(311, 187) == 25
-           && CtrPokeTouch_EasyStripLetter(284, 52) == 0 && CtrPokeTouch_EasyStripLetter(283, 60) == -1);
-    for (i = 0; i < 3; ++i) AssertHits(EcHitV, &v, DevAcross(3, i, 196, 36), i == 0 ? PT_EC_HIT_PLACE : i == 1 ? PT_EC_HIT_TOGGLE : PT_EC_HIT_BACK);
-    AssertHits(EcHitV, &v, kDevEcUp, PT_EC_HIT_UP); AssertHits(EcHitV, &v, kDevEcDown, PT_EC_HIT_DOWN); AssertRowHits(EcHitV, &v, kDevEcRail, PT_EC_HIT_RAIL); AssertRowHits(EcHitV, &v, kDevEcStrip, PT_EC_HIT_STRIP);
+    AssertRowHits(EcHitV, &v, kDevEcRail, PT_EC_HIT_RAIL);
+    /* the list as def_easychat_list: USE WORD, the toggle and BACK at y 196, 34 tall; ▲ grey and not hit at the top, ▼
+     * hit, ▲ hit once the list has scrolled; a row's word at capitals r.y + 6; the phrase's empty slot "---", drawn */
+    {
+        CtrPokeTouchView lv = EcBoard(), lo = old;
+        char line[PT_EC_WORDS * PT_EC_WORD_LEN];
+
+        lv.ec.screen = PT_EC_LIST; lv.ec.word = 3; DevCheckTouch(&lo, &lv);
+        for (i = 0; i < 3; ++i) AssertHits(EcHitV, &lv, DevEcBottom(i, 196, 34), kList[i]);
+        lv.ec.first = 0; DevCheckTouch(&lo, &lv); assert(EcHitV(&lv, 282, 80) == -1 && Count(252, 52, 60, 62, DEV_ARROW_OFF) > 0);
+        AssertHits(EcHitV, &lv, kDevEcDown, PT_EC_HIT_DOWN); lv.ec.first = 1; DevCheckTouch(&lo, &lv); AssertHits(EcHitV, &lv, kDevEcUp, PT_EC_HIT_UP);
+        r = DevEcRow(0); assert(Count(r.x + 4, r.y + 6, 40, 9, DEV_INK) > 0 && Count(r.x + 4, r.y + 5, 40, 1, DEV_INK) == 0);
+        lv.ec.numWords = 4; strcpy(lv.ec.chip[0], "Hello"); strcpy(lv.ec.chip[1], "Great");
+        lv.ec.chip[2][0] = 0; strcpy(lv.ec.chip[3], "Ember"); DevEcPhraseLine(&lv.ec, line, sizeof(line)); assert(!strcmp(line, "HELLO GREAT --- EMBER"));
+        DevCheckTouch(&lo, &lv); assert(Count(20 + DevSmallTextWidth("HELLO GREAT "), 30, DevSmallTextWidth("---"), 7, DEV_INK2) > 0);   /* drawn */
+        assert(EcText(20, 30, 1, DEV_INK2, "HELLO GREAT --- EMBER"));
+        old = lo;
+    }
     v.ec.first = 24; DevCheckTouch(&old, &v); AssertRowHits(EcHitV, &v, DevEcRow(11), PT_EC_HIT_ROW + 11);
+    AssertHits(EcHitV, &v, kDevEcUp, PT_EC_HIT_UP); assert(EcHitV(&v, 282, 150) == -1);           /* the end: ▼ not hit */
     v.ec.listCount = 5; v.ec.first = 0; DevCheckTouch(&old, &v); assert(CtrPokeTouch_EasyHit(&v, DevEcRow(5).x + 3, DevEcRow(5).y + 3) == -1);
-    v.ec.alpha = 1; DevCheckTouch(&old, &v); assert(CtrPokeTouch_EasyHit(&v, 300, 100) == -1);
+    assert(EcHitV(&v, 282, 80) == -1 && EcHitV(&v, 282, 150) == -1);                             /* one window: neither */
+    v.ec.alpha = 1; DevCheckTouch(&old, &v); for (i = 0; i < 3; ++i) AssertHits(EcHitV, &v, DevEcBottom(i, 196, 34), kList[i]);
     v.ec.screen = PT_EC_EDIT; v.ec.ask = PT_EC_ASK_QUIT; DevCheckTouch(&old, &v); AssertHits(EcHitV, &v, kDevAskYes, PT_EC_HIT_YES); AssertHits(EcHitV, &v, kDevAskNo, PT_EC_HIT_NO);
     assert(CtrPokeTouch_EasyHit(&v, DevEcChip(9, 0).x + 3, 60) == -1); v.mapGroup ^= 1; v.speed ^= 1; assert(DevCheckTouch(&old, &v).count == 0);
 
     /* Review Focus 4 at the list's last row: a list of 59 (30 rows, the last with one word) at its last first row: that
-     * word hit, nothing after it; the thumb at the rail's bottom, ▼ grey; the rail and the strip monotonic along them,
-     * each letter of the strip taken where it is drawn */
+     * word hit, nothing after it; the thumb at the rail's bottom, ▼ grey and not hit, ▲ hit; the rail monotonic along
+     * it */
     v = EcBoard(); v.ec.screen = PT_EC_LIST; v.ec.listCount = 59; v.ec.first = 24; v.ec.word = 2 * 24 + 10; DevCheckTouch(&old, &v);
     AssertRowHits(EcHitV, &v, DevEcRow(10), PT_EC_HIT_ROW + 10);
     r = DevEcRow(11); assert(CtrPokeTouch_EasyHit(&v, r.x + 3, r.y + 3) == -1 && CtrPokeTouch_EasyHit(&v, r.x + r.w - 1, r.y + r.h - 1) == -1);
     EcRowsInverted(&v, 10); EcThumb(158, 181); EcArrows(1, 0);
+    r = kDevEcDown; assert(EcHitV(&v, r.x, r.y) == -1 && EcHitV(&v, r.x + r.w - 1, r.y + r.h + DEV_DROP - 1) == -1);
+    AssertHits(EcHitV, &v, kDevEcUp, PT_EC_HIT_UP);
     assert(CtrPokeTouch_EasyRailTarget(&v.ec, 0) == 0 && CtrPokeTouch_EasyRailTarget(&v.ec, 239) == 24);
     {
         int prev = -1;
 
         for (int y = 40; y < 200; ++y) { int t = CtrPokeTouch_EasyRailTarget(&v.ec, y); assert(t >= prev && t >= 0 && t <= 24); prev = t; }
-        for (int y = 52; y < 188; ++y) assert(CtrPokeTouch_EasyStripLetter(311, y) == 13 + CtrPokeTouch_EasyStripLetter(284, y));
-        prev = -1;
-        for (int y = 52; y < 188; ++y) { int l = CtrPokeTouch_EasyStripLetter(291, y); assert(l >= prev && l >= 0 && l <= 12); prev = l; }
     }
-    for (i = 0; i < 26; ++i) { r = DevEcStripCell(i); assert(CtrPokeTouch_EasyStripLetter(r.x + 1, r.y + 4) == i && CtrPokeTouch_EasyStripLetter(r.x + r.w - 1, r.y + r.h - 2) == i); }
 
     /* the phrase: the screen's title (FireRed's, capitals 22 from x 20) and count (small, capitals 23, ending at 298:
      * DevTitleLine); on each slot its word, an empty one a short rule; FireRed's cursor's slot sunk, or the one held
@@ -272,45 +290,49 @@ static void SuiteEasyChat(void)
     v.ec.cell = PT_EC_CELL_TOGGLE; DevCheckTouch(&old, &v); AssertKey(DevEcToggle(0), DEV_LOOK_KEY, 1); AssertKey(DevEcLetter(24), DEV_LOOK_KEY, 0);
     other = v; other.ec.alpha = 0; other.ec.screen = PT_EC_GROUP; TouchSamePixels(&other, &v, 0, "the toggle's word in either order");
 
-    /* a list: its title (the group) over the phrase in one line; the selected word's row inverted, or the one held; the
-     * rail's thumb where the rows shown are (24 px of 124 for 30 rows: the top, the middle, the bottom); ▲ ▼ grey where
-     * the list goes no further, sunk while held; the strip's lit letter boxed; USE WORD, the toggle, BACK (dark) */
+    /* a list (def_easychat_list): its title (the group, capitals 16 from x 20) over the phrase in one line (small,
+     * capitals 30: an empty slot "---"); the words two a row, each from 4 px in at capitals r.y + 6, the selected
+     * word's row inverted, or the one held; the rail's thumb where the rows shown are (24 px of 124 for 30 rows: the
+     * top, the middle, the bottom); ▲ ▼ grey where the list goes no further (and then neither hit nor sunk), sunk while
+     * held; USE WORD, the toggle and BACK (dark, in the exit corner) at y 196, 34 tall, each word centred */
     v = EcBoard(); v.ec.screen = PT_EC_LIST; v.ec.word = 3; DevCheckTouch(&old, &v);
     EcRowsInverted(&v, 3);
     assert(CountIn(kEcListLine1, DEV_INK) > 0 && CountIn(kEcListLine1, DEV_INK2) == 0 && CountIn(kEcListLine2, DEV_INK2) > 0);
+    assert(EcText(20, 16, 0, DEV_INK, "STONES") && EcText(20, 30, 1, DEV_INK2, "HELLO KIT --- EMBER --- --- STONES --- ---"));
+    for (k = 0; k < 12; ++k) { r = DevEcRow(k); assert(EcText(r.x + 4, r.y + 6, 0, DevRowInk(k == 3), kEcWords[k])); }
     EcThumb(58, 81); assert(at(EC_TRACK_X, 100) == DEV_INK_DIM && at(EC_TRACK_X + 3, 181) == DEV_INK_DIM && at(EC_TRACK_X + 4, 100) == DEV_PAPER);
     EcArrows(0, 1);
-    AssertKey(DevEcListKey(0), DEV_LOOK_KEY, 0); AssertKey(DevEcListKey(1), DEV_LOOK_KEY, 0); EcDark(DevEcListKey(2), 0);
-    assert(DevEcListKey(2).x + DevEcListKey(2).w == DevEcToggle(1).x + DevEcToggle(1).w);   /* BACK at the right */
+    AssertKey(DevEcBottom(0, 196, 34), DEV_LOOK_KEY, 0); AssertKey(DevEcBottom(1, 196, 34), DEV_LOOK_KEY, 0); EcDark(DevEcBottom(2, 196, 34), 0);
+    assert(EcKeyText(DevEcBottom(0, 196, 34), DEV_LOOK_KEY, 0, CTR_TR("USE WORD", "PONER PALABRA", "WORT SETZEN"))
+           && EcKeyText(DevEcBottom(1, 196, 34), DEV_LOOK_KEY, 0, DevEcToggleWord(0))
+           && EcKeyText(DevEcBottom(2, 196, 34), DEV_LOOK_DARK, 0, DevBackWord()));
+    assert(DevEcBottom(2, 196, 34).x == kDevGridExit.x && DevEcBottom(2, 196, 34).x + DevEcBottom(2, 196, 34).w == 312);   /* BACK in the corner */
     v.ec.pressed = PT_EC_HIT_ROW + 6; DevCheckTouch(&old, &v); EcRowsInverted(&v, 6);
-    v.ec.pressed = PT_EC_HIT_PLACE; DevCheckTouch(&old, &v); EcRowsInverted(&v, 3); AssertKey(DevEcListKey(0), DEV_LOOK_KEY, 1);
-    EcDark(DevEcListKey(2), 0);
-    v.ec.pressed = PT_EC_HIT_TOGGLE; DevCheckTouch(&old, &v); AssertKey(DevEcListKey(1), DEV_LOOK_KEY, 1); AssertKey(DevEcListKey(0), DEV_LOOK_KEY, 0);
-    v.ec.pressed = PT_EC_HIT_BACK; DevCheckTouch(&old, &v); EcDark(DevEcListKey(2), 1); AssertKey(DevEcListKey(0), DEV_LOOK_KEY, 0);
-    v.ec.pressed = PT_EC_HIT_UP; DevCheckTouch(&old, &v); AssertKey(kDevEcUp, DEV_LOOK_KEY, 1); AssertKey(kDevEcDown, DEV_LOOK_KEY, 0);
-    assert(EcKeyCount(kDevEcUp, DEV_ARROW_OFF) == 25);                   /* held where it goes no further: still taken */
+    v.ec.pressed = PT_EC_HIT_PLACE; DevCheckTouch(&old, &v); EcRowsInverted(&v, 3); AssertKey(DevEcBottom(0, 196, 34), DEV_LOOK_KEY, 1);
+    EcDark(DevEcBottom(2, 196, 34), 0); assert(LedAt(DevEcBottom(0, 196, 34)));
+    v.ec.pressed = PT_EC_HIT_TOGGLE; DevCheckTouch(&old, &v); AssertKey(DevEcBottom(1, 196, 34), DEV_LOOK_KEY, 1); AssertKey(DevEcBottom(0, 196, 34), DEV_LOOK_KEY, 0);
+    v.ec.pressed = PT_EC_HIT_BACK; DevCheckTouch(&old, &v); EcDark(DevEcBottom(2, 196, 34), 1); AssertKey(DevEcBottom(0, 196, 34), DEV_LOOK_KEY, 0);
+    v.ec.pressed = PT_EC_HIT_UP; DevCheckTouch(&old, &v); AssertKey(kDevEcUp, DEV_LOOK_KEY, 0); AssertKey(kDevEcDown, DEV_LOOK_KEY, 0);
+    assert(EcKeyCount(kDevEcUp, DEV_ARROW_OFF) == 25 && EcKeyCount(kDevEcUp, DEV_LED) == 0);   /* held where it goes no further: up */
     v.ec.pressed = PT_EC_HIT_DOWN; DevCheckTouch(&old, &v); AssertKey(kDevEcDown, DEV_LOOK_KEY, 1); assert(EcKeyCount(kDevEcDown, DEV_SUNK_INK) == 25);
+    assert(LedAt(kDevEcDown));
     v.ec.pressed = -1; v.ec.first = 12; v.ec.word = 2 * 12; DevCheckTouch(&old, &v); EcThumb(108, 131); EcArrows(1, 1); EcRowsInverted(&v, 0);
+    AssertHits(EcHitV, &v, kDevEcUp, PT_EC_HIT_UP); AssertHits(EcHitV, &v, kDevEcDown, PT_EC_HIT_DOWN);
     v.ec.first = 24; v.ec.word = 2 * 24 + 11; DevCheckTouch(&old, &v); EcThumb(158, 181); EcArrows(1, 0); EcRowsInverted(&v, 11);
-    v.ec.word = 7; DevCheckTouch(&old, &v); EcRowsInverted(&v, -1);           /* the selected word not shown */
-    /* the strip: the lit letter boxed in the paper's ink, the others in the secondary ink; none lit; grey under A-Z */
-    v.ec.first = 0; v.ec.letter = 2; DevCheckTouch(&old, &v);
-    for (i = 0; i < 26; ++i) {
-        r = DevEcStripCell(i);
-        assert((at(r.x, r.y) == DEV_INK && at(r.x + r.w - 1, r.y + r.h - 1) == DEV_INK) == (i == 2));
-        assert(Count(r.x + 1, r.y + 1, r.w - 2, r.h - 2, i == 2 ? DEV_INK : DEV_INK2) > 0 && Count(r.x + 1, r.y + 1, r.w - 2, r.h - 2, i == 2 ? DEV_INK2 : DEV_INK) == 0);
-    }
-    v.ec.letter = 255; DevCheckTouch(&old, &v); assert(CountIn(kEcStripPaper, DEV_INK) == 0 && CountIn(kEcStripPaper, DEV_INK2) > 0);
-    /* A-Z: the letter on the title with A-Z small at its right, the strip grey (and not taken), the toggle's word */
-    v.ec.alpha = 1; v.ec.letter = 2; strcpy(v.ec.listTitle, "C"); DevCheckTouch(&old, &v);
-    assert(at(kEcStripPaper.x, kEcStripPaper.y + 1) == EC_DIM(DEV_PAPER) && CountIn(kEcStripPaper, DEV_INK) == 0 && CountIn(kEcStripPaper, DEV_INK2) == 0);
+    v.ec.pressed = PT_EC_HIT_DOWN; DevCheckTouch(&old, &v); AssertKey(kDevEcDown, DEV_LOOK_KEY, 0); EcArrows(1, 0);   /* the end: up */
+    v.ec.pressed = -1; v.ec.word = 7; DevCheckTouch(&old, &v); EcRowsInverted(&v, -1);           /* the selected word not shown */
+    /* A-Z: the letter on the title with A-Z small at its right, the toggle's word back to the groups */
+    v.ec.first = 0; v.ec.alpha = 1; strcpy(v.ec.listTitle, "C"); DevCheckTouch(&old, &v);
     assert(CountIn(kEcListLine1, DEV_INK) > 0 && CountIn(kEcListLine1, DEV_INK2) > 0);
+    assert(EcKeyText(DevEcBottom(1, 196, 34), DEV_LOOK_KEY, 0, DevEcToggleWord(1)));
     other = v; other.ec.alpha = 0; TouchSamePixels(&other, &v, 0, "the list's toggle in either order");
-    /* an empty phrase: no line under the title */
-    memset(v.ec.chip, 0, sizeof(v.ec.chip)); DevCheckTouch(&old, &v); assert(CountIn(kEcListLine2, DEV_INK2) == 0);
-    /* a 5-word list: three rows, the thumb the whole rail, no arrow lit, nothing to scroll */
+    /* an empty phrase: "---" for each of its nine slots under the title */
+    memset(v.ec.chip, 0, sizeof(v.ec.chip)); DevCheckTouch(&old, &v);
+    assert(CountIn(kEcListLine2, DEV_INK2) > 0 && EcText(20, 30, 1, DEV_INK2, "--- --- --- --- --- --- --- --- ---"));
+    /* a 5-word list: three rows, the thumb the whole rail, no arrow lit or hit, nothing to scroll */
     v = EcBoard(); v.ec.screen = PT_EC_LIST; v.ec.listCount = 5; v.ec.word = 4; DevCheckTouch(&old, &v);
     EcRowsInverted(&v, 4); EcThumb(58, 181); EcArrows(0, 0); assert(CtrPokeTouch_EasyRailTarget(&v.ec, 100) == -1);
+    assert(EcHitV(&v, kDevEcUp.x + 3, kDevEcUp.y + 3) == -1 && EcHitV(&v, kDevEcDown.x + 3, kDevEcDown.y + 3) == -1);
     v.ec.pressed = PT_EC_HIT_ROW + 7; DevCheckTouch(&old, &v); EcRowsInverted(&v, 4);   /* a row not drawn: as none */
 
     /* a question: the phrase's screen and slots grey (not hit), the modes and buttons not drawn; FireRed's question on
@@ -354,9 +376,9 @@ static void SuiteEasyChat(void)
     v.ec.groupCount = 14; v.ec.cell = 13; DevCheckTouch(&old, &v); shot("groups14");
     v = EcBoard(); v.ec.screen = PT_EC_LETTER; v.ec.alpha = 1; v.ec.cell = 7; DevCheckTouch(&old, &v); shot("letters");
     v = EcBoard(); v.ec.screen = PT_EC_LIST; v.ec.word = 3; DevCheckTouch(&old, &v); shot("list");
-    v.ec.first = 24; v.ec.word = 2 * 24 + 5; v.ec.letter = 22; DevCheckTouch(&old, &v); shot("list_end");
+    v.ec.first = 24; v.ec.word = 2 * 24 + 5; DevCheckTouch(&old, &v); shot("list_end");
     v = EcBoard(); v.ec.screen = PT_EC_LIST; v.ec.listCount = 5; v.ec.word = 2; DevCheckTouch(&old, &v); shot("list_short");
-    v = EcBoard(); v.ec.screen = PT_EC_LIST; v.ec.alpha = 1; v.ec.word = 1; v.ec.letter = 2; strcpy(v.ec.listTitle, "C");
+    v = EcBoard(); v.ec.screen = PT_EC_LIST; v.ec.alpha = 1; v.ec.word = 1; strcpy(v.ec.listTitle, "C");
     DevCheckTouch(&old, &v); shot("list_alpha");
     v = EcBoard(); v.ec.ask = PT_EC_ASK_QUIT; v.ec.askCursor = 1; strcpy(v.ec.ask1, "Port question for this test?");
     DevCheckTouch(&old, &v); shot("ask");

@@ -527,23 +527,22 @@ static inline CtrPokeTouchRect DevBoxMenuKey(int i)
     return r;
 }
 
-/* ---- Easy Chat (3ds_device_easychat_impl.h; the phrase's footer as the Definitiva's def_easychat_edit) --------------
+/* ---- Easy Chat (3ds_device_easychat_impl.h; the phrase's footer and the word list as def_easychat_edit and _list) ---
  * The phrase: FireRed's title and the count on the phrase's screen (kDevEcPhrase), the phrase's n slots as keys in two
  * rows (DevEcChip), BY GROUP and A TO Z across under them (DevEcMode), CLEAR, CONFIRM in the middle and CANCEL (dark,
  * in the exit corner) across the bottom (DevEcBottom at y 178, 52 tall). The groups: the title on the grid's title, the
  * groups' names as keys four across (DevEcCell); the letters: A..Z as keys in FireRed's rows of 6, 6, 7 and 7
  * (DevEcLetter); both with the toggle and BACK (dark) across the bottom (DevEcToggle). A list: its title over the
  * phrase on two lines (kDevEcListTitle), the words two a row (DevEcRow: rows) on the list's paper (kDevEcList) with the
- * rail on the same paper (kDevEcRail), ▲ ▼ (kDevEcUp, kDevEcDown), the letter strip (kDevEcStrip, a screen; its letters
- * in DevEcStripCell), USE WORD, the toggle and BACK (dark, at the right) across the bottom (DevEcListKey). A question:
- * the phrase's screen and slots dimmed, the question's note, YES and NO (kDevAskNote, kDevAskYes, kDevAskNo). */
+ * rail on the same paper (kDevEcRail), ▲ ▼ as two tall keys at the right (kDevEcUp, kDevEcDown), USE WORD, the toggle
+ * and BACK (dark, in the exit corner) across the bottom (DevEcBottom at y 196, 34 tall). A question: the phrase's
+ * screen and slots dimmed, the question's note, YES and NO (kDevAskNote, kDevAskYes, kDevAskNo). */
 static const CtrPokeTouchRect kDevEcPhrase __attribute__((unused)) = {8, 8, 304, 36};
 static const CtrPokeTouchRect kDevEcListTitle __attribute__((unused)) = {8, 6, 304, 40};
 static const CtrPokeTouchRect kDevEcList __attribute__((unused)) = {8, 52, 236, 136};
 static const CtrPokeTouchRect kDevEcRail __attribute__((unused)) = {220, 58, 18, 124};
-static const CtrPokeTouchRect kDevEcUp __attribute__((unused)) = {252, 52, 28, 64};
-static const CtrPokeTouchRect kDevEcDown __attribute__((unused)) = {252, 120, 28, 64};
-static const CtrPokeTouchRect kDevEcStrip __attribute__((unused)) = {284, 52, 28, 136};
+static const CtrPokeTouchRect kDevEcUp __attribute__((unused)) = {252, 52, 60, 62};
+static const CtrPokeTouchRect kDevEcDown __attribute__((unused)) = {252, 122, 60, 62};
 
 /* Slot i of a phrase of n slots (1-9): (n + 1) / 2 across, two rows. */
 static inline CtrPokeTouchRect DevEcChip(int n, int i)
@@ -559,9 +558,9 @@ static inline CtrPokeTouchRect DevEcMode(int i)
     return DevAcross(2, i, 136, 30);
 }
 
-/* Bottom key i at y, h tall, as def_easychat_edit's footer (the phrase's: y 178, 52 tall): 0 from x 8, 108 wide
- * (CLEAR); 1 in the middle from x 124, 112 wide (CONFIRM); 2 in the exit corner from x 244, 68 wide (CANCEL, dark:
- * kDevGridExit's column). */
+/* Bottom key i at y, h tall, as def_easychat_edit's and def_easychat_list's footers (the phrase's at y 178, 52 tall; a
+ * list's at y 196, 34 tall): 0 from x 8, 108 wide (CLEAR, USE WORD); 1 in the middle from x 124, 112 wide (CONFIRM, the
+ * toggle); 2 in the exit corner from x 244, 68 wide (CANCEL, BACK; dark: kDevGridExit's column). */
 static inline CtrPokeTouchRect DevEcBottom(int i, int y, int h)
 {
     CtrPokeTouchRect r = {(int16_t)(i == 0 ? 8 : i == 1 ? 124 : 244), (int16_t)y,
@@ -595,21 +594,6 @@ static inline CtrPokeTouchRect DevEcToggle(int i)
 static inline CtrPokeTouchRect DevEcRow(int k)
 {
     CtrPokeTouchRect r = {(int16_t)(16 + 102 * (k % 2)), (int16_t)(60 + 20 * (k / 2)), 100, 20};
-
-    return r;
-}
-
-/* A list's bottom keys: 0 USE WORD, 1 the toggle, 2 BACK (at the right, as every view's and the groups' BACK). */
-static inline CtrPokeTouchRect DevEcListKey(int i)
-{
-    return DevAcross(3, i, 196, 36);
-}
-
-/* Letter i (0-25) of the strip, thirteen down in two columns: its place, the lit letter's box; the letter's capitals
- * from 1 px in (x 291 + 8 * column, y 60 + 9 * row). */
-static inline CtrPokeTouchRect DevEcStripCell(int i)
-{
-    CtrPokeTouchRect r = {(int16_t)(290 + 8 * (i / 13)), (int16_t)(59 + 9 * (i % 13)), 8, 9};
 
     return r;
 }

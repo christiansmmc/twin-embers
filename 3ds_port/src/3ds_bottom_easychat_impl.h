@@ -5,7 +5,7 @@
  * game's own keys, one a frame (a frame without between them), the state read again every frame, so it never goes out of step: a physical
  * key cancels the walk, and it gives up after PLAN_LIMIT frames or when the cursor stops moving. */
 
-#include "3ds_device_layout.h"          /* the letter strip (kDevEcStrip): a scrub off it is read at its edge */
+#include "3ds_device_layout.h"          /* Easy Chat's rectangles, as 3ds_device_easychat_impl.h draws them */
 
 extern int CtrBottomEasyChat_IsOpen(void);
 extern int CtrBottomEasyChat_Ready(void);
@@ -42,16 +42,6 @@ static void EasyReset(void)
     memset(&sEcPlan, 0, sizeof(sEcPlan));
     sEcRelease = sEcEntry = 0;
     sEcPref = sEcPrev = -1;
-}
-
-/* The letter 0..25 a word starts with (ASCII, either case), or 255: the game's own accented letters sort with no letter of the strip. */
-static int EasyLetterOf(const char *word)
-{
-    char c = word[0];
-
-    if (c >= 'a' && c <= 'z')
-        c = (char)(c - 'a' + 'A');
-    return c >= 'A' && c <= 'Z' ? c - 'A' : 255;
 }
 
 /* A letter of the A-Z grid as the game's cursor lies on it (rows of 6, 6, 7, 7), and back. */
@@ -93,7 +83,6 @@ static int EasyFill(CtrPokeTouchEasy *e, int pressed)
     e->wantAlpha = (uint8_t)(sEcPref >= 0 ? sEcPref : e->alpha);
     e->numWords = (uint8_t)n;
     e->cursor = e->footer = e->cell = -1;
-    e->letter = 255;
     e->screen = state == EC_ST_GROUP ? (e->alpha ? PT_EC_LETTER : PT_EC_GROUP) : state == EC_ST_WORD ? PT_EC_LIST : PT_EC_EDIT;
     if (state >= EC_ST_QUIT) {
         e->ask = (uint8_t)(state == EC_ST_QUIT ? PT_EC_ASK_QUIT : state == EC_ST_DELETE ? PT_EC_ASK_DELETE : PT_EC_ASK_CONFIRM);
@@ -134,7 +123,6 @@ static int EasyFill(CtrPokeTouchEasy *e, int pressed)
         e->word = (int16_t)(2 * (CtrBottomEasyChat_Get(EC_WORD_Y) + wa) + CtrBottomEasyChat_Get(EC_WORD_X));
         for (int k = 0; k < 2 * PT_EC_ROWS; ++k)
             CtrBottomEasyChat_ListWord(2 * e->first + k, e->list[k], sizeof(e->list[k]));
-        e->letter = (uint8_t)EasyLetterOf(e->list[0]);
         if (e->alpha) {
             e->listTitle[0] = (char)('A' + EasyLetterAt(gx < 0 ? 0 : gx, gy) % 26);
             e->listTitle[1] = 0;
@@ -321,7 +309,7 @@ static void RunEasyPlan(int on)
 }
 
 /* The touch: a tap on a chip, group, letter, word or button is walked to and taken (a tap on what the game's cursor is on is its A); the rail
- * and the strip are sliders, a tap jumping to where it is pressed and a drag following the finger (the scroll walked to every frame). */
+ * is a slider, a tap jumping to where it is pressed and a drag following the finger (the scroll walked to every frame). */
 static void ProcessEasyTouch(const CtrInput *in)
 {
     const CtrPokeTouchEasy *e = &sShown.touch.ec;
@@ -337,7 +325,7 @@ static void ProcessEasyTouch(const CtrInput *in)
     if (in->touchDown) {
         sEcTap.down = sEcTap.inside = hit >= 0;
         sEcTap.code = hit;
-        sEcTap.scrub = hit == PT_EC_HIT_RAIL || hit == PT_EC_HIT_STRIP;
+        sEcTap.scrub = hit == PT_EC_HIT_RAIL;
         sEcTap.target = -1;
     } else if (!sEcTap.down)
         return;
@@ -347,26 +335,9 @@ static void ProcessEasyTouch(const CtrInput *in)
                 sEcTap.inside = hit == sEcTap.code;
             return;
         }
-        /* A slider: the scroll it stands for, wherever the finger is along its length. */
-        int target = sEcTap.code == PT_EC_HIT_RAIL ? CtrPokeTouch_EasyRailTarget(e, (int)in->touchY) : -1;
+        /* The rail: the scroll it stands for, wherever the finger is along its length. */
+        int target = CtrPokeTouch_EasyRailTarget(e, (int)in->touchY);
 
-        if (sEcTap.code == PT_EC_HIT_STRIP) {
-            int letter = CtrPokeTouch_EasyStripLetter(in->touchX < kDevEcStrip.x ? kDevEcStrip.x : (int)in->touchX,
-                                                      in->touchY < kDevEcStrip.y ? kDevEcStrip.y : (int)in->touchY);
-
-            if (letter >= 0) {              /* the first word that starts with it, or past it (the list is in order): its row */
-                int i = 0;
-                char w[PT_EC_WORD_LEN];
-
-                while (i < (int)e->listCount) {
-                    CtrBottomEasyChat_ListWord(i, w, sizeof(w));
-                    if (EasyLetterOf(w) == 255 || EasyLetterOf(w) >= letter)
-                        break;
-                    i += 1;
-                }
-                target = i / 2;
-            }
-        }
         if (target >= 0 && target != sEcTap.target) {
             sEcTap.target = target;
             EasyPlanStart(EP_FIRST, target, 0);

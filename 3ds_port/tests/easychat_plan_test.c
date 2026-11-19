@@ -91,10 +91,9 @@ void CtrBottomEasyChat_Title(char *out, int size) { snprintf(out, (size_t)size, 
 void CtrBottomEasyChat_Question(int which, int line, char *out, int size) { snprintf(out, (size_t)size, line ? "" : "Q%d?", which); }
 
 /* The stubs of the renderer's side: what is under the finger is the test's to say. */
-static int gHitCode = -1, gRail = -1, gStrip = -1, gStripX = -1, gStripY = -1;
+static int gHitCode = -1, gRail = -1;
 int CtrPokeTouch_EasyHit(const CtrPokeTouchView *v, int x, int y) { (void)v; (void)x; (void)y; return gHitCode; }
 int CtrPokeTouch_EasyRailTarget(const CtrPokeTouchEasy *e, int y) { (void)e; (void)y; return gRail; }
-int CtrPokeTouch_EasyStripLetter(int x, int y) { gStripX = x; gStripY = y; return gStrip; }   /* where it is asked */
 
 #include "../src/3ds_bottom_easychat_impl.h"
 
@@ -409,7 +408,7 @@ static void test_touch(void)
     tap(PT_EC_HIT_CONFIRM); assert(sRouteKey == K_START); sRouteKey = 0;
     tap(PT_EC_HIT_DELETE); assert(sEcPlan.kind == EP_DELETE); memset(&sEcPlan, 0, sizeof(sEcPlan));
     tap(PT_EC_HIT_MODE_ALPHA); assert(sEcPref == 1); tap(PT_EC_HIT_MODE_GROUPS); assert(sEcPref == 0); sEcPref = -1;
-    /* a list: a word, the buttons, the sliders */
+    /* a list: a word, the buttons, the rail (a slider) */
     game_open(14, 100, 0); G.state = 3; G.wrows = 49; G.wabove = 6; G.wy = 1; G.wx = 1;
     shown(); assert(sShown.touch.ec.screen == PT_EC_LIST && sShown.touch.ec.first == 6 && sShown.touch.ec.word == 2 * 7 + 1);
     tap(PT_EC_HIT_ROW + 2 * 1 + 1); assert(sRouteKey == K_A); sRouteKey = 0;            /* the selected word itself: taken */
@@ -418,6 +417,7 @@ static void test_touch(void)
     tap(PT_EC_HIT_BACK); assert(sRouteKey == K_B); sRouteKey = 0;
     tap(PT_EC_HIT_PLACE); assert(sRouteKey == K_A); sRouteKey = 0;
     tap(PT_EC_HIT_UP); assert(sRouteKey == K_UP); sRouteKey = 0;
+    tap(PT_EC_HIT_DOWN); assert(sRouteKey == K_DOWN); sRouteKey = 0;
     shown(); gHitCode = PT_EC_HIT_RAIL; gRail = 30; touch(1, 1); ProcessEasyTouch(&sIn);          /* a tap on the rail jumps ... */
     assert(sEcPlan.kind == EP_FIRST && sEcPlan.target == 30);
     for (int i = 0; i < 200 && sEcPlan.kind; ++i) frame();
@@ -427,40 +427,8 @@ static void test_touch(void)
     gHitCode = -1; touch(0, 0); ProcessEasyTouch(&sIn);
     for (int i = 0; i < 200 && sEcPlan.kind; ++i) frame();
     assert(G.wabove == 12 && !sEcTap.down);
-    /* the strip: the first word of the letter (the list has 100, word i starts with 'A' + i * 26 / 100) */
-    shown(); gHitCode = PT_EC_HIT_STRIP; gStrip = 'M' - 'A'; touch(1, 1); ProcessEasyTouch(&sIn);
-    for (int i = 0; i < 200 && sEcPlan.kind; ++i) frame();
-    touch(0, 0); ProcessEasyTouch(&sIn);
-    {
-        char w[PT_EC_WORD_LEN];
-        int first = G.wabove;
-
-        CtrBottomEasyChat_ListWord(2 * first, w, sizeof(w));
-        {
-            char w2[PT_EC_WORD_LEN];
-
-            CtrBottomEasyChat_ListWord(2 * first + 1, w2, sizeof(w2));
-            assert(w[0] == 'M' || w2[0] == 'M');                                      /* its first row holds the first word that starts with M */
-        }
-        CtrBottomEasyChat_ListWord(2 * first - 1, w, sizeof(w));
-        assert(w[0] < 'M');
-    }
-    gHitCode = -1; gStrip = -1;
-    /* Review Focus 4: the strip's and the rail's ends give the list's first and last rows (100 words, 50 rows: 44 the
-     * last first row; Z's first word is 97, row 48, past it); a scrub off the strip's top or left edge is read at that
-     * edge of the strip (kDevEcStrip), as v0.6.0 read its old strip's, so it keeps scrolling */
+    /* Review Focus 4: the rail's ends give the list's first and last rows (100 words, 50 rows: 44 the last first row) */
     game_open(14, 100, 0); G.state = 3; G.wrows = 49; G.wabove = 20;
-    shown(); gHitCode = PT_EC_HIT_STRIP; gStrip = 0; touch_at(1, 1, 300, 100); ProcessEasyTouch(&sIn);
-    assert(gStripX == 300 && gStripY == 100 && sEcPlan.kind == EP_FIRST && sEcPlan.target == 0);
-    touch_at(0, 1, 300, kDevEcStrip.y - 20); ProcessEasyTouch(&sIn); assert(gStripX == 300 && gStripY == kDevEcStrip.y);
-    touch_at(0, 1, kDevEcStrip.x - 30, 100); ProcessEasyTouch(&sIn); assert(gStripX == kDevEcStrip.x && gStripY == 100);
-    for (int i = 0; i < 300 && sEcPlan.kind; ++i) frame();
-    assert(G.wabove == 0);                                                              /* A: the first row */
-    gStrip = 25; touch_at(0, 1, 305, kDevEcStrip.y + kDevEcStrip.h - 1); ProcessEasyTouch(&sIn);
-    assert(sEcPlan.kind == EP_FIRST && sEcPlan.target == 97 / 2);
-    for (int i = 0; i < 300 && sEcPlan.kind; ++i) frame();
-    assert(G.wabove == 50 - PT_EC_ROWS);                                                /* Z: the last row */
-    gHitCode = -1; touch_at(0, 0, 0, 0); ProcessEasyTouch(&sIn); gStrip = -1;
     shown(); gHitCode = PT_EC_HIT_RAIL; gRail = 0; touch_at(1, 1, 228, 58); ProcessEasyTouch(&sIn);
     for (int i = 0; i < 300 && sEcPlan.kind; ++i) frame();
     assert(G.wabove == 0);                                                              /* the rail's top: the first row */
@@ -482,7 +450,7 @@ static void test_fill(void)
     G.gy = 1; shown(); assert(sShown.touch.ec.cell == -1);
     G.alpha = 1; G.gx = 3; G.gy = 2; shown(); assert(sShown.touch.ec.screen == PT_EC_LETTER && sShown.touch.ec.cell == 15);
     G.alpha = 0; G.gx = 1; G.gy = 2; G.gabove = 3; shown(); assert(sShown.touch.ec.cell == 11);
-    G.state = 3; G.total = 7; G.wrows = 3; shown(); assert(sShown.touch.ec.listCount == 7 && sShown.touch.ec.first == 0 && sShown.touch.ec.letter == 0);
+    G.state = 3; G.total = 7; G.wrows = 3; shown(); assert(sShown.touch.ec.listCount == 7 && sShown.touch.ec.first == 0);
     G.total = 100; G.wrows = 49; G.wabove = 46; G.wy = 3; G.wx = 1; shown();
     assert(sShown.touch.ec.first == 50 - PT_EC_ROWS && sShown.touch.ec.word == 2 * 49 + 1);       /* the cursor stays in the six rows shown */
     assert(sShown.touch.ec.word >= 2 * sShown.touch.ec.first && sShown.touch.ec.word < 2 * (sShown.touch.ec.first + PT_EC_ROWS));
