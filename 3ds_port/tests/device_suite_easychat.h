@@ -92,8 +92,8 @@ static void EcThumb(int y0, int y1)
 /* ▲ and ▼: each arrow in the key's ink while the list goes that way, grey otherwise (25 px, DevTriangle's). */
 static void EcArrows(int up, int down)
 {
-    assert(EcKeyCount(kDevEcUp, up ? DEV_KEY_INK : DEV_BAG_ARROW_OFF) == 25);
-    assert(EcKeyCount(kDevEcDown, down ? DEV_KEY_INK : DEV_BAG_ARROW_OFF) == 25);
+    assert(EcKeyCount(kDevEcUp, up ? DEV_KEY_INK : DEV_ARROW_OFF) == 25);
+    assert(EcKeyCount(kDevEcDown, down ? DEV_KEY_INK : DEV_ARROW_OFF) == 25);
 }
 
 /* Words (decision 5), with small letters wider than capitals: the phrase's words, the groups and the list's words and
@@ -239,7 +239,7 @@ static void SuiteEasyChat(void)
     v.ec.pressed = PT_EC_HIT_TOGGLE; DevCheckTouch(&old, &v); AssertKey(DevEcListKey(1), DEV_LOOK_KEY, 1); AssertKey(DevEcListKey(0), DEV_LOOK_KEY, 0);
     v.ec.pressed = PT_EC_HIT_BACK; DevCheckTouch(&old, &v); EcDark(DevEcListKey(2), 1); AssertKey(DevEcListKey(0), DEV_LOOK_KEY, 0);
     v.ec.pressed = PT_EC_HIT_UP; DevCheckTouch(&old, &v); AssertKey(kDevEcUp, DEV_LOOK_KEY, 1); AssertKey(kDevEcDown, DEV_LOOK_KEY, 0);
-    assert(EcKeyCount(kDevEcUp, DEV_BAG_ARROW_OFF) == 25);                   /* held where it goes no further: still taken */
+    assert(EcKeyCount(kDevEcUp, DEV_ARROW_OFF) == 25);                   /* held where it goes no further: still taken */
     v.ec.pressed = PT_EC_HIT_DOWN; DevCheckTouch(&old, &v); AssertKey(kDevEcDown, DEV_LOOK_KEY, 1); assert(EcKeyCount(kDevEcDown, DEV_SUNK_INK) == 25);
     v.ec.pressed = -1; v.ec.first = 12; v.ec.word = 2 * 12; DevCheckTouch(&old, &v); EcThumb(108, 131); EcArrows(1, 1); EcRowsInverted(&v, 0);
     v.ec.first = 24; v.ec.word = 2 * 24 + 11; DevCheckTouch(&old, &v); EcThumb(158, 181); EcArrows(1, 0); EcRowsInverted(&v, 11);

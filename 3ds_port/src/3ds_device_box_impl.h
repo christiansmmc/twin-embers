@@ -71,13 +71,13 @@ int CtrPokeTouch_BoxHit(const CtrPokeTouchView *v, int x, int y)
         for (int i = 0; i < n; ++i) {
             CtrPokeTouchRect r = DevBoxMenuKey(n, i);
 
-            if (DevBagOnKey(&r, x, y))
+            if (DevOnKey(&r, x, y))
                 return ST_HIT_MENU_BASE + i;
         }
         return ST_HIT_NONE;
     case PT_BOX_STATE_CHOOSE:
-        return DevBagOnKey(&kDevBoxPrev, x, y) ? ST_HIT_PREV : DevBagOnKey(&kDevBoxNext, x, y) ? ST_HIT_NEXT
-             : DevBagOnKey(&kDevBoxChoose, x, y) ? ST_HIT_TITLE : ST_HIT_NONE;
+        return DevOnKey(&kDevBoxPrev, x, y) ? ST_HIT_PREV : DevOnKey(&kDevBoxNext, x, y) ? ST_HIT_NEXT
+             : DevOnKey(&kDevBoxChoose, x, y) ? ST_HIT_TITLE : ST_HIT_NONE;
     case PT_BOX_STATE_BOX:
         break;
     default:
@@ -92,13 +92,13 @@ int CtrPokeTouch_BoxHit(const CtrPokeTouchView *v, int x, int y)
         }
         return ST_HIT_NONE;
     }
-    if (DevBagOnKey(&kDevBoxPrev, x, y))
+    if (DevOnKey(&kDevBoxPrev, x, y))
         return ST_HIT_PREV;
-    if (DevBagOnKey(&kDevBoxNext, x, y))
+    if (DevOnKey(&kDevBoxNext, x, y))
         return ST_HIT_NEXT;
-    if (DevBagOnKey(&kDevBoxParty, x, y))
+    if (DevOnKey(&kDevBoxParty, x, y))
         return ST_HIT_BUTTON_PARTY;
-    if (DevBagOnKey(&kDevBoxClose, x, y))
+    if (DevOnKey(&kDevBoxClose, x, y))
         return ST_HIT_BUTTON_CLOSE;
     if (UiIn(&kDevBoxTitle, x, y))
         return ST_HIT_TITLE;
@@ -276,7 +276,7 @@ static void DevBoxIcon(const CtrPokeTouchBoxMon *m, int x, int y, const CtrPokeT
 static void DevBoxItem(unsigned item, int x, int y)
 {
     DevArt(DEV_ART_ITEM, x, y, 24, 24);
-    DevBagIcon(item, x, y, 0);
+    DevItemIcon(item, x, y, 0);
 }
 
 /* ---- The box's screen ----------------------------------------------------------------------------------------------- */
@@ -375,7 +375,7 @@ static void DevBoxSide(int cursor, int press, int dim)
     char word[32];
     int sunk, faceY;
 
-    DevDexArrows(&kDevBoxPrev, &kDevBoxNext, 1, 1, press == ST_HIT_PREV, press == ST_HIT_NEXT, 1);
+    DevArrowKeys(&kDevBoxPrev, &kDevBoxNext, 1, 1, press == ST_HIT_PREV, press == ST_HIT_NEXT, 1);
     sunk = DevChosen(ST_HIT_BUTTON_PARTY, cursor, press);
     faceY = DevKey(&kDevBoxParty, DEV_LOOK_KEY, sunk, 6);
     DevUpper(word, CtrUiText(UIS_BOX_PARTY), sizeof(word));
@@ -456,7 +456,7 @@ static void DevBoxItemNote(const CtrPokeTouchBox *b, const CtrPokeTouchRect *pap
     DevBoxUpper(b->itemName, (int)sizeof(b->itemName), text, (int)sizeof(text));
     DevText(text, x, top, right - w - 6);
     DevBoxText(b->itemDesc, (int)sizeof(b->itemDesc), text, (int)sizeof(text));
-    DevBagSmallWrap(text, x, x, top + 14, right, 3, DEV_INK);
+    DevSmallWrap(text, x, x, top + 14, right, 3, DEV_SMALL_LINE_TIGHT, DEV_INK);
 }
 
 /* The note (`outer`: wide, or narrow beside the right column's keys): FireRed's message while there is one (its ▼ while
@@ -522,7 +522,7 @@ static void DevBoxMenu(const CtrPokeTouchBox *b, int press)
             DevUpper(word, CtrUiText(i ? UIS_NO : UIS_YES), sizeof(word));
         else
             DevUpper(word, CtrUiText(i == 4 ? UIS_OK : UIS_CANCEL), sizeof(word));
-        DevBagWord(&r, faceY, look, sunk, word, look == DEV_LOOK_KEY);
+        DevKeyWordAt(&r, faceY, look, sunk, word, look == DEV_LOOK_KEY ? 12 : 0);
     }
 }
 
@@ -533,7 +533,7 @@ static void DevBoxChooser(const CtrPokeTouchBox *b, int press)
     int faceY = DevKey(r, DEV_LOOK_KEY, 1, 6), w;
     char text[DEV_BOX_TEXT];
 
-    DevDexArrows(&kDevBoxPrev, &kDevBoxNext, 1, 1, press == ST_HIT_PREV, press == ST_HIT_NEXT, 1);
+    DevArrowKeys(&kDevBoxPrev, &kDevBoxNext, 1, 1, press == ST_HIT_PREV, press == ST_HIT_NEXT, 1);
     DevBoxText(b->chooseName, (int)sizeof(b->chooseName), text, (int)sizeof(text));
     w = DevTextWidth(text);
     DevTextInk(text, r->x + (r->w - w) / 2, faceY + 22, r->x + r->w - 4, DEV_SUNK_INK, DEV_SUNK_INK_SH);
@@ -552,7 +552,7 @@ static void DevBoxDraw(const CtrPokeTouchView *v)
     int grey = keys || message || b->state == PT_BOX_STATE_CHOOSE;
     CtrPokeTouchRect paper;
 
-    DevShell(0);
+    DevShell();
     paper = DevScreen(&kDevBoxScreen);
     if (b->area == ST_AREA_PARTY)
         DevBoxParty(b, cursor, boxPress);

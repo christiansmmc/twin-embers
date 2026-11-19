@@ -105,9 +105,20 @@ enum { PT_SAVE_NONE, PT_SAVE_FIRST, PT_SAVE_SECOND };  /* the button: YES or OK,
  * pockets as keys, the rows of the list it shows (its items; FireRed's CLOSE BAG row is the CLOSE key), the item's
  * description, and the menu, the quantity box, the question or the message it has open. Everything is the Bag's own
  * state. The TM Case and the Berry Pouch it opens, a mart's BUY, the item PC's WITHDRAW ITEM and the mailbox are drawn
- * the same way, with their name or title in place of the pockets. */
-#define PT_BAG_ROWS 8
+ * the same way, with their name or title in place of the pockets. Five rows (the grid's, DEV_GRID_ROWS). */
+#define PT_BAG_ROWS 5
 #define PT_BAG_MENU_MAX 6
+
+/* The first item a list of `count` items shows in `rows` rows with FireRed's cursor at `cursor`: the cursor's row in the
+ * middle (rows / 2 above it) where the list allows, the window held at the list's ends. The Bag's lists, the field's and
+ * the battle's (PT_BAG_ROWS, BUI_BAG_ROWS). */
+static inline int CtrPokeTouch_ListFirst(int cursor, int count, int rows)
+{
+    int first = cursor - rows / 2, last = count - rows < 0 ? 0 : count - rows;
+
+    return first < 0 ? 0 : first > last ? last : first;
+}
+
 enum { PT_BAG_KIND_BAG = 0, PT_BAG_KIND_TMCASE, PT_BAG_KIND_POUCH, PT_BAG_KIND_SHOP,   /* SHOP: a mart's BUY list */
        PT_BAG_KIND_ITEMPC };                                                          /* ITEMPC: the PC's WITHDRAW ITEM */
 enum { PT_BAG_USE_FIELD = 0, PT_BAG_USE_SELL, PT_BAG_USE_DEPOSIT };   /* the field's Bag, a shop's, the item PC's */
@@ -616,7 +627,7 @@ typedef struct {
 } CtrBattleMove;
 enum { BUI_BAG_TAB = 100, BUI_BAG_ROW = 200, BUI_BAG_MENU = 300, BUI_BAG_CANCEL = 400, BUI_BAG_MESSAGE = 500,
        BUI_BAG_UP = 600, BUI_BAG_DOWN = 601, BUI_BAG_BERRIES = 602 };
-#define BUI_BAG_ROWS 8
+#define BUI_BAG_ROWS 5
 #define BUI_ITEM_LEN 20
 typedef struct {
     uint8_t pocket;                 /* FireRed's pocket: 0 Items, 1 Key Items, 2 Poke Balls */
@@ -658,6 +669,7 @@ typedef struct {
                                      * (not drawn: the bays show frame 0) */
     char name[6][11];
     uint8_t nameIsSpecies[6];       /* the name is its species' own (shown in capitals), not one the player gave */
+    uint8_t gender[6];              /* 0 male, 1 female, 2 none (CtrBottomParty_Gender): the sign after a bay's name */
     int8_t cursor;                  /* the Party's own selection: a slot 0-5 */
     uint8_t mode;                   /* BUI_PTY_SWITCH, BUI_PTY_TARGET (an item's target), BUI_PTY_FORCED (CANCEL grey) */
     uint8_t panel;                  /* BUI_PTY_*: what the Party has open over the slots */

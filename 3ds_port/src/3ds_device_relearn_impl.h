@@ -1,14 +1,14 @@
 /* The move relearner (REMEMBER, the Two Island man) as the red device (no board; plan 3), included by 3ds_poketouch.c
  * after the move to forget: a row of the field dispatcher (3ds_device_field_impl.h), shown while view->relearn.on and
  * there is no GBA picture (DevRelearnShown). A remote for FireRed's screen (3ds_poketouch.h CtrPokeTouchRelearn), on
- * the Bag's list page, every state of it drawn here (never FireRed's own picture):
+ * the grid's list page, every state of it drawn here (never FireRed's own picture):
  *  - the list: FireRed's question on the title; the moves it can remember as five tall rows (the name, the type's
  *    chip), the cursor's row inverted or the row under a held touch; ▲ ▼ on by v0.6.0's rules (▲ while the list or the
  *    cursor can go up, ▼ while the cursor is above CANCEL), grey and not hit otherwise; the cursor's move's type, power,
- *    accuracy and description on the description's screen; FireRed's CANCEL row as CANCEL, a dark key in CLOSE's place
- *    (owner decision 4: no BACK), sunk while the cursor is on that row or under a held touch;
- *  - a question: FireRed's words on the narrow screen, YES and NO in the Bag's place, FireRed's cursor sunk (or the key
- *    under a held touch), the cursor's move on the narrow description;
+ *    accuracy and description on the grid's note; FireRed's CANCEL row as CANCEL, a dark key in the grid's exit (owner
+ *    decision 4: no BACK), sunk while the cursor is on that row or under a held touch;
+ *  - a question: FireRed's words on the narrow screen, YES and NO beside it (DevRlKey), FireRed's cursor sunk (or the
+ *    key under a held touch), the cursor's move on the narrow description;
  *  - a message: on the list's screen, FireRed's ▼ while it waits for A (and then a tap anywhere is its A), the keys grey;
  *  - while it is set up: the empty screens, the keys grey, nothing hit.
  * A row is walked to with the list's own UP / DOWN and taken with its A, CANCEL is FireRed's B on the list
@@ -59,9 +59,9 @@ int CtrPokeTouch_RelearnHit(const CtrPokeTouchView *v, int x, int y)
     switch (l->panel) {
     case PT_RL_PANEL_YESNO:
         for (int i = 0; i < 2; ++i) {
-            CtrPokeTouchRect r = DevBagMenuKey(2, i);
+            CtrPokeTouchRect r = DevRlKey(i);
 
-            if (DevBagOnKey(&r, x, y))
+            if (DevOnKey(&r, x, y))
                 return i ? PT_RL_HIT_NO : PT_RL_HIT_YES;
         }
         return -1;
@@ -70,11 +70,11 @@ int CtrPokeTouch_RelearnHit(const CtrPokeTouchView *v, int x, int y)
     case PT_RL_PANEL_BLANK:
         return -1;
     }
-    if (DevBagOnKey(&kDevBagUp, x, y))
+    if (DevOnKey(&kDevGridUp, x, y))
         return DevRlUpOn(l) ? PT_RL_HIT_UP : -1;
-    if (DevBagOnKey(&kDevBagDown, x, y))
+    if (DevOnKey(&kDevGridDown, x, y))
         return DevRlDownOn(l) ? PT_RL_HIT_DOWN : -1;
-    if (DevBagOnKey(&kDevBagClose, x, y))
+    if (DevOnKey(&kDevGridExit, x, y))
         return PT_RL_HIT_CANCEL;
     for (int i = 0; i < PT_RL_ROWS; ++i) {
         CtrPokeTouchRect r = DevTallRow(i, 0);
@@ -104,8 +104,7 @@ static int DevRlPress(const CtrPokeTouchRelearn *l)
 
 /* ---- Drawing --------------------------------------------------------------------------------------------------------- */
 
-/* Row i of the list, inverted when `chosen`: the move's name, its type's chip at the right (DevMoveChip, the move to
- * forget's). */
+/* Row i of the list, inverted when `chosen`: the move's name, its type's chip at the right (DevTypeChip). */
 static void DevRlRowDraw(const CtrPokeTouchRelearn *l, int i, int chosen)
 {
     CtrPokeTouchRect r = DevTallRow(i, 0);
@@ -115,8 +114,8 @@ static void DevRlRowDraw(const CtrPokeTouchRelearn *l, int i, int chosen)
 
     DevRow(&r, chosen);
     if (l->row[i].type >= 0) {
-        nameRight -= DevMoveChipWidth(l->row[i].typeName);
-        DevMoveChip(l->row[i].typeName, l->row[i].type, nameRight, r.y + (r.h - 12) / 2, 12);
+        nameRight -= DevTypeChipWidth(l->row[i].typeName);
+        DevTypeChip(l->row[i].typeName, l->row[i].type, nameRight, r.y + (r.h - 12) / 2, 12);
     }
     DevUpper(word, l->row[i].name, sizeof(word));
     DevTextInk(word, r.x + 6, r.y + (r.h - UI_TEXT_H) / 2, nameRight - 4, ink, shadow);
@@ -126,38 +125,37 @@ static void DevRlRowDraw(const CtrPokeTouchRelearn *l, int i, int chosen)
  * font, three lines in all; nothing on CANCEL. */
 static void DevRlDesc(const CtrPokeTouchRelearn *l)
 {
-    CtrPokeTouchRect paper = DevScreen(&kDevBagDesc);
-    int c = DevRlCursorRow(l), x = paper.x + 6, top = kDevBagDescText.y + 2, right = paper.x + paper.w - 4;
+    CtrPokeTouchRect paper = DevScreen(&kDevGridNote);
+    int c = DevRlCursorRow(l), x = paper.x + 6, top = paper.y + 3, right = paper.x + paper.w - 4;
     char stats[48];
 
     if (c < 0)
         return;
     if (l->row[c].type >= 0)
-        x += DevMoveChip(l->row[c].typeName, l->row[c].type, x, top, 9) + 4;
-    snprintf(stats, sizeof(stats), "%s %s  %s %s", CTR_TR("POW", "POT", "ST\xC3\x84"), l->row[c].power[0] ? l->row[c].power : "-",
-             CTR_TR("ACC", "PRE", "GEN"), l->row[c].accuracy[0] ? l->row[c].accuracy : "-");
+        x += DevTypeChip(l->row[c].typeName, l->row[c].type, x, top, 9) + 4;
+    DevPowAcc(stats, sizeof(stats), l->row[c].power, l->row[c].accuracy);
     DevSmallText(stats, x, top, DEV_INK2, right);
-    DevBagSmallWrap(l->desc, x + DevSmallTextWidth(stats) + 6, paper.x + 6, top, right, 3, DEV_INK);
+    DevSmallWrap(l->desc, x + DevSmallTextWidth(stats) + 6, paper.x + 6, top, right, 3, DEV_SMALL_LINE_TIGHT, DEV_INK);
 }
 
-/* CANCEL, a dark key in CLOSE's place: sunk as chosen; grey (`dim`) outside the list. */
+/* CANCEL, a dark key in the grid's exit: sunk as chosen; grey (`dim`) outside the list. */
 static void DevRlCancel(int sunk, int dim)
 {
-    int faceY = DevKey(&kDevBagClose, DEV_LOOK_DARK, sunk, 6);
+    int faceY = DevKey(&kDevGridExit, DEV_LOOK_DARK, sunk, 6);
     char word[24];
 
     DevUpper(word, CtrUiText(UIS_CANCEL), sizeof(word));
-    DevKeyWord(&kDevBagClose, faceY, DEV_LOOK_DARK, sunk, word);
+    DevKeyWord(&kDevGridExit, faceY, DEV_LOOK_DARK, sunk, word);
     if (dim)
-        DevDim(&kDevBagClose);
+        DevDim(&kDevGridExit);
 }
 
 /* ▲ and ▼ grey (a message, the screen being set up): drawn as the list has them, then dimmed. */
 static void DevRlArrowsDim(const CtrPokeTouchRelearn *l, int on)
 {
-    DevDexArrows(&kDevBagUp, &kDevBagDown, on && DevRlUpOn(l), on && DevRlDownOn(l), 0, 0, 0);
-    DevDim(&kDevBagUp);
-    DevDim(&kDevBagDown);
+    DevArrowKeys(&kDevGridUp, &kDevGridDown, on && DevRlUpOn(l), on && DevRlDownOn(l), 0, 0, 0);
+    DevDim(&kDevGridUp);
+    DevDim(&kDevGridDown);
 }
 
 /* The list: the rows, ▲ ▼, the description and CANCEL; the chosen row or CANCEL the one under a held touch, else the
@@ -167,11 +165,12 @@ static void DevRlList(const CtrPokeTouchRelearn *l, int press)
     int c = DevRlCursorRow(l), cursor = l->cursor >= l->count ? PT_RL_HIT_CANCEL : c >= 0 ? PT_RL_HIT_ROW + c : -1;
     int chosen = press == PT_RL_HIT_CANCEL || (press >= PT_RL_HIT_ROW && press < PT_RL_HIT_ROW + PT_RL_ROWS) ? press : -1;
 
-    DevScreen(&kDevBagList);
+    DevScreen(&kDevGridScreen);
     for (int i = 0; i < PT_RL_ROWS; ++i)
         if (DevRlRow(l, i))
             DevRlRowDraw(l, i, DevChosen(PT_RL_HIT_ROW + i, cursor, chosen));
-    DevDexArrows(&kDevBagUp, &kDevBagDown, DevRlUpOn(l), DevRlDownOn(l), press == PT_RL_HIT_UP, press == PT_RL_HIT_DOWN, 0);
+    DevArrowKeys(&kDevGridUp, &kDevGridDown, DevRlUpOn(l), DevRlDownOn(l), press == PT_RL_HIT_UP,
+                 press == PT_RL_HIT_DOWN, 0);
     DevRlDesc(l);
     DevRlCancel(DevChosen(PT_RL_HIT_CANCEL, cursor, chosen), 0);
 }
@@ -180,25 +179,25 @@ static void DevRlList(const CtrPokeTouchRelearn *l, int press)
  * (its type, its name) on the narrow description. */
 static void DevRlYesNo(const CtrPokeTouchRelearn *l, int press)
 {
-    CtrPokeTouchRect paper = DevScreen(&kDevBagListNarrow);
+    CtrPokeTouchRect paper = DevScreen(&kDevRlNarrow);
     int width = paper.w - 12, lines = DevWrapLines(l->message, width, 9), c = DevRlCursorRow(l);
     char word[24];
 
     if (lines)
         DevWrap(l->message, paper.x + 6, paper.y + (paper.h - (8 + DEV_LINE_H * (lines - 1))) / 2, width, 9, DEV_INK, DEV_INK_SH);
     for (int i = 0; i < 2; ++i) {
-        CtrPokeTouchRect r = DevBagMenuKey(2, i);
+        CtrPokeTouchRect r = DevRlKey(i);
         int sunk = DevChosen(i, l->menuCursor, press >= 0 ? press - PT_RL_HIT_YES : -1), faceY = DevKey(&r, DEV_LOOK_KEY, sunk, 6);
 
         DevUpper(word, CtrUiText(i ? UIS_NO : UIS_YES), sizeof(word));
-        DevBagWord(&r, faceY, DEV_LOOK_KEY, sunk, word, 1);
+        DevKeyWordAt(&r, faceY, DEV_LOOK_KEY, sunk, word, 12);
     }
-    paper = DevScreen(&kDevBagDescNarrow);
+    paper = DevScreen(&kDevRlDescNarrow);
     if (c >= 0) {
         int x = paper.x + 6;
 
         if (l->row[c].type >= 0)
-            x += DevMoveChip(l->row[c].typeName, l->row[c].type, x, paper.y + (paper.h - 12) / 2, 12) + 6;
+            x += DevTypeChip(l->row[c].typeName, l->row[c].type, x, paper.y + (paper.h - 12) / 2, 12) + 6;
         DevUpper(word, l->row[c].name, sizeof(word));
         DevText(word, x, paper.y + (paper.h - 8) / 2, paper.x + paper.w - 6);
     }
@@ -207,7 +206,7 @@ static void DevRlYesNo(const CtrPokeTouchRelearn *l, int press)
 /* A message on the list's screen, FireRed's ▼ while it waits for A, the keys grey. */
 static void DevRlMessage(const CtrPokeTouchRelearn *l)
 {
-    CtrPokeTouchRect paper = DevScreen(&kDevBagList);
+    CtrPokeTouchRect paper = DevScreen(&kDevGridScreen);
 
     DevWrap(l->message, paper.x + 8, paper.y + 8, paper.w - 28, (paper.h - 16) / DEV_LINE_H, DEV_INK, DEV_INK_SH);
     if (l->tap)
@@ -224,8 +223,8 @@ static void DevRelearnDraw(const CtrPokeTouchView *v)
     CtrPokeTouchRect paper;
     int press = DevRlPress(l);
 
-    DevShell(0);
-    paper = DevScreen(&kDevBagTitle);
+    DevShell();
+    paper = DevScreen(&kDevGridTitle);
     DevText(l->question, paper.x + 6, paper.y + (paper.h - 8) / 2, paper.x + paper.w - 6);
     switch (l->panel) {
     case PT_RL_PANEL_YESNO:
@@ -235,9 +234,9 @@ static void DevRelearnDraw(const CtrPokeTouchView *v)
         DevRlMessage(l);
         break;
     case PT_RL_PANEL_BLANK:
-        DevScreen(&kDevBagList);
+        DevScreen(&kDevGridScreen);
         DevRlArrowsDim(l, 0);
-        DevScreen(&kDevBagDesc);
+        DevScreen(&kDevGridNote);
         DevRlCancel(0, 1);
         break;
     default:

@@ -31,11 +31,11 @@ static void DevMailDraw(const CtrPokeTouchView *v)
     char name[sizeof(m->name)];
     int w;
 
-    DevShell(0);
+    DevShell();
     DevScreen(&kDevTallScreen);
     if (m->item) {
         DevArt(DEV_ART_ITEM, kDevMailIcon.x, kDevMailIcon.y, kDevMailIcon.w, kDevMailIcon.h);
-        DevBagIcon(m->item, kDevMailIcon.x, kDevMailIcon.y, 0);
+        DevItemIcon(m->item, kDevMailIcon.x, kDevMailIcon.y, 0);
     }
     DevUpper(name, m->name, sizeof(name));
     w = DevTextWidth(name);
@@ -50,7 +50,7 @@ static void DevMailDraw(const CtrPokeTouchView *v)
         DevSmallText(label, x, f->y + (f->h - 7) / 2, DEV_INK2, f->x + f->w);
         DevText(m->from, x + lw, f->y + (f->h - UI_TEXT_H) / 2, f->x + f->w);
     }
-    DevFieldBack(v, &kDevWideKey, DevBagCloseWord());       /* CLOSE */
+    DevFieldBack(v, &kDevWideKey, DevCloseWord());          /* CLOSE */
 }
 
 /* ---- The dispatcher's row: whether two views draw the same, where BACK is ------------------------------------------- */

@@ -1,22 +1,23 @@
-/* The Party as the red device (style B; boards B · POKeMON and B · POKeMON: menu de ações), the field's and the
- * battle's alike (BUI_PARTY), included by 3ds_poketouch.c after the kit and HOME and before the battle, whose
- * CtrBattleUi_Draw / Update / Hit hand it this state. Every rectangle is 3ds_device_layout.h's, so what is drawn is what
- * a touch takes.
+/* The Party as the red device (style B; boards def_party and def_party_menu), the field's and the battle's alike
+ * (BUI_PARTY), included by 3ds_poketouch.c after the kit and HOME and before the battle, whose CtrBattleUi_Draw / Update /
+ * Hit hand it this state. Every rectangle is 3ds_device_layout.h's, so what is drawn is what a touch takes.
  *
- * The six Pokemon are bays in the shell, two to a row in the game's order: a key with the icon (1:1, frame 0), the name,
- * the HP tag and bar with the numbers and, at the right, the level or what matters more (picking several its place in
- * the order, an item's or a move's verdict, a condition); a faint key when it fainted or may not enter; an egg shows its
- * icon and name only; a slot without a Pokemon is a hole. Under them the screen says what the Party says (its own
- * prompt, or the mode's words) and CANCEL, a dark key, leaves (grey and not taken when a Pokemon must be sent out);
- * picking several, CONFIRM over a shorter CANCEL. A message is on the screen with FireRed's arrow, the keys grey: a tap
- * anywhere goes on.
- * The action menu (and YES / NO): the bays become a column of slim ones and the actions keys beside them, one column of
- * up to four, two beyond with the slim bays narrowed (the game's D-pad walks the same grid, 3ds_party_grid.h); a field
- * move's name in blue, CANCEL dark; the menu's screen under them with the Party's prompt. A Rare Candy's level up: the
- * new level and the six stats with their gains on a tall screen, the message under it, OK.
+ * The six Pokemon are bays in the shell, two to a row in the game's order: a key with the icon (1:1, frame 0), the name
+ * and its gender sign, the HP bar with the numbers at the right and under them the level or what matters more (picking
+ * several its place in the order, an item's or a move's verdict, a condition); a faint key when it fainted or may not
+ * enter; an egg shows its icon and name only; a slot without a Pokemon is a hole. Under them, on the grid's note, what
+ * the Party says (its own prompt, or the mode's words) and CANCEL, the dark key in the exit corner, leaves (grey and not
+ * taken when a Pokemon must be sent out); picking several (the Decisions) the words on the small note, CONFIRM beside it,
+ * CANCEL in the exit corner. A message is on the note with FireRed's arrow, the keys grey: a tap anywhere goes on.
+ * The action menu (and YES / NO; def_party_menu, the owner's O2): the bays become a column of slim ones and the actions
+ * keys in one column beside them, six shown in a window that follows FireRed's cursor (the D-pad is the game's own list
+ * input, 3ds_party_grid.h), ▲▼ over and under it when actions are hidden; a field move's name in blue; FireRed's CANCEL
+ * the dark key in the exit corner (YES / NO has none); the Party's prompt on the grid's note. A Rare Candy's level up: the
+ * new level and the six stats with their gains on a tall screen, the message on the grid's note, OK cream in the exit
+ * corner (up; sunk under a held touch, which goes on).
  *
  * The chosen key is the one under a held touch, else the game's cursor: a slot, CONFIRM or CANCEL (FireRed's slots 6
- * and 7), a menu row. No screws. Words: upper case (decision 5): the menu's names through DevUpper, a Pokemon's name in
+ * and 7), a menu row. Four screws (DevShell). Words: upper case (decision 5): the menu's names through DevUpper, a Pokemon's name in
  * capitals when it is its species' own (the fill compares it, as the battle's does), as typed when the player gave it;
  * FireRed's prompts and messages as they are; the port's words written in capitals.
  *
@@ -24,12 +25,10 @@
  * are not animated here; the battle's own fields; what the open panel does not show: DevPartyUndrawn) is copied over
  * before the comparison. */
 
-#define DEV_PTY_GREY      UI_RGB(0x8A, 0x8A, 0x8A)  /* a faint bay's HP tag and bar frame, and the tag's ink */
-#define DEV_PTY_GREY_INK  UI_RGB(0xE0, 0xE0, 0xE0)
 #define DEV_PTY_ORDER     DEV_BLUE_INK              /* picking several: a Pokemon's place in the order */
 #define DEV_PTY_GAIN      DEV_FX_SUPER              /* the level up's gains */
-#define DEV_PTY_BAR_W     56                        /* a bay's HP bar (the board's), less what wide numbers need */
-#define DEV_PTY_SLIM_BAR  72                        /* a slim bay's */
+#define DEV_PTY_SLIM_BAR  72                        /* a slim bay's HP bar */
+#define DEV_PTY_SIGN      12                        /* a bay's gender sign: 4 px after the name, 8 wide with its shadow */
 
 /* Words at a bay's right: v0.6.0's (its party cards'), in capitals. The conditions are GetMonAilment's 1-6. */
 static const char *const kDevPtyStatus[7] = {
@@ -41,10 +40,29 @@ static const char *const kDevPtyTag[5] = {
     CTR_TR("NO USE", "NO SIRVE", "NUTZLOS"),
 };
 
-/* The menu's rows shown (at most the grid's eight). */
+/* The menu's rows (at most FireRed's eight). */
 static int DevPtyMenuCount(const CtrBattleParty *p)
 {
     return CtrPartyGrid_Count(p->menuCount);
+}
+
+/* The rows the column holds: the menu's, less the last when it is FireRed's CANCEL (dark: the exit corner's key). */
+static int DevPtyMenuKeys(const CtrBattleParty *p)
+{
+    int n = DevPtyMenuCount(p);
+
+    return n > 0 && ((p->menuDark >> (n - 1)) & 1) ? n - 1 : n;
+}
+
+/* The row the column's first key shows: 0 while the column shows every action; beyond, the window FireRed's cursor
+ * gives, the cursor on the last key once it is past it (on CANCEL, in the exit corner: the window at its end). */
+static int DevPtyMenuFirst(const CtrBattleParty *p)
+{
+    int keys = DevPtyMenuKeys(p), first = p->menuCursor - (DEV_PTY_MENU_ROWS - 1);
+
+    if (keys <= DEV_PTY_MENU_ROWS || first < 0)
+        return 0;
+    return first > keys - DEV_PTY_MENU_ROWS ? keys - DEV_PTY_MENU_ROWS : first;
 }
 
 static int DevPtyMenuOpen(const CtrBattleParty *p)
@@ -68,39 +86,30 @@ static int DevPtyCursor(const CtrBattleParty *p)
 static int DevPartyHit(const CtrBattleView *v, int x, int y)
 {
     const CtrBattleParty *p = &v->pty;
-    CtrPokeTouchRect a;
 
     if (p->panel == BUI_PTY_TEXT || p->panel == BUI_PTY_LEVELUP)
         return BUI_PTY_MESSAGE;                             /* anywhere: the message waits for A */
     if (DevPtyMenuOpen(p)) {
-        int n = DevPtyMenuCount(p);
+        int n = DevPtyMenuCount(p), keys = DevPtyMenuKeys(p), first = DevPtyMenuFirst(p);
 
-        for (int i = 0; i < n; ++i) {
-            CtrPokeTouchRect r = DevPtyMenuKey(n, i);
+        for (int k = 0; k < DEV_PTY_MENU_ROWS && first + k < keys; ++k) {
+            CtrPokeTouchRect r = DevPtyMenuKey(k);
 
-            a = DevKeyArea(&r);
-            if (UiIn(&a, x, y))
-                return BUI_PTY_MENU + i;
+            if (DevOnKey(&r, x, y))
+                return BUI_PTY_MENU + first + k;
         }
-        return -1;                                          /* the bays: not while a menu is open */
+        if (keys < n && DevOnKey(&kDevGridExit, x, y))
+            return BUI_PTY_MENU + n - 1;                    /* FireRed's CANCEL (RunPlan answers it with B) */
+        return -1;                                          /* the bays, the cue: not while a menu is open */
     }
-    if (p->mode == BUI_PTY_MULTI) {
-        a = DevKeyArea(&kDevPtyConfirm);
-        if (UiIn(&a, x, y))
-            return BUI_PTY_CONFIRM;
-        a = DevKeyArea(&kDevPtyCancelLow);
-        if (UiIn(&a, x, y))
-            return BUI_PTY_CANCEL;
-    } else if (p->mode != BUI_PTY_FORCED) {
-        a = DevKeyArea(&kDevPtyCancel);
-        if (UiIn(&a, x, y))
-            return BUI_PTY_CANCEL;
-    }
+    if (p->mode == BUI_PTY_MULTI && DevOnKey(&kDevPtyConfirm, x, y))
+        return BUI_PTY_CONFIRM;
+    if (p->mode != BUI_PTY_FORCED && DevOnKey(&kDevGridExit, x, y))
+        return BUI_PTY_CANCEL;                              /* the exit corner (not when a Pokemon must be sent out) */
     for (int i = 0; i < 6; ++i) {
         CtrPokeTouchRect r = DevPtyBay(i);
 
-        a = DevKeyArea(&r);
-        if (p->present[i] && UiIn(&a, x, y))
+        if (p->present[i] && DevOnKey(&r, x, y))
             return BUI_PTY_SLOT + i;
     }
     return -1;
@@ -121,18 +130,6 @@ static const char *DevPtyName(const CtrBattleParty *p, int i, char *out, size_t 
     return DevMonName(p->name[i], p->nameIsSpecies[i] || p->egg[i], out, size);
 }
 
-/* An HP bar; grey (a faint key's) its frame in the faint grey. */
-static void DevPtyBar(int x, int y, int w, int h, unsigned hp, unsigned max, int grey)
-{
-    DevHpBar(x, y, w, h, hp, max);
-    if (!grey || w < 2 || h < 2)
-        return;
-    Fill(x, y, w, 1, DEV_PTY_GREY);
-    Fill(x, y + h - 1, w, 1, DEV_PTY_GREY);
-    Fill(x, y, 1, h, DEV_PTY_GREY);
-    Fill(x + w - 1, y, 1, h, DEV_PTY_GREY);
-}
-
 /* "hp/max" in the small font ending at `right`, capitals from `top`: the key's ink, the low ink in the HP bar's red, a
  * faint key's grey. */
 static void DevPtyNumbers(const CtrBattleParty *p, int i, int right, int top, int grey, uint16_t ink, uint16_t shadow)
@@ -148,8 +145,9 @@ static void DevPtyNumbers(const CtrBattleParty *p, int i, int right, int top, in
 }
 
 /* What a bay shows at its right, ending at `right`: picking several, a picked Pokemon's place in the order; else the
- * item's or the move's verdict (FireRed's own box text); else FNT or a condition; else the level. A chip at `chipY`,
- * chipH tall, or the level's capitals at `lvTop`. */
+ * item's or the move's verdict (FireRed's own box text); else FNT or a condition; else the level, small in the keys'
+ * secondary ink (the boards' #6A6A6A; a faint key's in its own ink). A chip at `chipY`, chipH tall, or the level's
+ * capitals at `lvTop`. */
 static void DevPtyRight(const CtrBattleParty *p, int i, int right, int chipY, int chipH, int lvTop)
 {
     static const uint16_t kTagBg[5] = {0, UI_RGB(56, 168, 88), UI_RGB(112, 112, 128), UI_RGB(70, 132, 214),
@@ -187,40 +185,42 @@ static void DevPtyRight(const CtrBattleParty *p, int i, int right, int chipY, in
         return;
     }
     snprintf(text, sizeof(text), CTR_TR("Lv%u", "Nv%u", "Lv%u"), (unsigned)p->level[i]);
-    DevSmallText(text, right - DevSmallTextWidth(text), lvTop, DEV_INK2, right);
+    DevSmallText(text, right - DevSmallTextWidth(text), lvTop,
+                 DevPtyLook(p, i) == DEV_LOOK_FAINT ? DEV_FAINT_INK : DEV_KEY_INK2, right);
 }
 
-/* Slot i's bay (a key, sunk when chosen): the icon at 1:1, the name, the HP tag and bar and the numbers over the bar's
- * end, the right column's level or chip. The bar is the board's 56 px, less what FireRed's widest numbers ("999/999")
- * need with 3 px to spare: its small digits are wider than the board's font, and every bay's bar is the same. */
+/* Slot i's bay (a key, sunk when chosen; def_party): the icon at 1:1; the name from x + 38 (capitals faceY + 10) and its
+ * gender sign 4 px after it (none for an egg or a Pokemon without one; a name that would run into the LED's column is
+ * cut to leave the sign its room); the board's HP bar, 56 x 5 from x + 38 at faceY + 29, no HP tag; at the right, 8 px
+ * in, the numbers small (capitals faceY + 27) and under them the level (capitals faceY + 39) or a chip 10 tall at
+ * faceY + 38. */
 static void DevPtyBayKey(const CtrBattleParty *p, int i, int sunk)
 {
     CtrPokeTouchRect r = DevPtyBay(i);
     int look = DevPtyLook(p, i), grey = look == DEV_LOOK_FAINT, faceY = DevKey(&r, look, sunk, 6), right = r.x + r.w - 8;
+    int sign = !p->egg[i] && p->gender[i] < 2, end;
     uint16_t ink = DevKeyInk(look, sunk), shadow = DevKeyInkShadow(look, sunk);
     char name[24];
-    int tag, barX, barW = DEV_PTY_BAR_W;
 
     DevMonIcon(i, p->icon[i], r.x + 4, faceY + 9, 0, grey);
-    DevTextInk(DevPtyName(p, i, name, sizeof(name)), r.x + 38, faceY + 11, r.x + r.w - 14, ink, shadow);
+    end = DevGlyphs(DevPtyName(p, i, name, sizeof(name)), r.x + 38, faceY + 10 - 3,
+                    r.x + r.w - 14 - (sign ? DEV_PTY_SIGN : 0), ink, shadow, 0);
     if (p->egg[i])
         return;
-    tag = DevLabelChip(r.x + 38, faceY + 29, "HP", grey ? DEV_PTY_GREY : DEV_HP_FRAME, grey ? DEV_PTY_GREY_INK : DEV_HP_LABEL);
-    barX = r.x + 38 + tag + 2;
-    if (barX + barW + 3 > right - DevSmallTextWidth("999/999"))
-        barW = right - DevSmallTextWidth("999/999") - 3 - barX;
-    DevPtyBar(barX, faceY + 31, barW, 5, p->hp[i], p->maxHp[i], grey);
-    DevPtyNumbers(p, i, right, faceY + 28, grey, ink, shadow);
-    DevPtyRight(p, i, right, faceY + 38, 10, faceY + 40);
+    if (sign)
+        DevGender(p->gender[i], end + 4, faceY + 9);
+    DevHpBar(r.x + 38, faceY + 29, 56, 5, p->hp[i], p->maxHp[i]);
+    DevPtyNumbers(p, i, right, faceY + 27, grey, ink, shadow);
+    DevPtyRight(p, i, right, faceY + 38, 10, faceY + 39);
 }
 
-/* Slot i's slim bay beside a menu of n rows (sunk when it is the Party's selection; not a key a touch takes): the icon
- * at half size, the name, a 72 px bar; the level (or its chip) and the numbers only beside one column, 188 wide, ending
+/* Slot i's slim bay beside the menu (def_party_menu; sunk when it is the Party's selection; not a key a touch takes):
+ * the icon at half size, the name, a 72 px bar; at the right the level (or its chip) and under it the numbers, ending
  * 14 px in (the board's 8 would put the level under the LED of the sunk one). */
-static void DevPtySlimKey(const CtrBattleParty *p, int n, int i)
+static void DevPtySlimKey(const CtrBattleParty *p, int i)
 {
-    CtrPokeTouchRect r = DevPtySlim(n, i);
-    int look, grey, sunk = p->cursor == i, faceY, wide = r.w >= 188;
+    CtrPokeTouchRect r = DevPtySlim(i);
+    int look, grey, sunk = p->cursor == i, faceY, right = r.x + r.w - 14;
     uint16_t ink, shadow;
     char name[24];
 
@@ -234,29 +234,26 @@ static void DevPtySlimKey(const CtrBattleParty *p, int n, int i)
     shadow = DevKeyInkShadow(look, sunk);
     faceY = DevKey(&r, look, sunk, 5);
     DevMonIcon(i, p->icon[i], r.x + 6, faceY + 4, 1, grey);
-    DevTextInk(DevPtyName(p, i, name, sizeof(name)), r.x + 29, faceY + 4, wide ? r.x + 140 : r.x + r.w - 14, ink, shadow);
+    DevTextInk(DevPtyName(p, i, name, sizeof(name)), r.x + 29, faceY + 4, r.x + 140, ink, shadow);
     if (p->egg[i])
         return;
-    DevPtyBar(r.x + 29, faceY + 15, DEV_PTY_SLIM_BAR, 4, p->hp[i], p->maxHp[i], grey);
-    if (!wide)
-        return;
-    DevPtyRight(p, i, r.x + r.w - 14, faceY + 2, 9, faceY + 3);
-    DevPtyNumbers(p, i, r.x + r.w - 14, faceY + 13, grey, ink, shadow);
+    DevHpBar(r.x + 29, faceY + 15, DEV_PTY_SLIM_BAR, 4, p->hp[i], p->maxHp[i]);
+    DevPtyRight(p, i, right, faceY + 2, 9, faceY + 3);
+    DevPtyNumbers(p, i, right, faceY + 13, grey, ink, shadow);
 }
 
 /* ---- The screens ------------------------------------------------------------------------------------------------------ */
 
-/* `text` on the screen in `outer`: from 8 px into the paper, wrapped in three lines at most, the lines centred down the
- * paper; `more`: FireRed's arrow at its foot (a tap goes on). */
-static void DevPtyScreen(const CtrPokeTouchRect *outer, const char *text, int more)
+/* What the Party says under its bays, on the note `outer` (the grid's; picking several the small one): `text` read from
+ * 8 px into the paper (DevReadText: two normal lines centred down it, or three small ones from its top); `more`:
+ * FireRed's arrow at the paper's foot (a tap goes on), the words kept clear of it. */
+static void DevPtyNote(const CtrPokeTouchRect *outer, const char *text, int more)
 {
     CtrPokeTouchRect paper = DevScreen(outer);
-    int width = paper.w - 16 - (more ? 12 : 0), lines = DevWrapLines(text, width, 3);
 
-    if (lines > 0)
-        DevWrap(text, paper.x + 8, paper.y + (paper.h - (8 + DEV_LINE_H * (lines - 1))) / 2, width, 3, DEV_INK, DEV_INK_SH);
+    DevReadText(text, &paper, paper.x + 8, paper.x + paper.w - 8 - (more ? 12 : 0), paper.y + 2, DEV_SMALL_LINE);
     if (more)
-        DevTriangle(paper.x + paper.w - 10, paper.y + paper.h - 8, 1, DEV_INK2);
+        DevTriangle(paper.x + paper.w - 10, paper.y + paper.h - 6, 1, DEV_INK2);
 }
 
 /* What the Party says under its bays when it has no prompt of its own (a battle's): v0.6.0's words for the mode. */
@@ -269,35 +266,28 @@ static const char *DevPtyModeWords(const CtrBattleParty *p)
     return CTR_TR("Choose a POK\xC3\xA9MON.", "Elige un POK\xC3\xA9MON.", "W\xC3\xA4hle ein POK\xC3\xA9MON.");
 }
 
-/* CANCEL (and CONFIRM picking several) under the bays: `cursor` and `pressed` choose the sunk one; `dim` greys them.
- * When a Pokemon must be sent out CANCEL is grey (DevPartyHit does not take it), but FireRed's cursor can still go
- * to it (SEND OUT then fails), and then it is the chosen key all the same. */
+/* CANCEL, the dark key in the exit corner (and picking several CONFIRM, cream, beside the small note): `cursor` and
+ * `pressed` choose the sunk one; `dim` greys them. When a Pokemon must be sent out CANCEL is grey (DevPartyHit does not
+ * take it), but FireRed's cursor can still go to it (SEND OUT then fails), and then it is the chosen key all the same. */
 static void DevPtyLeaveKeys(const CtrBattleParty *p, int cursor, int pressed, int dim)
 {
-    const char *cancel = CTR_TR("CANCEL", "CANCELAR", "ZUR\xC3\x9C" "CK");
     int sunk, faceY;
 
     if (p->mode == BUI_PTY_MULTI) {
         sunk = DevChosen(BUI_PTY_CONFIRM, cursor, pressed);
         faceY = DevKey(&kDevPtyConfirm, DEV_LOOK_KEY, sunk, 6);
         DevKeyWord(&kDevPtyConfirm, faceY, DEV_LOOK_KEY, sunk, CTR_TR("CONFIRM", "CONFIRMAR", "BEST\xC3\x84TIGEN"));
-        sunk = DevChosen(BUI_PTY_CANCEL, cursor, pressed);
-        faceY = DevKey(&kDevPtyCancelLow, DEV_LOOK_DARK, sunk, 6);
-        DevKeyWord(&kDevPtyCancelLow, faceY, DEV_LOOK_DARK, sunk, cancel);
-        if (dim) {
+        if (dim)
             DevDim(&kDevPtyConfirm);
-            DevDim(&kDevPtyCancelLow);
-        }
-    } else {
-        sunk = DevChosen(BUI_PTY_CANCEL, cursor, pressed);
-        faceY = DevKey(&kDevPtyCancel, DEV_LOOK_DARK, sunk, 6);
-        DevKeyWord(&kDevPtyCancel, faceY, DEV_LOOK_DARK, sunk, cancel);
-        if (dim || p->mode == BUI_PTY_FORCED)
-            DevDim(&kDevPtyCancel);
     }
+    sunk = DevChosen(BUI_PTY_CANCEL, cursor, pressed);
+    faceY = DevKey(&kDevGridExit, DEV_LOOK_DARK, sunk, 6);
+    DevKeyWord(&kDevGridExit, faceY, DEV_LOOK_DARK, sunk, DevCancelWord());
+    if (dim || p->mode == BUI_PTY_FORCED)
+        DevDim(&kDevGridExit);
 }
 
-/* The bays, the screen and CANCEL; with a message (BUI_PTY_TEXT) the message on the screen, every key grey and none
+/* The bays, the note and CANCEL; with a message (BUI_PTY_TEXT) the message on the note, every key grey and none
  * chosen. */
 static void DevPtyBays(const CtrBattleView *v)
 {
@@ -315,38 +305,52 @@ static void DevPtyBays(const CtrBattleView *v)
         if (message)
             DevDim(&r);
     }
-    DevPtyScreen(&kDevPtyNote, message ? p->message : p->caption[0] ? p->caption : DevPtyModeWords(p), message);
+    DevPtyNote(p->mode == BUI_PTY_MULTI ? &kDevSmallNote : &kDevGridNote,
+               message ? p->message : p->caption[0] ? p->caption : DevPtyModeWords(p), message);
     DevPtyLeaveKeys(p, cursor, pressed, message);
 }
 
-/* The action menu or YES / NO: the slim bays, the rows' keys (a field move's name in blue, CANCEL dark), the menu's
- * screen with the Party's prompt (a battle's has none: FireRed's question). */
+/* The action menu or YES / NO (def_party_menu; O2): the slim bays; the actions cream in the column, DEV_PTY_MENU_ROWS
+ * of them from DevPtyMenuFirst, their words from x + 10 (a field move's in blue); FireRed's CANCEL (its name in
+ * capitals) the dark key in the exit corner, YES / NO none; with more actions than the column shows the cue over and
+ * under it (not keys), cream towards hidden actions, grey (DEV_ARROW_OFF) at an end; the Party's prompt on the grid's
+ * note (a battle's has none: FireRed's question). FireRed's cursor sunk, or the key under a held touch. */
 static void DevPtyMenu(const CtrBattleView *v)
 {
     const CtrBattleParty *p = &v->pty;
-    int n = DevPtyMenuCount(p);
+    int n = DevPtyMenuCount(p), keys = DevPtyMenuKeys(p), first = DevPtyMenuFirst(p), press = v->pressed - BUI_PTY_MENU;
     char word[32];
 
     for (int i = 0; i < 6; ++i)
-        DevPtySlimKey(p, n, i);
-    for (int i = 0; i < n; ++i) {
-        CtrPokeTouchRect r = DevPtyMenuKey(n, i);
-        int dark = (p->menuDark >> i) & 1, look = dark ? DEV_LOOK_DARK : DEV_LOOK_KEY;
-        int sunk = DevChosen(i, p->menuCursor, v->pressed - BUI_PTY_MENU), faceY = DevKey(&r, look, sunk, 5);
+        DevPtySlimKey(p, i);
+    for (int k = 0; k < DEV_PTY_MENU_ROWS && first + k < keys; ++k) {
+        CtrPokeTouchRect r = DevPtyMenuKey(k);
+        int row = first + k, sunk = DevChosen(row, p->menuCursor, press), faceY = DevKey(&r, DEV_LOOK_KEY, sunk, 5);
 
-        DevUpper(word, p->menuName[i], sizeof(word));
-        if (!dark && ((p->menuBlue >> i) & 1))
-            DevKeyWordInk(&r, faceY, sunk, word, DEV_BLUE_INK, DevKeyInkShadow(look, sunk));
+        DevUpper(word, p->menuName[row], sizeof(word));
+        if ((p->menuBlue >> row) & 1)
+            DevKeyWordAtInk(&r, faceY, sunk, word, 10, DEV_BLUE_INK, DevKeyInkShadow(DEV_LOOK_KEY, sunk));
         else
-            DevKeyWord(&r, faceY, look, sunk, word);
+            DevKeyWordAt(&r, faceY, DEV_LOOK_KEY, sunk, word, 10);
     }
-    DevPtyScreen(&kDevPtyMenuNote, p->caption[0] || p->panel == BUI_PTY_YESNO ? p->caption
-                 : CTR_TR("Do what with this POK\xC3\xA9MON?", "\xC2\xBF" "Qu\xC3\xA9 hacer con este POK\xC3\xA9MON?",
-                          "Was tun mit diesem POK\xC3\xA9MON?"), 0);
+    if (keys < n) {
+        int sunk = DevChosen(n - 1, p->menuCursor, press), faceY = DevKey(&kDevGridExit, DEV_LOOK_DARK, sunk, 6);
+
+        DevUpper(word, p->menuName[n - 1], sizeof(word));
+        DevKeyWord(&kDevGridExit, faceY, DEV_LOOK_DARK, sunk, word);
+    }
+    if (keys > DEV_PTY_MENU_ROWS) {
+        DevTriangle(DEV_PTY_CUE_X, DEV_PTY_CUE_UP_Y, 0, first > 0 ? DEV_DARK_INK : DEV_ARROW_OFF);
+        DevTriangle(DEV_PTY_CUE_X, DEV_PTY_CUE_DOWN_Y, 1, first + DEV_PTY_MENU_ROWS < keys ? DEV_DARK_INK : DEV_ARROW_OFF);
+    }
+    DevPtyNote(&kDevGridNote, p->caption[0] || p->panel == BUI_PTY_YESNO ? p->caption
+               : CTR_TR("Do what with this POK\xC3\xA9MON?", "\xC2\xBF" "Qu\xC3\xA9 hacer con este POK\xC3\xA9MON?",
+                        "Was tun mit diesem POK\xC3\xA9MON?"), 0);
 }
 
-/* A Rare Candy's level up: on the tall screen the Pokemon's name and new level, the six stats (two columns, in the
- * Summary's order) with their new values and gains; the message on the screen under it; OK, the key that goes on. */
+/* A Rare Candy's level up (no board: the plan's Call 8): on the tall screen the Pokemon's name and new level, the six
+ * stats (two columns, in the Summary's order) with their new values and gains; the message on the grid's note; OK, the
+ * key that goes on, cream in the exit corner: a lone OK, up, sunk while a touch is held (any touch is OK's). */
 static void DevPtyLevelUp(const CtrBattleView *v)
 {
     static const char *const kLabel[6] = {
@@ -354,7 +358,7 @@ static void DevPtyLevelUp(const CtrBattleView *v)
         CTR_TR("SP. ATK", "AT. ESP.", "SP. ANG."), CTR_TR("SP. DEF", "DEF. ESP.", "SP. VER."), CTR_TR("SPEED", "VELOCIDAD", "INIT."),
     };
     const CtrBattleParty *p = &v->pty;
-    int slot = p->lvSlot < 6 ? p->lvSlot : 0, faceY;
+    int slot = p->lvSlot < 6 ? p->lvSlot : 0, sunk = v->pressed == BUI_PTY_MESSAGE, faceY;
     CtrPokeTouchRect paper = DevScreen(&kDevPtyLevelScreen);
     char text[24];
 
@@ -373,15 +377,15 @@ static void DevPtyLevelUp(const CtrBattleView *v)
         right = x + 128;
         DevTextInk(text, right - DevTextWidth(text), y + 10, right, DEV_PTY_GAIN, DEV_PTY_GAIN);
     }
-    DevPtyScreen(&kDevPtyNote, p->message, 0);
-    faceY = DevKey(&kDevPtyCancel, DEV_LOOK_KEY, 1, 6);
-    DevKeyWord(&kDevPtyCancel, faceY, DEV_LOOK_KEY, 1, CTR_TR("OK", "OK", "OK"));
+    DevPtyNote(&kDevGridNote, p->message, 0);
+    faceY = DevKey(&kDevGridExit, DEV_LOOK_KEY, sunk, 6);
+    DevKeyWord(&kDevGridExit, faceY, DEV_LOOK_KEY, sunk, CTR_TR("OK", "OK", "OK"));
 }
 
 /* The Party, whole (canvas and shell already set by CtrBattleUi_Draw). */
 static void DevPartyDraw(const CtrBattleView *v)
 {
-    DevShell(0);
+    DevShell();
     if (v->pty.panel == BUI_PTY_LEVELUP)
         DevPtyLevelUp(v);
     else if (DevPtyMenuOpen(&v->pty))
@@ -392,10 +396,11 @@ static void DevPartyDraw(const CtrBattleView *v)
 
 /* What the Party does not draw, from v into `still` (a copy of the view drawn last), so that only a change of what it
  * draws redraws (the plan's rule): the battle's own fields; the icons' frames and the column layout; the level up's
- * fields but in it, and in it nothing else of the Party but the Pokemon's name; the menu's fields but with a menu open,
- * and its rows past the open menu's; the message but with one; a touch and the cursor with a message (none is chosen) and
- * a touch in the level up (OK is always the key); the prompt under a message; the order picking several, the verdicts
- * otherwise. The state, the shell and the touch otherwise are compared. */
+ * fields but in it, and in it nothing else of the Party but the Pokemon's name, and of the touch only whether one is
+ * held (OK sinks under it); the menu's fields but with a menu open, and its rows past the open menu's; the gender signs
+ * and the cursor on the bays' CANCEL with a menu open (the slim bays have no sign, the exit corner is the menu's); the
+ * message but with one; a touch and the cursor with a message (none is chosen); the prompt under a message; the order
+ * picking several, the verdicts otherwise. The state, the shell and the touch otherwise are compared. */
 static void DevPartyUndrawn(CtrBattleView *still, const CtrBattleView *v)
 {
     const CtrBattleParty *p = &v->pty;
@@ -412,7 +417,8 @@ static void DevPartyUndrawn(CtrBattleView *still, const CtrBattleView *v)
     if (p->panel == BUI_PTY_LEVELUP) {
         int slot = p->lvSlot < 6 ? p->lvSlot : 0;
 
-        still->pressed = v->pressed;
+        if ((pressed == BUI_PTY_MESSAGE) == (v->pressed == BUI_PTY_MESSAGE))
+            still->pressed = v->pressed;
         s->panel = drawn.panel;
         s->lvSlot = drawn.lvSlot;
         s->lvLevel = drawn.lvLevel;
@@ -432,6 +438,8 @@ static void DevPartyUndrawn(CtrBattleView *still, const CtrBattleView *v)
     memcpy(s->lvStat, p->lvStat, sizeof(s->lvStat));
     memcpy(s->lvGain, p->lvGain, sizeof(s->lvGain));
     if (DevPtyMenuOpen(p)) {
+        s->button = p->button;                              /* the bays' CANCEL: the exit corner is the menu's */
+        memcpy(s->gender, p->gender, sizeof(s->gender));
         for (int i = n; i < 8; ++i)
             memcpy(s->menuName[i], p->menuName[i], sizeof(s->menuName[i]));
         s->menuBlue = (uint8_t)((s->menuBlue & low) | (p->menuBlue & ~low));

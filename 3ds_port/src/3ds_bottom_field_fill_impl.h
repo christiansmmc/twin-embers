@@ -113,9 +113,9 @@ static void FieldListName(const FieldList *f, unsigned item, char *out, int size
     }
 }
 
-/* The field Bag (or a case) as it is now: its pocket, the rows from three above the cursor (FireRed's CLOSE row after
- * the last item is the page's CLOSE key, not a row), the selected item's detail, and what it has open. While it is busy
- * (a pocket sliding in, a message printing) the picture last shown stays. */
+/* The field Bag (or a case) as it is now: its pocket, the rows from two above the cursor (CtrPokeTouch_ListFirst;
+ * FireRed's CLOSE row after the last item is the page's CLOSE key, not a row), the selected item's detail, and what it
+ * has open. While it is busy (a pocket sliding in, a message printing) the picture last shown stays. */
 static void FieldBagFill(CtrPokeTouchView *v, int pressed, const FieldList *f)
 {
     CtrPokeTouchBag *b = &v->bag;
@@ -171,9 +171,7 @@ static void FieldBagFill(CtrPokeTouchView *v, int pressed, const FieldList *f)
     b->count = (int16_t)(count = list->count());
     b->cursor = (int16_t)list->cursor();
     b->typed = (uint8_t)(f->name != NULL);
-    b->first = (int16_t)(b->cursor - 3 < 0 ? 0 : b->cursor - 3);
-    if (b->first > count - PT_BAG_ROWS)
-        b->first = (int16_t)(count - PT_BAG_ROWS < 0 ? 0 : count - PT_BAG_ROWS);
+    b->first = (int16_t)CtrPokeTouch_ListFirst(b->cursor, count, PT_BAG_ROWS);
     for (int i = 0; i < PT_BAG_ROWS && b->first + i < count; ++i) {
         unsigned item = f->item(b->first + i);
 

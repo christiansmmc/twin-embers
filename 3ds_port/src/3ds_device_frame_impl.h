@@ -7,9 +7,9 @@
  * centred across the top: the paper is black under it, at PT_VIEW_X/Y (the one place of the picture, where a touch is a
  * GBA point). With no picture the screen is empty (its paper), never the ember look. Under it the note: the bar's title
  * in the normal font and its two hints in the small font and the secondary ink, one a line (the title alone centred down
- * the paper); BACK beside it in the Summary's place while the view shows it, a dark key (sunk under a held touch, grey
- * while it cannot be used), else the note across. The shell has its four screws (the legend rule's exception: the frame
- * and the idle screen). Every rectangle is 3ds_device_layout.h's, so what is drawn is what a touch takes.
+ * the paper); BACK beside it (kDevTallBack) while the view shows it, a dark key (sunk under a held touch, grey
+ * while it cannot be used), else the note across. The shell has its four screws, as every view's. Every rectangle is
+ * 3ds_device_layout.h's, so what is drawn is what a touch takes.
  *
  * Words (decision 5): the bar (v0.6.0 title-cased it) through DevUpper.
  *
@@ -31,7 +31,7 @@ static int DevFrameShown(const CtrPokeTouchView *v)
  * without hints the title alone, centred down the paper. */
 static void DevFrameNote(const CtrPokeTouchView *v)
 {
-    CtrPokeTouchRect paper = DevScreen(v->backVisible ? &kDevSumNote : &kDevViewNoteWide);
+    CtrPokeTouchRect paper = DevScreen(v->backVisible ? &kDevTallNote : &kDevViewNoteWide);
     char title[PT_BAR_LEN], hint[2][PT_BAR_LEN], text[2 * PT_BAR_LEN + 1];
     int x = paper.x + 6, right = paper.x + paper.w - 6, top = paper.y + 14, any = v->bar[1][0] || v->bar[2][0];
 
@@ -44,26 +44,26 @@ static void DevFrameNote(const CtrPokeTouchView *v)
     if (DevSmallTextWidth(hint[0]) <= right - x && DevSmallTextWidth(hint[1]) <= right - x) {
         for (int i = 0, line = 0; i < 2; ++i)
             if (hint[i][0])
-                DevSmallText(hint[i], x, top + DEV_BAG_SMALL_LINE * line++, DEV_INK2, right);
+                DevSmallText(hint[i], x, top + DEV_SMALL_LINE_TIGHT * line++, DEV_INK2, right);
         return;
     }
     snprintf(text, sizeof(text), "%s %s", hint[0], hint[1]);
-    DevBagSmallWrap(text, x, x, top, right, 2, DEV_INK2);
-    if (DevBagSmallWrapRun(text, x, x, top, right, 3, DEV_INK2, 0) > 2)
+    DevSmallWrap(text, x, x, top, right, 2, DEV_SMALL_LINE_TIGHT, DEV_INK2);
+    if (DevSmallWrapRun(text, x, x, top, right, 3, DEV_SMALL_LINE_TIGHT, DEV_INK2, 0) > 2)
         ++sDevKeyCut;
 }
 
 /* The frame whole (after DevBegin: the dispatcher's). */
 static void DevFrameDraw(const CtrPokeTouchView *v)
 {
-    DevShell(DEV_SCREWS_TOP | DEV_SCREWS_BOTTOM);
+    DevShell();
     DevScreen(&kDevViewScreen);
     if (v->viewport) {
         DevArt(DEV_ART_GBA, PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H);
         Fill(PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H, 0x0000);       /* covered by the GPU's picture */
     }
     DevFrameNote(v);
-    DevFieldBack(v, &kDevSumBack, DevBackWord());
+    DevFieldBack(v, &kDevTallBack, DevBackWord());
 }
 
 /* ---- The dispatcher's row: whether two views draw the same, where BACK is ------------------------------------------- */
@@ -78,10 +78,10 @@ static int DevFrameSame(const CtrPokeTouchView *a, const CtrPokeTouchView *b)
     return !a->viewport == !b->viewport && DevFieldBackSame(a, b);
 }
 
-/* BACK in the Summary's place while the view shows it. */
+/* BACK (kDevTallBack) while the view shows it. */
 static const CtrPokeTouchRect *DevFrameBackKey(const CtrPokeTouchView *v)
 {
-    return v->backVisible ? &kDevSumBack : NULL;
+    return v->backVisible ? &kDevTallBack : NULL;
 }
 
 /* ---- The idle screen --------------------------------------------------------------------------------------------- */
@@ -95,7 +95,7 @@ void CtrPokeTouch_DrawIdle(uint16_t *canvas, int logo, uint8_t shell)
 
     sHomeShown = 0;                     /* HOME's region key and FLY are not on the screen */
     DevBegin(canvas, shell);
-    DevShell(DEV_SCREWS_TOP | DEV_SCREWS_BOTTOM);
+    DevShell();
     paper = DevScreen(&kDevIdleScreen);
     DevRect(paper.x, paper.y, paper.w, paper.h, DEV_BEZEL);         /* the screen asleep */
     if (!logo)

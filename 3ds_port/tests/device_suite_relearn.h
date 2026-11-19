@@ -112,10 +112,10 @@ static void SuiteRelearn(void)
     /* the plan's suite */
     rv = RelearnBoard(); DevCheckTouch(&ro, &rv); assert(DrawnBy(&rv, DevRelearnShown));
     /* relearn */ for (i = 0; i < 5; ++i) AssertRowHits(RlHitV, &rv, DevTallRow(i, 0), PT_RL_HIT_ROW + i);
-    assert(CtrPokeTouch_RelearnHit(&rv, 294, 73) == -1); AssertHits(RlHitV, &rv, kDevBagDown, PT_RL_HIT_DOWN); AssertHits(RlHitV, &rv, kDevBagClose, PT_RL_HIT_CANCEL);
-    rv.relearn.cursor = 8; RelearnRows(&rv, 3); DevCheckTouch(&ro, &rv); AssertKey(kDevBagClose, DEV_LOOK_DARK, 1); AssertRowHits(RlHitV, &rv, DevTallRow(4, 0), PT_RL_HIT_ROW + 4);
+    assert(CtrPokeTouch_RelearnHit(&rv, 294, 73) == -1); AssertHits(RlHitV, &rv, kDevGridDown, PT_RL_HIT_DOWN); AssertHits(RlHitV, &rv, kDevGridExit, PT_RL_HIT_CANCEL);
+    rv.relearn.cursor = 8; RelearnRows(&rv, 3); DevCheckTouch(&ro, &rv); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1); AssertRowHits(RlHitV, &rv, DevTallRow(4, 0), PT_RL_HIT_ROW + 4);
     rv.relearn.count = 3; rv.relearn.cursor = 3; RelearnRows(&rv, 0); DevCheckTouch(&ro, &rv); assert(CtrPokeTouch_RelearnHit(&rv, 130, DevTallRow(3, 0).y + 5) == -1);
-    rv.relearn.panel = PT_RL_PANEL_YESNO; DevCheckTouch(&ro, &rv); AssertHits(RlHitV, &rv, DevBagMenuKey(2, 0), PT_RL_HIT_YES); AssertHits(RlHitV, &rv, DevBagMenuKey(2, 1), PT_RL_HIT_NO); assert(CtrPokeTouch_RelearnHit(&rv, 60, 60) == -1);
+    rv.relearn.panel = PT_RL_PANEL_YESNO; DevCheckTouch(&ro, &rv); AssertHits(RlHitV, &rv, DevRlKey(0), PT_RL_HIT_YES); AssertHits(RlHitV, &rv, DevRlKey(1), PT_RL_HIT_NO); assert(CtrPokeTouch_RelearnHit(&rv, 60, 60) == -1);
     rv.relearn.panel = PT_RL_PANEL_MESSAGE; rv.relearn.tap = 1; DevCheckTouch(&ro, &rv); assert(CtrPokeTouch_RelearnHit(&rv, 5, 5) == PT_RL_HIT_MESSAGE);
     rv.relearn.tap = 0; DevCheckTouch(&ro, &rv); assert(CtrPokeTouch_RelearnHit(&rv, 5, 5) == -1);
     rv.relearn.panel = PT_RL_PANEL_BLANK; DevCheckTouch(&ro, &rv); for (y = 0; y < 240; y += 4) for (x = 0; x < 320; x += 4) assert(CtrPokeTouch_RelearnHit(&rv, x, y) == -1);
@@ -132,49 +132,49 @@ static void SuiteRelearn(void)
         assert(at(r.x + 1, r.y + 1) == (i == 0 ? DEV_BEZEL : DEV_PAPER));
         assert(Count(r.x, r.y, 80, r.h, i == 0 ? DEV_PAPER : DEV_INK) > 0 && Count(r.x + r.w - 60, r.y, 60, r.h, UiTypeColor(kRlMove[i].t)) > 0);
     }
-    assert(Count(276, 40, 36, 66, DEV_BAG_ARROW_OFF) > 0 && Count(276, 114, 36, 66, DEV_KEY_INK) > 0);
+    assert(Count(276, 40, 36, 66, DEV_ARROW_OFF) > 0 && Count(276, 114, 36, 66, DEV_KEY_INK) > 0);
     assert(CountIn(kDescPaper, UiTypeColor(10)) > 0 && CountIn(kDescPaper, DEV_INK2) > 0 && CountIn(kDescPaper, DEV_INK) > 0);
-    AssertKey(kDevBagClose, DEV_LOOK_DARK, 0); assert(Count(244, 190, 68, 43, DEV_LED) == 0 && Count(244, 190, 68, 43, DEV_DARK_INK) > 0);
+    AssertKey(kDevGridExit, DEV_LOOK_DARK, 0); assert(Count(244, 190, 68, 43, DEV_LED) == 0 && Count(244, 190, 68, 43, DEV_DARK_INK) > 0);
     /* the cursor past the first move: ▲ on and hit */
     rv.relearn.cursor = 1; RelearnRows(&rv, 0); DevCheckTouch(&ro, &rv);
-    AssertHits(RlHitV, &rv, kDevBagUp, PT_RL_HIT_UP); assert(Count(276, 40, 36, 66, DEV_KEY_INK) > 0);
+    AssertHits(RlHitV, &rv, kDevGridUp, PT_RL_HIT_UP); assert(Count(276, 40, 36, 66, DEV_KEY_INK) > 0);
     r = DevTallRow(1, 0); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL);
     /* a touch: the row under it inverted, not the cursor's; ▼ sunk (the cursor's row stays); CANCEL sunk with its LED */
     rv.relearn.pressed = PT_RL_HIT_ROW + 3; DevCheckTouch(&ro, &rv);
     r = DevTallRow(3, 0); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL); r = DevTallRow(1, 0); assert(at(r.x + 1, r.y + 1) == DEV_PAPER);
-    rv.relearn.pressed = PT_RL_HIT_DOWN; DevCheckTouch(&ro, &rv); AssertKey(kDevBagDown, DEV_LOOK_KEY, 1); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL);
-    rv.relearn.pressed = PT_RL_HIT_CANCEL; DevCheckTouch(&ro, &rv); AssertKey(kDevBagClose, DEV_LOOK_DARK, 1);
+    rv.relearn.pressed = PT_RL_HIT_DOWN; DevCheckTouch(&ro, &rv); AssertKey(kDevGridDown, DEV_LOOK_KEY, 1); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL);
+    rv.relearn.pressed = PT_RL_HIT_CANCEL; DevCheckTouch(&ro, &rv); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);
     assert(Count(244, 190, 68, 43, DEV_LED) > 0 && at(r.x + 1, r.y + 1) == DEV_PAPER);
     /* ▲ held where it cannot go: not sunk, the cursor's row stays */
     rv.relearn.cursor = 0; RelearnRows(&rv, 0); rv.relearn.pressed = PT_RL_HIT_UP; DevCheckTouch(&ro, &rv);
-    AssertKey(kDevBagUp, DEV_LOOK_KEY, 0); r = DevTallRow(0, 0); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL);
+    AssertKey(kDevGridUp, DEV_LOOK_KEY, 0); r = DevTallRow(0, 0); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL);
     rv.relearn.pressed = -1; DevCheckTouch(&ro, &rv);
     /* the scroll: from the third move, the cursor on the fifth */
     rv.relearn.cursor = 4; RelearnRows(&rv, 2); DevCheckTouch(&ro, &rv);
-    r = DevTallRow(2, 0); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL); AssertHits(RlHitV, &rv, kDevBagUp, PT_RL_HIT_UP);
+    r = DevTallRow(2, 0); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL); AssertHits(RlHitV, &rv, kDevGridUp, PT_RL_HIT_UP);
     /* the end (RelearnFill's window ends at the last move): the last five moves, none inverted; CANCEL sunk with its LED;
      * ▼ grey and not hit; nothing to describe. A list shorter than the window: FireRed's CANCEL row after the last move is
      * no row (the paper's, not hit) */
     rv.relearn.cursor = 8; RelearnRows(&rv, 3); DevCheckTouch(&ro, &rv);
     for (i = 0; i < PT_RL_ROWS; ++i) { r = DevTallRow(i, 0); assert(at(r.x + 1, r.y + 1) == DEV_PAPER && Count(r.x, r.y, 80, r.h, DEV_INK) > 0); }
-    AssertKey(kDevBagClose, DEV_LOOK_DARK, 1); assert(Count(244, 190, 68, 43, DEV_LED) > 0);
-    assert(CtrPokeTouch_RelearnHit(&rv, 294, 147) == -1 && Count(276, 114, 36, 66, DEV_BAG_ARROW_OFF) > 0);
+    AssertKey(kDevGridExit, DEV_LOOK_DARK, 1); assert(Count(244, 190, 68, 43, DEV_LED) > 0);
+    assert(CtrPokeTouch_RelearnHit(&rv, 294, 147) == -1 && Count(276, 114, 36, 66, DEV_ARROW_OFF) > 0);
     assert(CountIn(kDescPaper, DEV_INK) == 0 && CountIn(kDescPaper, DEV_INK2) == 0);
     rv.relearn.count = 3; rv.relearn.cursor = 3; RelearnRows(&rv, 0); DevCheckTouch(&ro, &rv);
     r = DevTallRow(3, 0); assert(Count(r.x, r.y, r.w, r.h, DEV_PAPER) == r.w * r.h && CtrPokeTouch_RelearnHit(&rv, r.x + 10, r.y + 10) == -1);
-    AssertKey(kDevBagClose, DEV_LOOK_DARK, 1);
+    AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);
 
     /* YES / NO: the question on the narrow screen, YES and NO in the Bag's place, FireRed's cursor sunk (or the key under
      * a held touch); the cursor's move on the narrow description; ▲ ▼ and CANCEL neither drawn nor hit */
     rv = RelearnBoard(); rv.relearn.cursor = 1; RelearnRows(&rv, 0);
     rv.relearn.panel = PT_RL_PANEL_YESNO; strcpy(rv.relearn.message, "Port-written words of a question?"); DevCheckTouch(&ro, &rv);
     assert(CountIn(kNarrowPaper, DEV_INK) > 0 && at(196, 60) == DEV_SHELL_RED);
-    AssertKey(DevBagMenuKey(2, 0), DEV_LOOK_KEY, 1); AssertKey(DevBagMenuKey(2, 1), DEV_LOOK_KEY, 0);
+    AssertKey(DevRlKey(0), DEV_LOOK_KEY, 1); AssertKey(DevRlKey(1), DEV_LOOK_KEY, 0);
     assert(CountIn(kNarrowDescPaper, UiTypeColor(10)) > 0 && CountIn(kNarrowDescPaper, DEV_INK) > 0);
     assert(at(247, 210) == DEV_SHELL_RED && at(294, 150) == DEV_SHELL_RED && CtrPokeTouch_RelearnHit(&rv, 247, 210) == -1);
     assert(CtrPokeTouch_RelearnHit(&rv, 294, 150) == -1 && CtrPokeTouch_RelearnHit(&rv, 30, 60) == -1);
-    rv.relearn.menuCursor = 1; DevCheckTouch(&ro, &rv); AssertKey(DevBagMenuKey(2, 0), DEV_LOOK_KEY, 0); AssertKey(DevBagMenuKey(2, 1), DEV_LOOK_KEY, 1);
-    rv.relearn.pressed = PT_RL_HIT_YES; DevCheckTouch(&ro, &rv); AssertKey(DevBagMenuKey(2, 0), DEV_LOOK_KEY, 1); AssertKey(DevBagMenuKey(2, 1), DEV_LOOK_KEY, 0);
+    rv.relearn.menuCursor = 1; DevCheckTouch(&ro, &rv); AssertKey(DevRlKey(0), DEV_LOOK_KEY, 0); AssertKey(DevRlKey(1), DEV_LOOK_KEY, 1);
+    rv.relearn.pressed = PT_RL_HIT_YES; DevCheckTouch(&ro, &rv); AssertKey(DevRlKey(0), DEV_LOOK_KEY, 1); AssertKey(DevRlKey(1), DEV_LOOK_KEY, 0);
     rv.relearn.pressed = -1; DevCheckTouch(&ro, &rv);
     /* a message: on the list's screen, FireRed's ▼ while it waits for A, the keys grey; no row, nothing but it hit */
     rv.relearn.panel = PT_RL_PANEL_MESSAGE; rv.relearn.tap = 1; strcpy(rv.relearn.message, "Port-written words of a message.");
