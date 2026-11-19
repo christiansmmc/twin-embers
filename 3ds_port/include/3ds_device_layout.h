@@ -484,9 +484,10 @@ static inline CtrPokeTouchRect DevNameKey(int cols, int r, int c)
  * Party the Party's rows on the same paper (DevBoxPartyRow, 6 its CANCEL). The right column: ◀ ▶ (kDevBoxPrev,
  * kDevBoxNext), the hand's screen (kDevBoxHand), PARTY POKéMON (kDevBoxParty) and the box's count (kDevBoxCount, a
  * screen) one under the other; CLOSE, a dark key, in the grid's exit (kDevGridExit) and the footer on the grid's note
- * (kDevGridNote) in every state. A menu, YES / NO or the marks: their keys in the column (DevBoxMenuKey, DEV_BOX_COLUMN
- * at most), a menu's last row and the marks' CANCEL in the grid's exit. The box chooser: ◀ ▶ and the chosen box's key in
- * the hand's place (kDevBoxChoose), CANCEL in the grid's exit. */
+ * (kDevGridNote) in every state. A menu or the marks: their keys in the column (DevBoxMenuKey, DEV_BOX_COLUMN at most),
+ * a menu's CANCEL row and the marks' CANCEL in the grid's exit (a menu without CANCEL: the view's BACK there). YES / NO:
+ * two tall keys in the column (kDevBoxYes, kDevBoxNo: def_choice_yesno's), BACK in the grid's exit. The box chooser: ◀ ▶
+ * and the chosen box's key in the hand's place (kDevBoxChoose), CANCEL in the grid's exit. */
 static const CtrPokeTouchRect kDevBoxScreen __attribute__((unused)) = {8, 8, 172, 176};
 static const CtrPokeTouchRect kDevBoxTitle __attribute__((unused)) = {14, 14, 160, 20};
 static const CtrPokeTouchRect kDevBoxPrev __attribute__((unused)) = {188, 8, 58, 24};
@@ -495,6 +496,8 @@ static const CtrPokeTouchRect kDevBoxHand __attribute__((unused)) = {188, 40, 12
 static const CtrPokeTouchRect kDevBoxParty __attribute__((unused)) = {188, 108, 124, 40};
 static const CtrPokeTouchRect kDevBoxCount __attribute__((unused)) = {188, 156, 124, 28};
 static const CtrPokeTouchRect kDevBoxChoose __attribute__((unused)) = {188, 40, 124, 60};
+static const CtrPokeTouchRect kDevBoxYes __attribute__((unused)) = {188, 8, 124, 84};
+static const CtrPokeTouchRect kDevBoxNo __attribute__((unused)) = {188, 100, 124, 84};
 #define DEV_BOX_COLUMN 5        /* the right column's keys at most (FireRed's largest menu: five rows and CANCEL) */
 
 /* Place i (0-29) of the box: six across, five down under the band; its square 1 px in (the board's 22x22). */

@@ -791,8 +791,9 @@ static int NamingFaults(void)
 
 /* The PC box (def_box; owner decision O3): its screen's plain paper with the band and the thirty places (or the Party's
  * seven rows) on it; the right column beside it (◀ ▶, the hand's screen, PARTY POKéMON and the count's screen one under
- * the other in the grid's middle band, ending by 184; the chooser's key in the hand's place; a menu's keys); CLOSE, a
- * menu's last row and the chooser's CANCEL in the grid's exit, the footer the grid's note. */
+ * the other in the grid's middle band, ending by 184; the chooser's key in the hand's place; a menu's keys; YES and NO,
+ * def_choice_yesno's two tall keys in the column, NO's drop above the footer); CLOSE, a menu's CANCEL, BACK and the
+ * chooser's CANCEL in the grid's exit, the footer the grid's note. */
 static int BoxFaults(void)
 {
     const CtrPokeTouchRect paper = PaperOf(kDevBoxScreen), column = {188, 8, 124, 177};
@@ -806,6 +807,7 @@ static int BoxFaults(void)
     assert(Same(kDevBoxCount, (CtrPokeTouchRect){188, 156, 124, 28}) && Same(kDevBoxChoose, kDevBoxHand));
     assert(DEV_BOX_COLUMN == 5 && Same(DevBoxMenuKey(0), (CtrPokeTouchRect){188, 8, 124, 30})
            && Same(DevBoxMenuKey(DEV_BOX_COLUMN - 1), (CtrPokeTouchRect){188, 152, 124, 30}));
+    assert(Same(kDevBoxYes, (CtrPokeTouchRect){188, 8, 124, 84}) && Same(kDevBoxNo, (CtrPokeTouchRect){188, 100, 124, 84}));
     for (int i = 0; i < 30; ++i) {
         CtrPokeTouchRect c = DevBoxCell(i), frame = {(int16_t)(c.x - 1), (int16_t)(c.y - 1), 26, 26};
 
@@ -837,6 +839,11 @@ static int BoxFaults(void)
             fprintf(stderr, "box: column key %d leaves the right column\n", i);
             ++faults;
         }
+    if (!Within(kDevBoxYes, column, 1) || !Within(kDevBoxNo, column, 0)
+        || kDevBoxNo.y + kDevBoxNo.h + DEV_DROP > kDevGridNote.y || kDevBoxNo.h != DevChoiceKey(2, 0, 1).h) {
+        fprintf(stderr, "box: YES or NO leaves the right column, meets the footer or is not a choice's height\n");
+        ++faults;
+    }
     if (kDevBoxScreen.x + kDevBoxScreen.w + 8 > column.x || kDevBoxScreen.y + kDevBoxScreen.h + 1 > kDevGridNote.y
         || kDevBoxScreen.y + kDevBoxScreen.h > 184) {
         fprintf(stderr, "box: the screen meets the column or the footer\n");
@@ -973,7 +980,9 @@ int main(void)
     const CtrPokeTouchRect relearnList[] = {kDevGridUp, kDevGridDown, kDevGridExit};
     const CtrPokeTouchRect relearnYesNo[] = {DevGridColumnKey(40, 36, 30, 0), DevGridColumnKey(40, 36, 30, 1)};
     const CtrPokeTouchRect boxKeys[] = {kDevBoxPrev, kDevBoxNext, kDevBoxParty, kDevGridExit};
-    const CtrPokeTouchRect boxYesNo[] = {DevBoxMenuKey(0), DevBoxMenuKey(1)};
+    const CtrPokeTouchRect boxYesNo[] = {kDevBoxYes, kDevBoxNo, kDevGridExit};
+    const CtrPokeTouchRect boxWallMenu[] = {DevBoxMenuKey(0), DevBoxMenuKey(1), DevBoxMenuKey(2), DevBoxMenuKey(3),
+                                            kDevGridExit};
     const CtrPokeTouchRect boxChooser[] = {kDevBoxPrev, kDevBoxNext, kDevBoxChoose, kDevGridExit};
     const CtrPokeTouchRect boxMarks[] = {DevBoxMenuKey(0), DevBoxMenuKey(1), DevBoxMenuKey(2), DevBoxMenuKey(3),
                                          DevBoxMenuKey(4), kDevGridExit};
@@ -1048,6 +1057,7 @@ int main(void)
         {"box previous", kDevBoxPrev}, {"box next", kDevBoxNext}, {"box PARTY POKeMON", kDevBoxParty},
         {"box hand", kDevBoxHand}, {"box count", kDevBoxCount}, {"box chooser", kDevBoxChoose},
         {"box column key 1", DevBoxMenuKey(0)}, {"box column key 5", DevBoxMenuKey(DEV_BOX_COLUMN - 1)},
+        {"box YES", kDevBoxYes}, {"box NO", kDevBoxNo},
         {"Easy Chat phrase", kDevEcPhrase}, {"Easy Chat slot 9 of 9", DevEcChip(9, 8)}, {"Easy Chat CONFIRM", DevEcFooter(2)},
         {"Easy Chat group 20", DevEcCell(20)}, {"Easy Chat letter Z", DevEcLetter(25)}, {"Easy Chat BACK", DevEcToggle(1)},
         {"Easy Chat list title", kDevEcListTitle}, {"Easy Chat list", kDevEcList}, {"Easy Chat row place 11", DevEcRow(11)},
@@ -1073,6 +1083,7 @@ int main(void)
                                DEV_GROUP("relearner list", relearnList), DEV_GROUP("relearner YES / NO", relearnYesNo),
                                DEV_GROUP("PC box", boxKeys), DEV_GROUP("box YES / NO", boxYesNo),
                                DEV_GROUP("box chooser", boxChooser), DEV_GROUP("box marks", boxMarks),
+                               DEV_GROUP("box wallpaper menu", boxWallMenu),
                                DEV_GROUP("Easy Chat list", ecList), DEV_GROUP("Easy Chat question", ecAsk),
                                DEV_GROUP("FireRed's picture", frameKeys)};
     int faults = 0;
@@ -1108,7 +1119,7 @@ int main(void)
         nameGroups[g] = (DevGroup){kNameGroup[g], nameKeys[g], n};
         faults += GroupFaults(&nameGroups[g]);
     }
-    for (int n = 2; n <= 6; ++n) {          /* the box's menu of each size: its rows but the last in the column, the exit */
+    for (int n = 2; n <= 6; ++n) {          /* the box's menu of each size: its rows but CANCEL in the column, the exit */
         int keys = n - 1 < DEV_BOX_COLUMN ? n - 1 : DEV_BOX_COLUMN;
 
         for (int i = 0; i < keys; ++i)

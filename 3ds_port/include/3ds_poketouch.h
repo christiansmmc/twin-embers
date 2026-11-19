@@ -363,6 +363,7 @@ typedef struct {
     int8_t menuCursor;
     uint8_t marks;                  /* MARKS: the marks on so far, bit 0 the circle .. bit 3 the heart */
     uint8_t menu[PT_BOX_MENU_MAX][16];
+    uint8_t menuCancel;             /* MENU: its last row is FireRed's CANCEL (recipe 0268; not the wallpaper menus) */
     uint8_t chooseName[12];
     uint8_t chooseCount;
     uint8_t message[48];            /* FireRed's line in the box's window, while it shows */

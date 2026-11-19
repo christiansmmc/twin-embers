@@ -94,20 +94,47 @@ static CtrPokeTouchView BoxBoard(void)
 }
 
 /* The box's menu as FireRed gives it: n rows of FireRed's Pokemon menu (MOVE SUMMARY WITHDRAW MARK RELEASE), the last
- * CANCEL. */
+ * CANCEL (recipe 0268: menuCancel). */
 static void BoxMenu(CtrPokeTouchView *v, int n)
 {
     static const char *const kRows[6] = {"Move", "Summary", "Withdraw", "Mark", "Release", "Cancel"};
 
     v->box.state = PT_BOX_STATE_MENU;
     v->box.menuCount = (uint8_t)n;
+    v->box.menuCancel = 1;
     memset(v->box.menu, 0xff, sizeof(v->box.menu));
     for (int i = 0; i < n; ++i)
         NameCodes(v->box.menu[i], (int)sizeof(v->box.menu[i]), kRows[i == n - 1 ? 5 : i]);
 }
 
-/* Key i of n of a menu, YES / NO or the marks: the right column's (DevBoxMenuKey), or (`exit`: a menu's, the marks')
- * the last in the exit corner. */
+/* A wallpaper menu as FireRed gives it from the box's name (WALLPAPER): SCENERY 1-3 and ETCETERA, no CANCEL row (its B
+ * leaves it), FireRed's cursor on the box's name. */
+static void BoxWallMenu(CtrPokeTouchView *v)
+{
+    static const char *const kRows[4] = {"Scenery 1", "Scenery 2", "Scenery 3", "Etcetera"};
+
+    v->box.state = PT_BOX_STATE_MENU;
+    v->box.area = ST_AREA_TITLE;
+    v->box.menuCount = 4;
+    v->box.menuCancel = 0;
+    memset(v->box.menu, 0xff, sizeof(v->box.menu));
+    for (int i = 0; i < 4; ++i)
+        NameCodes(v->box.menu[i], (int)sizeof(v->box.menu[i]), kRows[i]);
+}
+
+/* YES / NO as FireRed gives it, its cursor on `cursor`. */
+static void BoxYesNo(CtrPokeTouchView *v, int cursor)
+{
+    v->box.state = PT_BOX_STATE_YESNO;
+    v->box.menuCount = 2;
+    v->box.menuCursor = (int8_t)cursor;
+}
+
+/* The faded colour of the harness's icon over `under` (DevBoxIcon's fade: half strength over what is under it). */
+#define BOX_FADED(under) DevBlend((under), STUB_ICON, 128)
+
+/* Key i of n of a menu or the marks: the right column's (DevBoxMenuKey), or (`exit`: a menu's CANCEL, the marks') the
+ * last in the exit corner. */
 static CtrPokeTouchRect BoxKey(int n, int i, int exit)
 {
     return exit && i == n - 1 ? kDevGridExit : DevBoxMenuKey(i);
@@ -198,9 +225,10 @@ static void BoxWords(CtrPokeTouchView v)
  * pieces, the words, the ways in and out and the states for the eye. */
 static void SuiteBox(void)
 {
-    CtrPokeTouchView v = BoxBoard(), old = v, other, m6, cv;
+    CtrPokeTouchView v = BoxBoard(), old = v, other, m6, cv, wv, yv, kv;
     CtrPokeTouchRect r;
     int i, cuts;
+    char word[16];
 
     monArt = 1;
     CtrPokeTouch_Draw(canvas, &old);
@@ -221,15 +249,31 @@ static void SuiteBox(void)
     memset(v.box.slot, 0, sizeof(v.box.slot)); v.box.holding = 0; DevCheckTouch(&old, &v); for (i = 0; i < 30; ++i) AssertRowHits(BoxHitV, &v, DevBoxCell(i), i);
     v.box.area = ST_AREA_PARTY; v.box.pos = 2; DevCheckTouch(&old, &v); for (i = 0; i < 7; ++i) AssertRowHits(BoxHitV, &v, DevBoxPartyRow(i), ST_HIT_PARTY_BASE + i);
     m6 = BoxBoard(); BoxMenu(&m6, 6); DevCheckTouch(&old, &m6);
-    /* menu6 */ for (i = 0; i < 5; ++i) AssertHits(BoxHitV, &m6, DevBoxMenuKey(i), ST_HIT_MENU_BASE + i);
-    AssertHits(BoxHitV, &m6, kDevGridExit, ST_HIT_MENU_BASE + 5); assert(Count(14, 196, 216, 30, DEV_INK) > 0);
-    AssertKey(kDevGridExit, DEV_LOOK_DARK, 0); assert(BoxHitV(&m6, 60, 60) == ST_HIT_NONE);
-    v.box.state = PT_BOX_STATE_YESNO; v.box.menuCount = 2; DevCheckTouch(&old, &v);
-    AssertHits(BoxHitV, &v, DevBoxMenuKey(0), ST_HIT_MENU_BASE); AssertHits(BoxHitV, &v, DevBoxMenuKey(1), ST_HIT_MENU_BASE + 1);
+    /* menu6, menuCancel 1, cursor on MOVE */ for (i = 0; i < 5; ++i) AssertHits(BoxHitV, &m6, DevBoxMenuKey(i), ST_HIT_MENU_BASE + i);
+    AssertKey(DevBoxMenuKey(0), DEV_LOOK_KEY, 1); AssertHits(BoxHitV, &m6, kDevGridExit, ST_HIT_MENU_BASE + 5);
+    assert(Count(14, 196, 216, 30, DEV_INK) > 0 && BoxHitV(&m6, 60, 60) == ST_HIT_NONE); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0);
+    assert(!BackV(&m6, 278, 209)); m6.box.menuCursor = 5; DevCheckTouch(&old, &m6); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);
+    r = DevBoxCell(m6.box.pos); assert(Count(r.x - 4, r.y - 6, 32, 32, STUB_ICON) > 0);                         /* the cursor's icon whole */
+    r = DevBoxCell(0); assert(Count(r.x, r.y, 24, 24, STUB_ICON) == 0 && Count(r.x, r.y, 24, 24, DevBlend(DEV_PAPER, STUB_ICON, 128)) > 0);
+    /* wv, a wallpaper menu: SCENERY 1-3, ETCETERA, menuCancel 0 */ wv = BoxBoard(); BoxWallMenu(&wv); DevCheckTouch(&old, &wv);
+    for (i = 0; i < 4; ++i) AssertHits(BoxHitV, &wv, DevBoxMenuKey(i), ST_HIT_MENU_BASE + i);
+    AssertHits(BackV, &wv, kDevGridExit, 1); AssertKey(DevBoxMenuKey(3), DEV_LOOK_KEY, 0);
+    assert(BoxHitV(&wv, kDevGridExit.x + 5, kDevGridExit.y + 5) == ST_HIT_NONE && BoxHitV(&wv, 250, 160) == ST_HIT_NONE);
+    /* YES / NO */ yv = BoxBoard(); BoxYesNo(&yv, 0); DevCheckTouch(&old, &yv);
+    AssertHits(BoxHitV, &yv, kDevBoxYes, ST_HIT_MENU_BASE); AssertHits(BoxHitV, &yv, kDevBoxNo, ST_HIT_MENU_BASE + 1); AssertHits(BackV, &yv, kDevGridExit, 1);
+    assert(BoxHitV(&yv, kDevGridExit.x + 5, kDevGridExit.y + 5) == ST_HIT_NONE);
+    /* marks */ kv = BoxBoard(); kv.box.state = PT_BOX_STATE_MARKS; kv.box.menuCount = 6; DevCheckTouch(&old, &kv);
+    for (i = 0; i < 5; ++i) AssertHits(BoxHitV, &kv, DevBoxMenuKey(i), ST_HIT_MENU_BASE + i);
+    AssertHits(BoxHitV, &kv, kDevGridExit, ST_HIT_MENU_BASE + 5); assert(!BackV(&kv, 278, 209));
+    /* menuCancel drawn: six rows without CANCEL lose the sixth (not hit), counted (the column holds five) */
+    cuts = sDevKeyCut; m6.box.menuCancel ^= 1; assert(DevWhole(DevCheckTouch(&old, &m6)));
+    AssertHits(BackV, &m6, kDevGridExit, 1); assert(BoxHitV(&m6, kDevGridExit.x + 5, kDevGridExit.y + 5) == ST_HIT_NONE);
+    sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &m6); assert(sDevKeyCut == 1); sDevKeyCut = cuts;
+    /* a held BACK redraws */ DevCheckTouch(&old, &wv); wv.backPressed = 1; assert(DevWhole(DevCheckTouch(&old, &wv))); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);
+    DevCheckTouch(&old, &yv); yv.backPressed = 1; assert(DevWhole(DevCheckTouch(&old, &yv))); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);
     cv = BoxBoard(); cv.box.state = PT_BOX_STATE_CHOOSE; DevCheckTouch(&old, &cv);
     /* chooser */ AssertHits(BoxHitV, &cv, kDevBoxChoose, ST_HIT_TITLE); AssertHits(BackV, &cv, kDevGridExit, 1);
     AssertHits(BoxHitV, &cv, kDevBoxNext, ST_HIT_NEXT);
-    v.box.state = PT_BOX_STATE_MARKS; v.box.menuCount = 6; DevCheckTouch(&old, &v); BoxKeysHit(&v, 6, 1);
     v.box.state = PT_BOX_STATE_MESSAGE; DevCheckTouch(&old, &v); assert(CtrPokeTouch_BoxHit(&v, 5, 5) == PT_BOX_HIT_MESSAGE);
     v.box.state = PT_BOX_STATE_BOX; DevCheckTouch(&old, &v);
     v.box.box ^= 1; v.mapGroup ^= 1; v.speed ^= 1; assert(DevCheckTouch(&old, &v).count == 0);
@@ -391,17 +435,20 @@ static void SuiteBox(void)
     assert(Count(216, 218, 9, 5, DEV_INK2) == 25 && CountIn(kBoxNotePaper, DEV_INK2) == 25);   /* ▼ 9 px across, 5 down */
     assert(Count(212, 196, 18, 30, DEV_INK) == 0);
 
-    /* a message waiting for A: a tap anywhere is its A; the box's screen and its keys grey, the hand and the count as they
-     * are */
+    /* a message waiting for A: a tap anywhere is its A; the box's keys grey, the box's paper as it is (its icons faded but
+     * the cursor's place's), the hand and the count as they are */
     assert(CtrPokeTouch_BoxHit(&v, 319, 239) == PT_BOX_HIT_MESSAGE && CtrPokeTouch_BoxHit(&v, DevBoxCell(3).x + 5, DevBoxCell(3).y + 5) == PT_BOX_HIT_MESSAGE);
-    assert(at(15, 100) == BOX_DIM(DEV_PAPER2) && at(kDevBoxParty.x + 3, kDevBoxParty.y + 20) == BOX_DIM(DEV_KEY));
+    assert(at(15, 100) == DEV_PAPER2 && at(kDevBoxParty.x + 3, kDevBoxParty.y + 20) == BOX_DIM(DEV_KEY));
+    r = DevBoxCell(3); assert(at(r.x + 12, r.y + 12) == BOX_FADED(DEV_PAPER) && at(r.x, r.y + 12) == BOX_FADED(DEV_PAPER2));
+    r = DevBoxCell(29); assert(at(r.x + 12, r.y + 12) == STUB_ICON && at(r.x, r.y + 12) == DEV_BEZEL);
     assert(at(kDevGridExit.x + 3, kDevGridExit.y + 20) == BOX_DIM(DEV_BEZEL) && at(kDevBoxPrev.x + 3, kDevBoxPrev.y + 12) == BOX_DIM(DEV_KEY));
     assert(at(kBoxHandPaper.x + 1, kBoxHandPaper.y + 1) == DEV_PAPER && at(kBoxCountPaper.x + 1, kBoxCountPaper.y + 1) == DEV_PAPER);
     v.box.pressed = ST_HIT_BUTTON_PARTY; assert(DevCheckTouch(&old, &v).count == 0);   /* nothing sinks under a message */
 
-    /* while FireRed is busy: the box kept, no cursor's frame, nothing hit */
+    /* while FireRed is busy (its cursor walking, a fade): the box kept, its icons whole, no cursor's frame, nothing hit */
     v = BoxBoard(); v.box.state = PT_BOX_STATE_BUSY; DevCheckTouch(&old, &v);
     assert(at(DevBoxCell(29).x, DevBoxCell(29).y + 12) == STUB_ICON && CountIn(kBoxPaper, DEV_BEZEL) == 0);
+    assert(at(DevBoxCell(3).x + 12, DevBoxCell(3).y + 12) == STUB_ICON && CountIn(kBoxPaper, BOX_FADED(DEV_PAPER)) == 0);
     assert(CtrPokeTouch_BoxHit(&v, DevBoxCell(3).x + 5, DevBoxCell(3).y + 5) == ST_HIT_NONE && CtrPokeTouch_BoxHit(&v, 200, 120) == ST_HIT_NONE);
     v.box.area = ST_AREA_BUTTONS; v.box.pos = 0; DevCheckTouch(&old, &v); AssertKey(kDevBoxParty, DEV_LOOK_KEY, 0);
     assert(CountIn(kBoxHandPaper, STUB_ICON) > 0 && CtrPokeTouch_BoxHit(&v, 278, 210) == ST_HIT_NONE);
@@ -423,13 +470,20 @@ static void SuiteBox(void)
     r = DevBoxPartyRow(5); assert(Count(r.x, r.y, r.w, r.h, DEV_INK) == 0 && Count(r.x, r.y, r.w, r.h, STUB_ICON) == 0);
     r = DevBoxPartyRow(4); assert(Count(r.x, r.y, r.w, r.h, DEV_INK) > 0);   /* an egg: its name, no level */
 
-    /* a menu (five, FireRed's six): the box's screen grey, the footer as it is, FireRed's rows but the last as keys in the
-     * right column (their words from x + 10), the last (CANCEL) the dark key in the exit corner, FireRed's cursor's sunk
-     * or the one under a held touch; no hand, nothing of the box hit or drawn there */
+    /* a menu (five, FireRed's six): the box's paper, band and frame at full strength, each icon but the cursor's place's
+     * at half over what is under it (never DevDim), the footer as it is, FireRed's rows but the last as keys in the right
+     * column (their words from x + 10), the last (CANCEL: menuCancel) the dark key in the exit corner, FireRed's cursor's
+     * sunk or the one under a held touch; no hand, no BACK, nothing of the box hit or drawn there */
     v = BoxBoard(); BoxMenu(&v, 5); v.box.menuCursor = 1; DevCheckTouch(&old, &v);
-    BoxKeysHit(&v, 5, 1); BoxKeysSunk(5, 1, 1);
+    BoxKeysHit(&v, 5, 1); BoxKeysSunk(5, 1, 1); assert(!BackV(&v, kDevGridExit.x + 5, kDevGridExit.y + 5));
     r = DevBoxMenuKey(4); assert(CtrPokeTouch_BoxHit(&v, r.x + 5, r.y + 5) == ST_HIT_NONE && at(r.x + 3, r.y + 15) == DEV_SHELL_RED);
-    assert(at(15, 100) == BOX_DIM(DEV_PAPER2) && at(kBoxNotePaper.x + 1, kBoxNotePaper.y + 1) == DEV_PAPER);
+    assert(at(15, 100) == DEV_PAPER2 && at(kBoxNotePaper.x + 1, kBoxNotePaper.y + 1) == DEV_PAPER && at(10, 100) == DEV_BEZEL);
+    assert(CountIn(kDevBoxTitle, DEV_INK) > 0 && CountIn(kBoxPaper, DEV_BEZEL) > 0);
+    for (i = 0; i < 29; ++i) { r = DevBoxCell(i); assert(at(r.x + 12, r.y + 12) == BOX_FADED(DEV_PAPER)); }
+    r = DevBoxCell(29); assert(at(r.x + 12, r.y + 12) == STUB_ICON && at(r.x, r.y + 12) == DEV_BEZEL);
+    assert(Count(r.x - 4, r.y - 6, 32, 32, STUB_ICON) == CountIn(kBoxPaper, STUB_ICON));   /* whole: the cursor's alone */
+    v.box.slot[0].species = 0; DevCheckTouch(&old, &v); r = DevBoxCell(0); assert(at(r.x + 12, r.y + 12) == DEV_PAPER);
+    v.box.slot[0].species = 1; DevCheckTouch(&old, &v);
     assert(CountIn(kBoxNotePaper, DEV_MALE) > 0 && Count(188, 0, 132, 186, STUB_ICON) == 0);
     for (i = 0; i < 30; ++i) { r = DevBoxCell(i); assert(CtrPokeTouch_BoxHit(&v, r.x + 12, r.y + 12) == ST_HIT_NONE); }
     assert(CtrPokeTouch_BoxHit(&v, 20, 20) == ST_HIT_NONE && CtrPokeTouch_BoxHit(&v, 100, 200) == ST_HIT_NONE);
@@ -437,38 +491,74 @@ static void SuiteBox(void)
     BoxKeyWord(&v, kDevGridExit, DEV_LOOK_DARK, 0, "CANCEL", 0);
     r = DevBoxMenuKey(0); assert(Count(r.x + 10, r.y + 10, 1, 9, DEV_KEY_INK) > 0 && Count(r.x, r.y, 10, r.h, DEV_KEY_INK) == 0);
     v.box.pressed = ST_HIT_MENU_BASE + 3; DevCheckTouch(&old, &v); BoxKeysSunk(5, 3, 1);
-    assert(at(DevBoxCell(29).x, DevBoxCell(29).y + 12) == BOX_DIM(DEV_BEZEL));   /* a held key is the menu's alone */
+    assert(at(DevBoxCell(29).x, DevBoxCell(29).y + 12) == DEV_BEZEL);   /* a held key is the menu's alone */
     v.box.pressed = ST_HIT_MENU_BASE + 4; DevCheckTouch(&old, &v); BoxKeysSunk(5, 4, 1);   /* the dark CANCEL held: sunk, lit */
     v.box.pressed = ST_HIT_MENU_BASE + 6; DevCheckTouch(&old, &v); BoxKeysSunk(5, 1, 1);   /* no such key: as none */
     v.box.pressed = 3; assert(DevCheckTouch(&old, &v).count == 0);
-    assert(at(DevBoxCell(29).x, DevBoxCell(29).y + 12) == BOX_DIM(DEV_BEZEL));   /* the place the menu is for */
+    assert(at(DevBoxCell(29).x, DevBoxCell(29).y + 12) == DEV_BEZEL);   /* the place the menu is for */
     v.box.pressed = -1; v.box.chooseCount = 9; v.box.marks = 3; assert(DevCheckTouch(&old, &v).count == 0);
+    v.backPressed = 1; assert(DevCheckTouch(&old, &v).count == 0);       /* a menu with its CANCEL: no BACK */
+    v.backPressed = 0; DevCheckTouch(&old, &v);
     BoxMenu(&v, 6); v.box.menuCursor = 5; DevCheckTouch(&old, &v); BoxKeysSunk(6, 5, 1); BoxKeysHit(&v, 6, 1);
     for (int n = 1; n <= 6; ++n) {
         BoxMenu(&v, n); v.box.menuCursor = 0; DevCheckTouch(&old, &v);
         BoxKeysHit(&v, n, 1); BoxKeysSunk(n, 0, 1);
     }
-    v.box.area = ST_AREA_PARTY; v.box.pos = 1; DevCheckTouch(&old, &v);   /* a Party Pokemon's menu: the Party grey */
-    r = DevBoxPartyRow(1); assert(at(r.x + 1, r.y + 1) == BOX_DIM(DEV_BEZEL));
+    /* a menu of seven with its CANCEL (none in FireRed): the sixth row lost (not drawn, not hit), counted; CANCEL still in
+     * the exit corner */
+    cuts = sDevKeyCut; BoxMenu(&v, 7); DevCheckTouch(&old, &v);
+    BoxKeysSunk(5, 0, 0); AssertHits(BoxHitV, &v, kDevGridExit, ST_HIT_MENU_BASE + 6);
+    for (i = 0; i < 5; ++i) AssertHits(BoxHitV, &v, DevBoxMenuKey(i), ST_HIT_MENU_BASE + i);
+    for (int y = 0; y < H; ++y) for (int x = 0; x < W; ++x) assert(BoxHitV(&v, x, y) != ST_HIT_MENU_BASE + 5);
+    sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &v); assert(sDevKeyCut == 1); sDevKeyCut = cuts;
+    /* menus without FireRed's CANCEL (the wallpaper menus: B leaves them): every row a key of the column, FireRed's cursor
+     * sunk on any of them, CANCEL in the exit corner the view's BACK (FireRed's B), sunk while held, grey while the box
+     * takes no B, not drawn without BACK */
+    v = BoxBoard(); BoxWallMenu(&v); v.box.menuCursor = 3; DevCheckTouch(&old, &v);
+    BoxKeysSunk(4, 3, 0); BoxKeysHit(&v, 4, 0); AssertHits(BackV, &v, kDevGridExit, 1); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0);
+    BoxKeyWord(&v, DevBoxMenuKey(3), DEV_LOOK_KEY, 1, "ETCETERA", 10); BoxKeyWord(&v, kDevGridExit, DEV_LOOK_DARK, 0, DevCancelWord(), 0);
+    r = DevBoxMenuKey(4); assert(at(r.x + 3, r.y + 15) == DEV_SHELL_RED && BoxHitV(&v, r.x + 5, r.y + 5) == ST_HIT_NONE);
+    for (i = 0; i < 30; ++i) { r = DevBoxCell(i); assert(at(r.x + 12, r.y + 12) == BOX_FADED(DEV_PAPER)); }   /* the cursor on the band */
+    assert(at(14, 14) == DEV_BEZEL);
+    v.box.pressed = ST_HIT_MENU_BASE + 1; DevCheckTouch(&old, &v); BoxKeysSunk(4, 1, 0);
+    v.box.pressed = ST_HIT_MENU_BASE + 4; DevCheckTouch(&old, &v); BoxKeysSunk(4, 3, 0);   /* no such key: as none */
+    v.box.pressed = -1; v.backPressed = 1; assert(DevWhole(DevCheckTouch(&old, &v))); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);
+    v.backEnabled = 0; DevCheckTouch(&old, &v); assert(at(kDevGridExit.x + 3, kDevGridExit.y + kDevGridExit.h / 2) == DIM_DARK);
+    v.backPressed = 0; v.backEnabled = 1; v.backVisible = 0; DevCheckTouch(&old, &v);
+    assert(at(kDevGridExit.x + 3, kDevGridExit.y + kDevGridExit.h / 2) == DEV_SHELL_RED && !BackV(&v, kDevGridExit.x + 5, kDevGridExit.y + 5));
+    v.backVisible = 1; DevCheckTouch(&old, &v);
+    v = BoxBoard(); BoxMenu(&v, 5); v.box.area = ST_AREA_PARTY; v.box.pos = 1; DevCheckTouch(&old, &v);   /* a Party Pokemon's menu */
+    r = DevBoxPartyRow(1); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL && Count(r.x + 2, r.y + 2, 16, 16, STUB_ICON) == 12 * 12);
+    r = DevBoxPartyRow(0); assert(at(r.x + 1, r.y + 1) == DEV_PAPER && Count(r.x + 2, r.y + 2, 16, 16, BOX_FADED(DEV_PAPER)) == 12 * 12);
 
-    /* YES / NO: both cream, the first two keys of the column; FireRed's cursor sunk or the one held; the footer, the
-     * column's rest and the exit corner the shell */
-    v = BoxBoard(); v.box.state = PT_BOX_STATE_YESNO; v.box.menuCount = 2; v.box.menuCursor = 1;
+    /* YES / NO (def_choice_yesno): two tall cream keys in the column, their words centred; FireRed's cursor sunk or the
+     * one held; BACK (FireRed's B: NO) the dark key in the exit corner, sunk while held, grey while the box takes no B */
+    v = BoxBoard(); BoxYesNo(&v, 1);
     NameCodes(v.box.message, (int)sizeof(v.box.message), "Port question for this test?"); DevCheckTouch(&old, &v);
-    BoxKeysHit(&v, 2, 0); BoxKeysSunk(2, 1, 0);
-    assert(at(250, 120) == DEV_SHELL_RED && at(278, 210) == DEV_SHELL_RED && CountIn(kBoxNotePaper, DEV_INK) > 0);
-    assert(CtrPokeTouch_BoxHit(&v, 250, 120) == ST_HIT_NONE && CtrPokeTouch_BoxHit(&v, 60, 60) == ST_HIT_NONE && CtrPokeTouch_BoxHit(&v, 278, 210) == ST_HIT_NONE);
-    v.box.pressed = ST_HIT_MENU_BASE; DevCheckTouch(&old, &v); BoxKeysSunk(2, 0, 0);
-    v.box.pressed = ST_HIT_MENU_BASE + 2; DevCheckTouch(&old, &v); BoxKeysSunk(2, 1, 0);
+    AssertKey(kDevBoxYes, DEV_LOOK_KEY, 0); AssertKey(kDevBoxNo, DEV_LOOK_KEY, 1); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0);
+    AssertHits(BoxHitV, &v, kDevBoxYes, ST_HIT_MENU_BASE); AssertHits(BoxHitV, &v, kDevBoxNo, ST_HIT_MENU_BASE + 1);
+    AssertHits(BackV, &v, kDevGridExit, 1); assert(CountIn(kBoxNotePaper, DEV_INK) > 0);
+    assert(CtrPokeTouch_BoxHit(&v, 60, 60) == ST_HIT_NONE && CtrPokeTouch_BoxHit(&v, 278, 210) == ST_HIT_NONE && at(250, 96) == DEV_SHELL_RED);
+    DevUpper(word, CtrUiText(UIS_YES), sizeof(word)); BoxKeyWord(&v, kDevBoxYes, DEV_LOOK_KEY, 0, word, 0);
+    DevUpper(word, CtrUiText(UIS_NO), sizeof(word)); BoxKeyWord(&v, kDevBoxNo, DEV_LOOK_KEY, 1, word, 0);
+    BoxKeyWord(&v, kDevGridExit, DEV_LOOK_DARK, 0, DevBackWord(), 0);
+    r = DevBoxCell(29); assert(at(r.x + 12, r.y + 12) == STUB_ICON); r = DevBoxCell(28); assert(at(r.x + 12, r.y + 12) == BOX_FADED(DEV_PAPER));
+    v.box.pressed = ST_HIT_MENU_BASE; DevCheckTouch(&old, &v); AssertKey(kDevBoxYes, DEV_LOOK_KEY, 1); AssertKey(kDevBoxNo, DEV_LOOK_KEY, 0);
+    v.box.pressed = ST_HIT_MENU_BASE + 2; DevCheckTouch(&old, &v); AssertKey(kDevBoxYes, DEV_LOOK_KEY, 0); AssertKey(kDevBoxNo, DEV_LOOK_KEY, 1);
+    v.box.pressed = -1; v.box.menuCancel = 1; v.box.menu[0][0] = 0xbb; assert(DevCheckTouch(&old, &v).count == 0);   /* a menu's: not drawn */
+    v.backPressed = 1; assert(DevWhole(DevCheckTouch(&old, &v))); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1); AssertKey(kDevBoxNo, DEV_LOOK_KEY, 1);
+    v.backEnabled = 0; DevCheckTouch(&old, &v); assert(at(kDevGridExit.x + 3, kDevGridExit.y + kDevGridExit.h / 2) == DIM_DARK);
+    v.backPressed = 0; v.backEnabled = 1; DevCheckTouch(&old, &v);
 
     /* the chooser: ◀ ▶ (sunk while held) and the chosen box's key in the hand's place, always sunk: its name and how many
-     * it holds; the box's screen grey and not hit; CANCEL in the exit corner, the view's BACK (FireRed's B), a dark key
+     * it holds; the box's icons faded and not hit; CANCEL in the exit corner, the view's BACK (FireRed's B), a dark key
      * hit where it is drawn, sunk while held, grey while the chooser takes no B */
     v = BoxBoard(); v.box.state = PT_BOX_STATE_CHOOSE; BoxCodes(v.box.chooseName, (int)sizeof(v.box.chooseName), "Box two", 0);
     v.box.chooseCount = 12; DevCheckTouch(&old, &v);
     AssertHits(BoxHitV, &v, kDevBoxPrev, ST_HIT_PREV); AssertHits(BoxHitV, &v, kDevBoxNext, ST_HIT_NEXT); AssertHits(BoxHitV, &v, kDevBoxChoose, ST_HIT_TITLE);
     AssertKey(kDevBoxChoose, DEV_LOOK_KEY, 1); AssertKey(kDevBoxPrev, DEV_LOOK_KEY, 0); AssertKey(kDevBoxNext, DEV_LOOK_KEY, 0);
-    assert(at(15, 100) == BOX_DIM(DEV_PAPER2) && Count(kDevBoxChoose.x, kDevBoxChoose.y, kDevBoxChoose.w, kDevBoxChoose.h, DEV_SUNK_INK) > 0);
+    assert(at(15, 100) == DEV_PAPER2 && Count(kDevBoxChoose.x, kDevBoxChoose.y, kDevBoxChoose.w, kDevBoxChoose.h, DEV_SUNK_INK) > 0);
+    assert(at(DevBoxCell(3).x + 12, DevBoxCell(3).y + 12) == BOX_FADED(DEV_PAPER));
     assert(CountIn(kBoxHandPaper, STUB_ICON) == 0 && Count(188, 40, 124, 64, DEV_INK2) == 0);    /* no hand under the key */
     assert(CtrPokeTouch_BoxHit(&v, 60, 60) == ST_HIT_NONE && CtrPokeTouch_BoxHit(&v, 20, 20) == ST_HIT_NONE && CtrPokeTouch_BoxHit(&v, 250, 120) == ST_HIT_NONE);
     v.box.pressed = ST_HIT_PREV; DevCheckTouch(&old, &v); AssertKey(kDevBoxPrev, DEV_LOOK_KEY, 1); AssertKey(kDevBoxChoose, DEV_LOOK_KEY, 1);
@@ -486,12 +576,18 @@ static void SuiteBox(void)
     v.backVisible = 0; DevCheckTouch(&old, &v); assert(!CtrPokeTouch_BackHit(&v, kDevGridExit.x + 5, kDevGridExit.y + 5));
     assert(at(kDevGridExit.x + 3, kDevGridExit.y + kDevGridExit.h / 2) == DEV_SHELL_RED);
     v.backVisible = 1; DevCheckTouch(&old, &v);
-    memset(v.box.menu, 0xff, sizeof(v.box.menu));             /* a menu of two empty rows in MENU */
-    for (i = PT_BOX_STATE_BUSY; i <= PT_BOX_STATE_MARKS; ++i) {   /* CANCEL is the chooser's alone */
-        v.box.state = (uint8_t)i; v.box.menuCount = 2; v.backPressed = 0; DevCheckTouch(&old, &v);
-        assert(CtrPokeTouch_BackHit(&v, kDevGridExit.x + 5, kDevGridExit.y + 5) == (i == PT_BOX_STATE_CHOOSE));
-        if (i != PT_BOX_STATE_CHOOSE) { v.backPressed = 1; assert(DevCheckTouch(&old, &v).count == 0); }
-    }
+    memset(v.box.menu, 0xff, sizeof(v.box.menu));             /* a menu of two empty rows in MENU, with and without CANCEL */
+    for (int cancel = 0; cancel < 2; ++cancel)                 /* BACK: the chooser's, YES / NO's, a menu's without CANCEL */
+        for (i = PT_BOX_STATE_BUSY; i <= PT_BOX_STATE_MARKS; ++i) {
+            int back = i == PT_BOX_STATE_CHOOSE || i == PT_BOX_STATE_YESNO || (i == PT_BOX_STATE_MENU && !cancel);
+
+            v.box.state = (uint8_t)i; v.box.menuCount = 2; v.box.menuCancel = (uint8_t)cancel; v.backPressed = 0;
+            DevCheckTouch(&old, &v);
+            assert(CtrPokeTouch_BackHit(&v, kDevGridExit.x + 5, kDevGridExit.y + 5) == back);
+            v.backPressed = 1;
+            assert(back ? DevWhole(DevCheckTouch(&old, &v)) : DevCheckTouch(&old, &v).count == 0);
+        }
+    v.backPressed = 0;
 
     /* the marks: the four marks at 2x (on in the key's ink, off dim) and OK in the column, CANCEL the dark key in the exit
      * corner; FireRed's cursor sunk */
@@ -507,7 +603,7 @@ static void SuiteBox(void)
     v.box.pressed = ST_HIT_MENU_BASE + 5; DevCheckTouch(&old, &v); BoxKeysSunk(6, 5, 1);
     markArt = 0;
 
-    /* no BACK but the chooser's (CLOSE is FireRed's exit, every menu has its CANCEL): nothing hit where a view's BACK is */
+    /* no BACK in the box's own state (CLOSE is FireRed's exit): nothing hit where a view's BACK is */
     v = BoxBoard(); DevCheckTouch(&old, &v);
     assert(!CtrPokeTouch_BackHit(&v, 278, 210) && !CtrPokeTouch_BackHit(&v, 50, 220) && !CtrPokeTouch_BackHit(&v, 20, 20));
 
@@ -537,7 +633,9 @@ static void SuiteBox(void)
     v = BoxBoard(); BoxMenu(&v, 5); v.box.menuCursor = 0;
     NameCodes(v.box.message, (int)sizeof(v.box.message), "Kitmon is selected."); DevCheckTouch(&old, &v); shot("menu5");
     BoxMenu(&v, 6); v.box.menuCursor = 2; DevCheckTouch(&old, &v); shot("menu6");
-    v.box.state = PT_BOX_STATE_YESNO; v.box.menuCount = 2; v.box.menuCursor = 0;
+    v = BoxBoard(); BoxWallMenu(&v); v.box.menuCursor = 1;
+    NameCodes(v.box.message, (int)sizeof(v.box.message), "Port words: which theme?"); DevCheckTouch(&old, &v); shot("menu_wallpaper");
+    v = BoxBoard(); BoxYesNo(&v, 0);
     NameCodes(v.box.message, (int)sizeof(v.box.message), "Port question for this test?"); DevCheckTouch(&old, &v); shot("yesno");
     v = BoxBoard(); v.box.state = PT_BOX_STATE_CHOOSE; v.box.area = ST_AREA_PARTY; v.box.pos = 1;
     BoxCodes(v.box.chooseName, (int)sizeof(v.box.chooseName), "Box two", 0); v.box.chooseCount = 12;
