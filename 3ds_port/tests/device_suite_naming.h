@@ -82,6 +82,25 @@ static CtrPokeTouchView NameBoard(void)
     return v;
 }
 
+/* The counter as the last draw told it (the trace): `text` (the characters typed and the most the name takes) small in
+ * the secondary ink, capitals NAME_SMALL_TOP, ending at DEV_NAME_COUNT_RIGHT; the only small text on that row not from
+ * the question's x. */
+static void NameCounter(const char *text)
+{
+    int found = 0;
+
+    for (int i = 0; i < gTraceCount; ++i)
+        if (gTrace[i].op == DEV_TRACE_TEXT && gTrace[i].b == 1 && gTrace[i].y == NAME_SMALL_TOP && gTrace[i].x != DEV_NAME_TITLE_X) {
+            if (strcmp(gTrace[i].s, text) || gTrace[i].x + gTrace[i].w != DEV_NAME_COUNT_RIGHT || gTrace[i].a != DEV_INK2) {
+                fprintf(stderr, "naming: the counter \"%s\" at %d..%d, wanted \"%s\" ending at %d\n", gTrace[i].s,
+                        gTrace[i].x, gTrace[i].x + gTrace[i].w, text, DEV_NAME_COUNT_RIGHT);
+                assert(0);
+            }
+            ++found;
+        }
+    assert(found == 1);
+}
+
 /* Review Focus 1: on each of FireRed's pages every key it has is hit where it is drawn (every place of its columns: the
  * space keys that end its short rows too), the three page keys turn to their pages, DELETE and OK are hit, and the page
  * shown is sunk; then the capitals' page again with one place without a key (EOS, synthetic: FireRed's pages have none
@@ -208,11 +227,11 @@ static void SuiteNaming(void)
     }
     v = NameBoard(); v.name.curCol = 3; v.name.curRow = 2; v.name.pressed = PT_NAME_HIT_KEY + 1 * PT_NAME_COLS + 5;
     DevCheckTouch(&gNameOld, &v); NameSunk(&v, 1 * PT_NAME_COLS + 5, -1);
-    v.name.pressed = -1; v.name.len = 0; memset(v.name.text, 0xff, sizeof(v.name.text)); DevCheckTouch(&gNameOld, &v);
+    v.name.pressed = -1; v.name.len = 0; memset(v.name.text, 0xff, sizeof(v.name.text)); DevCheckTouch(&gNameOld, &v); NameCounter("0 / 7");
     assert(Count(NAME_SLOT(0), NAME_LINE, 14, 1, DEV_MARK_ON) == 14 && Count(NAME_SLOT(0), NAME_TOP, 14, UI_TEXT_H, DEV_TITLE_INK) == 0);
     for (i = 1; i < 7; ++i) assert(Count(NAME_SLOT(i), NAME_LINE, 14, 1, DEV_PAPER_LINE) == 14);
     assert(Count(NAME_SLOT(7), NAME_LINE, 306 - NAME_SLOT(7), 1, DEV_PAPER_LINE) == 0 && CountIn(kNamePaper, DEV_TITLE_INK) == 0);
-    v.name.maxChars = 10; NameCodes(v.name.text, PT_NAME_MAX, "Kitkatkitk"); v.name.len = 10; DevCheckTouch(&gNameOld, &v);
+    v.name.maxChars = 10; NameCodes(v.name.text, PT_NAME_MAX, "Kitkatkitk"); v.name.len = 10; DevCheckTouch(&gNameOld, &v); NameCounter("10 / 10");
     assert(Count(kNamePaper.x, NAME_LINE, kNamePaper.w, 1, DEV_MARK_ON) == 0 && Count(kNamePaper.x, NAME_LINE, kNamePaper.w, 1, DEV_PAPER_LINE) == 10 * 14);
     for (i = 0; i < 10; ++i) assert(Count(NAME_SLOT(i), NAME_TOP, 14, UI_TEXT_H, DEV_TITLE_INK) > 0);
     /* "10 / 10": from x 262 on, ending at 298 */
@@ -232,8 +251,10 @@ static void SuiteNaming(void)
     assert(Count(NAME_SLOT(0) + 2, 28, 12, 9, DEV_TITLE_INK) > 0 && Count(52, 17, 50, 7, DEV_INK2) > 0);
     assert(Count(NAME_SLOT(0), 14, 2, 28, DEV_TITLE_INK) == 0 && Count(51, 14, 1, 12, DEV_INK2) == 0);
     assert(Count(262, 17, 37, 7, DEV_INK2) > 0 && Count(299, 14, 7, 28, DEV_INK2) == 0);                  /* "3 / 7" */
+    NameCounter("3 / 7");
     assert(CountIn(kDevNameIcon, DEV_PAPER) == 24 * 24);                                                    /* no icon */
     v.name.len = 7; DevCheckTouch(&gNameOld, &v); assert(Count(14, 39, 292, 1, DEV_MARK_ON) == 0);          /* full */
+    NameCounter("7 / 7");
     monArt = 2; v.name.species = 4; DevCheckTouch(&gNameOld, &v);                                          /* a whole 32x32 square */
     assert(CountIn(kDevNameIcon, STUB_ICON) == 24 * 24 && Count(16, 10, 4, 32, STUB_ICON) == 0 && Count(44, 14, 4, 28, STUB_ICON) == 0);
     assert(CountIn(kNamePaper, STUB_ICON) == 24 * 24);
@@ -287,11 +308,12 @@ static void SuiteNaming(void)
     assert(Count(kNamePaper.x, kNamePaper.y, 262 - kNamePaper.x, kNamePaper.h, DEV_INK2) == 0 && Count(262, NAME_SMALL_TOP, 37, 7, DEV_INK2) > 0);
     monArt = 1; v = NameBoard(); v.name.species = 4; DevCheckTouch(&gNameOld, &v);
     assert(Count(20, 16, 24, 22, STUB_ICON) == 24 * 22 && CountIn(kNamePaper, STUB_ICON) == 24 * 22);
+    assert(CountIn(kDevNameIcon, DEV_PAPER) == 24 * 24 - 24 * 22);   /* the icon's clear pixels: the paper behind it */
     assert(Count(NAME_SLOT(3), NAME_LINE, 14, 1, DEV_MARK_ON) == 14 && Count(NAME_SLOT(0), NAME_TOP, 14, UI_TEXT_H, DEV_TITLE_INK) > 0);
     v.name.species = 0; DevCheckTouch(&gNameOld, &v);
     assert(CountIn(kNamePaper, STUB_ICON) == 0 && CountIn(kDevNameIcon, DEV_PAPER) == 24 * 24 && Count(NAME_SLOT(3), NAME_LINE, 14, 1, DEV_MARK_ON) == 14);
     monArt = 0;
-    v.name.maxChars = PT_NAME_MAX; v.name.gender = 2; DevCheckTouch(&gNameOld, &v);
+    v.name.maxChars = PT_NAME_MAX; v.name.gender = 2; DevCheckTouch(&gNameOld, &v); NameCounter("3 / 12");
     assert(Count(NAME_SLOT(PT_NAME_MAX - 1), NAME_LINE, 14, 1, DEV_PAPER_LINE) == 14 && Count(NAME_SLOT(PT_NAME_MAX), NAME_LINE, 306 - NAME_SLOT(PT_NAME_MAX), 1, DEV_PAPER_LINE) == 0);
     assert(Count(NAME_SLOT(PT_NAME_MAX) + 2, 27, 8, 10, DEV_FEMALE) > 0 && Count(NAME_SLOT(PT_NAME_MAX) + 2, 27, 8, 10, DEV_FEMALE) == CountIn(kNamePaper, DEV_FEMALE));
     assert(Count(NAME_SLOT(PT_NAME_MAX) + 10, 14, 262 - NAME_SLOT(PT_NAME_MAX) - 10, 28, DEV_INK2) == 0 && Count(262, NAME_SMALL_TOP, 37, 7, DEV_INK2) > 0);
