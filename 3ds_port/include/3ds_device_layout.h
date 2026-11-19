@@ -222,13 +222,12 @@ static inline CtrPokeTouchRect DevBagMenuKey(int n, int i)
 /* ---- The shapes the views without a board share (plan 3) ------------------------------------------------------------
  * No board draws these views: they draw on the grid's names and these few. Keys across the screen (DevAcross: the
  * battle's rows); the small note (a screen) with two small keys and the grid's exit beside it (the Party picking
- * several: its CONFIRM, kDevPtyConfirm, in the keys' place); a tall screen over a wide key; the tall note with BACK
- * beside it (kDevTallNote, kDevTallBack: the frame's and the Pokedex page's BACK until their boards' tasks;
- * kDevTallBack the Trainer Card's BACK, as its board); a question's note beside YES and NO. */
+ * several: its CONFIRM, kDevPtyConfirm, in the keys' place); a tall screen over a wide key; BACK beside the tall
+ * screen's footer (kDevTallBack: the Trainer Card's and the Pokedex page's, as their boards); a question's note beside
+ * YES and NO. */
 static const CtrPokeTouchRect kDevSmallNote __attribute__((unused)) = {8, 190, 152, 42};
 static const CtrPokeTouchRect kDevSmallKey[2] __attribute__((unused)) = {{168, 190, 32, 40}, {204, 190, 32, 40}};
 static const CtrPokeTouchRect kDevTallScreen __attribute__((unused)) = {8, 8, 304, 172};
-static const CtrPokeTouchRect kDevTallNote __attribute__((unused)) = {8, 188, 228, 44};
 static const CtrPokeTouchRect kDevTallBack __attribute__((unused)) = {244, 188, 68, 42};
 static const CtrPokeTouchRect kDevWideKey __attribute__((unused)) = {8, 188, 304, 42};
 static const CtrPokeTouchRect kDevAskNote __attribute__((unused)) = {8, 156, 200, 76};
@@ -592,13 +591,13 @@ static inline CtrPokeTouchRect DevEcStripCell(int i)
     return r;
 }
 
-/* ---- FireRed's picture and the idle screen (no board; 3ds_device_frame_impl.h) ----------------------------------------
+/* ---- FireRed's picture and the idle screen (def_frame, def_idle; 3ds_device_frame_impl.h) ---------------------------
  * FireRed's picture: an embedded screen centred across the top (kDevViewScreen), its paper (6 px in) the picture's
  * 240x160 at 1:1 where the GPU draws it (PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H, 3ds_poketouch.h); under it the
- * tall note (kDevTallNote) beside BACK (kDevTallBack), or without BACK the note across both (kDevViewNoteWide). The
- * idle screen: an embedded screen centred on the shell (kDevIdleScreen), the project's logo centred on its paper. */
+ * grid's footer: the note (kDevGridNote) beside BACK in the exit (kDevGridExit), or without BACK the wide note
+ * (kDevGridNoteWide). The idle screen: an embedded screen centred on the shell (kDevIdleScreen), the project's logo
+ * centred on its paper. */
 static const CtrPokeTouchRect kDevViewScreen __attribute__((unused)) = {34, 8, 252, 172};
-static const CtrPokeTouchRect kDevViewNoteWide __attribute__((unused)) = {8, 188, 304, 44};
 static const CtrPokeTouchRect kDevIdleScreen __attribute__((unused)) = {40, 45, 240, 150};
 
 #endif

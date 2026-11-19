@@ -359,8 +359,7 @@ static int BagFaults(void)
 /* The grid (def_spec): TOPO y 8-32 (the tabs, DevGridTab, or the title, kDevGridTitle), MEIO y 40-184 (the screen with
  * ▲▼ beside it, the wide screen, or a narrow screen with the key column at x 204: DevGridColumnKey), RODAPÉ y 190-232
  * (the note with the exit beside it, or the wide note); a list's five rows, 24 tall and 26 apart, on its screen's
- * paper. The tall note and BACK (the frame's, the Trainer Card's and the Pokedex page's until their tasks) keep their
- * numbers. */
+ * paper. BACK beside the tall screen (kDevTallBack: the Trainer Card's and the Pokedex page's) keeps its numbers. */
 static int GridFaults(void)
 {
     const CtrPokeTouchRect paper = PaperOf(kDevGridScreen), narrowPaper = PaperOf(kDevGridScreenNarrow);
@@ -372,7 +371,7 @@ static int GridFaults(void)
     assert(Same(kDevGridUp, (CtrPokeTouchRect){276, 40, 36, 66}) && Same(kDevGridDown, (CtrPokeTouchRect){276, 114, 36, 66}));
     assert(Same(kDevGridNote, (CtrPokeTouchRect){8, 190, 228, 42}) && Same(kDevGridNoteWide, (CtrPokeTouchRect){8, 190, 304, 42}));
     assert(Same(kDevGridExit, (CtrPokeTouchRect){244, 190, 68, 40}));
-    assert(Same(kDevTallNote, (CtrPokeTouchRect){8, 188, 228, 44}) && Same(kDevTallBack, (CtrPokeTouchRect){244, 188, 68, 42}));
+    assert(Same(kDevTallBack, (CtrPokeTouchRect){244, 188, 68, 42}));
     for (int i = 0; i < 4; ++i)
         assert(Same(DevGridTab(4, i), DevAcross(4, i, 8, 24)));
     assert(Same(DevGridTab(3, 0), (CtrPokeTouchRect){8, 8, 98, 24}) && Same(DevGridTab(3, 2), (CtrPokeTouchRect){212, 8, 98, 24}));
@@ -879,9 +878,10 @@ static int EasyChatFaults(void)
     return faults;
 }
 
-/* FireRed's picture: its screen centred across the top, the paper (6 px in) exactly where the GPU draws the picture
- * (PT_VIEW_*); under it the tall note beside BACK (kDevTallNote, kDevTallBack), or the note across in their place
- * without BACK. The idle screen: centred on the shell, its paper holding the 224x126 logo centred at (48, 57). */
+/* FireRed's picture (def_frame): its screen centred across the top, the paper (6 px in) exactly where the GPU draws the
+ * picture (PT_VIEW_*), clear of the grid's footer; under it the grid's note beside BACK in the exit (kDevGridNote,
+ * kDevGridExit), or without BACK the wide note across both (kDevGridNoteWide). The idle screen (def_idle): centred on the
+ * shell, its paper holding the 224x126 logo centred at (48, 57). */
 static int FrameFaults(void)
 {
     const CtrPokeTouchRect view = {PT_VIEW_X, PT_VIEW_Y, PT_VIEW_W, PT_VIEW_H}, logo = {48, 57, 224, 126};
@@ -891,12 +891,12 @@ static int FrameFaults(void)
                                         (int16_t)(kDevIdleScreen.w - 12), (int16_t)(kDevIdleScreen.h - 12)};
     int faults = 0;
 
-    assert(Same(kDevViewScreen, (CtrPokeTouchRect){34, 8, 252, 172}) && Same(kDevViewNoteWide, (CtrPokeTouchRect){8, 188, 304, 44})
-           && Same(kDevIdleScreen, (CtrPokeTouchRect){40, 45, 240, 150}));
+    assert(Same(kDevViewScreen, (CtrPokeTouchRect){34, 8, 252, 172}) && Same(kDevIdleScreen, (CtrPokeTouchRect){40, 45, 240, 150}));
     assert(Same(paper, view) && Same(view, (CtrPokeTouchRect){40, 14, 240, 160}) && Same(idlePaper, (CtrPokeTouchRect){46, 51, 228, 138}));
-    if (kDevViewScreen.x + kDevViewScreen.w / 2 != 160 || kDevViewScreen.y + kDevViewScreen.h + 1 > kDevTallNote.y
-        || kDevTallNote.x + kDevTallNote.w > kDevTallBack.x || kDevViewNoteWide.x != kDevTallNote.x || kDevViewNoteWide.y != kDevTallNote.y
-        || kDevViewNoteWide.h != kDevTallNote.h || kDevViewNoteWide.x + kDevViewNoteWide.w != kDevTallBack.x + kDevTallBack.w) {
+    if (kDevViewScreen.x + kDevViewScreen.w / 2 != 160 || kDevViewScreen.y + kDevViewScreen.h + 1 > kDevGridNote.y
+        || kDevGridNote.x + kDevGridNote.w > kDevGridExit.x || kDevGridNoteWide.x != kDevGridNote.x
+        || kDevGridNoteWide.y != kDevGridNote.y || kDevGridNoteWide.h != kDevGridNote.h
+        || kDevGridNoteWide.x + kDevGridNoteWide.w != kDevGridExit.x + kDevGridExit.w) {
         fprintf(stderr, "FireRed's picture: its screen is not centred or meets the note, the note BACK, or the note across "
                         "is not the note and BACK's place\n");
         ++faults;
@@ -954,7 +954,7 @@ int main(void)
                                          DevBoxMenuKey(6, 4), DevBoxMenuKey(6, 5)};
     const CtrPokeTouchRect ecList[] = {kDevEcUp, kDevEcDown, DevEcListKey(0), DevEcListKey(1), DevEcListKey(2)};
     const CtrPokeTouchRect ecAsk[] = {kDevAskYes, kDevAskNo};
-    const CtrPokeTouchRect frameKeys[] = {kDevTallBack};
+    const CtrPokeTouchRect frameKeys[] = {kDevGridExit};
     CtrPokeTouchRect bagMenu[PT_BAG_MENU_MAX + 1][PT_BAG_MENU_MAX], choiceKeys[3][8][9], nameKeys[2][5 + 32];
     CtrPokeTouchRect boxMenu[7][7], ecEdit[9][9 + 5], ecGrid[2][26 + 2];
     DevGroup bagMenus[PT_BAG_MENU_MAX + 1], choiceGroups[3][8], nameGroups[2], boxMenus[7], ecEdits[9], ecGrids[2];
@@ -992,7 +992,7 @@ int main(void)
         {"grid wide note", kDevGridNoteWide}, {"grid exit", kDevGridExit}, {"grid tab 3 of 3", DevGridTab(3, 2)},
         {"grid tab 4 of 4", DevGridTab(4, 3)}, {"grid row 4", DevGridRow(4, 0)}, {"grid column key", DevGridColumnKey(40, 36, 30, 3)},
         {"small note", kDevSmallNote}, {"small key 0", kDevSmallKey[0]}, {"small key 1", kDevSmallKey[1]},
-        {"tall screen", kDevTallScreen}, {"tall note", kDevTallNote}, {"tall BACK", kDevTallBack}, {"wide key", kDevWideKey},
+        {"tall screen", kDevTallScreen}, {"tall BACK", kDevTallBack}, {"wide key", kDevWideKey},
         {"question's note", kDevAskNote},
         {"question's YES", kDevAskYes}, {"question's NO", kDevAskNo},
         {"OPTIONS row 0", DevOptRow(0)}, {"OPTIONS row 6", DevOptRow(PT_OPT_MAX - 1)}, {"OPTIONS FRAME sample", kDevOptSample},
@@ -1028,8 +1028,7 @@ int main(void)
         {"Easy Chat rail", kDevEcRail}, {"Easy Chat up", kDevEcUp}, {"Easy Chat down", kDevEcDown},
         {"Easy Chat strip", kDevEcStrip}, {"Easy Chat strip's Z", DevEcStripCell(25)}, {"Easy Chat USE WORD", DevEcListKey(0)},
         {"Easy Chat list BACK", DevEcListKey(2)},
-        {"FireRed's picture's screen", kDevViewScreen}, {"FireRed's picture's note across", kDevViewNoteWide},
-        {"idle screen", kDevIdleScreen},
+        {"FireRed's picture's screen", kDevViewScreen}, {"idle screen", kDevIdleScreen},
     };
     const DevGroup groups[] = {DEV_GROUP("HOME", homeKeys), DEV_GROUP("battle, a trainer", batTrainer),
                                DEV_GROUP("battle, wild", batWild), DEV_GROUP("battle moves", batMoves),
