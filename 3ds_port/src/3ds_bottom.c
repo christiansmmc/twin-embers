@@ -2648,7 +2648,7 @@ static void SaveActivate(int which)
     if (sSave.state == SAVE_CONFIRM) {
         if (which == PT_SAVE_FIRST) {
             sSave.state = SAVE_WRITING;     /* shown now; the save runs on the next frame */
-            sSave.wait = 2;
+            sSave.wait = PT_SAVE_STEPS;
             CtrLog_Write(CTR_LOG_VIDEO, "bottom: save requested");
         } else {
             CloseNative();                  /* NO: back to HOME */

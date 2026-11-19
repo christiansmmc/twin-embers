@@ -20,6 +20,9 @@
  * Redraw: the screen whole when what it draws differs (DevOptSame), and nothing else. */
 
 #define DEV_OPT_WORD 24                         /* a word as drawn (a label, a value, a level, a section, a look's name) */
+/* A look's credit's two small lines, 8 apart: at 9 the second's descenders (7 under its capitals, 150) would fall a row
+ * under the panel (kDevOptLook ends at 157). */
+#define DEV_OPT_CREDIT_LINE 8
 
 static int DevOptShown(const CtrPokeTouchView *v)
 {
@@ -301,7 +304,8 @@ static void DevOptRowDraw(const CtrPokeTouchView *v, int i)
 }
 
 /* The look's panel under four rows (def_opt_looks): its walking picture (facing down) at its own size at (22, 124), its
- * name from x 62 (capitals 128) and its artists under it (capitals 142), two small lines at most (more is counted). */
+ * name from x 62 (capitals 128) and its artists under it (capitals 142), two small lines at most, DEV_OPT_CREDIT_LINE
+ * apart (more is counted). */
 static void DevOptLookPanel(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchLook *l = &v->optLook;
@@ -324,7 +328,7 @@ static void DevOptLookPanel(const CtrPokeTouchView *v)
     }
     DevUpper(name, l->name, sizeof(name));
     DevText(name, textX, r->y + 6, right);
-    DevSmallFit(l->credit, textX, textX, r->y + 20, right, 2, DEV_SMALL_LINE_TIGHT, DEV_INK2);
+    DevSmallFit(l->credit, textX, textX, r->y + 20, right, 2, DEV_OPT_CREDIT_LINE, DEV_INK2);
 }
 
 /* A section of several pages: its page line under the rows, PAGE 2/3 · LOOKS (the small font, the secondary ink, from
@@ -354,8 +358,9 @@ static void DevOptPages(const CtrPokeTouchView *v)
         DevArrowKeys(&kDevGridUp, &kDevGridDown, 1, 1, v->optKey == PT_OPT_KEY_UP, v->optKey == PT_OPT_KEY_DOWN, 0);
 }
 
-/* The row described's description: its two lines as one text, the small font from x 18 to 150, three lines 10 apart
- * from capitals 198 (the third's 218: its descenders end on the paper's last row); a text that needs more is counted. */
+/* The row described's description: its two lines as one text, the small font from x 18 to 150, three lines 9 apart
+ * from capitals 199 (the first's accents, 3 over them, on the paper; the third's 217: its descenders end on the paper);
+ * a text that needs more is counted. */
 static void DevOptNote(const CtrPokeTouchView *v)
 {
     char text[2 * PT_BAR_LEN + 1], upper[2 * PT_BAR_LEN + 1];
@@ -363,7 +368,7 @@ static void DevOptNote(const CtrPokeTouchView *v)
     DevScreen(&kDevSmallNote);
     snprintf(text, sizeof(text), "%s %s", v->bar[1], v->bar[2]);
     DevUpper(upper, text, sizeof(upper));
-    DevSmallFit(upper, 18, 18, 198, 150, 3, DEV_SMALL_LINE, DEV_INK);
+    DevSmallFit(upper, 18, 18, 199, 150, 3, DEV_SMALL_LINE_TIGHT, DEV_INK);
 }
 
 /* ◀ ▶: they step the row described, sunk while its own zone of that kind is held. */

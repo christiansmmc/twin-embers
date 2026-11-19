@@ -3,11 +3,11 @@
  * bar's. */
 
 /* The papers of the note (the grid's beside BACK, kDevGridNote, and across without it, kDevGridNoteWide), where the
- * title's capitals start (198: Call 9, an accent off the bezel), alone (206: centred down the paper) and where the hints'
- * two lines (the small font, DEV_SMALL_LINE_TIGHT apart: 209 / 218, the footer rule) start; the room of a line beside
- * BACK. */
+ * title's capitals start (199: 3 rows in, so the game's accents, 3 over them, stay off the bezel), alone (206: centred
+ * down the paper) and where the hints' two lines (the small font, DEV_SMALL_LINE_TIGHT apart: 209 / 218, the footer
+ * rule) start; the room of a line beside BACK. */
 static const CtrPokeTouchRect kFrameNotePaper = {14, 196, 216, 30}, kFrameWidePaper = {14, 196, 292, 30};
-#define FRAME_TITLE_Y 198
+#define FRAME_TITLE_Y 199
 #define FRAME_ALONE_Y 206
 #define FRAME_HINT_Y 209
 #define FRAME_HINT_X (14 + 6)
@@ -96,7 +96,7 @@ static void SuiteFrame(void)
         int in = x >= PT_VIEW_X && x < PT_VIEW_X + PT_VIEW_W && y >= PT_VIEW_Y && y < PT_VIEW_Y + PT_VIEW_H, gx, gy;
         assert(CtrPokeTouch_ViewportToGba(x, y, &gx, &gy) == in && (!in || (gx == x - PT_VIEW_X && gy == y - PT_VIEW_Y))); }
     AssertHits(BackV, &v, kDevGridExit, 1); v.backPressed = 1; DevCheckTouch(&old, &v); AssertKey(kDevGridExit, DEV_LOOK_DARK, 1);
-    assert(Count(20, 198, 120, 9, DEV_INK) > 0 && Count(20, 197, 120, 1, DEV_INK) == 0 && Count(20, 209, 200, 7, DEV_INK2) > 0 && Count(20, 218, 200, 7, DEV_INK2) > 0);
+    assert(Count(20, FRAME_TITLE_Y, 120, 8, DEV_INK) > 0 && Count(20, FRAME_TITLE_Y - 1, 120, 1, DEV_INK) == 0 && Count(20, 209, 200, 7, DEV_INK2) > 0 && Count(20, 218, 200, 7, DEV_INK2) > 0);
     v.backEnabled = 0; v.backPressed = 0; DevCheckTouch(&old, &v); assert(at(247, 209) == DevBlend(DEV_SHELL_RED, DEV_BEZEL, 128));
     v.backVisible = 0; DevCheckTouch(&old, &v); assert(Count(14, 196, 292, 30, DEV_PAPER) > 0 && !BackV(&v, 278, 209));
     assert(!CtrPokeTouch_BackHit(&v, 278, 209) && at(278, 209) == DEV_PAPER);
@@ -136,7 +136,10 @@ static void SuiteFrame(void)
      * the bezel under it */
     SmallDescenders(1); CtrPokeTouch_Draw(canvas, &v);
     assert(Count(20, 218, 204, 7, DEV_INK2) > 0 && Count(20, 225, 204, 1, DEV_INK2) > 0 && Count(14, 226, 216, 5, DEV_INK2) == 0);
-    SmallDescenders(0); CtrPokeTouch_Draw(canvas, &old);
+    SmallDescenders(0);
+    /* the title is the note's first line: with an accent on every glyph (Accents) none reaches the bezel over it */
+    Accents(1); CtrPokeTouch_Draw(canvas, &v); assert(BezelOver(14, 216)); Accents(0);
+    CtrPokeTouch_Draw(canvas, &old);
     /* no hints: the title alone, centred down the paper */
     v.bar[1][0] = v.bar[2][0] = 0; assert(DevWhole(DevCheckTouch(&old, &v)));
     assert(Count(kFrameNotePaper.x, kFrameNotePaper.y, kFrameNotePaper.w, kFrameNotePaper.h, DEV_INK2) == 0);
@@ -211,7 +214,9 @@ static void SuiteFrame(void)
     assert(at(300, 195) == DEV_BEZEL && at(300, 225) == DEV_PAPER && at(300, 226) == DEV_BEZEL);
     SmallDescenders(1); CtrPokeTouch_Draw(canvas, &v);                          /* across: the same rows */
     assert(Count(20, 225, 286, 1, DEV_INK2) > 0 && Count(14, 226, 292, 5, DEV_INK2) == 0);
-    SmallDescenders(0); CtrPokeTouch_Draw(canvas, &old);
+    SmallDescenders(0);
+    Accents(1); CtrPokeTouch_Draw(canvas, &v); assert(BezelOver(14, 292)); Accents(0);
+    CtrPokeTouch_Draw(canvas, &old);
     /* BACK: a dark key with BACK's word, sunk with its LED under a touch, grey while it cannot be used (a touch on it then
      * sinks nothing), hit where it is drawn and nowhere else; gone with the note across when it is not shown */
     v = FrameBoard(); DevCheckTouch(&old, &v); FrameBack(0);

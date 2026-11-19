@@ -119,8 +119,8 @@
 #define DEV_LED_IN         11
 #define DEV_LED_TOP        4
 #define DEV_LINE_H         13       /* DevWrap's lines */
-/* The small font's lines: a footer's (the board's 10 px), and tight, the board's 9 px (the Bag's description, the
- * frame's hints, OPTIONS, the PC box). */
+/* The small font's lines: the board's 10 px, and tight, its 9 px, which a footer's lines take (three from capitals
+ * paper.y + 3 end by the paper's last row: DevReadText): the Bag's description, the frame's hints, OPTIONS, the PC box. */
 #define DEV_SMALL_LINE     10
 #define DEV_SMALL_LINE_TIGHT 9
 
@@ -988,7 +988,9 @@ UI_FN int DevSmallFit(const char *s, int firstX, int x, int top, int right, int 
 
 /* Words read on a screen's paper, from x to `right`: the normal font in two lines at most, centred down the paper; a
  * text that needs more, the small font in three from `smallTop`, `pitch` apart (DevSmallFit: one that needs more
- * still is counted). */
+ * still is counted). On a footer's paper (30 tall) the first is 3 rows in, paper->y + 3, where the game's accents (3
+ * over the capitals) stay off the bezel, and they are DEV_SMALL_LINE_TIGHT apart, so the third's descenders (7 under
+ * its capitals) end on the paper. */
 UI_FN void DevReadText(const char *text, const CtrPokeTouchRect *paper, int x, int right, int smallTop, int pitch)
 {
     int width = right - x, lines = DevWrapLines(text, width, 3);
@@ -999,8 +1001,9 @@ UI_FN void DevReadText(const char *text, const CtrPokeTouchRect *paper, int x, i
         DevSmallFit(text, x, x, smallTop, right, 3, pitch, DEV_INK);
 }
 
-/* A footer's title line on its paper, from x: `s` in the normal font, capitals from paper->y + 2, DEV_TITLE_INK over the
- * paper's shadow; cut with "..." at paper->x + paper->w - 6 (and then counted in sDevKeyCut). */
+/* A footer's title line on its paper, from x: `s` in the normal font, capitals from paper->y + 3 (the game's accents, 3
+ * over them, on the paper, not the bezel), DEV_TITLE_INK over the paper's shadow; cut with "..." at
+ * paper->x + paper->w - 6 (and then counted in sDevKeyCut). */
 UI_FN void DevNoteTitle(const CtrPokeTouchRect *paper, int x, const char *s)
 {
     char cut[64];
@@ -1011,7 +1014,7 @@ UI_FN void DevNoteTitle(const CtrPokeTouchRect *paper, int x, const char *s)
         s = cut;
         ++sDevKeyCut;
     }
-    DevTextInk(s, x, paper->y + 2, right, DEV_TITLE_INK, DEV_INK_SH);
+    DevTextInk(s, x, paper->y + 3, right, DEV_TITLE_INK, DEV_INK_SH);
 }
 
 /* A title line on its own screen (DevScreen(screen)): `left` in the normal font, DEV_INK over its shadow, from 6 px into

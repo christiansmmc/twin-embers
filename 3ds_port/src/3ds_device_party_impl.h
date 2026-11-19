@@ -253,7 +253,7 @@ static void DevPtyNote(const CtrPokeTouchRect *outer, const char *text, int more
 {
     CtrPokeTouchRect paper = DevScreen(outer);
 
-    DevReadText(text, &paper, paper.x + 8, paper.x + paper.w - 8 - (more ? 12 : 0), paper.y + 2, DEV_SMALL_LINE);
+    DevReadText(text, &paper, paper.x + 8, paper.x + paper.w - 8 - (more ? 12 : 0), paper.y + 3, DEV_SMALL_LINE_TIGHT);
     if (more)
         DevTriangle(paper.x + paper.w - 10, paper.y + paper.h - 6, 1, DEV_INK2);
 }

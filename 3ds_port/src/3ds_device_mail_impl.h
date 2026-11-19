@@ -20,7 +20,7 @@ static int DevMailShown(const CtrPokeTouchView *v)
     return v->mail.on && !v->viewport;
 }
 
-/* The note under the screen (the coordinator's ruling: the board's words, with "TAP HERE OR CLOSE"). */
+/* The note under the screen: where the letter is (the board's words) and how it closes, TAP HERE OR CLOSE. */
 static const char *DevMailNote(void)
 {
     return CTR_TR("THE LETTER IS ON THE UPPER SCREEN. TAP HERE OR CLOSE.",
@@ -33,13 +33,13 @@ bool CtrPokeTouch_MailHit(const CtrPokeTouchView *v, int x, int y)
     return DevMailShown(v) && (UiIn(&kDevMailScreen, x, y) || UiIn(&kDevGridNote, x, y));
 }
 
-/* The grid's note with `note` small in the paper's ink from x 18 to 226, capitals 198 / 208 / 218 (Call 4: the third's
- * descenders end on the paper's last row, 225); a note that needs a fourth line is cut there and counted
- * (DevSmallFit). */
+/* The grid's note with `note` small in the paper's ink from x 18 to 226, capitals 199 / 208 / 217 (the first's accents,
+ * 3 over them, on the paper; the third's descenders end on the paper); a note that needs a fourth line is cut there and
+ * counted (DevSmallFit). */
 static void DevMailNoteDraw(const char *note)
 {
     DevScreen(&kDevGridNote);
-    DevSmallFit(note, 18, 18, 198, 226, 3, DEV_SMALL_LINE, DEV_INK);
+    DevSmallFit(note, 18, 18, 199, 226, 3, DEV_SMALL_LINE_TIGHT, DEV_INK);
 }
 
 /* `s` in the normal font across r, centred, its capitals centred down r; one wider than r is cut at its right and
