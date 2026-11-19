@@ -160,7 +160,6 @@ static void SIcon(const CtrSummaryUiView *v, int x, int y, int scale)
 
     if (v->loading || !v->icon)
         return;
-    DevArt(DEV_ART_ICON, x, y, 32 * scale, 32 * scale);
     if (shown != v->icon + 1u) {
         static unsigned char tiles[PT_MON_ICON_BYTES];  /* the bridge writes both frames; the first is drawn */
         static unsigned short raw[16];
@@ -177,8 +176,10 @@ static void SIcon(const CtrSummaryUiView *v, int x, int y, int scale)
             pal[i] = GbaColor(c);
         }
     }
-    if (ok)
+    if (ok) {
+        DevArt(DEV_ART_ICON, x, y, 32 * scale, 32 * scale);
         UiImage(pixels, pal, 32, 32, 32, x, y, scale, 1);
+    }
 }
 
 /* The Pokemon's picture, FireRed's Summary's own (the 64x64 front picture, flipped where FireRed flips it), decoded

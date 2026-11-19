@@ -302,11 +302,9 @@ static uint16_t DevBatInkShadow(int sunk)
 /* The lead's icon at 2x: its frame 0's 24x24 from (4, 8), where FireRed's icons sit in their 32x32; art, 48x48. */
 static void DevBatLeadIcon(const CtrBattleView *v)
 {
-    if (!v->activeIcon || v->activeSlot >= 6)
+    if (!v->activeIcon || v->activeSlot >= 6 || !BPartyIcon(v->activeSlot, v->activeIcon))
         return;
     DevArt(DEV_ART_ICON, DEV_BAT_LEAD_X, DEV_BAT_LEAD_Y, 48, 48);
-    if (!BPartyIcon(v->activeSlot, v->activeIcon))
-        return;
     for (int y = 0; y < 24; ++y)
         for (int x = 0; x < 24; ++x) {
             uint8_t i = sBPIcon[v->activeSlot].pixels[(8 + y) * 32 + 4 + x];

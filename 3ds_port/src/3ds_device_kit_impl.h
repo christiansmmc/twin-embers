@@ -152,8 +152,12 @@ static int sDevKeyCut __attribute__((unused));
  *   DISC    a disc (DevSpot, DevPaperHole): its box, a its colour, b its 2 px top inset's colour (DEV_WHITE: none)
  *   ART     art a view draws (DevArt): a its kind (DEV_ART_*)
  *   RING    a ring (DevRing: a circle's last pixel, nothing inside it): its box, a its colour
- * The game defines nothing and it does nothing; the host harness defines it before including the renderer. */
-#ifndef DEV_TRACE
+ * The game defines nothing and it does nothing; the host harness defines it before including the renderer. What only a
+ * trace needs (a width it alone is told) is worked out under DEV_TRACE_ENABLED, so the game does no work for it. */
+#ifdef DEV_TRACE
+#define DEV_TRACE_ENABLED 1
+#else
+#define DEV_TRACE_ENABLED 0
 #define DEV_TRACE(op, x, y, w, h, a, b, s) \
     ((void)(op), (void)(x), (void)(y), (void)(w), (void)(h), (void)(a), (void)(b), (void)(s))
 #endif
@@ -616,13 +620,13 @@ UI_FN void DevSmallText(const char *s, int x, int top, uint16_t ink, int limit)
 }
 
 /* Normal-font text at twice its size (FIGHT's word): capitals from `top`, ink over shadow, nothing from the first glyph
- * that would pass `limit` (UiText's). Told as a TEXT of font 3. */
+ * that would pass `limit` (UiText's). Told as a TEXT of font 3, the glyphs drawn measured only for the trace. */
 UI_FN void DevBigText(const char *s, int x, int top, uint16_t ink, uint16_t shadow, int limit)
 {
-    const char *p = s;
     int end = x;
 
-    while (*p) {
+#if DEV_TRACE_ENABLED
+    for (const char *p = s; *p;) {
         const char *q = p;
         int gw = Glyph(&q)->width * 2;
 
@@ -631,6 +635,7 @@ UI_FN void DevBigText(const char *s, int x, int top, uint16_t ink, uint16_t shad
         end += gw;
         p = q;
     }
+#endif
     DEV_TRACE(DEV_TRACE_TEXT, x, top, end - x, shadow, ink, 3, s);
     UiText(s, x, top, ink, shadow, 2, limit);
 }

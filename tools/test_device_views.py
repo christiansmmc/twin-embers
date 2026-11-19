@@ -188,6 +188,16 @@ class Traced(unittest.TestCase):
                              body):
                     self.assertIn('DevArt(', body, view)
 
+    def test_trace_only_work_is_compiled_out(self):
+        """What only a trace needs costs the game nothing: DevBigText measures its glyphs for the trace under
+        DEV_TRACE_ENABLED, which only a build that defines DEV_TRACE (the host harness) sets."""
+        kit = (PORT / 'src/3ds_device_kit_impl.h').read_text(encoding='utf-8')
+        self.assertIn('#ifdef DEV_TRACE\n#define DEV_TRACE_ENABLED 1\n#else\n#define DEV_TRACE_ENABLED 0\n', kit)
+        body = kit[kit.index('UI_FN void DevBigText('):]
+        body = body[:body.index('\n}\n')]
+        self.assertLess(body.index('#if DEV_TRACE_ENABLED'), body.index('Glyph('))
+        self.assertLess(body.index('Glyph('), body.index('#endif'))
+
 
 class Words(unittest.TestCase):
     """The words every view shares are the kit's (plan 04a, Task 2)."""
