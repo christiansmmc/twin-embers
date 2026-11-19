@@ -1280,7 +1280,7 @@ UI_FN int DevOnKey(const CtrPokeTouchRect *r, int x, int y)
 
 /* A label and its value across row r: the label small in the secondary ink at its left, the value in the paper's ink
  * ending at its right, cut with "..." to the room the label leaves (a label that does not fit is counted in sDevKeyCut).
- * Both centred down the row. (SAVE's facts, the Trainer Card's rows and records.) */
+ * Both centred down the row. (The Trainer Card's rows and records, the Pokedex's.) */
 UI_FN void DevLabelValue(const CtrPokeTouchRect *r, const char *label, const char *value)
 {
     char cut[64];

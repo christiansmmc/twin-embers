@@ -1360,6 +1360,15 @@ int main(void) {
 }
 ''')
 
+    def test_save_fill_says_the_place_and_the_steps(self):
+        """SAVE's screen is titled with the place (HOME's CtrPokeTouch_Location) and its writing bar shows the port's own
+        steps; YES / NO side by side toggle on LEFT / RIGHT too (plan 04b Task 4)."""
+        fill = function((ROOT / '3ds_port/src/3ds_bottom_battle_fill_impl.h').read_text(encoding='utf-8'), 'SaveFill')
+        self.assertIn('CtrPokeTouch_Location(v->bar[0], PT_BAR_LEN);', fill)
+        self.assertIn('v->saveStep = (uint8_t)(sSave.state == SAVE_WRITING ? PT_SAVE_STEPS - sSave.wait : 0);', fill)
+        self.assertIn('K_LEFT | K_RIGHT',
+                      function((ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8'), 'ProcessSaveInput'))
+
     def test_route_and_column_gone(self):
         """The START column, its X / Y tiles and the route that unwound one menu to open another are gone (decision 3):
         no view draws the column, so nothing hits it or routes from it. The X and Y buttons still use the registered

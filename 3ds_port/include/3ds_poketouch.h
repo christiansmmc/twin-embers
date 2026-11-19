@@ -95,10 +95,13 @@ typedef struct {
     uint16_t palette[16];           /* 15-bit colours, 0 clear */
 } CtrPokeTouchLook;
 /* The SAVE screen (the facts come from FireRed's save window, ctr_poketouch.h CtrSave_*), the red device's
- * (3ds_device_save_impl.h): the game's save information on the screen, the dialogue (bar[]) on the note under
- * it and beside the note YES / NO (SAVE_CONFIRM), nothing (SAVE_WRITING) or OK (SAVE_SUCCESS, SAVE_ERROR). */
+ * (3ds_device_save_impl.h, boards def_save_*): on its screen the place (bar[0]) as the title, the game's save
+ * information and under it the dialogue (bar[1], bar[2]); under the screen YES wide and NO in the exit corner
+ * (SAVE_CONFIRM), the same two beige and not hit while the bar on the screen shows the port's own steps
+ * (SAVE_WRITING: saveStep of PT_SAVE_STEPS), or OK across both (SAVE_SUCCESS, SAVE_ERROR). */
 enum { SAVE_CONFIRM, SAVE_WRITING, SAVE_SUCCESS, SAVE_ERROR };
 enum { PT_SAVE_NONE, PT_SAVE_FIRST, PT_SAVE_SECOND };  /* the button: YES or OK, NO */
+#define PT_SAVE_STEPS 2
 /* Contextual bar text: three lines of FireRed's font inside 228 pixels. */
 #define PT_BAR_LINES 3
 #define PT_BAR_LEN 40
@@ -467,6 +470,7 @@ typedef struct {
     uint8_t saveState;          /* SAVE_* */
     uint8_t saveSel;            /* the selected button: 0 YES, 1 NO */
     uint8_t savePressed;        /* PT_SAVE_* under a held touch */
+    uint8_t saveStep;           /* SAVE_WRITING: the port's steps taken of PT_SAVE_STEPS (the bar's fill) */
     uint8_t saveBadges;         /* badges earned, 0-8 */
     uint8_t saveHasDex;         /* the Pokedex line is shown */
     uint8_t saveMinutes;        /* the play clock */
@@ -505,8 +509,8 @@ bool CtrPokeTouch_OptionHit(const CtrPokeTouchView *view, int x, int y, int *row
  * PT_OPT_KEY_UP, PT_OPT_KEY_DOWN (while there is more than one page: always, the six wrap), else -1. */
 int CtrPokeTouch_OptionKey(const CtrPokeTouchView *view, int x, int y);
 
-/* SAVE's key under a bottom-screen pixel (PT_SAVE_*) for the dialogue state: YES and NO while
- * confirming, OK (PT_SAVE_FIRST, in YES's place) after a result, none while writing. */
+/* SAVE's key under a bottom-screen pixel (PT_SAVE_*) for the dialogue state, as the keys are drawn: YES and NO
+ * while confirming, OK (PT_SAVE_FIRST, across both places) after a result, none while writing (YES and NO beige). */
 int CtrPokeTouch_SaveHit(int x, int y, int state);
 
 bool CtrPokeTouch_FlyHit(int x, int y);          /* HOME's FLY key, while it is drawn */

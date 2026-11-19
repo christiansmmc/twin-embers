@@ -537,27 +537,47 @@ static int OptionsFaults(void)
     return faults;
 }
 
-/* SAVE, the Trainer Card and the letter: SAVE's five rows and the player's icon on HOME's screen's paper, the rows one
- * under the other and clear of the icon; the card's front (its first line over the picture, its rows beside it, the
- * five stars under them, the eight badges' places side by side under the stars) and back (the rule under the name, the
- * five records under it) on the tall screen's paper, FLIP beside BACK; the letter's icon (centred), name, rule and
- * writer on the tall screen's paper, one under the other. */
+/* SAVE (def_save_confirm, def_save_writing, def_save_saved), the Trainer Card and the letter. SAVE: its own screen, the
+ * place over the first rule, the five rows one under the other between the two rules and clear of the player's icon,
+ * the icon between the rules, the writing bar under the second rule, all on the screen's paper; under the screen YES
+ * (wide) and NO (the exit corner) 8 apart in one row, a result's OK across both. The card's front (its first line over
+ * the picture, its rows beside it, the five stars under them, the eight badges' places side by side under the stars) and
+ * back (the rule under the name, the five records under it) on the tall screen's paper, FLIP beside BACK; the letter's
+ * icon (centred), name, rule and writer on the tall screen's paper, one under the other. */
 static int ScreensFaults(void)
 {
-    const CtrPokeTouchRect homePaper = {14, 14, 292, 128}, tallPaper = {14, 14, 292, 160};
+    const CtrPokeTouchRect savePaper = PaperOf(kDevSaveScreen), tallPaper = {14, 14, 292, 160};
     const CtrPokeTouchRect stars = {DEV_CARD_STAR_X, DEV_CARD_STAR_Y, DEV_CARD_STAR_STEP * (DEV_CARD_STARS - 1) + 12, 12};
     const CtrPokeTouchRect letter[4] = {kDevMailIcon, kDevMailName, kDevMailRule, kDevMailFrom};
     int faults = 0;
 
-    assert(Same(kDevSaveSprite, (CtrPokeTouchRect){224, 46, 64, 64}) && Same(kDevCardFlip, (CtrPokeTouchRect){8, 188, 228, 42})
-           && Same(kDevCardPic, (CtrPokeTouchRect){226, 40, 64, 64}));
+    assert(Same(kDevSaveScreen, (CtrPokeTouchRect){8, 8, 304, 132}) && Same(kDevSaveRule[0], (CtrPokeTouchRect){20, 30, 280, 1})
+           && Same(kDevSaveRule[1], (CtrPokeTouchRect){20, 114, 280, 1}) && Same(kDevSaveSprite, (CtrPokeTouchRect){228, 38, 64, 64})
+           && Same(kDevSaveBar, (CtrPokeTouchRect){196, 122, 100, 6}));
+    assert(Same(kDevSaveYes, (CtrPokeTouchRect){8, 148, 228, 82}) && Same(kDevSaveNo, (CtrPokeTouchRect){244, 148, 68, 82})
+           && Same(kDevSaveOk, (CtrPokeTouchRect){8, 148, 304, 82}));
+    assert(Same(kDevCardFlip, (CtrPokeTouchRect){8, 188, 228, 42}) && Same(kDevCardPic, (CtrPokeTouchRect){226, 40, 64, 64}));
     for (int i = 0; i < 5; ++i) {
         CtrPokeTouchRect r = DevSaveRow(i);
 
-        if (!Within(r, homePaper, 0) || r.x + r.w > kDevSaveSprite.x || (i && DevSaveRow(i - 1).y + DevSaveRow(i - 1).h > r.y)) {
-            fprintf(stderr, "SAVE: row %d leaves the paper, meets the icon or the row over it\n", i);
+        assert(Same(r, (CtrPokeTouchRect){20, (int16_t)(36 + 15 * i), 188, 15}));
+        if (!Within(r, savePaper, 0) || r.y < kDevSaveRule[0].y + kDevSaveRule[0].h || r.y + r.h > kDevSaveRule[1].y
+            || r.x + r.w > kDevSaveSprite.x || (i && DevSaveRow(i - 1).y + DevSaveRow(i - 1).h > r.y)) {
+            fprintf(stderr, "SAVE: row %d leaves the paper or the rules, meets the icon or the row over it\n", i);
             ++faults;
         }
+    }
+    if (!Within(kDevSaveRule[0], savePaper, 0) || !Within(kDevSaveRule[1], savePaper, 0) || !Within(kDevSaveSprite, savePaper, 0)
+        || kDevSaveSprite.y < kDevSaveRule[0].y + kDevSaveRule[0].h || kDevSaveSprite.y + kDevSaveSprite.h > kDevSaveRule[1].y
+        || !Within(kDevSaveBar, savePaper, 0) || kDevSaveBar.y < kDevSaveRule[1].y + kDevSaveRule[1].h) {
+        fprintf(stderr, "SAVE: a rule leaves the paper, the icon the rules, or the bar the paper under the second rule\n");
+        ++faults;
+    }
+    if (kDevSaveNo.x - (kDevSaveYes.x + kDevSaveYes.w) != 8 || kDevSaveNo.y != kDevSaveYes.y || kDevSaveNo.h != kDevSaveYes.h
+        || kDevSaveOk.x != kDevSaveYes.x || kDevSaveOk.x + kDevSaveOk.w != kDevSaveNo.x + kDevSaveNo.w || kDevSaveOk.y != kDevSaveYes.y
+        || kDevSaveYes.y <= kDevSaveScreen.y + kDevSaveScreen.h) {
+        fprintf(stderr, "SAVE: YES and NO not 8 apart in one row under the screen, or OK not across both\n");
+        ++faults;
     }
     for (int i = 0; i < 4; ++i) {
         CtrPokeTouchRect r = DevCardRow(i);
@@ -577,10 +597,10 @@ static int ScreensFaults(void)
             ++faults;
         }
     }
-    if (!Within(kDevSaveSprite, homePaper, 0) || !Within(kDevCardPic, tallPaper, 0) || !Within(stars, tallPaper, 0)
+    if (!Within(kDevCardPic, tallPaper, 0) || !Within(stars, tallPaper, 0)
         || stars.y < DevCardRow(3).y + DevCardRow(3).h || stars.y < kDevCardPic.y + kDevCardPic.h
         || stars.y + stars.h > DevCardBadge(0).y) {
-        fprintf(stderr, "SAVE's icon, the card's picture or its stars leave the paper or meet the rows or badges\n");
+        fprintf(stderr, "card: the picture or the stars leave the paper or meet the rows or badges\n");
         ++faults;
     }
     if (!Within(kDevCardRule, tallPaper, 0) || kDevCardRule.y < DevCardRow(0).y + DevCardRow(0).h) {
@@ -882,7 +902,7 @@ int main(void)
     const CtrPokeTouchRect optKeys[] = {DevGridTab(4, 0), DevGridTab(4, 1), DevGridTab(4, 2), DevGridTab(4, 3), kDevGridUp,
                                         kDevGridDown, kDevSmallKey[0], kDevSmallKey[1], kDevGridExit};
     const CtrPokeTouchRect askKeys[] = {kDevAskYes, kDevAskNo};
-    const CtrPokeTouchRect saveAsk[] = {kDevAskYes, kDevAskNo}, saveResult[] = {kDevAskYes};
+    const CtrPokeTouchRect saveAsk[] = {kDevSaveYes, kDevSaveNo}, saveResult[] = {kDevSaveOk};
     const CtrPokeTouchRect cardKeys[] = {kDevCardFlip, kDevTallBack}, mailKeys[] = {kDevWideKey};
     const CtrPokeTouchRect dexMenu[] = {DevDexTabKey(0), DevDexTabKey(1), DevDexTabKey(2), DevDexItem(0), DevDexItem(1),
                                         DevDexItem(2), DevDexItem(3), DevDexItem(4), DevDexItem(5), kDevSmallKey[0],
@@ -944,7 +964,9 @@ int main(void)
         {"question's YES", kDevAskYes}, {"question's NO", kDevAskNo}, {"tall row 4", DevTallRow(4)},
         {"OPTIONS row 0", DevOptRow(0)}, {"OPTIONS row 6", DevOptRow(PT_OPT_MAX - 1)}, {"OPTIONS FRAME sample", kDevOptSample},
         {"OPTIONS look panel", kDevOptLook}, {"OPTIONS page dot 2", DevOptDot(2)},
+        {"SAVE screen", kDevSaveScreen}, {"SAVE rule 0", kDevSaveRule[0]}, {"SAVE rule 1", kDevSaveRule[1]},
         {"SAVE row 0", DevSaveRow(0)}, {"SAVE row 4", DevSaveRow(4)}, {"SAVE icon", kDevSaveSprite},
+        {"SAVE YES", kDevSaveYes}, {"SAVE NO", kDevSaveNo}, {"SAVE OK", kDevSaveOk}, {"SAVE bar", kDevSaveBar},
         {"card FLIP", kDevCardFlip}, {"card picture", kDevCardPic}, {"card first line", DevCardRow(0)},
         {"card row 3", DevCardRow(3)}, {"card badge 0", DevCardBadge(0)}, {"card badge 7", DevCardBadge(7)},
         {"card rule", kDevCardRule}, {"card record 0", DevCardBackRow(0)}, {"card record 4", DevCardBackRow(PT_CARD_ROWS - 1)},
@@ -985,7 +1007,7 @@ int main(void)
                                DEV_GROUP("Bag list", bagList), DEV_GROUP("a case's list", bagCase),
                                DEV_GROUP("Bag how many", bagQty), DEV_GROUP("Bag YES / NO", bagYesNo),
                                DEV_GROUP("OPTIONS", optKeys), DEV_GROUP("a question", askKeys),
-                               DEV_GROUP("SAVE asking", saveAsk), DEV_GROUP("SAVE's result", saveResult),
+                               DEV_GROUP("SAVE asking", saveAsk), DEV_GROUP("SAVE result", saveResult),
                                DEV_GROUP("Trainer Card", cardKeys), DEV_GROUP("a letter", mailKeys),
                                DEV_GROUP("Pokedex menu", dexMenu), DEV_GROUP("Pokedex list", dexList),
                                DEV_GROUP("Pokedex habitat", dexCategory), DEV_GROUP("Pokedex page", dexPage),

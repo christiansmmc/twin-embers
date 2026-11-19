@@ -2661,8 +2661,9 @@ static void SaveActivate(int which)
     }
 }
 
-/* Physical input first: UP and DOWN choose, A acts, B cancels (OK on a result acts on A or B). A held
- * button ignores the touch; no key or touch does anything while the save is being written. */
+/* Physical input first: the D-pad chooses (YES and NO side by side: LEFT and RIGHT, and UP and DOWN as before), A
+ * acts, B cancels (OK on a result acts on A or B). A held button ignores the touch; no key or touch does anything while
+ * the save is being written. */
 static void ProcessSaveInput(const CtrInput *in)
 {
     int hit = in->touchActive ? CtrPokeTouch_SaveHit((int)in->touchX, (int)in->touchY, sSave.state) : PT_SAVE_NONE;
@@ -2671,9 +2672,9 @@ static void ProcessSaveInput(const CtrInput *in)
         sSave.down = sSave.inside = 0;
         return;
     }
-    if (in->down & (K_UP | K_DOWN | K_A | K_B)) {
+    if (in->down & (K_UP | K_DOWN | K_LEFT | K_RIGHT | K_A | K_B)) {
         sSave.down = sSave.inside = 0;
-        if (sSave.state == SAVE_CONFIRM && (in->down & (K_UP | K_DOWN)))
+        if (sSave.state == SAVE_CONFIRM && (in->down & (K_UP | K_DOWN | K_LEFT | K_RIGHT)))
             sSave.sel = !sSave.sel;
         else if (in->down & K_A)
             SaveActivate(sSave.state == SAVE_CONFIRM ? PT_SAVE_FIRST + sSave.sel : PT_SAVE_FIRST);

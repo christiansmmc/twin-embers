@@ -298,16 +298,35 @@ static inline CtrPokeTouchRect DevOptDot(int k)
     return r;
 }
 
-/* ---- SAVE, the Trainer Card, the letter (no board; 3ds_device_save_impl.h, _card_impl.h, _mail_impl.h) ---------------
- * SAVE: HOME's screen holds the save's facts, a row each (DevSaveRow: the label small at its left, the value at its
- * right) and the player's map icon at 4x (kDevSaveSprite); under it the question's note, YES and NO beside it (a result's
- * OK alone in YES's place). The Trainer Card: the tall screen, FLIP under it and BACK beside FLIP (kDevTallBack). Its
- * front: the first line (DevCardRow(0): NAME and the name, IDNo. and the ID), the rows beside the trainer's picture
- * (DevCardRow(1-3): MONEY, POKeDEX, TIME; kDevCardPic), the stars (DEV_CARD_STAR_*) and the eight badges' places
- * (DevCardBadge); its back: the name on the first line, the rule under it (kDevCardRule) and the records
- * (DevCardBackRow). The letter: the tall screen (a touch of it closes the letter) with the paper's icon (kDevMailIcon),
- * its name (kDevMailName), a rule (kDevMailRule) and who wrote it (kDevMailFrom); CLOSE, the wide key, under it. */
-static const CtrPokeTouchRect kDevSaveSprite __attribute__((unused)) = {224, 46, 64, 64};
+/* ---- SAVE (boards def_save_confirm, def_save_writing, def_save_saved; 3ds_device_save_impl.h) ----------------------
+ * Its own screen (kDevSaveScreen) holds the place (the title, its capitals at 17 from x 20), a rule under it and one
+ * over the dialogue (kDevSaveRule), between them the save's facts, a row each (DevSaveRow: the label small at its left,
+ * the value ending at its right) and the player's map icon at 4x (kDevSaveSprite); under the second rule the dialogue
+ * and, while the game is written, the bar of the port's steps (kDevSaveBar) at its right. Under the screen YES wide and
+ * NO in the exit corner, 8 apart (asking; both beige while writing), or OK across both (a result). */
+static const CtrPokeTouchRect kDevSaveScreen __attribute__((unused)) = {8, 8, 304, 132};
+static const CtrPokeTouchRect kDevSaveRule[2] __attribute__((unused)) = {{20, 30, 280, 1}, {20, 114, 280, 1}};
+static const CtrPokeTouchRect kDevSaveSprite __attribute__((unused)) = {228, 38, 64, 64};
+static const CtrPokeTouchRect kDevSaveBar __attribute__((unused)) = {196, 122, 100, 6};
+static const CtrPokeTouchRect kDevSaveYes __attribute__((unused)) = {8, 148, 228, 82};
+static const CtrPokeTouchRect kDevSaveNo __attribute__((unused)) = {244, 148, 68, 82};
+static const CtrPokeTouchRect kDevSaveOk __attribute__((unused)) = {8, 148, 304, 82};
+
+/* Row i (0-4: PLAYER, BADGES, POKeDEX, TIME, MONEY) of SAVE's facts, 15 apart from 36. */
+static inline CtrPokeTouchRect DevSaveRow(int i)
+{
+    CtrPokeTouchRect r = {20, (int16_t)(36 + 15 * i), 188, 15};
+
+    return r;
+}
+
+/* ---- The Trainer Card, the letter (no board; 3ds_device_card_impl.h, _mail_impl.h) ----------------------------------
+ * The Trainer Card: the tall screen, FLIP under it and BACK beside FLIP (kDevTallBack). Its front: the first line
+ * (DevCardRow(0): NAME and the name, IDNo. and the ID), the rows beside the trainer's picture (DevCardRow(1-3): MONEY,
+ * POKeDEX, TIME; kDevCardPic), the stars (DEV_CARD_STAR_*) and the eight badges' places (DevCardBadge); its back: the
+ * name on the first line, the rule under it (kDevCardRule) and the records (DevCardBackRow). The letter: the tall
+ * screen (a touch of it closes the letter) with the paper's icon (kDevMailIcon), its name (kDevMailName), a rule
+ * (kDevMailRule) and who wrote it (kDevMailFrom); CLOSE, the wide key, under it. */
 static const CtrPokeTouchRect kDevCardFlip __attribute__((unused)) = {8, 188, 228, 42};
 static const CtrPokeTouchRect kDevCardPic __attribute__((unused)) = {226, 40, 64, 64};
 static const CtrPokeTouchRect kDevCardRule __attribute__((unused)) = {22, 40, 276, 1};
@@ -319,14 +338,6 @@ static const CtrPokeTouchRect kDevMailFrom __attribute__((unused)) = {22, 106, 2
 #define DEV_CARD_STAR_X    22
 #define DEV_CARD_STAR_Y    108
 #define DEV_CARD_STAR_STEP 13
-
-/* Row i (0-4: PLAYER, BADGES, POKeDEX, TIME, MONEY) of SAVE's facts. */
-static inline CtrPokeTouchRect DevSaveRow(int i)
-{
-    CtrPokeTouchRect r = {22, (int16_t)(18 + 24 * i), 192, 24};
-
-    return r;
-}
 
 /* The card's front: its first line (i 0, across the screen) and rows 1-3 beside the picture. */
 static inline CtrPokeTouchRect DevCardRow(int i)
