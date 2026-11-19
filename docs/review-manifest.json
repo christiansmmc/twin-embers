@@ -7297,7 +7297,7 @@
   },
   {
    "path": "3ds_port/include/3ds_device_layout.h",
-   "sha256": "fe24602b633e79237658e007eab0ff60489676cbc7511f887ba20565bef84b43",
+   "sha256": "d8a58d603cdf8e5f1b8fbbac79bc1f01be299afc368187289e5896b579808ed3",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7313,7 +7313,7 @@
   },
   {
    "path": "3ds_port/tests/device_layout_test.c",
-   "sha256": "bc3462762d85c0a8fed4c7ba593106f2a62ed0d639812540000b58fa98fcf994",
+   "sha256": "327a1c2865d50d6e93cdc8d904665491d625367e0f5b1e24fee0ac84ef957509",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7585,7 +7585,7 @@
   },
   {
    "path": "3ds_port/src/3ds_device_easychat_impl.h",
-   "sha256": "56d4359575f17043bcd6d5eac473d8112eec94431426133f585f3851e5349547",
+   "sha256": "bdf63895ec4409bdb4b54658c8849a4fb26f8b5d6b2e85063c9a16517f7a0eb4",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7593,7 +7593,7 @@
   },
   {
    "path": "3ds_port/tests/device_suite_easychat.h",
-   "sha256": "047cfde52c0615ffd511b91441c894dd8dc1e64455954111cc6f311363c55751",
+   "sha256": "dafde554813836f73eebd54e67f4a6fec21781af674b204953fc738a9b970b61",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

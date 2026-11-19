@@ -527,16 +527,16 @@ static inline CtrPokeTouchRect DevBoxMenuKey(int i)
     return r;
 }
 
-/* ---- Easy Chat (no board; 3ds_device_easychat_impl.h) ----------------------------------------------------------------
+/* ---- Easy Chat (3ds_device_easychat_impl.h; the phrase's footer as the Definitiva's def_easychat_edit) --------------
  * The phrase: FireRed's title and the count on the phrase's screen (kDevEcPhrase), the phrase's n slots as keys in two
- * rows (DevEcChip), BY GROUP and A TO Z across under them (DevEcMode), CLEAR, CANCEL (dark) and CONFIRM across the
- * bottom (DevEcFooter). The groups: the title on the grid's title, the groups' names as keys four across (DevEcCell); the
- * letters: A..Z as keys in FireRed's rows of 6, 6, 7 and 7 (DevEcLetter); both with the toggle and BACK (dark) across the
- * bottom (DevEcToggle). A list: its title over the phrase on two lines (kDevEcListTitle), the words two a row
- * (DevEcRow: rows) on the list's paper (kDevEcList) with the rail on the same paper (kDevEcRail), ▲ ▼ (kDevEcUp,
- * kDevEcDown), the letter strip (kDevEcStrip, a screen; its letters in DevEcStripCell), USE WORD, the toggle and BACK
- * (dark, at the right) across the bottom (DevEcListKey). A question: the phrase's screen and slots dimmed, the question's note, YES and
- * NO (kDevAskNote, kDevAskYes, kDevAskNo). */
+ * rows (DevEcChip), BY GROUP and A TO Z across under them (DevEcMode), CLEAR, CONFIRM in the middle and CANCEL (dark,
+ * in the exit corner) across the bottom (DevEcBottom at y 178, 52 tall). The groups: the title on the grid's title, the
+ * groups' names as keys four across (DevEcCell); the letters: A..Z as keys in FireRed's rows of 6, 6, 7 and 7
+ * (DevEcLetter); both with the toggle and BACK (dark) across the bottom (DevEcToggle). A list: its title over the
+ * phrase on two lines (kDevEcListTitle), the words two a row (DevEcRow: rows) on the list's paper (kDevEcList) with the
+ * rail on the same paper (kDevEcRail), ▲ ▼ (kDevEcUp, kDevEcDown), the letter strip (kDevEcStrip, a screen; its letters
+ * in DevEcStripCell), USE WORD, the toggle and BACK (dark, at the right) across the bottom (DevEcListKey). A question:
+ * the phrase's screen and slots dimmed, the question's note, YES and NO (kDevAskNote, kDevAskYes, kDevAskNo). */
 static const CtrPokeTouchRect kDevEcPhrase __attribute__((unused)) = {8, 8, 304, 36};
 static const CtrPokeTouchRect kDevEcListTitle __attribute__((unused)) = {8, 6, 304, 40};
 static const CtrPokeTouchRect kDevEcList __attribute__((unused)) = {8, 52, 236, 136};
@@ -559,10 +559,15 @@ static inline CtrPokeTouchRect DevEcMode(int i)
     return DevAcross(2, i, 136, 30);
 }
 
-/* The phrase's buttons: 0 CLEAR, 1 CANCEL, 2 CONFIRM. */
-static inline CtrPokeTouchRect DevEcFooter(int i)
+/* Bottom key i at y, h tall, as def_easychat_edit's footer (the phrase's: y 178, 52 tall): 0 from x 8, 108 wide
+ * (CLEAR); 1 in the middle from x 124, 112 wide (CONFIRM); 2 in the exit corner from x 244, 68 wide (CANCEL, dark:
+ * kDevGridExit's column). */
+static inline CtrPokeTouchRect DevEcBottom(int i, int y, int h)
 {
-    return DevAcross(3, i, 178, 52);
+    CtrPokeTouchRect r = {(int16_t)(i == 0 ? 8 : i == 1 ? 124 : 244), (int16_t)y,
+                          (int16_t)(i == 0 ? 108 : i == 1 ? 112 : 68), (int16_t)h};
+
+    return r;
 }
 
 /* Group i (0-20): four across, six rows at most. */

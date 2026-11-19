@@ -1,9 +1,12 @@
-/* Easy Chat as the red device (no board; plan 3), included by 3ds_poketouch.c after the PC box: the field dispatcher's
- * first row (3ds_device_field_impl.h), shown while view->ec.on (DevEcShown), the whole lower screen (the upper one keeps
- * FireRed's own). A remote for FireRed's Easy Chat (3ds_poketouch.h CtrPokeTouchEasy), every state of it drawn here:
- *  - the phrase: FireRed's title and how many of its slots hold a word on the phrase's screen; the slots as keys in two
- *    rows (the word, an empty slot a short rule); BY GROUP and A TO Z (the order the next word is picked in, the one
- *    wantAlpha names sunk); CLEAR, CANCEL (dark: FireRed's B) and CONFIRM;
+/* Easy Chat as the red device (plan 3; the phrase's title and footer as the Definitiva's def_easychat_edit), included by
+ * 3ds_poketouch.c after the PC box: the field dispatcher's first row (3ds_device_field_impl.h), shown while view->ec.on
+ * (DevEcShown), the whole lower screen (the upper one keeps FireRed's own). A remote for FireRed's Easy Chat
+ * (3ds_poketouch.h CtrPokeTouchEasy), every state of it drawn here:
+ *  - the phrase: FireRed's title and how many of its slots hold a word on the phrase's screen (DevTitleLine); the slots
+ *    as keys in two rows (the word, an empty slot a short rule); BY GROUP and A TO Z (the order the next word is picked
+ *    in, the one wantAlpha names sunk); CLEAR, CONFIRM in the middle and CANCEL dark in the exit corner (FireRed's B).
+ *    FireRed's footer cursor keeps its own order (DELETE ALL, QUIT, OK), so the D-pad walks left, the corner, the
+ *    middle (kDevEcFooterPlace);
  *  - the groups, or in the A-Z order the letters (FireRed's rows of 6, 6, 7 and 7): the title and the count on the
  *    title's screen, the groups' names or A..Z as keys, the toggle to the other order and BACK (dark);
  *  - a group's or a letter's words: the list's title (the group, or the letter with A-Z) over the phrase in one line;
@@ -101,6 +104,11 @@ int CtrPokeTouch_EasyStripLetter(int x, int y)
 /* The codes of a list's bottom keys (DevEcListKey): USE WORD, the toggle, BACK. */
 static const int16_t kDevEcListCode[3] = {PT_EC_HIT_PLACE, PT_EC_HIT_TOGGLE, PT_EC_HIT_BACK};
 
+/* The phrase's footer: the code of each drawn place (DevEcBottom: CLEAR, CONFIRM, CANCEL), and the place FireRed's
+ * footer column (e->footer: 0 DELETE ALL, 1 QUIT, 2 OK) sinks. */
+static const int16_t kDevEcFooterCode[3] = {PT_EC_HIT_DELETE, PT_EC_HIT_CONFIRM, PT_EC_HIT_CANCEL};
+static const int8_t kDevEcFooterPlace[3] = {0, 2, 1};
+
 int CtrPokeTouch_EasyHit(const CtrPokeTouchView *v, int x, int y)
 {
     const CtrPokeTouchEasy *e = &v->ec;
@@ -128,10 +136,10 @@ int CtrPokeTouch_EasyHit(const CtrPokeTouchView *v, int x, int y)
                 return PT_EC_HIT_MODE_GROUPS + i;   /* BY GROUP, A TO Z */
         }
         for (int i = 0; i < 3; ++i) {
-            CtrPokeTouchRect r = DevEcFooter(i);
+            CtrPokeTouchRect r = DevEcBottom(i, 178, 52);
 
             if (DevOnKey(&r, x, y))
-                return PT_EC_HIT_DELETE + i;        /* CLEAR, CANCEL, CONFIRM */
+                return kDevEcFooterCode[i];         /* CLEAR, CONFIRM, CANCEL */
         }
         return -1;
     }
@@ -190,17 +198,6 @@ static void DevEcKey(const CtrPokeTouchRect *r, int look, int sunk, const char *
     DevKeyWord(r, faceY, look, sunk, word);
 }
 
-/* On screen s's paper, one line centred down it: `left` (FireRed's title, as it writes it) in the paper's ink, `right`
- * small in the secondary ink at its right. */
-static void DevEcTitle(const CtrPokeTouchRect *s, const char *left, const char *right)
-{
-    CtrPokeTouchRect paper = DevScreen(s);
-    int top = paper.y + (paper.h - 8) / 2, end = paper.x + paper.w - 6, rw = DevSmallTextWidth(right);
-
-    DevSmallText(right, end - rw, top, DEV_INK2, end);
-    DevText(left, paper.x + 6, top, end - rw - 8);
-}
-
 /* How many of the phrase's slots hold a word, of how many. */
 static void DevEcCount(const CtrPokeTouchEasy *e, char *out, size_t size)
 {
@@ -211,15 +208,15 @@ static void DevEcCount(const CtrPokeTouchEasy *e, char *out, size_t size)
     snprintf(out, size, CTR_TR("WORDS %d OF %d", "PALABRAS %d DE %d", "W\xC3\x96RTER %d VON %d"), filled, n);
 }
 
-/* The phrase's screen (the title, the count) and its slots: a word in capitals, an empty slot a short rule; the
- * cursor's slot sunk, or the one held. */
+/* The phrase's screen (FireRed's title as it writes it, the count ending at 298: DevTitleLine) and its slots: a word in
+ * capitals, an empty slot a short rule; the cursor's slot sunk, or the one held. */
 static void DevEcPhrase(const CtrPokeTouchEasy *e)
 {
     int n = DevEcSlots(e), held = DevEcHeld(e, PT_EC_HIT_CHIP, n);
     char count[32], word[PT_EC_WORD_LEN];
 
     DevEcCount(e, count, sizeof(count));
-    DevEcTitle(&kDevEcPhrase, e->title, count);
+    DevTitleLine(&kDevEcPhrase, e->title, count);
     for (int i = 0; i < n; ++i) {
         CtrPokeTouchRect r = DevEcChip(n, i);
         int sunk = DevChosen(i, e->cursor, held), faceY = DevKey(&r, DEV_LOOK_KEY, sunk, 6);
@@ -233,13 +230,23 @@ static void DevEcPhrase(const CtrPokeTouchEasy *e)
     }
 }
 
-/* The phrase: its screen and slots, the mode keys (the one wantAlpha names sunk, or the one held) and the buttons
- * (FireRed's cursor's sunk, or the one held; CANCEL dark). */
+/* The footer's place (DevEcBottom) of hit code `code`, or -1 (none of the footer's). */
+static int DevEcFooterAt(int code)
+{
+    for (int i = 0; i < 3; ++i)
+        if (kDevEcFooterCode[i] == code)
+            return i;
+    return -1;
+}
+
+/* The phrase: its screen and slots, the mode keys (the one wantAlpha names sunk, or the one held) and the buttons CLEAR,
+ * CONFIRM and CANCEL (dark, in the exit corner): the place FireRed's footer cursor is on sunk, or the one held. */
 static void DevEcEdit(const CtrPokeTouchEasy *e)
 {
-    const char *const kButton[3] = {CTR_TR("CLEAR", "BORRAR", "LEEREN"), DevCancelWord(),
-                                    CTR_TR("CONFIRM", "CONFIRMAR", "BEST\xC3\x84TIGEN")};
-    int mode = DevEcHeld(e, PT_EC_HIT_MODE_GROUPS, 2), button = DevEcHeld(e, PT_EC_HIT_DELETE, 3);
+    const char *const kButton[3] = {CTR_TR("CLEAR", "BORRAR", "LEEREN"),
+                                    CTR_TR("CONFIRM", "CONFIRMAR", "BEST\xC3\x84TIGEN"), DevCancelWord()};
+    int mode = DevEcHeld(e, PT_EC_HIT_MODE_GROUPS, 2), button = DevEcFooterAt(e->pressed);
+    int place = e->footer >= 0 && e->footer < 3 ? kDevEcFooterPlace[e->footer] : -1;
 
     DevEcPhrase(e);
     for (int i = 0; i < 2; ++i) {
@@ -249,9 +256,9 @@ static void DevEcEdit(const CtrPokeTouchEasy *e)
                  i ? DevEcToggleWord(0) : CTR_TR("BY GROUP", "POR GRUPOS", "NACH GRUPPEN"));
     }
     for (int i = 0; i < 3; ++i) {
-        CtrPokeTouchRect r = DevEcFooter(i);
+        CtrPokeTouchRect r = DevEcBottom(i, 178, 52);
 
-        DevEcKey(&r, i == 1 ? DEV_LOOK_DARK : DEV_LOOK_KEY, DevChosen(i, e->footer, button), kButton[i]);
+        DevEcKey(&r, i == 2 ? DEV_LOOK_DARK : DEV_LOOK_KEY, DevChosen(i, place, button), kButton[i]);
     }
 }
 
@@ -265,7 +272,7 @@ static void DevEcGrid(const CtrPokeTouchEasy *e)
     if (held >= n && held != PT_EC_CELL_TOGGLE && held != PT_EC_CELL_BACK)
         held = -1;                                  /* a cell not drawn */
     DevEcCount(e, count, sizeof(count));
-    DevEcTitle(&kDevGridTitle, e->title, count);
+    DevTitleLine(&kDevGridTitle, e->title, count);
     for (int i = 0; i < n; ++i) {
         CtrPokeTouchRect r = DevEcCellKey(e, i);
 
