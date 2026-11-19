@@ -367,7 +367,7 @@ static void DevEcGrid(const CtrPokeTouchEasy *e)
     paper = DevScreen(&kDevGridNote);
     DevReadText(letters ? CTR_TR("CHOOSE A LETTER.", "ELIGE UNA LETRA.", "W\xC3\x84HLE EINEN BUCHSTABEN.")
                         : CTR_TR("CHOOSE A GROUP.", "ELIGE UN GRUPO.", "W\xC3\x84HLE EINE GRUPPE."),
-                &paper, 20, 224, paper.y + 2, DEV_SMALL_LINE);
+                &paper, 20, 224, paper.y + 3, DEV_SMALL_LINE_TIGHT);
     DevEcKey(&kDevGridExit, DEV_LOOK_DARK, DevChosen(PT_EC_CELL_BACK, e->cell, held), DevBackWord());
 }
 

@@ -53,7 +53,7 @@ Touch each view on the console and compare with the Azahar run. Rows follow the 
 - [ ] Forget a move: a Rare Candy at four moves. Tap an old move twice (forgotten), the new one twice (skipped), an HM (refused), BACK.
 - [ ] Relearner (Two Island): a row, ▲▼, a move's footer, YES / NO, CANCEL with one tap.
 - [ ] OPTIONS: ▲▼ through the six pages (the tabs never rename), the page line and dots on GRAPHICS' three pages, FRAME's sample, a look's panel. COMPANION and EXP SHARE: a tap on each word, between two words, at the row's right end (EN/DE COMPANION is drawn small).
-- [ ] SAVE from HOME: YES / NO by touch and by ← → ↑ ↓ (no wrap), B; a save (the writing screen, then "RED SAVED THE GAME." and OK); an overwrite question starts on NO and → and ↓ keep NO; after a failed overwrite it reopens on NO.
+- [ ] SAVE from HOME: YES / NO by touch and by ← → ↑ ↓ (no wrap), B; a save (the writing screen, then "(your name) SAVED THE GAME." and OK); an overwrite question starts on NO and → and ↓ keep NO; after a failed overwrite it reopens on NO.
 - [ ] Trainer Card: the stars' colour, FLIP by the key and by a tap on the card, BACK.
 - [ ] Pokédex: the three tabs (▲▼ grey on LISTS and SEARCH), HABITATS' pages, a habitat's page with ◀ ▶, CLOSE; KANTO's list (top, bottom, tap twice, ▲▼, a drag); a page's AREA, CRY, BACK; a new catch (REGISTERED, OK). ES/DE ROM: height and weight in m and kg; is the decimal separator a comma ("1,0 m")? Today it prints "1.0 m".
 - [ ] Letter: read one from the Bag's mail. CLOSE, a tap on the screen, a tap on the note.
@@ -61,7 +61,8 @@ Touch each view on the console and compare with the Azahar run. Rows follow the 
 - [ ] Naming: the player's name at a new game (or a Pokémon's nickname with its icon), the three pages, DELETE, OK, the counter.
 - [ ] PC box: move a Pokémon across boxes (IN HAND), PARTY POKéMON, CLOSE, MOVE ITEMS, the chooser. The cursor into the Party (rows, CANCEL in the corner), the chooser (JUMP), a message (a tap anywhere).
 - [ ] PC menus: a Pokémon's menu (CANCEL by the corner and by B), the box title's menu, WALLPAPER's scenery menus (the corner sends B), MARK (CANCEL), RELEASE's YES / NO and BACK.
-- [ ] Easy Chat: a profile's phrase (CLEAR with its question, CONFIRM, CANCEL by touch and by B, the D-pad on the footer); a group's words (rows, the rail, ▲▼ at both ends, USE WORD, A TO Z, BACK); BY GROUP (the window by ▲▼ and by the D-pad to the last groups, a group, BACK; A TO Z's letters and BACK).
+- [ ] Easy Chat: a profile's phrase (CLEAR with its question, CONFIRM, CANCEL by touch and by B, the D-pad on the footer); a group's words (rows, the rail, ▲▼ at both ends, USE WORD, A TO Z, BACK); BY GROUP (the window by ▲▼ and by the D-pad to the last groups, a group, BACK; the A TO Z mode's letters and BACK).
+- [ ] Easy Chat, CANCEL tapped twice quickly: a second tap that falls on CANCEL's top 17 rows lands on the QUIT question's YES (it opens over them) and quits, the action the first tap started; check that this is what a player expects.
 
 ## Gameplay
 

@@ -244,7 +244,7 @@ static void SuiteNaming(void)
 
     /* the name strip (def_naming): every slot's underline in the paper's line, the next to type's in the mark's blue; a
      * typed letter in the title's ink from its slot's x + 2; FireRed's question from 52 and the counter "3 / 7" ending
-     * at 298 (capitals 17); a full name no blue; a Pokemon's icon (a whole 32x32 square) 1:1 from (16, 10) clipped to its
+     * at 298 (capitals 17); a full name no blue; a Pokemon's icon (a whole 32x32 square) 1:1 from (16, 8) clipped to its
      * 24x24 box, the question and the slots where they were */
     v = NameBoard(); DevCheckTouch(&gNameOld, &v);
     for (i = 0; i < 7; ++i) assert(Count(NAME_SLOT(i), NAME_LINE, 14, 1, i == 3 ? DEV_MARK_ON : DEV_PAPER_LINE) == 14);
@@ -256,7 +256,7 @@ static void SuiteNaming(void)
     v.name.len = 7; DevCheckTouch(&gNameOld, &v); assert(Count(14, 39, 292, 1, DEV_MARK_ON) == 0);          /* full */
     NameCounter("7 / 7");
     monArt = 2; v.name.species = 4; DevCheckTouch(&gNameOld, &v);                                          /* a whole 32x32 square */
-    assert(CountIn(kDevNameIcon, STUB_ICON) == 24 * 24 && Count(16, 10, 4, 32, STUB_ICON) == 0 && Count(44, 14, 4, 28, STUB_ICON) == 0);
+    assert(CountIn(kDevNameIcon, STUB_ICON) == 24 * 24 && Count(16, 8, 4, 32, STUB_ICON) == 0 && Count(44, 8, 4, 32, STUB_ICON) == 0);
     assert(CountIn(kNamePaper, STUB_ICON) == 24 * 24);
     assert(Count(52, 17, 50, 7, DEV_INK2) > 0);                                                            /* the column does not move */
     v.name.len ^= 1; assert(DevWhole(DevCheckTouch(&gNameOld, &v)));
@@ -300,15 +300,16 @@ static void SuiteNaming(void)
     assert(Count(8, 56, 304, 27, DEV_LED) > 0);  /* the page shown's own */
 
     /* the screen: the question small in the secondary ink over the slots (none, nothing; the counter stays); a Pokemon's
-     * icon 1:1 from (16, 10) in its box (the harness's 24x24 square in a clear border of 4: rows 14-37, from 16) with
-     * the slots where they were, and none (the box the paper's) once it goes; the most a name takes, the gender sign
-     * after it short of the counter */
+     * icon 1:1 from (16, 8) in its box, its rows 8-31 (the harness's 24x24 square in a clear border of 4: rows 12-35, so
+     * the box's rows 16-35, its last four the paper's) with the slots where they were, and none (the box the paper's) once
+     * it goes; the most a name takes, the gender sign after it short of the counter */
     assert(Count(DEV_NAME_TITLE_X, kNamePaper.y, 200, 12, DEV_INK2) > 0);
     memset(v.name.title, 0xff, sizeof(v.name.title)); DevCheckTouch(&gNameOld, &v);
     assert(Count(kNamePaper.x, kNamePaper.y, 262 - kNamePaper.x, kNamePaper.h, DEV_INK2) == 0 && Count(262, NAME_SMALL_TOP, 37, 7, DEV_INK2) > 0);
     monArt = 1; v = NameBoard(); v.name.species = 4; DevCheckTouch(&gNameOld, &v);
-    assert(Count(20, 16, 24, 22, STUB_ICON) == 24 * 22 && CountIn(kNamePaper, STUB_ICON) == 24 * 22);
-    assert(CountIn(kDevNameIcon, DEV_PAPER) == 24 * 24 - 24 * 22);   /* the icon's clear pixels: the paper behind it */
+    assert(Count(20, 16, 24, 20, STUB_ICON) == 24 * 20 && CountIn(kNamePaper, STUB_ICON) == 24 * 20);
+    assert(at(20, 35) == STUB_ICON && at(20, 36) == DEV_PAPER && at(43, 35) == STUB_ICON && at(44, 35) != STUB_ICON);
+    assert(CountIn(kDevNameIcon, DEV_PAPER) == 24 * 24 - 24 * 20);   /* the icon's clear pixels: the paper behind it */
     assert(Count(NAME_SLOT(3), NAME_LINE, 14, 1, DEV_MARK_ON) == 14 && Count(NAME_SLOT(0), NAME_TOP, 14, UI_TEXT_H, DEV_TITLE_INK) > 0);
     v.name.species = 0; DevCheckTouch(&gNameOld, &v);
     assert(CountIn(kNamePaper, STUB_ICON) == 0 && CountIn(kDevNameIcon, DEV_PAPER) == 24 * 24 && Count(NAME_SLOT(3), NAME_LINE, 14, 1, DEV_MARK_ON) == 14);

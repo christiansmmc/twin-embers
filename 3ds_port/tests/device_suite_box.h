@@ -401,6 +401,7 @@ static void SuiteBox(void)
      * type chips 10 tall at y 212, 3 apart from x 20, and ITEM with FireRed's item, its padding left out, or NONE, small
      * 7 px after the chips at capitals 214); an egg line 1 only; one not caught (no types) ITEM from x 20 */
     v = BoxBoard(); DevCheckTouch(&old, &v);
+    Accents(1); CtrPokeTouch_Draw(canvas, &v); assert(BezelOver(14, 216)); Accents(0); CtrPokeTouch_Draw(canvas, &old);
     assert(CountIn(kBoxNotePaper, DEV_INK) > 0 && CountIn(kBoxNotePaper, DEV_MALE) > 0 && CountIn(kBoxNotePaper, DEV_FEMALE) == 0);
     assert(Count(14, 196, 216, 2, DEV_INK) == 0 && Count(20, 199, 60, 1, DEV_INK) > 0 && at(19, 202) != DEV_INK);   /* (digits: 198) */
     assert(at(20, 212) == UiTypeColor(BOX_ROCK) && at(59, 221) == UiTypeColor(BOX_ROCK) && at(60, 212) != UiTypeColor(BOX_ROCK));
@@ -422,18 +423,20 @@ static void SuiteBox(void)
     /* the widest real pair of chips (FIGHTING, ELECTRIC) and a long item: the line fits by 224 */
     BoxTypes(&v.box, 1, "FIGHTING", 13, "ELECTRIC"); BoxMonText(&v.box, "Kitmon", "Kitmon", 0xb5, 12, "Silverpowder");
     cuts = sDevKeyCut; DevCheckTouch(&old, &v); assert(sDevKeyCut == cuts && Count(224, 212, 6, 10, DEV_INK2) == 0);
-    /* MOVE ITEMS: the item the Pokemon holds (its icon at (18, 199), its name from x 48 at capitals 198, the Pokemon's
-     * name ending at 224, FireRed's description small in two lines from capitals 209), or the Pokemon's name and that it
-     * holds none */
+    /* MOVE ITEMS: the item the Pokemon holds (its icon at (18, 199), its name from x 48 at capitals 199, the Pokemon's
+     * name ending at 224, FireRed's description small in two lines from capitals 209: with an accent on every glyph,
+     * Accents, the names' stay on the paper, none on the bezel over it), or the Pokemon's name and that it holds none */
     v = BoxBoard(); v.box.holding = 0; v.box.items = 1; v.box.monItem = 2;
     NameCodes(v.box.itemName, (int)sizeof(v.box.itemName), "Leaf charm");
     NameCodes(v.box.itemDesc, (int)sizeof(v.box.itemDesc), "Port words for this test in place of an item's.");
     DevCheckTouch(&old, &v); assert(CountIn(kBoxNotePaper, GbaColor(31 << 5)) == 24 * 24 && at(18, 199) == GbaColor(31 << 5) && at(41, 222) == GbaColor(31 << 5));
-    assert(BoxText(48, 198, 0, DEV_INK, "LEAF CHARM") && BoxText(224 - DevTextWidth("KITMON"), 198, 0, DEV_INK2, "KITMON"));
+    assert(BoxText(48, 199, 0, DEV_INK, "LEAF CHARM") && BoxText(224 - DevTextWidth("KITMON"), 199, 0, DEV_INK2, "KITMON"));
     assert(Count(48, 209, 176, 7, DEV_INK) > 0 && Count(48, 218, 176, 7, DEV_INK) > 0 && Count(14, 212, 216, 10, UiTypeColor(BOX_ROCK)) == 0);
     SmallDescenders(1); CtrPokeTouch_Draw(canvas, &v);      /* the description's second line's descenders end on the paper */
     assert(Count(48, 225, 176, 1, DEV_INK) > 0 && Count(14, 226, 216, 5, DEV_INK) == 0);
-    SmallDescenders(0); CtrPokeTouch_Draw(canvas, &old);
+    SmallDescenders(0);
+    Accents(1); CtrPokeTouch_Draw(canvas, &v); assert(BezelOver(14, 216)); Accents(0);
+    CtrPokeTouch_Draw(canvas, &old);
     v.box.monType[1] ^= 1; assert(DevCheckTouch(&old, &v).count == 0);         /* MOVE ITEMS: the types not drawn */
     v.box.monItem = 0; DevCheckTouch(&old, &v);
     assert(CountIn(kBoxNotePaper, GbaColor(31 << 5)) == 0 && Count(20, 199, 60, 9, DEV_INK) > 0);
@@ -453,6 +456,17 @@ static void SuiteBox(void)
     v.box.state = PT_BOX_STATE_MESSAGE; DevCheckTouch(&old, &v);
     assert(Count(216, 218, 9, 5, DEV_INK2) == 25 && CountIn(kBoxNotePaper, DEV_INK2) == 25);   /* ▼ 9 px across, 5 down */
     assert(Count(212, 196, 18, 30, DEV_INK) == 0);
+    {   /* read small (glyphs too wide for the normal font's two lines): capitals 199 and 208, clear of the ▼; with an
+         * accent on every glyph (Accents) none on the bezel over the paper */
+        int cut = sDevKeyCut;
+
+        WideGlyphs(1); CtrPokeTouch_Draw(canvas, &v);
+        assert(Count(20, 199, 192, 1, DEV_INK) > 0 && Count(20, 208, 192, 1, DEV_INK) > 0 && Count(14, 196, 216, 3, DEV_INK) == 0
+               && Count(20, 207, 192, 1, DEV_INK) == 0 && Count(212, 196, 18, 30, DEV_INK) == 0);
+        Accents(1); CtrPokeTouch_Draw(canvas, &v); assert(BezelOver(14, 216)); Accents(0);
+        WideGlyphs(0); CtrPokeTouch_Draw(canvas, &old);
+        sDevKeyCut = cut;
+    }
 
     /* a message waiting for A: a tap anywhere is its A; ◀ ▶ and PARTY POKéMON beige (not taken: their triangles and word
      * in the beige's ink), CLOSE dimmed and up; the box's paper as it is (its icons faded but the cursor's place's), the

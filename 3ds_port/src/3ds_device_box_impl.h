@@ -530,10 +530,11 @@ static void DevBoxMonNote(const CtrPokeTouchBox *b, const CtrPokeTouchRect *pape
 }
 
 /* MOVE ITEMS: the item the Pokemon under the cursor holds (its icon, its name, the Pokemon's ending at the paper's
- * right, FireRed's description small in two lines), or the Pokemon's name and that it holds none. */
+ * right, both capitals 3 rows into the paper, where an accent stays off the bezel; FireRed's description small in two
+ * lines), or the Pokemon's name and that it holds none. */
 static void DevBoxItemNote(const CtrPokeTouchBox *b, const CtrPokeTouchRect *paper)
 {
-    int x = paper->x + 34, right = paper->x + paper->w - 6, top = paper->y + 2;
+    int x = paper->x + 34, right = paper->x + paper->w - 6, top = paper->y + 3;
     char text[DEV_BOX_TEXT], name[DEV_BOX_TEXT];
     int w;
 
@@ -567,7 +568,7 @@ static void DevBoxNote(const CtrPokeTouchBox *b)
         int wait = b->state == PT_BOX_STATE_MESSAGE;
 
         DevBoxText(b->message, (int)sizeof(b->message), text, (int)sizeof(text));
-        DevReadText(text, &paper, x, right - (wait ? 12 : 0), paper.y + 2, DEV_SMALL_LINE_TIGHT);
+        DevReadText(text, &paper, x, right - (wait ? 12 : 0), paper.y + 3, DEV_SMALL_LINE_TIGHT);
         if (wait)
             DevTriangle(paper.x + paper.w - 10, paper.y + paper.h - 6, 1, DEV_INK2);
         return;
@@ -584,7 +585,7 @@ static void DevBoxNote(const CtrPokeTouchBox *b)
 /* A mark's shape (FireRed's 8x8: the mark and its edge) at 2x in `ink`, its top-left at (x, y). */
 static void DevBoxMark(int mark, int x, int y, uint16_t ink)
 {
-    unsigned char px[64];
+    unsigned char px[64] = {0};
 
     DevArt(DEV_ART_MARK, x, y, 16, 16);
     if (!CtrPokeTouch_MarkShape(mark, px))

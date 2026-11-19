@@ -150,8 +150,9 @@ static void FNSpaceMark(int cx, int y, uint16_t c)
 
 /* ---- The keyboard ------------------------------------------------------------------------------------------------------ */
 
-/* A Pokemon's icon (FireRed's 32x32, its first frame) at 1:1 from (16, 10), its pixels outside kDevNameIcon not drawn
- * (the board's 24x24 box: the Pokemon, not the icon's empty rows and columns). */
+/* A Pokemon's icon (FireRed's 32x32, its first frame) at 1:1 from (16, 8), its pixels outside kDevNameIcon not drawn
+ * (the board's 24x24 box: the Pokemon, not the icon's empty rows and columns): its columns 4-27 and rows 8-31 (none of
+ * FireRed's 387 icons has a pixel above row 8; many reach row 31: Charizard, Onix, Lugia, Ho-Oh). */
 static void DevNameIcon(unsigned species)
 {
     static unsigned char tiles[PT_MON_ICON_BYTES];  /* the bridge writes the icon's two frames */
@@ -159,7 +160,7 @@ static void DevNameIcon(unsigned species)
     static uint8_t px[32 * 32];
     static uint16_t pal565[16];
     const CtrPokeTouchRect *box = &kDevNameIcon;
-    const int x = 16, y = 10;
+    const int x = 16, y = 8;
 
     DevArt(DEV_ART_ICON, box->x, box->y, box->w, box->h);
     if (!CtrPokeTouch_MonIcon(species, 0, 0, tiles, pal))

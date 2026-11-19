@@ -22,7 +22,6 @@ Twin Embers is a port of Pokémon FireRed (pret/pokefirered) to the Nintendo 3DS
 - **Naming** shows a counter of the letters typed on its name strip, and the Pokémon's icon when it is a nickname.
 - **The PC box** sits on plain paper, shows what is IN HAND, the box's count and the types of the pointed Pokémon. Its menus (a Pokémon's, the box title's, WALLPAPER's, MARK, RELEASE) use the right column with CANCEL in the exit corner (recipe 0268); the Party, the box chooser and its messages follow the same look.
 - **Easy Chat** has a footer of CLEAR, CONFIRM and CANCEL on the phrase, its groups in a window of three columns with ▲▼ (they walk to the last groups), and the word list on the Definitiva grid with USE WORD, A TO Z and BACK.
-- Every text that a layout has to cut is now counted by the tests in English, Spanish and German, so a silent cut cannot return. There is no change for the player.
 - **OPTIONS has a Shell colour row** (red, blue, green or grey) in place of EMBERS.
 - **HEAL and REMEMBER leave the Party's menu.** Their code stays behind the build switch `CTR_PARTY_EXTRAS` (recipe 0264).
 - **The Summary marks the nature's raised and lowered stats** (recipe 0265).

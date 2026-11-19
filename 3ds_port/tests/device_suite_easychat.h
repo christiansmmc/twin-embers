@@ -383,6 +383,9 @@ static void SuiteEasyChat(void)
     EcDark(kDevGridExit, 0); assert(EcKeyText(kDevGridExit, DEV_LOOK_DARK, 0, DevBackWord()) && EcText(20, 207, 0, DEV_INK, kChooseLetter));
     for (i = 0; i < 2; ++i) { r = DevAcross(7, 6, 40 + 32 * i, 28); assert(at(r.x + 3, r.y + 14) == DEV_SHELL_RED && CtrPokeTouch_EasyHit(&v, r.x + 3, r.y + 3) == -1); }
     assert(Count(276, 40, 36, 144, DEV_ARROW_OFF) == 0);
+    /* with an accent on every glyph (Accents) the question's stay on the paper, none on the bezel over it (one normal
+     * line, capitals 207; even 16 px wide its words take two, never DevReadText's small lines from 199) */
+    Accents(1); CtrPokeTouch_Draw(canvas, &v); assert(BezelOver(14, 216)); Accents(0); CtrPokeTouch_Draw(canvas, &old);
     v.ec.cell = PT_EC_CELL_TOGGLE; DevCheckTouch(&old, &v); for (i = 0; i < 26; ++i) AssertKey(DevEcLetter(i), DEV_LOOK_KEY, 0);
     EcDark(kDevGridExit, 0);
     v.ec.cell = PT_EC_CELL_BACK; DevCheckTouch(&old, &v); EcDark(kDevGridExit, 1);
