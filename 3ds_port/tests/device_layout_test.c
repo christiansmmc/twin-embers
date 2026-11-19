@@ -540,9 +540,10 @@ static int OptionsFaults(void)
 /* SAVE (def_save_confirm, def_save_writing, def_save_saved), the Trainer Card and the letter. SAVE: its own screen, the
  * place over the first rule, the five rows one under the other between the two rules and clear of the player's icon,
  * the icon between the rules, the writing bar under the second rule, all on the screen's paper; under the screen YES
- * (wide) and NO (the exit corner) 8 apart in one row, a result's OK across both. The card's front (its first line over
- * the picture, its rows beside it, the five stars under them, the eight badges' places side by side under the stars) and
- * back (the rule under the name, the five records under it) on the tall screen's paper, FLIP beside BACK; the letter's
+ * (wide) and NO (the exit corner) 8 apart in one row, a result's OK across both. The card (def_card_front,
+ * def_card_back): the strip across the top of the tall screen's paper with the four stars in it; the front's first line
+ * under the strip and over the picture, its rows 1-3 left of the picture, the eight badges' places 3 apart under them;
+ * the back's rule under the name's line and the five records under it; all on the paper, FLIP beside BACK; the letter's
  * icon (centred), name, rule and writer on the tall screen's paper, one under the other. */
 static int ScreensFaults(void)
 {
@@ -556,7 +557,10 @@ static int ScreensFaults(void)
            && Same(kDevSaveBar, (CtrPokeTouchRect){196, 122, 100, 6}));
     assert(Same(kDevSaveYes, (CtrPokeTouchRect){8, 148, 228, 82}) && Same(kDevSaveNo, (CtrPokeTouchRect){244, 148, 68, 82})
            && Same(kDevSaveOk, (CtrPokeTouchRect){8, 148, 304, 82}));
-    assert(Same(kDevCardFlip, (CtrPokeTouchRect){8, 188, 228, 42}) && Same(kDevCardPic, (CtrPokeTouchRect){226, 40, 64, 64}));
+    assert(Same(kDevCardFlip, (CtrPokeTouchRect){8, 188, 228, 42}) && Same(kDevCardPic, (CtrPokeTouchRect){226, 60, 64, 64})
+           && Same(kDevCardStrip, (CtrPokeTouchRect){14, 14, 292, 22}) && Same(kDevCardRule, (CtrPokeTouchRect){22, 58, 276, 1}));
+    assert(DEV_CARD_STARS == 4 && DEV_CARD_STAR_X == 241 && DEV_CARD_STAR_Y == 19 && DEV_CARD_STAR_STEP == 13
+           && DEV_CARD_NAME_X == 56 && DEV_CARD_ID_X == 206);
     for (int i = 0; i < 5; ++i) {
         CtrPokeTouchRect r = DevSaveRow(i);
 
@@ -582,34 +586,39 @@ static int ScreensFaults(void)
     for (int i = 0; i < 4; ++i) {
         CtrPokeTouchRect r = DevCardRow(i);
 
-        if (!Within(r, tallPaper, 0) || (i ? r.x + r.w > kDevCardPic.x : r.y + r.h > kDevCardPic.y)
-            || (i && DevCardRow(i - 1).y + DevCardRow(i - 1).h > r.y)) {
-            fprintf(stderr, "card: front row %d leaves the paper, meets the picture or the row over it\n", i);
+        assert(Same(r, i ? (CtrPokeTouchRect){22, (int16_t)(44 + 18 * i), 186, 18} : (CtrPokeTouchRect){22, 42, 276, 18}));
+        if (!Within(r, tallPaper, 0) || r.y < kDevCardStrip.y + kDevCardStrip.h
+            || (i ? r.x + r.w > kDevCardPic.x : r.y + r.h > kDevCardPic.y) || (i && DevCardRow(i - 1).y + DevCardRow(i - 1).h > r.y)) {
+            fprintf(stderr, "card: front row %d leaves the paper, meets the strip, the picture or the row over it\n", i);
             ++faults;
         }
     }
     for (int i = 0; i < 8; ++i) {
         CtrPokeTouchRect b = DevCardBadge(i);
 
-        assert(Same(b, (CtrPokeTouchRect){(int16_t)(20 + 34 * i), 132, 32, 32}));
-        if (!Within(b, tallPaper, 0) || (i && DevCardBadge(i - 1).x + DevCardBadge(i - 1).w > b.x)) {
-            fprintf(stderr, "card: badge %d leaves the paper or meets the one before\n", i);
+        assert(Same(b, (CtrPokeTouchRect){(int16_t)(20 + 35 * i), 134, 32, 32}));
+        if (!Within(b, tallPaper, 0) || b.y < kDevCardPic.y + kDevCardPic.h || b.y < DevCardRow(3).y + DevCardRow(3).h
+            || (i && DevCardBadge(i - 1).x + DevCardBadge(i - 1).w + 3 != b.x)) {
+            fprintf(stderr, "card: badge %d leaves the paper, meets the picture or the rows, or is not 3 past the one before\n", i);
             ++faults;
         }
     }
-    if (!Within(kDevCardPic, tallPaper, 0) || !Within(stars, tallPaper, 0)
-        || stars.y < DevCardRow(3).y + DevCardRow(3).h || stars.y < kDevCardPic.y + kDevCardPic.h
-        || stars.y + stars.h > DevCardBadge(0).y) {
-        fprintf(stderr, "card: the picture or the stars leave the paper or meet the rows or badges\n");
+    if (kDevCardStrip.x != tallPaper.x || kDevCardStrip.y != tallPaper.y || kDevCardStrip.w != tallPaper.w
+        || !Within(stars, kDevCardStrip, 0) || !Within(kDevCardPic, tallPaper, 0)
+        || kDevCardPic.y < DevCardRow(0).y + DevCardRow(0).h) {
+        fprintf(stderr, "card: the strip is not across the paper's top, the stars leave it, or the picture leaves the paper "
+                        "or meets the first line\n");
         ++faults;
     }
-    if (!Within(kDevCardRule, tallPaper, 0) || kDevCardRule.y < DevCardRow(0).y + DevCardRow(0).h) {
+    /* the back's name: capitals at the first line's y + 3, 9 tall, descenders 3 rows more */
+    if (!Within(kDevCardRule, tallPaper, 0) || kDevCardRule.y < DevCardRow(0).y + 3 + 9 + 3) {
         fprintf(stderr, "card: the back's rule leaves the paper or meets the name\n");
         ++faults;
     }
     for (int i = 0; i < PT_CARD_ROWS; ++i) {
         CtrPokeTouchRect r = DevCardBackRow(i);
 
+        assert(Same(r, (CtrPokeTouchRect){22, (int16_t)(66 + 21 * i), 276, 21}));
         if (!Within(r, tallPaper, 0) || r.y < (i ? DevCardBackRow(i - 1).y + DevCardBackRow(i - 1).h : kDevCardRule.y + 1)) {
             fprintf(stderr, "card: record %d leaves the paper or meets what is over it\n", i);
             ++faults;
@@ -967,7 +976,7 @@ int main(void)
         {"SAVE screen", kDevSaveScreen}, {"SAVE rule 0", kDevSaveRule[0]}, {"SAVE rule 1", kDevSaveRule[1]},
         {"SAVE row 0", DevSaveRow(0)}, {"SAVE row 4", DevSaveRow(4)}, {"SAVE icon", kDevSaveSprite},
         {"SAVE YES", kDevSaveYes}, {"SAVE NO", kDevSaveNo}, {"SAVE OK", kDevSaveOk}, {"SAVE bar", kDevSaveBar},
-        {"card FLIP", kDevCardFlip}, {"card picture", kDevCardPic}, {"card first line", DevCardRow(0)},
+        {"card FLIP", kDevCardFlip}, {"card strip", kDevCardStrip}, {"card picture", kDevCardPic}, {"card first line", DevCardRow(0)},
         {"card row 3", DevCardRow(3)}, {"card badge 0", DevCardBadge(0)}, {"card badge 7", DevCardBadge(7)},
         {"card rule", kDevCardRule}, {"card record 0", DevCardBackRow(0)}, {"card record 4", DevCardBackRow(PT_CARD_ROWS - 1)},
         {"letter icon", kDevMailIcon}, {"letter name", kDevMailName}, {"letter rule", kDevMailRule},

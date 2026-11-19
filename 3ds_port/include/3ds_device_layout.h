@@ -224,8 +224,8 @@ static inline CtrPokeTouchRect DevBagMenuKey(int n, int i)
  * battle's rows); a list's rows h tall on the grid's screen's paper (DevListRow; DevTallRow: the Pokedex's list); the
  * small note (a screen) with two small keys and the grid's exit beside it (the Party picking several:
  * its CONFIRM, kDevPtyConfirm, in the keys' place); a tall screen over a wide
- * key; the tall note with BACK beside it (kDevTallNote, kDevTallBack: the frame's, the Trainer Card's and the Pokedex
- * page's BACK until their boards' tasks); a question's note beside YES and NO. */
+ * key; the tall note with BACK beside it (kDevTallNote, kDevTallBack: the frame's and the Pokedex page's BACK until
+ * their boards' tasks; kDevTallBack the Trainer Card's BACK, as its board); a question's note beside YES and NO. */
 static const CtrPokeTouchRect kDevSmallNote __attribute__((unused)) = {8, 190, 152, 42};
 static const CtrPokeTouchRect kDevSmallKey[2] __attribute__((unused)) = {{168, 190, 32, 40}, {204, 190, 32, 40}};
 static const CtrPokeTouchRect kDevTallScreen __attribute__((unused)) = {8, 8, 304, 172};
@@ -320,45 +320,51 @@ static inline CtrPokeTouchRect DevSaveRow(int i)
     return r;
 }
 
-/* ---- The Trainer Card, the letter (no board; 3ds_device_card_impl.h, _mail_impl.h) ----------------------------------
- * The Trainer Card: the tall screen, FLIP under it and BACK beside FLIP (kDevTallBack). Its front: the first line
- * (DevCardRow(0): NAME and the name, IDNo. and the ID), the rows beside the trainer's picture (DevCardRow(1-3): MONEY,
- * POKeDEX, TIME; kDevCardPic), the stars (DEV_CARD_STAR_*) and the eight badges' places (DevCardBadge); its back: the
- * name on the first line, the rule under it (kDevCardRule) and the records (DevCardBackRow). The letter: the tall
- * screen (a touch of it closes the letter) with the paper's icon (kDevMailIcon), its name (kDevMailName), a rule
- * (kDevMailRule) and who wrote it (kDevMailFrom); CLOSE, the wide key, under it. */
+/* ---- The Trainer Card (def_card_front, _back), the letter (no board; 3ds_device_card_impl.h, _mail_impl.h) ----------
+ * The Trainer Card: the tall screen, FLIP under it and BACK beside FLIP (kDevTallBack). On both sides the strip across
+ * the paper's top (kDevCardStrip) in the card's colour, the title and the four stars in it (DEV_CARD_STAR_*). Its front:
+ * the first line (DevCardRow(0): NAME and the name from DEV_CARD_NAME_X, IDNo. from DEV_CARD_ID_X and the ID at its
+ * right), the rows left of the trainer's picture (DevCardRow(1-3): MONEY, POKeDEX, TIME; kDevCardPic) and the eight
+ * badges' places (DevCardBadge); its back: the name on the first line, the rule under it (kDevCardRule) and the records
+ * (DevCardBackRow). The letter: the tall screen (a touch of it closes the letter) with the paper's icon (kDevMailIcon),
+ * its name (kDevMailName), a rule (kDevMailRule) and who wrote it (kDevMailFrom); CLOSE, the wide key, under it. */
 static const CtrPokeTouchRect kDevCardFlip __attribute__((unused)) = {8, 188, 228, 42};
-static const CtrPokeTouchRect kDevCardPic __attribute__((unused)) = {226, 40, 64, 64};
-static const CtrPokeTouchRect kDevCardRule __attribute__((unused)) = {22, 40, 276, 1};
+static const CtrPokeTouchRect kDevCardStrip __attribute__((unused)) = {14, 14, 292, 22};
+static const CtrPokeTouchRect kDevCardPic __attribute__((unused)) = {226, 60, 64, 64};
+static const CtrPokeTouchRect kDevCardRule __attribute__((unused)) = {22, 58, 276, 1};
 static const CtrPokeTouchRect kDevMailIcon __attribute__((unused)) = {148, 40, 24, 24};
 static const CtrPokeTouchRect kDevMailName __attribute__((unused)) = {22, 74, 276, 18};
 static const CtrPokeTouchRect kDevMailRule __attribute__((unused)) = {80, 98, 160, 1};
 static const CtrPokeTouchRect kDevMailFrom __attribute__((unused)) = {22, 106, 276, 18};
-#define DEV_CARD_STARS     5    /* the most a card has: the first's top-left at (X, Y), each STEP right of the one before */
-#define DEV_CARD_STAR_X    22
-#define DEV_CARD_STAR_Y    108
+#define DEV_CARD_STARS     4    /* the most a card has (FireRed's): the first's top-left at (X, Y), each STEP right of the
+                                 * one before, in the strip */
+#define DEV_CARD_STAR_X    241
+#define DEV_CARD_STAR_Y    19
 #define DEV_CARD_STAR_STEP 13
+#define DEV_CARD_NAME_X    56   /* the front's first line: the name's column (further right after a wider NAME) */
+#define DEV_CARD_ID_X      206  /* ... and IDNo.'s; the name is cut 6 px before it */
 
-/* The card's front: its first line (i 0, across the screen) and rows 1-3 beside the picture. */
+/* The card's front: its first line (i 0, across the paper under the strip) and rows 1-3 left of the picture, a
+ * DevColumnRow each. */
 static inline CtrPokeTouchRect DevCardRow(int i)
 {
-    CtrPokeTouchRect r = {22, (int16_t)(18 + 22 * i), (int16_t)(i ? 196 : 276), 22};
+    CtrPokeTouchRect r = {22, (int16_t)(i ? 44 + 18 * i : 42), (int16_t)(i ? 186 : 276), 18};
 
     return r;
 }
 
-/* The card's back: record i (0 to PT_CARD_ROWS - 1) under the rule. */
+/* The card's back: record i (0 to PT_CARD_ROWS - 1) under the rule, a DevColumnRow. */
 static inline CtrPokeTouchRect DevCardBackRow(int i)
 {
-    CtrPokeTouchRect r = {22, (int16_t)(46 + 24 * i), 276, 24};
+    CtrPokeTouchRect r = {22, (int16_t)(66 + 21 * i), 276, 21};
 
     return r;
 }
 
-/* The place of badge i (0-7) on the card's front: the badge at 2x, or the place empty. */
+/* The place of badge i (0-7) on the card's front, 3 px after the one before: the badge at 2x, or a hole in the paper. */
 static inline CtrPokeTouchRect DevCardBadge(int i)
 {
-    CtrPokeTouchRect r = {(int16_t)(20 + 34 * i), 132, 32, 32};
+    CtrPokeTouchRect r = {(int16_t)(20 + 35 * i), 134, 32, 32};
 
     return r;
 }

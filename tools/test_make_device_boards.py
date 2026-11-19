@@ -62,19 +62,21 @@ class DeviceBoards(unittest.TestCase):
     def test_real_traces_pin_the_pieces(self):
         """The pieces a hand-made trace stands for, on the harness's own traces: the PC box's chooser dims the box (dim)
         under its screens (screen) and the Party's rows (row); the naming keyboard's page key FireRed's cursor turns to
-        lights a lone LED (led); the relearner's list has its type chips (chip) and ▲ ▼ (tri). Each is its board's
-        element. A key is traced with its corners' radius as the kit clamps it (the naming keyboard's top row: 24 tall at
-        radius 6), and its board's corners are that radius."""
+        lights a lone LED (led); the relearner's list has its type chips (chip) and ▲ ▼ (tri); the Trainer Card's front
+        has its badges not earned as holes in the paper (disc). Each is its board's element. A key is traced with its
+        corners' radius as the kit clamps it (the naming keyboard's top row: 24 tall at radius 6), and its board's
+        corners are that radius."""
         with tempfile.TemporaryDirectory() as tmp:
             harness = Path(tmp) / ('device_render_test.exe' if os.name == 'nt' else 'device_render_test')
             build(harness)
-            for suite in ('box', 'naming', 'relearn'):
+            for suite in ('box', 'naming', 'relearn', 'card'):
                 run(harness, suite, DEVICE_TRACE=tmp)
             traces = {p.stem: tool.read_trace(p) for p in Path(tmp).glob('*.json')}
         wanted = {'box_choose': {'dim': 'opacity: 0.5', 'screen': 'box-shadow: inset 0 0 0 1px #4a4a54',
                                  'row': 'background: #f8f8f4'},
                   'naming_cursor_page': {'led': '#58e070; box-shadow'},
-                  'relearn_list': {'chip': 'color: #ffffff', 'tri': '▼'}}
+                  'relearn_list': {'chip': 'color: #ffffff', 'tri': '▼'},
+                  'card_front': {'disc': 'border-radius: 50%'}}
         for state, pieces in wanted.items():
             ops = [item['op'] for item in traces[state]['items']]
             html = tool.board_html(traces[state])
