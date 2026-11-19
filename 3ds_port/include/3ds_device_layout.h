@@ -221,11 +221,10 @@ static inline CtrPokeTouchRect DevBagMenuKey(int n, int i)
 
 /* ---- The shapes the views without a board share (plan 3) ------------------------------------------------------------
  * No board draws these views: they draw on the grid's names and these few. Keys across the screen (DevAcross: the
- * battle's rows); a list's rows h tall on the grid's screen's paper (DevListRow; DevTallRow: the Pokedex's list); the
- * small note (a screen) with two small keys and the grid's exit beside it (the Party picking several:
- * its CONFIRM, kDevPtyConfirm, in the keys' place); a tall screen over a wide
- * key; the tall note with BACK beside it (kDevTallNote, kDevTallBack: the frame's and the Pokedex page's BACK until
- * their boards' tasks; kDevTallBack the Trainer Card's BACK, as its board); a question's note beside YES and NO. */
+ * battle's rows); the small note (a screen) with two small keys and the grid's exit beside it (the Party picking
+ * several: its CONFIRM, kDevPtyConfirm, in the keys' place); a tall screen over a wide key; the tall note with BACK
+ * beside it (kDevTallNote, kDevTallBack: the frame's and the Pokedex page's BACK until their boards' tasks;
+ * kDevTallBack the Trainer Card's BACK, as its board); a question's note beside YES and NO. */
 static const CtrPokeTouchRect kDevSmallNote __attribute__((unused)) = {8, 190, 152, 42};
 static const CtrPokeTouchRect kDevSmallKey[2] __attribute__((unused)) = {{168, 190, 32, 40}, {204, 190, 32, 40}};
 static const CtrPokeTouchRect kDevTallScreen __attribute__((unused)) = {8, 8, 304, 172};
@@ -235,20 +234,6 @@ static const CtrPokeTouchRect kDevWideKey __attribute__((unused)) = {8, 188, 304
 static const CtrPokeTouchRect kDevAskNote __attribute__((unused)) = {8, 156, 200, 76};
 static const CtrPokeTouchRect kDevAskYes __attribute__((unused)) = {216, 156, 96, 36};
 static const CtrPokeTouchRect kDevAskNo __attribute__((unused)) = {216, 198, 96, 34};
-
-/* Row i of a list h tall a row on kDevGridScreen's paper. */
-static inline CtrPokeTouchRect DevListRow(int i, int h)
-{
-    CtrPokeTouchRect r = {16, (int16_t)(48 + h * i), 244, (int16_t)h};
-
-    return r;
-}
-
-/* Row i (0-4) of a list of tall rows (24 px, no gap) on the same paper: the Pokedex's list. */
-static inline CtrPokeTouchRect DevTallRow(int i)
-{
-    return DevListRow(i, 24);
-}
 
 /* Key i of n (1-8) across x 8..312, at y and h tall: 8 px apart up to three keys, 4 beyond. (n 3 at y 40 and 112, 66
  * tall, are the Pokedex menu's keys, DevDexItem; n 4 at y 168 the battle's wild row, n 2 at y 8 and 98, 84 tall, its
@@ -370,17 +355,17 @@ static inline CtrPokeTouchRect DevCardBadge(int i)
     return r;
 }
 
-/* ---- The Pokedex (the top menu: def_dex_menu; 3ds_device_dex_impl.h) -----------------------------------------------
+/* ---- The Pokedex (the top menu: def_dex_menu; the list: def_dex_list; 3ds_device_dex_impl.h) ------------------------
  * The top menu: its three sections as the grid's tabs (DevGridTab(3, i)), the shown section's rows as keys six to a
  * page in MEIO (DevDexItem: FireRed's menu icon over the row's name), SEEN and OWNED in the small note with ▲ ▼
  * (kDevSmallKey) turning the pages, CLOSE (FireRed's CLOSE POKeDEX row) in the grid's exit (kDevGridExit). An ordered
- * list: its order on the grid's title, the grid's screen with five tall rows (DevTallRow) and ▲ ▼, the selected
- * Pokemon's types and kind on the grid's note, BACK in the exit. A habitat's page (no board: the menu's grid): the
- * habitat and the page on the title, its Pokemon in four slots on the menu's rows (DevDexSlot: the picture beside the
- * number and the name), the selected one in the small note, ◀ ▶ (the small keys) and BACK in the exit. A Pokemon's
- * page: the tall screen (the picture in kDevDexPic, the number, name, kind, types, height and weight in kDevDexData,
- * the footprint in kDevDexFoot, the entry in kDevDexEntry under kDevDexRule), AREA, CRY and the BACK (kDevTallBack)
- * under it; the page a catch has just added: OK, the wide key, instead. */
+ * list: its order on the grid's title, the grid's screen with the grid's five rows (DevGridRow: 24 tall, 26 apart, hit
+ * on themselves) and ▲ ▼, the selected Pokemon's types and kind on the grid's note, BACK in the exit. A habitat's
+ * page (no board: the menu's grid): the habitat and the page on the title, its Pokemon in four slots on the menu's rows
+ * (DevDexSlot: the picture beside the number and the name), the selected one in the small note, ◀ ▶ (the small keys)
+ * and BACK in the exit. A Pokemon's page: the tall screen (the picture in kDevDexPic, the number, name, kind, types,
+ * height and weight in kDevDexData, the footprint in kDevDexFoot, the entry in kDevDexEntry under kDevDexRule), AREA,
+ * CRY and the BACK (kDevTallBack) under it; the page a catch has just added: OK, the wide key, instead. */
 static const CtrPokeTouchRect kDevDexPic __attribute__((unused)) = {20, 20, 80, 80};
 static const CtrPokeTouchRect kDevDexData __attribute__((unused)) = {110, 20, 168, 80};
 static const CtrPokeTouchRect kDevDexFoot __attribute__((unused)) = {282, 20, 16, 16};

@@ -836,21 +836,15 @@ static void BagPlanStart(const ListScreen *list, int kind, int target, int activ
 { (void)list; sBagPlan.kind = kind; sBagPlan.target = target; sBagPlan.activate = activate; sBagPlan.keys = keys; }
 ''' + drag + '\n' + state + '\n' + code + main)
 
-    def test_dex_list_drags_a_row_per_tall_row(self):
-        """The Pokedex's list on the red device has tall rows (DevTallRow, 3ds_device_layout.h): a finger dragged on it
-        moves the cursor one Pokemon per LIST_DRAG_ROW pixels, the rows' own pitch, so the list follows the finger."""
-        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
-        layout = (ROOT / '3ds_port/include/3ds_device_layout.h').read_text(encoding='utf-8')
-        pitch = int(re.search(r'DevTallRow\(int i\)\s*\{\s*return DevListRow\(i, (\d+)\);', layout).group(1))
-        self.assertEqual(int(re.search(r'#define LIST_DRAG_ROW (\d+)', bottom).group(1)), pitch)
-        self.assertIn('/ LIST_DRAG_ROW', function(bottom, 'ProcessFieldDexTouch'))
-
-    def test_bag_list_drags_a_row_per_grid_row(self):
-        """The Bag-page lists' rows are the grid's, 26 px apart (3ds_device_layout.h): a drag moves one item per row."""
-        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+    def test_lists_drag_a_row_per_grid_row(self):
+        """The Pokédex list's and the Bag-page lists' rows are the grid's, 26 px apart (3ds_device_layout.h): a drag
+        moves one row per row."""
         layout = (ROOT / '3ds_port/include/3ds_device_layout.h').read_text(encoding='utf-8')
         pitch = int(re.search(r'#define DEV_GRID_ROW_PITCH (\d+)', layout).group(1))
-        self.assertEqual(int(re.search(r'#define BAG_DRAG_ROW (\d+)', bottom).group(1)), pitch)
+        bottom = (ROOT / '3ds_port/src/3ds_bottom.c').read_text(encoding='utf-8')
+        for name in ('LIST_DRAG_ROW', 'BAG_DRAG_ROW'):
+            self.assertEqual(int(re.search(r'#define ' + name + r' (\d+)', bottom).group(1)), pitch, name)
+        self.assertIn('/ LIST_DRAG_ROW', function(bottom, 'ProcessFieldDexTouch'))
 
     def run_relearn(self, main):
         """RelearnFill and ProcessRelearnTouch, their state and the game's answers as 3ds_bottom_relearn_impl.h declares

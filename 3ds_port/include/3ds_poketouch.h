@@ -116,7 +116,7 @@ enum { PT_SAVE_NONE, PT_SAVE_FIRST, PT_SAVE_SECOND };  /* the button: YES or OK,
 
 /* The first item a list of `count` items shows in `rows` rows with FireRed's cursor at `cursor`: the cursor's row in the
  * middle (rows / 2 above it) where the list allows, the window held at the list's ends. The Bag's lists, the field's and
- * the battle's (PT_BAG_ROWS, BUI_BAG_ROWS). */
+ * the battle's (PT_BAG_ROWS, BUI_BAG_ROWS), and the Pokedex's (PT_DEX_ROWS). */
 static inline int CtrPokeTouch_ListFirst(int cursor, int count, int rows)
 {
     int first = cursor - rows / 2, last = count - rows < 0 ? 0 : count - rows;

@@ -446,12 +446,10 @@ static int LearnFaults(void)
 }
 
 /* The shapes the views without a board share (plan 3): DevAcross gives the boarded rows back (the battle's wild row
- * and its moves' keys) and fits n keys of 1-8 across; the tall rows (DevTallRow: the Pokedex's list) on the list's
- * paper; the small note with its two keys and CLOSE beside it, the tall screen over the wide key, the question's note
- * beside YES / NO. */
+ * and its moves' keys) and fits n keys of 1-8 across; the small note with its two keys and CLOSE beside it, the tall
+ * screen over the wide key, the question's note beside YES / NO. */
 static int SharedFaults(void)
 {
-    const CtrPokeTouchRect paper = {14, 46, 248, 132};
     int faults = 0;
 
     for (int i = 0; i < 4; ++i)
@@ -469,15 +467,6 @@ static int SharedFaults(void)
         }
         for (int i = 1; i < n; ++i)
             assert(!Overlap(DevAcross(n, i - 1, 8, 24), DevAcross(n, i, 8, 24)));
-    }
-    for (int i = 0; i < 5; ++i) {
-        CtrPokeTouchRect r = DevTallRow(i);
-
-        assert(Same(r, (CtrPokeTouchRect){16, (int16_t)(48 + 24 * i), 244, 24}));
-        if (!Within(r, paper, 0)) {
-            fprintf(stderr, "a tall row %d leaves its paper\n", i);
-            ++faults;
-        }
     }
     assert(Same(kDevSmallNote, (CtrPokeTouchRect){8, 190, 152, 42}) && Same(kDevSmallKey[0], (CtrPokeTouchRect){168, 190, 32, 40})
            && Same(kDevSmallKey[1], (CtrPokeTouchRect){204, 190, 32, 40}));
@@ -640,8 +629,9 @@ static int ScreensFaults(void)
 
 /* The Pokedex (def_dex_menu): the top menu's tabs are the grid's three (DevGridTab(3, i), the Bag's pockets' places);
  * its six keys a page (the board's: three across 8 px apart, two rows 72 apart, 66 tall) and a habitat's four slots on
- * the same rows lie in MEIO, their drops ending by 187, and apart; a Pokemon's page on the tall screen's paper: the
- * picture, the data beside it and short of the footprint, the rule under them and the entry under the rule. */
+ * the same rows lie in MEIO, their drops ending by 187, and apart; the ordered list (def_dex_list) shows the grid's
+ * five rows (DevGridRow, GridFaults); a Pokemon's page on the tall screen's paper: the picture, the data beside it and
+ * short of the footprint, the rule under them and the entry under the rule. */
 static int DexFaults(void)
 {
     const CtrPokeTouchRect tallPaper = {14, 14, 292, 160};
@@ -677,6 +667,7 @@ static int DexFaults(void)
                 ++faults;
             }
     }
+    assert(PT_DEX_ROWS == DEV_GRID_ROWS);
     assert(Same(kDevDexPic, (CtrPokeTouchRect){20, 20, 80, 80}) && kDevDexFoot.x == 282 && kDevDexFoot.y == 20
            && kDevDexEntry.w == 280 && kDevDexEntry.h >= 5 * 13);
     assert(Same(kDevDexArea, (CtrPokeTouchRect){8, 188, 110, 42}) && Same(kDevDexCry, (CtrPokeTouchRect){126, 188, 110, 42}));
@@ -979,7 +970,7 @@ int main(void)
         {"small note", kDevSmallNote}, {"small key 0", kDevSmallKey[0]}, {"small key 1", kDevSmallKey[1]},
         {"tall screen", kDevTallScreen}, {"tall note", kDevTallNote}, {"tall BACK", kDevTallBack}, {"wide key", kDevWideKey},
         {"question's note", kDevAskNote},
-        {"question's YES", kDevAskYes}, {"question's NO", kDevAskNo}, {"tall row 4", DevTallRow(4)},
+        {"question's YES", kDevAskYes}, {"question's NO", kDevAskNo},
         {"OPTIONS row 0", DevOptRow(0)}, {"OPTIONS row 6", DevOptRow(PT_OPT_MAX - 1)}, {"OPTIONS FRAME sample", kDevOptSample},
         {"OPTIONS look panel", kDevOptLook}, {"OPTIONS page dot 2", DevOptDot(2)},
         {"SAVE screen", kDevSaveScreen}, {"SAVE rule 0", kDevSaveRule[0]}, {"SAVE rule 1", kDevSaveRule[1]},

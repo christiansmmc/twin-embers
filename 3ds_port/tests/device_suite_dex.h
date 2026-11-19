@@ -1,5 +1,5 @@
 /* ---- dex: the Pokedex as the red device, through the field dispatcher (the menu and a habitat's page on the grid,
- * def_dex_menu; plan 3 Task 3, plan 04b Task 6) ------------------------------------------------------------------------
+ * def_dex_menu; the list on the grid's five rows, def_dex_list; plan 3 Task 3, plan 04b Tasks 6-7) --------------------
  * Included by device_render_test.c before its kSuites. Also the harness's caught mark and menu icons while a suite sets
  * dexArt (none otherwise, as the other art stubs): CtrPokeTouch_DexCaughtMarker an 8x8 tile in STUB_MARK,
  * CtrPokeTouch_DexMenuIcon a 64x48 frame 1 px wide in STUB_DEX_ICON (the board's stand-in's border). */
@@ -164,7 +164,7 @@ static void DexUpperCase(CtrPokeTouchView v)
 static void SuiteDex(void)
 {
     CtrPokeTouchView v = DexBoard(), old = v, other, lv, cv;
-    CtrPokeTouchRect r0, r2, r;
+    CtrPokeTouchRect r;
     int i;
 
     dexArt = 1;
@@ -189,10 +189,61 @@ static void SuiteDex(void)
     AssertHits(DexHitV, &v, kDevGridExit, PT_DEX_HIT_ITEM + DevDexCancelRow(&v.dex)); assert(!CtrPokeTouch_BackHit(&v, 278, 210));
     lv = v; lv.dex.menuCursor = 1; DevCheckTouch(&old, &lv);                   /* LISTS: KANTO alone, one page */
     assert(Count(168, 190, 68, 40, DEV_ARROW_OFF) > 0 && DexHitV(&lv, 184, 210) == -1 && DexHitV(&lv, 220, 210) == -1);
-    v.dex.state = PT_DEX_STATE_LIST; DevCheckTouch(&old, &v); for (i = 0; i < 5; ++i) AssertRowHits(DexHitV, &v, DevTallRow(i), PT_DEX_HIT_ROW + i);
-    assert(CtrPokeTouch_DexHit(&v, 294, 73) == -1 && Count(276, 40, 36, 66, DEV_ARROW_OFF) > 0); AssertHits(DexHitV, &v, kDevGridDown, PT_DEX_HIT_DOWN); AssertHits(BackV, &v, kDevGridExit, 1);
-    r0 = DevTallRow(0); r2 = DevTallRow(2); assert(Count(r0.x + r0.w - 14, r0.y, 14, r0.h, STUB_MARK) > 0 && Count(r2.x + r2.w - 14, r2.y, 14, r2.h, STUB_MARK) == 0);
-    v.dex.listFirst = 146; v.dex.listCursor = 150; DevCheckTouch(&old, &v); assert(CtrPokeTouch_DexHit(&v, 294, 147) == -1); AssertHits(DexHitV, &v, kDevGridUp, PT_DEX_HIT_UP);
+    /* LIST (def_dex_list, Review Focus 5): the grid's five rows (24 tall, 26 apart) hit on themselves, the 2 px gaps
+     * nothing; a caught one's mark at (x + w - 16, y + 8); the number's capitals at y + 8; the counts ending at 298;
+     * the types' chips from x 20 at y 205, the kind at 109, capitals 208; ▲ grey and not hit at the top; at the end ▼
+     * grey and not hit, ▲ and the fifth row hit; BACK */
+    v.dex.state = PT_DEX_STATE_LIST; DevCheckTouch(&old, &v);
+    for (i = 0; i < PT_DEX_ROWS; ++i) AssertRowHits(DexHitV, &v, DevGridRow(i, 0), PT_DEX_HIT_ROW + i);
+    r = DevGridRow(1, 0); assert(DexHitV(&v, 100, r.y - 1) == -1 && DexHitV(&v, 100, r.y - 2) == -1);      /* the gap */
+    r = DevGridRow(4, 0); assert(DexHitV(&v, 100, r.y - 1) == -1 && DexHitV(&v, 100, r.y + r.h) == -1);
+    for (i = 0; i < PT_DEX_ROWS; ++i) { r = DevGridRow(i, 0); assert((Count(r.x + r.w - 16, r.y + 8, 8, 8, STUB_MARK) > 0) == ((v.dex.row[i].flags & 2) != 0)); }
+    r = DevGridRow(0, 0); assert(DexArtAt(DEV_ART_MARK, r.x + r.w - 16, r.y + 8, 8, 8) && Count(r.x + r.w - 16, r.y + 8, 8, 8, STUB_MARK) == 8 * 8);
+    /* the number from x 22, capitals r.y + 8 (its N's stem their eight rows; FireRed's digits, not the stubs', reach a
+     * row higher: nothing over "No." at r.y + 7, nothing over any of it at r.y + 6) */
+    r = DevGridRow(0, 0); assert(Count(22, r.y + 8, 36, 9, DEV_INK) > 0 && Count(22, r.y + 7, 14, 1, DEV_INK) == 0);
+    assert(Count(22, r.y + 8, 1, 8, DEV_INK) == 8 && Count(22, r.y + 6, 36, 1, DEV_INK) == 0 && Count(21, r.y, 1, r.h, DEV_INK) == 0);
+    /* the name from x + 52 at the same capitals, nothing between the number and it */
+    assert(Count(r.x + 52, r.y + 8, 1, 8, DEV_INK) == 8 && Count(r.x + 44, r.y, 8, r.h, DEV_INK) == 0 && Count(r.x + 52, r.y, 120, 8, DEV_INK) == 0);
+    assert(Count(250, 17, 48, 7, DEV_INK2) > 0 && Count(299, 12, 7, 16, DEV_INK2) == 0);
+    assert(Count(20, 205, 40, 12, UiTypeColor(v.dex.type[0])) > 0 && Count(109, 208, 60, 7, DEV_INK2) > 0);
+    /* the chips 40 wide, 3 apart, 12 tall at 205; the kind's capitals 208 (none above), from 109 */
+    assert(at(20, 205) == UiTypeColor(12) && at(59, 216) == UiTypeColor(12) && at(60, 210) != UiTypeColor(12) && at(19, 210) != UiTypeColor(12));
+    assert(at(63, 205) == UiTypeColor(3) && at(102, 216) == UiTypeColor(3) && at(62, 210) != UiTypeColor(3) && at(103, 210) != UiTypeColor(3));
+    /* (FireRed's é in POKéMON, not the stubs', has its accent a row higher: nothing over SEED at 207, nothing over any
+     * of it at 206) */
+    assert(Count(109, 208, 3, 7, DEV_INK2) > 0 && Count(104, 196, 5, 30, DEV_INK2) == 0 && Count(109, 196, 24, 12, DEV_INK2) == 0);
+    assert(Count(109, 196, 115, 11, DEV_INK2) == 0);
+    /* its descenders on the paper (the footer rule: capitals 208, descenders 215) */
+    SmallDescenders(1); CtrPokeTouch_Draw(canvas, &v);
+    assert(Count(109, 215, 60, 1, DEV_INK2) > 0 && Count(14, 226, 216, 5, DEV_INK2) == 0);
+    SmallDescenders(0); CtrPokeTouch_Draw(canvas, &old);
+    DevCheckTouch(&old, &v);
+    assert(CtrPokeTouch_DexHit(&v, 294, 73) == -1 && Count(276, 40, 36, 66, DEV_ARROW_OFF) > 0); AssertHits(DexHitV, &v, kDevGridDown, PT_DEX_HIT_DOWN);
+    v.dex.listFirst = (int16_t)(v.dex.listCount - PT_DEX_ROWS); v.dex.listCursor = (int16_t)(v.dex.listCount - 1); DevCheckTouch(&old, &v);
+    assert(DexHitV(&v, 294, 147) == -1 && Count(276, 114, 36, 66, DEV_ARROW_OFF) > 0); AssertHits(DexHitV, &v, kDevGridUp, PT_DEX_HIT_UP);
+    for (i = 0; i < PT_DEX_ROWS; ++i) AssertRowHits(DexHitV, &v, DevGridRow(i, 0), PT_DEX_HIT_ROW + i);
+    r = DevGridRow(4, 0); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL);                     /* the last one's row, inverted */
+    AssertHits(BackV, &v, kDevGridExit, 1);
+    /* a name wider than its room (W made 16 px: eleven of them, 176 of the 172) cut 4 px before the mark and counted,
+     * once a draw; FireRed's widest fit (CHARMELEON, WIGGLYTUFF); a kind that needs a second line cut and counted, the
+     * widest kind FireRed's categories make fits */
+    lv = DexBoard(); lv.dex.state = PT_DEX_STATE_LIST; strcpy(lv.dex.row[0].name, "Wigglytuff"); strcpy(lv.dex.kind, "STRING SPIT POK\xC3\xA9MON");
+    DevCheckTouch(&old, &lv); sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &lv); assert(sDevKeyCut == 0);
+    {
+        uint8_t keepW = fontWidths[0xd1];                                   /* FireRed's W */
+
+        fontWidths[0xd1] = 16; memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        strcpy(lv.dex.row[0].name, "WWWWWWWWWWW"); DevCheckTouch(&old, &lv);
+        sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &lv); assert(sDevKeyCut == 1); sDevKeyCut = 0;
+        r = DevGridRow(0, 0); assert(Count(r.x + r.w - 20, r.y, 20, r.h, DEV_INK) == 0 && Count(r.x + r.w - 48, r.y + 8, 28, 8, DEV_INK) > 0);
+        fontWidths[0xd1] = keepW; memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        CtrPokeTouch_Draw(canvas, &old);
+    }
+    strcpy(lv.dex.row[0].name, "Bulbasaur"); strcpy(lv.dex.kind, "WWWWW WWWWW WWWWW WWWWW WWW"); DevCheckTouch(&old, &lv);
+    sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &lv); assert(sDevKeyCut == 1); sDevKeyCut = 0;
+    assert(Count(225, 196, 5, 30, DEV_INK2) == 0);
+    CtrPokeTouch_Draw(canvas, &old);
     v.dex.state = PT_DEX_STATE_CATEGORY; v.dex.sel = v.dex.mon[v.dex.slot]; DevCheckTouch(&old, &v); for (i = 0; i < 3; ++i) AssertHits(DexHitV, &v, DevDexSlot(i), PT_DEX_HIT_SLOT + i);
     assert(CtrPokeTouch_DexHit(&v, 238, 150) == -1 && CtrPokeTouch_DexHit(&v, 184, 210) == -1); AssertHits(DexHitV, &v, kDevSmallKey[1], PT_DEX_HIT_NEXT);
     cv = v; cv.dex.slots = 4; cv.dex.mon[3] = cv.dex.row[4]; DevCheckTouch(&old, &cv);   /* cv: a habitat's page of four */
@@ -305,14 +356,15 @@ static void SuiteDex(void)
     /* def_dex_list: the counts' capitals rows 17-23 (the digits a row higher), their glyphs ending by 298 */
     assert(Count(160, 12, 146, 4, DEV_INK2) == 0 && Count(160, 23, 146, 1, DEV_INK2) > 0 && Count(160, 24, 146, 4, DEV_INK2) == 0);
     assert(Count(292, 17, 6, 7, DEV_INK2) > 0 && Count(298, 12, 8, 16, DEV_INK2) == 0);
-    r = DevTallRow(1); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL && Count(r.x, r.y, 60, r.h, DEV_PAPER) > 0);
-    r = DevTallRow(0); assert(at(r.x + 1, r.y + 1) == DEV_PAPER && Count(r.x, r.y, 60, r.h, DEV_INK) > 0);
-    for (i = 0; i < PT_DEX_ROWS; ++i) { r = DevTallRow(i); assert((Count(r.x + r.w - 14, r.y, 14, r.h, STUB_MARK) > 0) == ((v.dex.row[i].flags & 2) != 0)); }
+    r = DevGridRow(1, 0); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL && Count(r.x, r.y, 60, r.h, DEV_PAPER) > 0);
+    assert(at(r.x + 1, r.y - 1) == DEV_PAPER && at(r.x + 1, r.y - 2) == DEV_PAPER && at(r.x + 1, r.y + r.h) == DEV_PAPER);   /* the gaps: the paper */
+    r = DevGridRow(0, 0); assert(at(r.x + 1, r.y + 1) == DEV_PAPER && Count(r.x, r.y, 60, r.h, DEV_INK) > 0);
+    for (i = 0; i < PT_DEX_ROWS; ++i) { r = DevGridRow(i, 0); assert(Count(r.x, r.y, r.w, r.h, STUB_MARK) == ((v.dex.row[i].flags & 2) ? 8 * 8 : 0)); }
     assert(Count(14, 196, 216, 30, UiTypeColor(12)) > 0 && Count(14, 196, 216, 30, UiTypeColor(3)) > 0 && Count(14, 196, 216, 30, DEV_INK2) > 0);
     assert(Count(276, 114, 36, 66, DEV_KEY_INK) > 0); AssertKey(kDevGridExit, DEV_LOOK_DARK, 0);
     v.dex.pressed = PT_DEX_HIT_ROW + 3; DevCheckTouch(&old, &v);
-    r = DevTallRow(3); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL); r = DevTallRow(1); assert(at(r.x + 1, r.y + 1) == DEV_PAPER);
-    v.dex.pressed = PT_DEX_HIT_DOWN; DevCheckTouch(&old, &v); AssertKey(kDevGridDown, DEV_LOOK_KEY, 1); r = DevTallRow(1); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL);
+    r = DevGridRow(3, 0); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL); r = DevGridRow(1, 0); assert(at(r.x + 1, r.y + 1) == DEV_PAPER);
+    v.dex.pressed = PT_DEX_HIT_DOWN; DevCheckTouch(&old, &v); AssertKey(kDevGridDown, DEV_LOOK_KEY, 1); r = DevGridRow(1, 0); assert(at(r.x + 1, r.y + 1) == DEV_BEZEL);
     v.dex.pressed = -1; DevCheckTouch(&old, &v); v.dex.national = 1; assert(DevCheckTouch(&old, &v).count == 0);  /* the order says whose counts */
     v.dex.order = 1; DevCheckTouch(&old, &v); assert(Count(14, 12, 292, 16, DEV_INK2) == 0);
     v.dex.order = 0; v.dex.sel.flags = 1; DevCheckTouch(&old, &v);
@@ -323,8 +375,8 @@ static void SuiteDex(void)
     v.backEnabled = 1; v.backVisible = 0; DevCheckTouch(&old, &v); assert(at(247, 210) == DEV_SHELL_RED && !BackV(&v, 247, 210));
     v.backVisible = 1; DevCheckTouch(&old, &v);
     /* a list of three: no row past it is drawn or hit, ▲ ▼ grey */
-    v.dex.listCount = 3; DevCheckTouch(&old, &v); r = DevTallRow(3);
-    assert(CtrPokeTouch_DexHit(&v, r.x + 10, r.y + 10) == -1 && Count(r.x, r.y, r.w, 2 * r.h, DEV_INK) == 0);
+    v.dex.listCount = 3; DevCheckTouch(&old, &v); r = DevGridRow(3, 0);
+    assert(CtrPokeTouch_DexHit(&v, r.x + 10, r.y + 10) == -1 && Count(r.x, r.y, r.w, 2 * DEV_GRID_ROW_PITCH, DEV_INK) == 0);
     assert(CtrPokeTouch_DexHit(&v, 294, 147) == -1 && Count(276, 114, 36, 66, DEV_ARROW_OFF) > 0);
 
     /* CATEGORY: the habitat and the page on the title; the cursor's slot sunk (or the one under a held touch), the

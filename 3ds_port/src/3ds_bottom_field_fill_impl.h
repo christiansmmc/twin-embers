@@ -499,9 +499,7 @@ static int FieldDexFill(CtrPokeTouchView *v, int pressed)
         d->order = (uint8_t)CtrBottomDex_ListOrder();
         d->listCount = (int16_t)count;
         d->listCursor = (int16_t)CtrBottomDex_Cursor();
-        d->listFirst = (int16_t)(d->listCursor - 2 < 0 ? 0 : d->listCursor - 2);
-        if (d->listFirst > count - PT_DEX_ROWS)
-            d->listFirst = (int16_t)(count - PT_DEX_ROWS < 0 ? 0 : count - PT_DEX_ROWS);
+        d->listFirst = (int16_t)CtrPokeTouch_ListFirst(d->listCursor, count, PT_DEX_ROWS);
         for (int i = 0; i < PT_DEX_ROWS && d->listFirst + i < count; ++i)
             FieldDexMon(&d->row[i], CtrBottomDex_ListEntry(d->listFirst + i) & 0xFFFFu);
         FieldDexMon(&d->sel, CtrBottomDex_ListEntry(d->listCursor) & 0xFFFFu);
