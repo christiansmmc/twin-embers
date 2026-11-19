@@ -134,7 +134,7 @@ static void Fill(int x, int y, int w, int h, uint16_t c)
 }
 
 /* FireRed's charmap for the two-byte UTF-8 Latin letters its European
- * releases use (U+00A1..U+00FF and Œ/œ): accents, Ñ/ñ, ¿, ¡, º, ª, ¥, ×. */
+ * releases use (U+00A1..U+00FF and Œ/œ): accents, Ñ/ñ, ¿, ¡, º, ª, ¥, ×, ·. */
 static unsigned LatinCode(unsigned char lead, unsigned char next)
 {
     static const uint8_t sC3[64] = {
@@ -154,6 +154,7 @@ static unsigned LatinCode(unsigned char lead, unsigned char next)
         case 0xa1: return 0x52;   /* ¡ */
         case 0xa5: return 0xb7;   /* ¥ */
         case 0xaa: return 0x2b;   /* ª */
+        case 0xb7: return 0xaf;   /* · */
         case 0xba: return 0x2a;   /* º */
         case 0xbf: return 0x51;   /* ¿ */
         default: return 0;

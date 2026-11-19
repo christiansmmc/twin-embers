@@ -162,6 +162,9 @@ def element(item):
     if op == 'tri':
         return (f'<span style="{box(item)}; display: flex; align-items: center; justify-content: center; '
                 f'color: {item["ink"]}; font-size: 9px; line-height: 9px">{ARROWS[item["dir"]]}</span>')
+    if op == 'disc':
+        rim = f'; box-shadow: inset 0 2px 0 {item["rim"]}' if item.get('rim') else ''
+        return f'<span style="{box(item)}; border-radius: 50%; background: {item["fill"]}{rim}"></span>'
     if op == 'art':
         label = ''
         if item['w'] >= 40 and item['h'] >= 24:

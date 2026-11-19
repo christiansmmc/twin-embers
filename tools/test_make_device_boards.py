@@ -141,6 +141,7 @@ class DeviceBoards(unittest.TestCase):
             {'op': 'tri', 'x': 290, 'y': 70, 'w': 9, 'h': 5, 'ink': '#4a4a4a', 'dir': 'up'},
             {'op': 'text', 'x': 30, 'y': 50, 'w': 30, 'font': 'small', 'ink': '#747474', 'text': 'A < B & "C"'},
             {'op': 'art', 'x': 50, 'y': 60, 'w': 64, 'h': 64, 'kind': 'picture'},
+            {'op': 'disc', 'x': 125, 'y': 134, 'w': 32, 'h': 32, 'fill': '#e2e2da', 'rim': '#c8c8c0'},
         ]
         html = tool.board_html({'suite': 'dex', 'state': 'page', 'shell': '#3e4c6b', 'items': items})
         self.assertIn('<x-dc>', html)
@@ -163,6 +164,13 @@ class DeviceBoards(unittest.TestCase):
         order = [html.index(s) for s in ('#d5d5cd', 'FIRE', '▲', 'A &lt;', 'repeating-linear-gradient')]
         self.assertEqual(order, sorted(order))
         self.assertEqual(html.count('#58e070; box-shadow'), 2)      # the faint key's own LED and the lone one
+        hole = tool.element(items[-1])                              # a paper hole: a disc with its 2 px top rim
+        for want in ('left: 125px; top: 134px; width: 32px; height: 32px', 'border-radius: 50%', 'background: #e2e2da',
+                     'box-shadow: inset 0 2px 0 #c8c8c0'):
+            self.assertIn(want, hole)
+        spot = tool.element({'op': 'disc', 'x': 226, 'y': 164, 'w': 5, 'h': 5, 'fill': '#3e4c6b'})
+        self.assertIn('border-radius: 50%; background: #3e4c6b', spot)
+        self.assertNotIn('box-shadow', spot)                         # a disc without a rim
 
     def test_main_writes_the_boards_and_their_index(self):
         (ROOT / 'build').mkdir(exist_ok=True)

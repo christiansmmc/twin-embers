@@ -58,6 +58,11 @@
 #define DEV_RULE           UI_RGB(0xD8, 0xD8, 0xD0)
 /* A white pill's border on the paper (the Summary's STATS switch). */
 #define DEV_BUTTON_EDGE    UI_RGB(0xB0, 0xB0, 0xA8)
+/* On the paper: a line (an off page dot, a paper hole's rim, a name slot's underline); a paper hole (a badge not
+ * earned); a mark that is on (the page shown's dot, the next name slot's underline: the blue shell's value). */
+#define DEV_PAPER_LINE     UI_RGB(0xC8, 0xC8, 0xC0)
+#define DEV_PAPER_HOLE     UI_RGB(0xE2, 0xE2, 0xDA)
+#define DEV_MARK_ON        UI_RGB(0x3E, 0x4C, 0x6B)
 /* Bars: HP (frame, track, the three levels, the "HP" tag's ink) and experience. */
 #define DEV_HP_FRAME       UI_RGB(0x40, 0x48, 0x50)
 #define DEV_HP_TRACK       UI_RGB(0xD8, 0xD8, 0xD0)
@@ -142,8 +147,9 @@ static int sDevKeyCut __attribute__((unused));
  *           ink, b the font (0 normal, 1 small, 2 a sign drawn as a shape: s its character in UTF-8), s the text (its
  *           first glyphs, as many as fill w)
  *   CHIP    a chip with its text: a its colour, b the text's shadow (DEV_WHITE: none), s the text
- *   BAR     an HP bar: a the colour of its fill, b the fill's width
+ *   BAR     a bar (DevBar: an HP bar, a progress bar): a the colour of its fill, b the fill's width
  *   TRI     a triangle: its 9x5 (5x9 across) box, a its colour, b the direction (DevTriangle's)
+ *   DISC    a disc (DevSpot, DevPaperHole): its box, a its colour, b its 2 px top inset's colour (DEV_WHITE: none)
  *   ART     art a view draws (DevArt): a its kind (DEV_ART_*)
  * The game defines nothing and it does nothing; the host harness defines it before including the renderer. */
 #ifndef DEV_TRACE
@@ -154,7 +160,8 @@ static int sDevKeyCut __attribute__((unused));
 enum { DEV_ART_ICON, DEV_ART_PICTURE, DEV_ART_ITEM, DEV_ART_BADGE, DEV_ART_WALLPAPER, DEV_ART_MARK, DEV_ART_SPRITE,
        DEV_ART_FRAME, DEV_ART_LOGO, DEV_ART_GBA };
 enum { DEV_TRACE_BEGIN = 0, DEV_TRACE_ART, DEV_TRACE_SHELL, DEV_TRACE_SCREEN, DEV_TRACE_KEY, DEV_TRACE_DIM, DEV_TRACE_HOLE,
-       DEV_TRACE_ROW, DEV_TRACE_RECT, DEV_TRACE_LED, DEV_TRACE_TEXT, DEV_TRACE_CHIP, DEV_TRACE_BAR, DEV_TRACE_TRI };
+       DEV_TRACE_ROW, DEV_TRACE_RECT, DEV_TRACE_LED, DEV_TRACE_TEXT, DEV_TRACE_CHIP, DEV_TRACE_BAR, DEV_TRACE_TRI,
+       DEV_TRACE_DISC };
 
 /* ---- Pixels -------------------------------------------------------------------------------------------------------- */
 
@@ -321,16 +328,21 @@ UI_FN void DevRoundBlend(int x, int y, int w, int h, int r, uint16_t c, int alph
     }
 }
 
+/* Pixel (i, j) of a disc s pixels across (0, 0 its box's top-left) is the disc's: its centre is inside the circle. */
+UI_FN int DevInDisc(int s, int i, int j)
+{
+    int dx = 2 * i + 1 - s, dy = 2 * j + 1 - s;
+
+    return i >= 0 && i < s && j >= 0 && j < s && dx * dx + dy * dy <= s * s;
+}
+
 /* A disc s pixels across, its box's top-left corner at (x, y): the pixels whose centre is inside the circle. */
 UI_FN void DevDisc(int x, int y, int s, uint16_t c)
 {
     for (int j = 0; j < s; ++j)
-        for (int i = 0; i < s; ++i) {
-            int dx = 2 * i + 1 - s, dy = 2 * j + 1 - s;
-
-            if (dx * dx + dy * dy <= s * s)
+        for (int i = 0; i < s; ++i)
+            if (DevInDisc(s, i, j))
                 Px(x + i, y + j, c);
-        }
 }
 
 /* ---- The shell, the screen, keys, holes, rows ---------------------------------------------------------------------- */
@@ -663,9 +675,9 @@ UI_FN void DevWrapCopy(char *line, const char *s, int n)
     line[n] = 0;
 }
 
-/* DevWrapFirst's lines, drawn when `draw`, else only counted; the first from firstX, the others from x. */
+/* DevWrapFirst's lines, `pitch` apart, drawn when `draw`, else only counted; the first from firstX, the others from x. */
 UI_FN int DevWrapRun(const char *s, int firstX, int x, int top, int firstWidth, int width, int maxLines, uint16_t ink,
-                     uint16_t shadow, int draw)
+                     uint16_t shadow, int pitch, int draw)
 {
     char line[128];
     int lines = 0;
@@ -690,7 +702,7 @@ UI_FN int DevWrapRun(const char *s, int firstX, int x, int top, int firstWidth, 
         }
         DevWrapCopy(line, s, fit);
         if (draw)
-            DevTextInk(line, from, top + lines * DEV_LINE_H, from + room, ink, shadow);
+            DevTextInk(line, from, top + lines * pitch, from + room, ink, shadow);
         ++lines;
         s += fit;
     }
@@ -704,7 +716,7 @@ UI_FN int DevWrapRun(const char *s, int firstX, int x, int top, int firstWidth, 
 UI_FN int DevWrapFirst(const char *s, int x, int top, int firstWidth, int width, int maxLines, uint16_t ink,
                        uint16_t shadow)
 {
-    return DevWrapRun(s, x, x, top, firstWidth, width, maxLines, ink, shadow, 1);
+    return DevWrapRun(s, x, x, top, firstWidth, width, maxLines, ink, shadow, DEV_LINE_H, 1);
 }
 
 /* DevWrapFirst with every line `width` wide. */
@@ -713,10 +725,16 @@ UI_FN int DevWrap(const char *s, int x, int top, int width, int maxLines, uint16
     return DevWrapFirst(s, x, top, width, width, maxLines, ink, shadow);
 }
 
+/* DevWrap with its lines `pitch` apart (a board's own line height). Returns the lines drawn. */
+UI_FN int DevWrapPitch(const char *s, int x, int top, int width, int maxLines, int pitch, uint16_t ink, uint16_t shadow)
+{
+    return DevWrapRun(s, x, x, top, width, width, maxLines, ink, shadow, pitch, 1);
+}
+
 /* The lines DevWrap would draw `s` in (at most maxLines; 0 for no text), drawing nothing: a text centred down a box. */
 UI_FN int DevWrapLines(const char *s, int width, int maxLines)
 {
-    return DevWrapRun(s, 0, 0, 0, width, width, maxLines, 0, 0, 0);
+    return DevWrapRun(s, 0, 0, 0, width, width, maxLines, 0, 0, DEV_LINE_H, 0);
 }
 
 /* `s` cut to fit `room` with "..." after it, into out (size bytes). */
@@ -853,6 +871,19 @@ UI_FN void DevKeyWordAt(const CtrPokeTouchRect *r, int faceY, int look, int sunk
     DevKeyWordAtInk(r, faceY, sunk, s, inset, DevKeyInk(look, sunk), DevKeyInkShadow(look, sunk));
 }
 
+/* A word in the small font on key r, centred across it with its capitals at `top`, in the look's ink over its shadow;
+ * one wider than the key less 8 px is cut at 4 px in on each side (and then counted in sDevKeyCut). */
+UI_FN void DevKeySmallWord(const CtrPokeTouchRect *r, int top, int look, int sunk, const char *s)
+{
+    int w = DevSmallTextWidth(s), x = r->x + (r->w - w) / 2;
+
+    if (w > r->w - 8) {
+        x = r->x + 4;
+        ++sDevKeyCut;
+    }
+    DevGlyphs(s, x, top - 4, r->x + r->w - 4, DevKeyInk(look, sunk), DevKeyInkShadow(look, sunk), 1);
+}
+
 /* DevSmallWrap's lines, drawn when `draw`, else only counted. */
 UI_FN int DevSmallWrapRun(const char *s, int firstX, int x, int top, int right, int maxLines, int pitch, uint16_t ink,
                           int draw)
@@ -937,6 +968,35 @@ UI_FN void DevNoteTitle(const CtrPokeTouchRect *paper, int x, const char *s)
     DevTextInk(s, x, paper->y + 2, right, DEV_TITLE_INK, DEV_INK_SH);
 }
 
+/* A title line on its own screen (DevScreen(screen)): `left` in the normal font, DEV_INK over its shadow, from 6 px into
+ * the paper, its capitals centred down it; `right` (none when empty) small in the secondary ink ending 8 px short of the
+ * paper's right, its capitals a row lower. `left` is cut with "..." 8 px before `right`, or 6 px short of the paper's
+ * right with no `right`, and not counted (FireRed's text or a phrase); a `right` wider than the paper is cut there and
+ * counted in sDevKeyCut. */
+UI_FN void DevTitleLine(const CtrPokeTouchRect *screen, const char *left, const char *right)
+{
+    CtrPokeTouchRect paper = DevScreen(screen);
+    char cut[64];
+    int x = paper.x + 6, top = paper.y + (paper.h - 8) / 2, end = paper.x + paper.w - 8, limit = paper.x + paper.w - 6;
+    int from = end;
+
+    if (right && right[0]) {
+        from = end - DevSmallTextWidth(right);
+        if (from < x) {
+            from = x;
+            ++sDevKeyCut;
+        }
+        limit = from - 8;
+    }
+    if (DevTextWidth(left) > limit - x) {
+        DevCutText(left, limit - x, cut, sizeof(cut));
+        left = cut;
+    }
+    DevTextInk(left, x, top, limit, DEV_INK, DEV_INK_SH);
+    if (right && right[0])
+        DevSmallText(right, from, top + 1, DEV_INK2, end);
+}
+
 /* ---- Marks, bars, chips, icons ------------------------------------------------------------------------------------- */
 
 /* A ring s pixels across, its box's top-left at (x, y): the pixels whose centre is within the circle's last pixel. */
@@ -949,6 +1009,25 @@ UI_FN void DevRing(int x, int y, int s, uint16_t c)
             if (d <= s * s && d > (s - 2) * (s - 2))
                 Px(x + i, y + j, c);
         }
+}
+
+/* A disc s across at (x, y) in c (DevDisc), told as a DISC: a page's dot, a mark on the paper. */
+UI_FN void DevSpot(int x, int y, int s, uint16_t c)
+{
+    DEV_TRACE(DEV_TRACE_DISC, x, y, s, s, c, DEV_WHITE, NULL);
+    DevDisc(x, y, s, c);
+}
+
+/* A hole in the paper s across at (x, y) (a badge not earned): a DEV_PAPER_LINE disc, then the pixels of the same disc
+ * 2 px lower that lie inside it in DEV_PAPER_HOLE, so a 2 px rim stays at its top (CSS's inset 0 2px 0). One DISC. */
+UI_FN void DevPaperHole(int x, int y, int s)
+{
+    DEV_TRACE(DEV_TRACE_DISC, x, y, s, s, DEV_PAPER_HOLE, DEV_PAPER_LINE, NULL);
+    DevDisc(x, y, s, DEV_PAPER_LINE);
+    for (int j = 0; j < s; ++j)
+        for (int i = 0; i < s; ++i)
+            if (DevInDisc(s, i, j) && DevInDisc(s, i, j - 2))
+                Px(x + i, y + j, DEV_PAPER_HOLE);
 }
 
 /* Line segments stroked as an SVG path draws them (with round ends here) into an alpha mask, size x size, of 256: the
@@ -1046,22 +1125,33 @@ UI_FN uint16_t DevHpColour(unsigned hp, unsigned max)
     return pixels > 24 ? DEV_HP_GREEN : pixels > 9 ? DEV_HP_YELLOW : DEV_HP_RED;
 }
 
-/* An HP bar: a 1 px frame, the track and hp of max filled (at least a pixel while hp is not 0). */
+/* A bar: a 1 px DEV_HP_FRAME frame, the DEV_HP_TRACK track and `fill` of its columns (0 ... w - 2) in `colour` from the
+ * left. Told as a BAR. (An HP bar's; a progress bar's.) */
+UI_FN void DevBar(int x, int y, int w, int h, int fill, uint16_t colour)
+{
+    int inner = w - 2;
+
+    if (w < 2 || h < 2)
+        return;
+    if (fill < 0)
+        fill = 0;
+    if (fill > inner)
+        fill = inner;
+    DEV_TRACE(DEV_TRACE_BAR, x, y, w, h, colour, fill, NULL);
+    Fill(x, y, w, h, DEV_HP_FRAME);
+    Fill(x + 1, y + 1, inner, h - 2, DEV_HP_TRACK);
+    if (fill > 0)
+        Fill(x + 1, y + 1, fill, h - 2, colour);
+}
+
+/* An HP bar (DevBar): hp of max filled (at least a pixel while hp is not 0), in DevHpColour. */
 UI_FN void DevHpBar(int x, int y, int w, int h, unsigned hp, unsigned max)
 {
     int inner = w - 2, fill = max ? (int)((unsigned long)hp * (unsigned)(inner > 0 ? inner : 0) / max) : 0;
 
-    if (w < 2 || h < 2)
-        return;
     if (hp && fill < 1)
         fill = 1;
-    if (fill > inner)
-        fill = inner;
-    DEV_TRACE(DEV_TRACE_BAR, x, y, w, h, DevHpColour(hp, max), fill, NULL);
-    Fill(x, y, w, h, DEV_HP_FRAME);
-    Fill(x + 1, y + 1, inner, h - 2, DEV_HP_TRACK);
-    if (fill > 0)
-        Fill(x + 1, y + 1, fill, h - 2, DevHpColour(hp, max));
+    DevBar(x, y, w, h, fill, DevHpColour(hp, max));
 }
 
 /* The dark shadow for a chip's white text when the chip's colour comes from data (a type's): the colour darkened. Within

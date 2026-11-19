@@ -1352,7 +1352,7 @@
   },
   {
    "path": "3ds_port/src/3ds_poketouch.c",
-   "sha256": "e35458030ba3247689524dbc3f1a19a34c871a90c09d0f9c52778cce8d583f51",
+   "sha256": "1c6570075c3a8991c2478c150d9d19015e4a7ea64b1a87b623e1b14f70d512dc",
    "review_status": "reviewed",
    "credit": "alex61194; ZallaxDev and PokÃ©mon Emerald 3Ds Dual Screen contributors for inherited/adapted portions, as scoped in NOTICE.md; christiansmmc (fork changes with disclosed AI assistance)",
    "license": "Owned port contributions MIT; inherited Zallax portions original MIT scope; external game/dependency rights excluded",
@@ -7305,7 +7305,7 @@
   },
   {
    "path": "3ds_port/src/3ds_device_kit_impl.h",
-   "sha256": "c72bfb9951f77ee17a53a2008ac47b831d2a38c071a1bbf3e194f95c2e2a7709",
+   "sha256": "8a04c0ce7b926734972691d08559327e20abef8dd98bce5365975c1af1582238",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7321,7 +7321,7 @@
   },
   {
    "path": "3ds_port/tests/device_render_test.c",
-   "sha256": "6a53ef686194675afd22b3678bcfe9b9b2ee16fc9c08d443e087e3fdd8a1a496",
+   "sha256": "14eb7da4bdb2d7862b7b68e24eff74488df7cf069d5c3b6564492fe0763e906d",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7617,7 +7617,7 @@
   },
   {
    "path": "tools/make_device_boards.py",
-   "sha256": "434c66f42614b15baccea296925aee831702374e8e1b78ac2c3a5dd297ebd785",
+   "sha256": "bf03c1c4b154d62aa92295893bce51170af0f97e02939313b32adaf30f8bd4cf",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",
@@ -7625,7 +7625,7 @@
   },
   {
    "path": "tools/test_make_device_boards.py",
-   "sha256": "3d5ad101e204b31a8f0fbea4c0d8d6dfd31637f8846d91d995e34d4ef27452b0",
+   "sha256": "d059c15588c38cbc86082a2a1a47fd05bf170aa2a9ac7799b9f6657e40ceda89",
    "review_status": "reviewed",
    "credit": "christiansmmc (fork changes with disclosed AI assistance)",
    "license": "MIT only for original owned contributions; third-party rights unchanged",

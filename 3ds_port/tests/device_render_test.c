@@ -444,7 +444,7 @@ static const unsigned kTraceRgb[] = {
     DEV_FX_NOTVERY, DEV_FX_EFFECTIVE, DEV_FX_NONE, DEV_CAT_SPECIAL, DEV_CAT_PHYSICAL, DEV_PSN, DEV_FX_SUPER_SH,
     DEV_FX_NOTVERY_SH, DEV_FX_EFFECTIVE_SH, DEV_CAT_SPECIAL_SH, DEV_LOW_INK, DEV_PP_QUARTER, DEV_PP_HALF, DEV_BLUE_INK,
     DEV_STAT_UP, DEV_MALE, DEV_FEMALE, DEV_ARROW_OFF, DEV_BOX_TITLE_SH, DEV_CARD_GOLD, DEV_KEY_INK2, DEV_TAG_STAB,
-    DEV_TAG_NEW,
+    DEV_TAG_NEW, DEV_PAPER_LINE, DEV_PAPER_HOLE,
 };
 #pragma pop_macro("UI_RGB")
 
@@ -531,7 +531,7 @@ static void TraceWrite(const char *state)
                                        "logo", "gba"};
     static const char *const kDir[4] = {"up", "down", "left", "right"};
     static const char *const kOp[] = {"begin", "art", "shell", "screen", "key", "dim", "hole", "row", "rect", "led",
-                                      "text", "chip", "bar", "tri"};
+                                      "text", "chip", "bar", "tri", "disc"};
     char path[512], hex[8], hex2[8];
     FILE *f;
 
@@ -574,7 +574,11 @@ static void TraceWrite(const char *state)
             fprintf(f, ", \"fill\": \"%s\", \"filled\": %d", TraceHex(a, hex), b);
         else if (op == DEV_TRACE_TRI)
             fprintf(f, ", \"ink\": \"%s\", \"dir\": \"%s\"", TraceHex(a, hex), kDir[b & 3]);
-        else if (op == DEV_TRACE_ART)
+        else if (op == DEV_TRACE_DISC) {
+            fprintf(f, ", \"fill\": \"%s\"", TraceHex(a, hex));
+            if (b != DEV_WHITE)
+                fprintf(f, ", \"rim\": \"%s\"", TraceHex(b, hex2));
+        } else if (op == DEV_TRACE_ART)
             fprintf(f, ", \"kind\": \"%s\"", kArt[a]);
         if (op == DEV_TRACE_TEXT || op == DEV_TRACE_CHIP) {
             fputs(", \"text\": ", f);
@@ -963,6 +967,27 @@ static void KitChips(void)
 
 static const uint16_t kShell[4] = {DEV_SHELL_RED, DEV_SHELL_BLUE, DEV_SHELL_GREEN, DEV_SHELL_GREY};
 
+/* Port-written words, more than one small line of a footer's paper or three lines of a wrap 120 px wide can hold. */
+static const char kLongWords[] = "Port-written words, more than one small line of this footer's paper can hold at once.";
+
+/* Plan 04b's pieces (rows 3-5): a disc and a paper hole, a progress bar, the · glyph, a wrap at its own pitch, a screen's
+ * title line, a key's small word. */
+static void KitRowsThreeToFive(void)
+{
+    CtrPokeTouchRect t = {8, 6, 304, 28}, k = {8, 40, 96, 66};
+
+    DevBegin(canvas, 0); DevShell();
+    DevSpot(226, 164, 5, DEV_MARK_ON); assert(at(228, 166) == DEV_MARK_ON && at(226, 164) != DEV_MARK_ON);    /* a disc: no corner */
+    DevPaperHole(125, 134, 32); assert(at(141, 150) == DEV_PAPER_HOLE && at(141, 135) == DEV_PAPER_LINE && at(125, 134) != DEV_PAPER_HOLE);
+    DevBar(196, 122, 100, 6, 49, DEV_EXP);
+    assert(at(196, 122) == DEV_HP_FRAME && at(197, 124) == DEV_EXP && at(245, 124) == DEV_EXP && at(246, 124) == DEV_HP_TRACK);
+    DevSmallText("\xC2\xB7", 20, 20, DEV_INK, 60); assert(Count(20, 20, 8, 7, DEV_INK) > 0);                  /* · is a glyph */
+    assert(DevWrapPitch(kLongWords, 20, 100, 120, 3, 14, DEV_INK, DEV_INK_SH) == 3 && Count(20, 128, 120, 9, DEV_INK) > 0);
+    DevTitleLine(&t, "KANTO", "SEEN 1"); assert(Count(280, 17, 19, 7, DEV_INK2) > 0 && Count(299, 12, 7, 16, DEV_INK2) == 0 && Count(20, 16, 30, 9, DEV_INK) > 0);
+    DevKey(&k, DEV_LOOK_KEY, 0, 6); DevKeySmallWord(&k, 96, DEV_LOOK_KEY, 0, "FOREST"); assert(Count(9, 96, 94, 7, DEV_KEY_INK) > 0);
+    assert(sDevKeyCut == 0);
+}
+
 /* The kit's contract (the plan's Task 3 assertions). */
 static void KitPieces(void)
 {
@@ -1010,12 +1035,9 @@ static void KitPieces(void)
     clear(0); DevRound(0, 0, 20, 20, 6, 0x1234); assert(at(0, 0) == 0 && at(1, 1) == 0 && at(2, 2) == 0x1234 && at(6, 0) == 0x1234 && at(0, 6) == 0x1234);
     KitWrapLines();
     sDevKeyCut = 0; DevKeyLabel(&(CtrPokeTouchRect){0, 0, 30, 24}, 0, DEV_LOOK_KEY, 0, "A VERY LONG LABEL"); assert(sDevKeyCut == 1); sDevKeyCut = 0;
-    {
-        /* a footer's small text that needs more lines than it is given is cut, and counted */
-        static const char kLongWords[] = "Port-written words, more than one small line of this footer's paper can hold at once.";
-
-        sDevKeyCut = 0; assert(DevSmallFit(kLongWords, 20, 20, 198, 224, 1, DEV_SMALL_LINE, DEV_INK) == 1 && sDevKeyCut == 1); sDevKeyCut = 0;
-    }
+    /* a footer's small text that needs more lines than it is given is cut, and counted */
+    sDevKeyCut = 0; assert(DevSmallFit(kLongWords, 20, 20, 198, 224, 1, DEV_SMALL_LINE, DEV_INK) == 1 && sDevKeyCut == 1); sDevKeyCut = 0;
+    KitRowsThreeToFive();
 }
 
 /* DevUpper: the boards' and FireRed's capitals; POKé's é stays small; a letter the font has no capital for stays. */
