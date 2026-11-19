@@ -162,6 +162,33 @@ class ViewRects(unittest.TestCase):
                 self.assertNotRegex(text, r'\bkDevSum\w+|\bDevSum[A-Z]\w*\(', path.name)
 
 
+class Traced(unittest.TestCase):
+    """What a view paints is a piece the kit's trace tells a board (tools/make_device_boards.py)."""
+
+    def test_traced_views_paint_through_the_kit(self):
+        """HOME, the battle, the Party, the Summary and the Bag paint only through traced pieces: a plain fill is a
+        DevRect, a pixel or an icon belongs to art its function announces with DevArt (plan 04b Task 18)."""
+        for view in ('home', 'battle', 'party', 'summary', 'bag'):
+            text = (ROOT / f'3ds_port/src/3ds_device_{view}_impl.h').read_text(encoding='utf-8')
+            self.assertNotRegex(text, r'\bFill\(', view)
+            for body in text.split('\n}\n'):
+                if re.search(r'\bPx\(|UiImage\(|DevMonIcon\(|DevItemIcon\(', body):
+                    self.assertIn('DevArt(', body, view)
+
+    def test_traced_views_use_no_untold_painter(self):
+        """Nor do they paint with the kit's untold shapes: a rounded fill is DevRoundRect, a disc DevSpot, a lone LED
+        DevLed, a word at twice the size DevBigText (each told as its piece; DevRing tells its ring); art drawn by the
+        port's other painters (the map's icons, a key's soft icon, an item's or a battle icon, the swords' mask, the map
+        copied into the canvas) is announced with DevArt in the function that draws it."""
+        for view in ('home', 'battle', 'party', 'summary', 'bag'):
+            text = (ROOT / f'3ds_port/src/3ds_device_{view}_impl.h').read_text(encoding='utf-8')
+            self.assertNotRegex(text, r'\b(DevRound|DevRoundBlend|DevDisc|DevLedPixels|DevGlyphPixels|UiText)\(', view)
+            for body in text.split('\n}\n'):
+                if re.search(r'\b(IconDraw|PokeTouch_SoftDraw|BItemDraw|BIconAt|DevAlphaArt|DevIconPixels)\(|sCanvas \+',
+                             body):
+                    self.assertIn('DevArt(', body, view)
+
+
 class Words(unittest.TestCase):
     """The words every view shares are the kit's (plan 04a, Task 2)."""
 

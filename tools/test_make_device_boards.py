@@ -88,6 +88,68 @@ class DeviceBoards(unittest.TestCase):
         self.assertEqual({i['radius'] for i in top}, {6})
         self.assertIn('border-radius: 6px', tool.element(top[0]))
 
+    def test_the_five_trace_their_pieces(self):
+        """HOME, the battle, the Party, the Summary and the Bag (plan 04b Task 18) on the harness's own traces: HOME's map
+        is art of its own kind over the window (a MAPA stand-in), its party's hole a ring, RUN's dim LED a disc; the
+        battle's lead icon (at 2x) and FIGHT's swords are art, its balls discs and the place of no Pokemon a ring,
+        FIGHT's word told at twice the size, a move's PP pips rects; the Party's icons and the Bag's items are art; the
+        Summary's picture is art and its STATS switch rounded rects. Each is its board's element."""
+        with tempfile.TemporaryDirectory() as tmp:
+            harness = Path(tmp) / ('device_render_test.exe' if os.name == 'nt' else 'device_render_test')
+            build(harness)
+            for suite in ('home', 'battle', 'party', 'summary', 'bag'):
+                run(harness, suite, DEVICE_TRACE=tmp)
+            traces = {p.stem: tool.read_trace(p) for p in Path(tmp).glob('*.json')}
+
+        def pieces(state, **want):
+            return [item for item in traces[state]['items'] if all(item.get(k) == v for k, v in want.items())]
+
+        wanted = {'home_plain': [({'op': 'art', 'kind': 'map', 'x': 14, 'y': 14, 'w': 192, 'h': 128}, 'MAPA<br>192 x 128'),
+                                 ({'op': 'ring', 'x': 277, 'y': 96, 'w': 16, 'h': 16, 'ink': '#c4c4c4'},
+                                  'border: 1px solid #c4c4c4'),
+                                 ({'op': 'disc', 'w': 6, 'fill': '#d6ccb8'}, 'border-radius: 50%; background: #d6ccb8')],
+                  'battle_action': [({'op': 'art', 'kind': 'icon', 'x': 20, 'y': 18, 'w': 48, 'h': 48}, 'ÍCONE'),
+                                    ({'op': 'art', 'kind': 'icon', 'w': 22, 'h': 22}, 'title="icon"'),
+                                    ({'op': 'disc', 'x': 230, 'y': 20, 'w': 9, 'fill': '#626262'}, 'background: #626262'),
+                                    ({'op': 'ring', 'x': 290, 'y': 20, 'w': 9, 'h': 9, 'ink': '#b0b0a8'},
+                                     'border: 1px solid #b0b0a8'),
+                                    ({'op': 'text', 'font': 'large', 'text': 'FIGHT'}, 'font-size: 22px')],
+                  'battle_moves': [({'op': 'rect', 'w': 5, 'h': 5}, 'width: 5px; height: 5px; background')],
+                  'party_bays': [({'op': 'art', 'kind': 'icon', 'w': 32, 'h': 32}, 'title="icon"')],
+                  'summary_info': [({'op': 'art', 'kind': 'picture', 'x': 30, 'y': 80, 'w': 64, 'h': 64}, 'FIGURA')],
+                  'summary_stats': [({'op': 'rect', 'x': 186, 'y': 49, 'w': 70, 'h': 13, 'fill': '#b0b0a8', 'radius': 6},
+                                     'border-radius: 6px; background: #b0b0a8'),
+                                    ({'op': 'rect', 'x': 189, 'y': 50, 'w': 31, 'h': 11, 'fill': '#3e4c6b', 'radius': 5},
+                                     'border-radius: 5px; background: #3e4c6b')],
+                  'bag_items': [({'op': 'art', 'kind': 'item', 'w': 12, 'h': 12}, 'title="item"'),
+                                ({'op': 'art', 'kind': 'item', 'x': 18, 'y': 199, 'w': 24, 'h': 24}, 'title="item"')]}
+        for state, wants in wanted.items():
+            html = tool.board_html(traces[state])
+            for want, css in wants:
+                found = pieces(state, **want)
+                self.assertTrue(found, f'{state}: {want}')
+                self.assertIn(css, tool.element(found[0]), f'{state}: {want}')
+                self.assertIn(css, html, state)
+
+    def test_rounded_rect_ring_and_large_text(self):
+        """A rounded fill is a rect with its corners' radius (none: square, as before), a ring a circle's 1 px edge with
+        nothing inside it, a word at twice the size the normal font doubled: capitals 6 px into its box, its shadow 2 px
+        off."""
+        rect = tool.element({'op': 'rect', 'x': 186, 'y': 49, 'w': 70, 'h': 13, 'fill': '#b0b0a8', 'radius': 6})
+        self.assertIn('left: 186px; top: 49px; width: 70px; height: 13px; border-radius: 6px; background: #b0b0a8', rect)
+        square = tool.element({'op': 'rect', 'x': 20, 'y': 70, 'w': 92, 'h': 1, 'fill': '#d5d5cd'})
+        self.assertNotIn('border-radius', square)
+        ring = tool.element({'op': 'ring', 'x': 290, 'y': 20, 'w': 9, 'h': 9, 'ink': '#b0b0a8'})
+        for want in ('left: 290px; top: 20px; width: 9px; height: 9px', 'box-sizing: border-box', 'border-radius: 50%',
+                     'border: 1px solid #b0b0a8'):
+            self.assertIn(want, ring)
+        self.assertNotIn('background', ring)
+        big = tool.element({'op': 'text', 'x': 140, 'y': 124, 'w': 60, 'font': 'large', 'ink': '#a02a20',
+                            'shadow': '#ffffff', 'text': 'FIGHT'})
+        for want in ('left: 140px; top: 118px', 'font-size: 22px; line-height: 28px', 'color: #a02a20',
+                     'text-shadow: 2px 2px 0 #ffffff', '>FIGHT<'):
+            self.assertIn(want, big)
+
     def test_key_corners_are_the_traced_radius(self):
         for h, radius in ((24, 6), (24, 5), (40, 6), (20, 4)):
             html = tool.element({'op': 'key', 'x': 8, 'y': 8, 'w': 60, 'h': h, 'look': 'key', 'sunk': 0, 'radius': radius})
@@ -101,13 +163,16 @@ class DeviceBoards(unittest.TestCase):
         self.assertIn('SEEN 1  OWNED 2', html)
 
     def test_untraced_suites_are_refused(self):
-        """HOME, the battle, the Party, the Summary, the Bag (and the kit's sheet) still draw pieces the trace does not
-        tell: no board is made of them, before anything is built or read."""
-        self.assertEqual(tool.SUITES, ['options', 'save', 'card', 'mail', 'dex', 'choice', 'learn', 'relearn', 'naming',
-                                       'box', 'easychat', 'frame', 'idle'])
+        """Every view's suite makes boards (HOME, the battle, the Party, the Summary and the Bag too: plan 04b Task 18);
+        the kit's sheet draws pieces the trace does not tell and a suite that is not one is no view: no board is made of
+        either, before anything is built or read."""
+        self.assertEqual(tool.SUITES, ['home', 'battle', 'party', 'summary', 'bag', 'options', 'save', 'card', 'mail',
+                                       'dex', 'choice', 'learn', 'relearn', 'naming', 'box', 'easychat', 'frame', 'idle'])
+        self.assertEqual({suite: tool.VIEWS[suite] for suite in tool.SUITES[:5]},
+                         {'home': 'Início', 'battle': 'Batalha', 'party': 'POKéMON', 'summary': 'Resumo', 'bag': 'BAG'})
         (ROOT / 'build').mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory() as traces, tempfile.TemporaryDirectory(dir=ROOT / 'build') as out:
-            for suite in ('home', 'battle', 'party', 'summary', 'bag', 'kit', 'nosuch'):
+            for suite in ('kit', 'nosuch'):
                 for run_first in ([], ['--run']):
                     with self.assertRaises(SystemExit) as stop:
                         tool.main(['--trace', traces, '--out', out, *run_first, 'options', suite])

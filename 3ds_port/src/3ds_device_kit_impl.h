@@ -141,16 +141,17 @@ static int sDevKeyCut __attribute__((unused));
  *   DIM     the pixels dimmed halfway to the shell
  *   HOLE    a hole in the shell: a its corners' radius
  *   ROW     a list row: a chosen (inverted)
- *   RECT    a plain fill: a its colour
+ *   RECT    a plain fill: a its colour, b its corners' radius as drawn (0: square; DevRoundRect's)
  *   LED     a lone LED (not a sunk key's): w and h its size
  *   TEXT    the glyphs drawn: y where the capitals start, w their width, h their shadow colour (the ink: none), a the
- *           ink, b the font (0 normal, 1 small, 2 a sign drawn as a shape: s its character in UTF-8), s the text (its
- *           first glyphs, as many as fill w)
+ *           ink, b the font (0 normal, 1 small, 2 a sign drawn as a shape: s its character in UTF-8, 3 the normal at
+ *           twice its size: DevBigText's), s the text (its first glyphs, as many as fill w)
  *   CHIP    a chip with its text: a its colour, b the text's shadow (DEV_WHITE: none), s the text
  *   BAR     a bar (DevBar: an HP bar, a progress bar): a the colour of its fill, b the fill's width
  *   TRI     a triangle: its 9x5 (5x9 across) box, a its colour, b the direction (DevTriangle's)
  *   DISC    a disc (DevSpot, DevPaperHole): its box, a its colour, b its 2 px top inset's colour (DEV_WHITE: none)
  *   ART     art a view draws (DevArt): a its kind (DEV_ART_*)
+ *   RING    a ring (DevRing: a circle's last pixel, nothing inside it): its box, a its colour
  * The game defines nothing and it does nothing; the host harness defines it before including the renderer. */
 #ifndef DEV_TRACE
 #define DEV_TRACE(op, x, y, w, h, a, b, s) \
@@ -158,10 +159,10 @@ static int sDevKeyCut __attribute__((unused));
 #endif
 /* The kinds of art a view draws (a board shows a stand-in for each), and the pieces DEV_TRACE is told of. */
 enum { DEV_ART_ICON, DEV_ART_PICTURE, DEV_ART_ITEM, DEV_ART_BADGE, DEV_ART_MARK, DEV_ART_SPRITE, DEV_ART_FRAME,
-       DEV_ART_LOGO, DEV_ART_GBA };
+       DEV_ART_LOGO, DEV_ART_GBA, DEV_ART_MAP };
 enum { DEV_TRACE_BEGIN = 0, DEV_TRACE_ART, DEV_TRACE_SHELL, DEV_TRACE_SCREEN, DEV_TRACE_KEY, DEV_TRACE_DIM, DEV_TRACE_HOLE,
        DEV_TRACE_ROW, DEV_TRACE_RECT, DEV_TRACE_LED, DEV_TRACE_TEXT, DEV_TRACE_CHIP, DEV_TRACE_BAR, DEV_TRACE_TRI,
-       DEV_TRACE_DISC };
+       DEV_TRACE_DISC, DEV_TRACE_RING };
 
 /* ---- Pixels -------------------------------------------------------------------------------------------------------- */
 
@@ -314,6 +315,14 @@ UI_FN void DevRound(int x, int y, int w, int h, int r, uint16_t c)
         Fill(x + cut, y + h - 1 - j, w - 2 * cut, 1, c);
     }
     Fill(x, y + r, w, h - 2 * r, c);
+}
+
+/* A rounded fill that draws something (a pressed cell's edge, a switch's pill): DevRound, told as a RECT with its
+ * corners' radius as drawn. */
+UI_FN void DevRoundRect(int x, int y, int w, int h, int r, uint16_t c)
+{
+    DEV_TRACE(DEV_TRACE_RECT, x, y, w, h, c, DevRadius(w, h, r), NULL);
+    DevRound(x, y, w, h, r, c);
 }
 
 /* The shape blended toward c by alpha over what is there. */
@@ -604,6 +613,26 @@ UI_FN void DevTextRight(const char *s, int right, int top, uint16_t ink)
 UI_FN void DevSmallText(const char *s, int x, int top, uint16_t ink, int limit)
 {
     DevGlyphs(s, x, top - 4, limit, ink, ink, 1);
+}
+
+/* Normal-font text at twice its size (FIGHT's word): capitals from `top`, ink over shadow, nothing from the first glyph
+ * that would pass `limit` (UiText's). Told as a TEXT of font 3. */
+UI_FN void DevBigText(const char *s, int x, int top, uint16_t ink, uint16_t shadow, int limit)
+{
+    const char *p = s;
+    int end = x;
+
+    while (*p) {
+        const char *q = p;
+        int gw = Glyph(&q)->width * 2;
+
+        if (end + gw > limit)
+            break;
+        end += gw;
+        p = q;
+    }
+    DEV_TRACE(DEV_TRACE_TEXT, x, top, end - x, shadow, ink, 3, s);
+    UiText(s, x, top, ink, shadow, 2, limit);
 }
 
 /* The code of FireRed's capital for the code of an accented small letter (à 0x16 -> À 0x01, ü 0xf6 -> Ü 0xf3, œ 0x25 ->
@@ -1011,9 +1040,11 @@ UI_FN void DevTitleLine(const CtrPokeTouchRect *screen, const char *left, const 
 
 /* ---- Marks, bars, chips, icons ------------------------------------------------------------------------------------- */
 
-/* A ring s pixels across, its box's top-left at (x, y): the pixels whose centre is within the circle's last pixel. */
+/* A ring s pixels across, its box's top-left at (x, y): the pixels whose centre is within the circle's last pixel. Told
+ * as a RING. */
 UI_FN void DevRing(int x, int y, int s, uint16_t c)
 {
+    DEV_TRACE(DEV_TRACE_RING, x, y, s, s, c, 0, NULL);
     for (int j = 0; j < s; ++j)
         for (int i = 0; i < s; ++i) {
             int dx = 2 * i + 1 - s, dy = 2 * j + 1 - s, d = dx * dx + dy * dy;

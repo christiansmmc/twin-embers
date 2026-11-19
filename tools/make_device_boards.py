@@ -9,12 +9,12 @@ shell's colour, Pixelify Sans standing in for the game's font, a striped box whe
 ([{"file", "title"}], in the suites' order and each suite's own). With --run it first builds the harness with its
 synthetic fonts and no pack and runs the suites with DEVICE_TRACE=DIR. A trace holds the harness's own words and the
 layout's rectangles, never a pixel: no art and nothing of a pack can reach a board. `python tools/dev.py boards` runs
-this with --run in the devkitPro MSYS shell (default suites: the views plan 3 drew without a board).
+this with --run in the devkitPro MSYS shell (default suites: every view's, SUITES).
 
 The shell's colour is a {{shell}} hole the design canvas fills (its Shell editor, the trace's colour by default): opened
 raw in a browser a board shows the hole unfilled, the screen dark. Only the views whose every piece the kit traces are
-made (SUITES); HOME, the battle, the Party, the Summary and the Bag still draw pieces the trace does not tell, and a
-suite outside SUITES is refused.
+made (SUITES: every B view since plan 04b's Task 18 traced HOME, the battle, the Party, the Summary and the Bag); the
+kit's sheet, or any suite outside SUITES, is refused.
 """
 import argparse
 import html
@@ -27,15 +27,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PORT = ROOT / '3ds_port'
-SUITES = ['options', 'save', 'card', 'mail', 'dex', 'choice', 'learn', 'relearn', 'naming', 'box', 'easychat', 'frame',
-          'idle']
+SUITES = ['home', 'battle', 'party', 'summary', 'bag', 'options', 'save', 'card', 'mail', 'dex', 'choice', 'learn',
+          'relearn', 'naming', 'box', 'easychat', 'frame', 'idle']
 # A board's title: "B · <view>: <state>" (the canvas's words: pt-BR, the game's own in capitals).
-VIEWS = {'options': 'OPTIONS', 'save': 'SAVE', 'card': 'Cartão de treinador', 'mail': 'Carta', 'dex': 'POKéDEX',
+VIEWS = {'home': 'Início', 'battle': 'Batalha', 'party': 'POKéMON', 'summary': 'Resumo', 'bag': 'BAG',
+         'options': 'OPTIONS', 'save': 'SAVE', 'card': 'Cartão de treinador', 'mail': 'Carta', 'dex': 'POKéDEX',
          'choice': 'Escolhas', 'learn': 'Esquecer golpe', 'relearn': 'Relembrar golpe', 'naming': 'Teclado de nomes',
          'box': 'PC: caixas', 'easychat': 'Easy Chat', 'frame': 'Tela do FireRed', 'idle': 'Em repouso'}
 # What a stand-in box says it stands for (art the view draws from the pack, or the project's logo).
 ART = {'icon': 'ÍCONE', 'picture': 'FIGURA', 'item': 'ITEM', 'badge': 'INSÍGNIA', 'mark': 'MARCA', 'sprite': 'SPRITE',
-       'frame': 'MOLDURA', 'logo': 'LOGO', 'gba': 'TELA DO FIRERED'}
+       'frame': 'MOLDURA', 'logo': 'LOGO', 'gba': 'TELA DO FIRERED', 'map': 'MAPA'}
 
 # The kit's numbers (3ds_device_layout.h, 3ds_device_kit_impl.h) and the boards' CSS for what it draws.
 SINK = 2                            # DEV_SINK: a chosen key's face, lower
@@ -51,9 +52,11 @@ KEY_SUNK = {'key': 'background: #e6dece; box-shadow: 0 1px 0 rgba(0,0,0,0.38), i
             'faint': 'background: #d2cab8; box-shadow: 0 1px 0 rgba(0,0,0,0.38), inset 0 2px 0 rgba(0,0,0,0.38)'}
 SCREWS = {1: ((2, 2), (313, 2)), 2: ((2, 232), (313, 232))}
 ARROWS = {'up': '▲', 'down': '▼', 'left': '◀', 'right': '▶'}
-# A text's box: the capitals start 3 px into a box of the normal font, 2 px into one of the small (the layout's rule).
-# Pixelify Sans at these sizes is about as wide as the harness's 6 px and 5 px stub glyphs (STUB_WIDTH, its small 5).
-FONTS = {'normal': (3, 'font-size: 11px; line-height: 14px'), 'small': (2, 'font-size: 9px; line-height: 10px')}
+# A text's box: the capitals start 3 px into a box of the normal font, 2 px into one of the small (the layout's rule), 6 px
+# into one of the normal at twice its size (FIGHT's word), whose shadow lies 2 px off. Pixelify Sans at these sizes is
+# about as wide as the harness's 6 px and 5 px stub glyphs (STUB_WIDTH, its small 5).
+FONTS = {'normal': (3, 'font-size: 11px; line-height: 14px'), 'small': (2, 'font-size: 9px; line-height: 10px'),
+         'large': (6, 'font-size: 22px; line-height: 28px')}
 STUB_WIDTH = 6                      # the game font's usual width (the ES and DE label-fit builds' too)
 
 HEAD = '''<!doctype html>
@@ -106,8 +109,8 @@ def box(item, dy=0):
     return f'position: absolute; left: {item["x"]}px; top: {item["y"] + dy}px; width: {item["w"]}px; height: {item["h"]}px'
 
 
-def shadow(colour):
-    return f'text-shadow: 1px 1px 0 {colour}' if colour else 'text-shadow: none'
+def shadow(colour, off=1):
+    return f'text-shadow: {off}px {off}px 0 {colour}' if colour else 'text-shadow: none'
 
 
 def led(x, y, size):
@@ -143,13 +146,15 @@ def element(item):
     if op == 'row':
         return f'<div style="{box(item)}; background: {BEZEL if item["chosen"] else PAPER}"></div>'
     if op == 'rect':
-        return f'<div style="{box(item)}; background: {item["fill"]}"></div>'
+        corners = f'; border-radius: {item["radius"]}px' if item.get('radius') else ''
+        return f'<div style="{box(item)}{corners}; background: {item["fill"]}"></div>'
     if op == 'led':
         return led(item['x'], item['y'], item['w'])
     if op == 'text':
         into, size = FONTS[item['font']]
+        off = 2 if item['font'] == 'large' else 1
         return (f'<div style="position: absolute; left: {item["x"]}px; top: {item["y"] - into}px; white-space: pre; '
-                f'{size}; color: {item["ink"]}; {shadow(item.get("shadow"))}">{words(item["text"])}</div>')
+                f'{size}; color: {item["ink"]}; {shadow(item.get("shadow"), off)}">{words(item["text"])}</div>')
     if op == 'chip':
         ink_shadow = item['shadow'] if item['shadow'] != '#ffffff' else None
         return (f'<span style="{box(item)}; overflow: hidden; background: {item["fill"]}; color: #ffffff; '
@@ -165,6 +170,9 @@ def element(item):
     if op == 'disc':
         rim = f'; box-shadow: inset 0 2px 0 {item["rim"]}' if item.get('rim') else ''
         return f'<span style="{box(item)}; border-radius: 50%; background: {item["fill"]}{rim}"></span>'
+    if op == 'ring':
+        return (f'<span style="{box(item)}; box-sizing: border-box; border-radius: 50%; '
+                f'border: 1px solid {item["ink"]}"></span>')
     if op == 'art':
         label = ''
         if item['w'] >= 40 and item['h'] >= 24:
