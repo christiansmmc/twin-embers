@@ -856,8 +856,9 @@ static int BoxFaults(void)
 }
 
 /* Easy Chat: the phrase's screen over its slots (two rows of up to five), the mode keys and the buttons (CLEAR,
- * CONFIRM, CANCEL in the exit corner: def_easychat_edit's); the groups' title over six rows of four, or the letters in
- * FireRed's rows of 6, 6, 7, 7 of seven places, the toggle and BACK under them; a list's title over the list's screen
+ * CONFIRM, CANCEL in the exit corner: def_easychat_edit's); the groups' title over a window of five rows of three
+ * (84x24, 4 px apart across and 5 down: def_easychat_groups'), or the letters in FireRed's rows of 6, 6, 7, 7 of seven
+ * places, both over the grid's footer (the note and BACK in the exit corner); a list's title over the list's screen
  * (the rows two a row, the rail on its paper right of them), ▲ ▼ beside it, USE WORD, the toggle and BACK (in the exit
  * corner) under them all (def_easychat_list's); a question's note under the slots. */
 static int EasyChatFaults(void)
@@ -872,7 +873,7 @@ static int EasyChatFaults(void)
     assert(Same(DevEcBottom(0, 196, 34), (CtrPokeTouchRect){8, 196, 108, 34})             /* USE WORD, the toggle, BACK */
            && Same(DevEcBottom(1, 196, 34), (CtrPokeTouchRect){124, 196, 112, 34})
            && Same(DevEcBottom(2, 196, 34), (CtrPokeTouchRect){244, 196, 68, 34}));
-    assert(DevEcBottom(2, 196, 34).x + DevEcBottom(2, 196, 34).w == 312 && DevEcToggle(1).x + DevEcToggle(1).w == 312);   /* BACK at the right */
+    assert(DevEcBottom(2, 196, 34).x + DevEcBottom(2, 196, 34).w == 312);   /* BACK at the right */
     for (int n = 1; n <= 9; ++n)
         for (int i = 0; i < n; ++i)
             assert(Same(DevEcChip(n, i), DevAcross((n + 1) / 2, i % ((n + 1) / 2), 52 + 40 * (i / ((n + 1) / 2)), 34)));
@@ -881,9 +882,15 @@ static int EasyChatFaults(void)
            && Same(DevEcBottom(2, 178, 52), (CtrPokeTouchRect){244, 178, 68, 52}));
     assert(DevEcBottom(2, 178, 52).x == kDevGridExit.x && DevEcBottom(2, 178, 52).w == kDevGridExit.w);   /* the exit corner */
     for (int i = 0; i < 2; ++i)
-        assert(Same(DevEcMode(i), DevAcross(2, i, 136, 30)) && Same(DevEcToggle(i), DevAcross(2, i, 206, 26)));
-    for (int i = 0; i < 21; ++i)
-        assert(Same(DevEcCell(i), DevAcross(4, i % 4, 40 + 27 * (i / 4), 24)));
+        assert(Same(DevEcMode(i), DevAcross(2, i, 136, 30)));
+    assert(DEV_EC_GROUP_ROWS == 5);
+    for (int i = 0; i < 3 * DEV_EC_GROUP_ROWS; ++i)
+        assert(Same(DevEcCell(i), (CtrPokeTouchRect){(int16_t)(8 + 88 * (i % 3)), (int16_t)(40 + 29 * (i / 3)), 84, 24}));
+    if (DevEcCell(1).x - (DevEcCell(0).x + DevEcCell(0).w) != 4 || DevEcCell(3).y - (DevEcCell(0).y + DevEcCell(0).h) != 5
+        || DevEcCell(14).y + DevEcCell(14).h + DEV_DROP > 187 || DevEcCell(2).x + DevEcCell(2).w + 8 > kDevGridUp.x) {
+        fprintf(stderr, "Easy Chat: the groups' window is not three across, 4 px and 5 px apart, clear of the column and the footer\n");
+        ++faults;
+    }
     for (int r = 0; r < 4; ++r)
         for (int i = kStart[r]; i < (r < 3 ? kStart[r + 1] : 26); ++i)
             assert(Same(DevEcLetter(i), DevAcross(7, i - kStart[r], 40 + 32 * r, 28)));
@@ -898,7 +905,7 @@ static int EasyChatFaults(void)
     }
     if (!Within(kDevEcRail, listPaper, 0) || kDevEcPhrase.y + kDevEcPhrase.h + 1 > DevEcChip(9, 0).y
         || DevEcChip(9, 5).y + DevEcChip(9, 5).h + DEV_DROP > DevEcMode(0).y || DevEcMode(0).y + DevEcMode(0).h + DEV_DROP > DevEcBottom(0, 178, 52).y
-        || DevEcCell(20).y + DevEcCell(20).h + DEV_DROP > DevEcToggle(0).y || DevEcLetter(25).y + DevEcLetter(25).h + DEV_DROP > DevEcToggle(0).y
+        || DevEcLetter(25).y + DevEcLetter(25).h + DEV_DROP > kDevGridNote.y
         || kDevGridTitle.y + kDevGridTitle.h + 1 > DevEcCell(0).y || kDevEcListTitle.y + kDevEcListTitle.h + 1 > kDevEcList.y
         || kDevEcList.x + kDevEcList.w + 8 > kDevEcUp.x || kDevEcUp.y + kDevEcUp.h + DEV_DROP > kDevEcDown.y
         || kDevEcList.y + kDevEcList.h + 1 > DevEcBottom(0, 196, 34).y || kDevEcDown.y + kDevEcDown.h + DEV_DROP > DevEcBottom(0, 196, 34).y
@@ -1060,7 +1067,7 @@ int main(void)
         {"box column key 1", DevBoxMenuKey(0)}, {"box column key 5", DevBoxMenuKey(DEV_BOX_COLUMN - 1)},
         {"box YES", kDevBoxYes}, {"box NO", kDevBoxNo},
         {"Easy Chat phrase", kDevEcPhrase}, {"Easy Chat slot 9 of 9", DevEcChip(9, 8)}, {"Easy Chat CANCEL", DevEcBottom(2, 178, 52)},
-        {"Easy Chat group 20", DevEcCell(20)}, {"Easy Chat letter Z", DevEcLetter(25)}, {"Easy Chat BACK", DevEcToggle(1)},
+        {"Easy Chat group place 14", DevEcCell(14)}, {"Easy Chat letter Z", DevEcLetter(25)},
         {"Easy Chat list title", kDevEcListTitle}, {"Easy Chat list", kDevEcList}, {"Easy Chat row place 11", DevEcRow(11)},
         {"Easy Chat rail", kDevEcRail}, {"Easy Chat up", kDevEcUp}, {"Easy Chat down", kDevEcDown},
         {"Easy Chat USE WORD", DevEcBottom(0, 196, 34)}, {"Easy Chat list BACK", DevEcBottom(2, 196, 34)},
@@ -1141,13 +1148,16 @@ int main(void)
         ecEdits[n - 1] = (DevGroup){kEcEditName[n - 1], ecEdit[n - 1], c};
         faults += GroupFaults(&ecEdits[n - 1]);
     }
-    for (int g = 0; g < 2; ++g) {           /* Easy Chat's groups (21) and letters (26), with the toggle and BACK */
-        int n = g ? 26 : 21, c = 0;
+    for (int g = 0; g < 2; ++g) {           /* Easy Chat's groups' window (15, ▲ ▼) and letters (26), with BACK */
+        int n = g ? 26 : 3 * DEV_EC_GROUP_ROWS, c = 0;
 
         for (int i = 0; i < n; ++i)
             ecGrid[g][c++] = g ? DevEcLetter(i) : DevEcCell(i);
-        ecGrid[g][c++] = DevEcToggle(0);
-        ecGrid[g][c++] = DevEcToggle(1);
+        if (!g) {
+            ecGrid[g][c++] = kDevGridUp;
+            ecGrid[g][c++] = kDevGridDown;
+        }
+        ecGrid[g][c++] = kDevGridExit;
         ecGrids[g] = (DevGroup){g ? "Easy Chat letters" : "Easy Chat groups", ecGrid[g], c};
         faults += GroupFaults(&ecGrids[g]);
     }

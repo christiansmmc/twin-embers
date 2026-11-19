@@ -251,9 +251,9 @@ typedef struct {
 } CtrPokeTouchMail;
 
 /* Easy Chat (3ds_device_easychat_impl.h), drawn by the port over the whole lower screen (the upper one keeps FireRed's own): a remote
- * for the game's screen. The phrase as chips, the group menu (or the letters of the A-Z order), a group's word list with its rail,
- * and the game's Yes/No questions over the dimmed phrase. Everything is the game's state (CtrBottomEasyChat_*); the touches are
- * walked to with its own keys (3ds_bottom_easychat_impl.h). */
+ * for the game's screen. The phrase as chips, the group menu in a window of rows of three (or the letters of the A-Z order), a group's
+ * word list with its rail, and the game's Yes/No questions over the dimmed phrase. Everything is the game's state
+ * (CtrBottomEasyChat_*); the touches are walked to with its own keys (3ds_bottom_easychat_impl.h). */
 #define PT_EC_WORDS 9
 #define PT_EC_WORD_LEN 28
 #define PT_EC_GROUPS 21
@@ -263,7 +263,7 @@ typedef struct {
 #define PT_EC_ASK_LEN 48
 enum { PT_EC_EDIT, PT_EC_GROUP, PT_EC_LETTER, PT_EC_LIST };         /* the screen: the phrase, the groups, the letters, a list */
 enum { PT_EC_ASK_NONE, PT_EC_ASK_QUIT, PT_EC_ASK_DELETE, PT_EC_ASK_CONFIRM };
-#define PT_EC_CELL_TOGGLE 26        /* the group and letter screens' A-Z / groups button and BACK, as cells (past Z's 25) */
+#define PT_EC_CELL_TOGGLE 26        /* FireRed's blue box's A-Z / groups and BACK as cells (past Z's 25): BACK drawn, A-Z not */
 #define PT_EC_CELL_BACK 27
 /* Hit codes (CtrPokeTouch_EasyHit). */
 enum { PT_EC_HIT_CHIP = 100, PT_EC_HIT_MODE_GROUPS = 120, PT_EC_HIT_MODE_ALPHA, PT_EC_HIT_DELETE = 130, PT_EC_HIT_CANCEL,
@@ -281,6 +281,7 @@ typedef struct {
     int8_t footer;                  /* the editor's selected button (0 DELETE ALL, 1 QUIT, 2 OK), -1 none */
     int8_t cell;                    /* the group / letter screen's selected cell (PT_EC_CELL_*), -1 none */
     uint8_t groupCount;
+    uint8_t groupFirst;             /* the group menu's window: its first row of three (3ds_device_layout.h DEV_EC_GROUP_ROWS shown) */
     uint16_t listCount;             /* the list: its words, the first row shown, the selected word */
     uint16_t first;
     int16_t word;

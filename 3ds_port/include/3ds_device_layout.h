@@ -527,16 +527,18 @@ static inline CtrPokeTouchRect DevBoxMenuKey(int i)
     return r;
 }
 
-/* ---- Easy Chat (3ds_device_easychat_impl.h; the phrase's footer and the word list as def_easychat_edit and _list) ---
+/* ---- Easy Chat (3ds_device_easychat_impl.h; as def_easychat_edit, def_easychat_groups and def_easychat_list) -------
  * The phrase: FireRed's title and the count on the phrase's screen (kDevEcPhrase), the phrase's n slots as keys in two
  * rows (DevEcChip), BY GROUP and A TO Z across under them (DevEcMode), CLEAR, CONFIRM in the middle and CANCEL (dark,
- * in the exit corner) across the bottom (DevEcBottom at y 178, 52 tall). The groups: the title on the grid's title, the
- * groups' names as keys four across (DevEcCell); the letters: A..Z as keys in FireRed's rows of 6, 6, 7 and 7
- * (DevEcLetter); both with the toggle and BACK (dark) across the bottom (DevEcToggle). A list: its title over the
- * phrase on two lines (kDevEcListTitle), the words two a row (DevEcRow: rows) on the list's paper (kDevEcList) with the
- * rail on the same paper (kDevEcRail), ▲ ▼ as two tall keys at the right (kDevEcUp, kDevEcDown), USE WORD, the toggle
- * and BACK (dark, in the exit corner) across the bottom (DevEcBottom at y 196, 34 tall). A question: the phrase's
- * screen and slots dimmed, the question's note, YES and NO (kDevAskNote, kDevAskYes, kDevAskNo). */
+ * in the exit corner) across the bottom (DevEcBottom at y 178, 52 tall). The groups: the phrase and the count on the
+ * grid's title (kDevGridTitle), the groups' names as keys in a window of DEV_EC_GROUP_ROWS rows of three (DevEcCell)
+ * with ▲ ▼ in the grid's column (kDevGridUp, kDevGridDown: DevEcGroupStep); the letters: A..Z as keys in FireRed's rows
+ * of 6, 6, 7 and 7 (DevEcLetter); both over the grid's footer, the note and BACK (dark) in the exit corner (kDevGridNote,
+ * kDevGridExit). A list: its title over the phrase on two lines (kDevEcListTitle), the words two a row (DevEcRow:
+ * rows) on the list's paper (kDevEcList) with the rail on the same paper (kDevEcRail), ▲ ▼ as two tall keys at the
+ * right (kDevEcUp, kDevEcDown), USE WORD, the toggle and BACK (dark, in the exit corner) across the bottom (DevEcBottom
+ * at y 196, 34 tall). A question: the phrase's screen and slots dimmed, the question's note, YES and NO (kDevAskNote,
+ * kDevAskYes, kDevAskNo). */
 static const CtrPokeTouchRect kDevEcPhrase __attribute__((unused)) = {8, 8, 304, 36};
 static const CtrPokeTouchRect kDevEcListTitle __attribute__((unused)) = {8, 6, 304, 40};
 static const CtrPokeTouchRect kDevEcList __attribute__((unused)) = {8, 52, 236, 136};
@@ -569,10 +571,30 @@ static inline CtrPokeTouchRect DevEcBottom(int i, int y, int h)
     return r;
 }
 
-/* Group i (0-20): four across, six rows at most. */
+/* Place i (0 to 3 * DEV_EC_GROUP_ROWS - 1) of the groups' window: three across, 84x24, 4 px apart across and 5 down. */
+#define DEV_EC_GROUP_ROWS 5
 static inline CtrPokeTouchRect DevEcCell(int i)
 {
-    return DevAcross(4, i % 4, 40 + 27 * (i / 4), 24);
+    CtrPokeTouchRect r = {(int16_t)(8 + 88 * (i % 3)), (int16_t)(40 + 29 * (i / 3)), 84, 24};
+
+    return r;
+}
+
+/* The group the groups' ▲ (`down` 0) or ▼ walks FireRed's cursor to, a row of three up or down: from the cursor's
+ * group, or from the window's first group while the cursor is not on a group (FireRed's blue box); ▼ from the row
+ * before a short last row to the last group. -1 where there is no row that way, and both ways while the groups fit one
+ * window (Call 13). The drawer's and the touch's (3ds_bottom_easychat_impl.h) one rule. */
+static inline int DevEcGroupStep(const CtrPokeTouchEasy *e, int down)
+{
+    int n = e->groupCount, base = e->cell >= 0 && e->cell < n ? e->cell : 3 * e->groupFirst;
+
+    if (n <= 3 * DEV_EC_GROUP_ROWS)
+        return -1;
+    if (!down)
+        return base / 3 > 0 ? base - 3 : -1;
+    if (base / 3 >= (n - 1) / 3)
+        return -1;
+    return base + 3 < n - 1 ? base + 3 : n - 1;
 }
 
 /* Letter i (0-25, A..Z) where FireRed's A-Z keys lie: rows of 6, 6, 7 and 7 (from letters 0, 6, 12, 19), seven places
@@ -582,12 +604,6 @@ static inline CtrPokeTouchRect DevEcLetter(int i)
     int r = i < 6 ? 0 : i < 12 ? 1 : i < 19 ? 2 : 3;
 
     return DevAcross(7, i - (6 * r + (r == 3)), 40 + 32 * r, 28);
-}
-
-/* The groups' and the letters' bottom keys: 0 the toggle to the other order, 1 BACK. */
-static inline CtrPokeTouchRect DevEcToggle(int i)
-{
-    return DevAcross(2, i, 206, 26);
 }
 
 /* Row place k (0-11) of the list: two words a row, six rows, left of the rail. */

@@ -384,16 +384,18 @@ static void test_touch(void)
     tap(PT_EC_HIT_CELL + 0); assert(sRouteKey == K_A); sRouteKey = 0;                   /* the cell the game's cursor is on: its A */
     tap(PT_EC_HIT_CELL + 9); assert(sEcPlan.kind == EP_GROUP && sEcPlan.target == 9);
     memset(&sEcPlan, 0, sizeof(sEcPlan));
-    tap(PT_EC_HIT_CELL + PT_EC_CELL_TOGGLE); assert(sRouteKey == K_SELECT); sRouteKey = 0;
+    tap(PT_EC_HIT_CELL + PT_EC_CELL_TOGGLE); assert(!sRouteKey && !sEcPlan.kind);           /* no A TO Z key: nothing */
     tap(PT_EC_HIT_CELL + PT_EC_CELL_BACK); assert(sRouteKey == K_B); sRouteKey = 0;
-    /* the letters: Y and Z (cells 24 and 25) are letters, walked to as the others, apart from the order's key and BACK */
+    /* the letters: Y and Z (cells 24 and 25) are letters, walked to as the others, apart from BACK */
     game_open(14, 100, 0); G.state = 2; G.alpha = 1;
     shown(); assert(sShown.touch.ec.screen == PT_EC_LETTER && sShown.touch.ec.cell == 0);
     for (int letter = 24; letter < 26; ++letter) {
         tap(PT_EC_HIT_CELL + letter); assert(sEcPlan.kind == EP_LETTER && sEcPlan.target == letter && !sRouteKey);
         memset(&sEcPlan, 0, sizeof(sEcPlan));
     }
-    tap(PT_EC_HIT_CELL + PT_EC_CELL_TOGGLE); assert(sRouteKey == K_SELECT); sRouteKey = 0;
+    tap(PT_EC_HIT_CELL + PT_EC_CELL_TOGGLE); assert(!sRouteKey && !sEcPlan.kind);           /* no A TO Z key: nothing */
+    G.gx = -1; G.gy = 0; tap(PT_EC_HIT_CELL + PT_EC_CELL_TOGGLE); assert(!sRouteKey && !sEcPlan.kind);   /* not its A either */
+    G.gx = 0;
     tap(PT_EC_HIT_CELL + PT_EC_CELL_BACK); assert(sRouteKey == K_B); sRouteKey = 0;
     G.gx = 5; G.gy = 3; shown(); assert(sShown.touch.ec.cell == 24 && sShown.touch.ec.cell != PT_EC_CELL_TOGGLE);   /* the cursor on Y */
     G.gx = 6; shown(); assert(sShown.touch.ec.cell == 25 && sShown.touch.ec.cell != PT_EC_CELL_BACK);
@@ -437,6 +439,76 @@ static void test_touch(void)
     assert(G.wabove == 50 - PT_EC_ROWS);                                                /* its bottom: the last */
     gHitCode = -1; touch_at(0, 0, 0, 0); ProcessEasyTouch(&sIn); gRail = -1;
 }
+/* Review Focus 3: the groups' window of five rows of three (DevEcGroupStep, the fill's groupFirst) against FireRed's
+ * cursor in its own two columns. */
+static int game_group(void) { return 2 * (G.gy + G.gabove) + G.gx; }
+static void window_follows(void)
+{
+    const CtrPokeTouchEasy *e = &sShown.touch.ec;
+
+    shown();
+    assert(e->screen == PT_EC_GROUP && e->cell == game_group());
+    assert(e->cell / 3 >= e->groupFirst && e->cell / 3 < e->groupFirst + DEV_EC_GROUP_ROWS);
+    assert(e->groupFirst + DEV_EC_GROUP_ROWS <= (e->groupCount + 2) / 3 || e->groupFirst == 0);
+}
+static void test_group_window(void)
+{
+    const CtrPokeTouchEasy *e = &sShown.touch.ec;
+    int first;
+
+    /* 21 groups, seven rows of three: the D-pad down to group 18 (row 6) moves the window to row 2, the least it can;
+     * up to group 0 back to 0 */
+    game_open(21, 100, 0); EasyReset(); G.state = 2;
+    window_follows(); assert(e->groupFirst == 0);
+    while (game_group() < 18) {
+        first = e->groupFirst; game_key(K_DOWN); G.wait = 0; window_follows();
+        assert(e->groupFirst == (e->cell / 3 > first + 4 ? e->cell / 3 - 4 : first));      /* the least move */
+    }
+    assert(game_group() == 18 && e->groupFirst == 2);
+    game_key(K_DOWN); G.wait = 0; window_follows(); assert(game_group() == 20 && e->groupFirst == 2);   /* the last */
+    while (game_group() > 0) {
+        first = e->groupFirst; game_key(K_UP); G.wait = 0; window_follows();
+        assert(e->groupFirst == (e->cell / 3 < first ? e->cell / 3 : first));
+    }
+    assert(e->groupFirst == 0);
+    /* ▼ at group 0 walks FireRed's cursor to group 3 (a row of three) and chooses nothing; ▲ there does nothing; ▲ at
+     * group 3 walks back to 0 */
+    tap(PT_EC_HIT_DOWN); assert(sEcPlan.kind == EP_GROUP && sEcPlan.target == 3 && !sEcPlan.then && !sRouteKey);
+    for (int i = 0; i < 60 && sEcPlan.kind; ++i) frame();
+    settle(); assert(G.state == 2 && game_group() == 3);
+    window_follows(); assert(e->groupFirst == 0);
+    tap(PT_EC_HIT_UP); assert(sEcPlan.kind == EP_GROUP && sEcPlan.target == 0 && !sEcPlan.then);
+    for (int i = 0; i < 60 && sEcPlan.kind; ++i) frame();
+    settle(); assert(G.state == 2 && game_group() == 0);
+    tap(PT_EC_HIT_UP); assert(!sEcPlan.kind && !sRouteKey);
+    /* ▼ walks row by row to the last group, the window following; there ▼ does nothing, ▲ goes back a row */
+    for (int row = 1; row < 7; ++row) {
+        tap(PT_EC_HIT_DOWN); assert(sEcPlan.kind == EP_GROUP && sEcPlan.target == (3 * row < 20 ? 3 * row : 20));
+        for (int i = 0; i < 60 && sEcPlan.kind; ++i) frame();
+        settle(); window_follows(); assert(e->groupFirst == (row > 4 ? row - 4 : 0));
+    }
+    assert(game_group() == 18 && e->groupFirst == 2 && DevEcGroupStep(e, 1) == -1 && DevEcGroupStep(e, 0) == 15);
+    tap(PT_EC_HIT_DOWN); assert(!sEcPlan.kind && !sRouteKey);
+    /* a list and back: the window kept (FireRed's cursor on the group it opened); the phrase and back: from row 0 */
+    game_key(K_A); G.wait = 0; assert(G.state == 3); shown(); game_key(K_B); G.wait = 0; window_follows();
+    assert(game_group() == 18 && e->groupFirst == 2);
+    G.gx = 1; G.gy = 3; G.gabove = 1; window_follows(); assert(game_group() == 9 && e->groupFirst == 2);
+    game_key(K_B); G.wait = 0; assert(G.state == 0); shown();
+    G.state = 2; window_follows(); assert(game_group() == 9 && e->groupFirst == 0);                  /* entered again */
+    /* FireRed's blue box: ▼ from the window's first row */
+    G.gx = 0; G.gy = 3; G.gabove = 6; window_follows(); assert(game_group() == 18 && e->groupFirst == 2);
+    G.gx = -1; G.gy = 0; shown(); assert(e->cell == PT_EC_CELL_TOGGLE && e->groupFirst == 2);
+    assert(DevEcGroupStep(e, 1) == 9 && DevEcGroupStep(e, 0) == 3);
+    /* 14 groups fit one window: ▲ ▼ go nowhere, both ways, whatever the cursor */
+    game_open(14, 100, 0); EasyReset(); G.state = 2;
+    for (int t = 0; t < 14; ++t) {
+        G.gx = t % 2; G.gy = t / 2 < 4 ? t / 2 : 3; G.gabove = t / 2 - G.gy; window_follows();
+        assert(e->groupFirst == 0 && DevEcGroupStep(e, 0) == -1 && DevEcGroupStep(e, 1) == -1);
+    }
+    tap(PT_EC_HIT_DOWN); assert(!sEcPlan.kind && !sRouteKey);
+    tap(PT_EC_HIT_UP); assert(!sEcPlan.kind && !sRouteKey);
+    EasyReset(); assert(sEcGroupFirst == 0);
+}
 static void test_fill(void)
 {
     game_open(21, 100, 1);
@@ -476,6 +548,7 @@ int main(void)
     test_toggle_and_pref();
     test_cancel_and_limits();
     test_touch();
+    test_group_window();
     puts("PASS Easy Chat walks against the model of the game's screen");
     return 0;
 }

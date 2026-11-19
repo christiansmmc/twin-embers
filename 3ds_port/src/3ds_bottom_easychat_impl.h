@@ -5,7 +5,7 @@
  * game's own keys, one a frame (a frame without between them), the state read again every frame, so it never goes out of step: a physical
  * key cancels the walk, and it gives up after PLAN_LIMIT frames or when the cursor stops moving. */
 
-#include "3ds_device_layout.h"          /* Easy Chat's rectangles, as 3ds_device_easychat_impl.h draws them */
+#include "3ds_device_layout.h"          /* the groups' window and its ▲ ▼ (DEV_EC_GROUP_ROWS, DevEcGroupStep), as drawn */
 
 extern int CtrBottomEasyChat_IsOpen(void);
 extern int CtrBottomEasyChat_Ready(void);
@@ -34,14 +34,34 @@ static int sEcRelease;              /* the frame without a key between two */
 static int sEcPref = -1;            /* the editor's mode buttons: the order the next word is picked in (-1: the game's) */
 static int sEcPrev = -1;            /* the game's state a frame ago */
 static int sEcEntry;                /* the group screen was just entered from the phrase */
+static int sEcGroupFirst;           /* the groups' window: its first row of three (0 again on the phrase) */
 
 static void EasyReset(void)
 {
     memset(&sEcTap, 0, sizeof(sEcTap));
     sEcTap.code = -1;
     memset(&sEcPlan, 0, sizeof(sEcPlan));
-    sEcRelease = sEcEntry = 0;
+    sEcRelease = sEcEntry = sEcGroupFirst = 0;
     sEcPref = sEcPrev = -1;
+}
+
+/* The groups' window as FireRed's cursor leaves it: moved the least that keeps the cursor's group's row (of three) in its
+ * DEV_EC_GROUP_ROWS rows (not while the cursor is in FireRed's blue box), within the groups' rows; kept from frame to
+ * frame (and across a group's list). */
+static int EasyGroupFirst(const CtrPokeTouchEasy *e)
+{
+    int rows = (e->groupCount + 2) / 3, last = rows > DEV_EC_GROUP_ROWS ? rows - DEV_EC_GROUP_ROWS : 0;
+
+    if (e->cell >= 0 && e->cell < e->groupCount) {
+        int row = e->cell / 3;
+
+        if (row < sEcGroupFirst)
+            sEcGroupFirst = row;
+        else if (row >= sEcGroupFirst + DEV_EC_GROUP_ROWS)
+            sEcGroupFirst = row - (DEV_EC_GROUP_ROWS - 1);
+    }
+    sEcGroupFirst = sEcGroupFirst > last ? last : sEcGroupFirst < 0 ? 0 : sEcGroupFirst;
+    return sEcGroupFirst;
 }
 
 /* A letter of the A-Z grid as the game's cursor lies on it (rows of 6, 6, 7, 7), and back. */
@@ -68,8 +88,10 @@ static int EasyFill(CtrPokeTouchEasy *e, int pressed)
 
     memset(e, 0, sizeof(*e));
     if (!CtrBottomEasyChat_Ready()) {
-        if (!CtrBottomEasyChat_IsOpen())
+        if (!CtrBottomEasyChat_IsOpen()) {
             sEcPref = sEcPrev = -1;
+            sEcGroupFirst = 0;
+        }
         return 0;
     }
     state = CtrBottomEasyChat_Get(EC_STATE);
@@ -96,6 +118,7 @@ static int EasyFill(CtrPokeTouchEasy *e, int pressed)
     if (e->screen == PT_EC_EDIT) {
         int row = CtrBottomEasyChat_Get(EC_MAIN_ROW), col = CtrBottomEasyChat_Get(EC_MAIN_COL);
 
+        sEcGroupFirst = 0;                  /* the groups are entered again from their first row */
         if (base == EC_ST_FIELD && cols > 0 && row * cols + col < n)
             e->cursor = (int8_t)(row * cols + col);
         else if (base == EC_ST_FOOTER)
@@ -112,8 +135,10 @@ static int EasyFill(CtrPokeTouchEasy *e, int pressed)
             CtrBottomEasyChat_GroupName(i, e->group[i], sizeof(e->group[i]));
         if (gx >= 0)
             e->cell = (int8_t)(letters ? EasyLetterAt(gx, gy) : 2 * (gy + above) + gx);
-        else                                /* the game's blue box: A-Z, DELETE (the phrase's word: not drawn), BACK */
+        else                                /* the game's blue box: A-Z, DELETE (the phrase's word), BACK: BACK alone drawn */
             e->cell = (int8_t)(gy == 0 ? PT_EC_CELL_TOGGLE : gy == 2 ? PT_EC_CELL_BACK : -1);
+        if (!letters)
+            e->groupFirst = (uint8_t)EasyGroupFirst(e);
     } else if (e->screen == PT_EC_LIST) {
         int count = CtrBottomEasyChat_Get(EC_LISTED), rows = (count + 1) / 2, last = rows > PT_EC_ROWS ? rows - PT_EC_ROWS : 0;
         int wa = CtrBottomEasyChat_Get(EC_WORD_ABOVE);
@@ -309,7 +334,8 @@ static void RunEasyPlan(int on)
 }
 
 /* The touch: a tap on a chip, group, letter, word or button is walked to and taken (a tap on what the game's cursor is on is its A); the rail
- * is a slider, a tap jumping to where it is pressed and a drag following the finger (the scroll walked to every frame). */
+ * is a slider, a tap jumping to where it is pressed and a drag following the finger (the scroll walked to every frame); the groups' ▲ ▼ walk
+ * the game's cursor a row of three (DevEcGroupStep), taking nothing. */
 static void ProcessEasyTouch(const CtrInput *in)
 {
     const CtrPokeTouchEasy *e = &sShown.touch.ec;
@@ -382,14 +408,17 @@ static void ProcessEasyTouch(const CtrInput *in)
             sRouteKey = K_A;
         else if (code == PT_EC_HIT_TOGGLE)
             EasyPlanStart(EP_TOGGLE, 0, 0);
-    } else if (code >= PT_EC_HIT_CELL && code <= PT_EC_HIT_CELL + PT_EC_CELL_BACK) {
+    } else if (code == PT_EC_HIT_UP || code == PT_EC_HIT_DOWN) {
+        int target = e->screen == PT_EC_GROUP ? DevEcGroupStep(e, code == PT_EC_HIT_DOWN) : -1;
+
+        if (target >= 0)
+            EasyPlanStart(EP_GROUP, target, 0);
+    } else if (code == PT_EC_HIT_CELL + PT_EC_CELL_BACK)
+        sRouteKey = K_B;
+    else if (code >= PT_EC_HIT_CELL && code < PT_EC_HIT_CELL + PT_EC_CELL_TOGGLE) {     /* a group or a letter (no A-Z key) */
         int cell = code - PT_EC_HIT_CELL;
 
-        if (cell == PT_EC_CELL_TOGGLE)
-            sRouteKey = K_SELECT;
-        else if (cell == PT_EC_CELL_BACK)
-            sRouteKey = K_B;
-        else if (cell == e->cell)
+        if (cell == e->cell)
             sRouteKey = K_A;
         else
             EasyPlanStart(e->screen == PT_EC_LETTER ? EP_LETTER : EP_GROUP, cell, 1);
