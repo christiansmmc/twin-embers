@@ -208,6 +208,23 @@ static void SuiteDex(void)
     assert(Count(r.x + 74, r.y + 18, 68, 8, DEV_KEY_INK) > 0 && Count(r.x + 74, r.y + 36, 68, 8, DEV_KEY_INK) > 0);
     assert(Count(r.x + 74, r.y, 68, 17, DEV_KEY_INK) == 0 && Count(r.x + 74, r.y + 26, 68, 10, DEV_KEY_INK) == 0 && Count(r.x + 74, r.y + 44, 68, 22, DEV_KEY_INK) == 0);
     r = DevDexSlot(0); assert(DexArtAt(DEV_ART_PICTURE, r.x + 4, r.y + DEV_SINK + 1, 64, 64) && Count(r.x + 6, r.y + DEV_SINK + 4, 8, 8, STUB_MARK) == 8 * 8);
+    /* ...on its face, sunk too: DevKey sinks the whole 66-row face (its last row r.y + 67, the one-row drop under it),
+     * the picture's 64 rows from faceY + 1 end on faceY + 64 */
+    assert(DEV_SINK + 1 + 64 <= DEV_SINK + r.h - 1 && at(r.x + 100, r.y + DEV_SINK + r.h - 1) == DEV_SUNK && at(r.x + 100, r.y + DEV_SINK + r.h) != DEV_SUNK);
+    /* a slot's name: the widest FireRed has (WIGGLYTUFF, 60 px of the 68 in its font) fits; one wider (W made 8 px: eleven
+     * of them, 88) is cut at x + w - 6 and counted, once a draw */
+    other = cv; strcpy(other.dex.mon[1].name, "Wigglytuff"); DevCheckTouch(&old, &other);
+    sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &other); assert(sDevKeyCut == 0);
+    {
+        uint8_t keepW = fontWidths[0xd1];                                   /* FireRed's W */
+
+        fontWidths[0xd1] = 8; memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        strcpy(other.dex.mon[1].name, "WWWWWWWWWWW"); DevCheckTouch(&old, &other);
+        sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &other); assert(sDevKeyCut == 1); sDevKeyCut = 0;
+        r = DevDexSlot(1); assert(Count(r.x + r.w - 6, r.y, 6, r.h, DEV_KEY_INK) == 0);   /* nothing past the cut */
+        fontWidths[0xd1] = keepW; memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        CtrPokeTouch_Draw(canvas, &old);
+    }
     v.dex.canPrev = 1; DevCheckTouch(&old, &v); AssertHits(DexHitV, &v, kDevSmallKey[0], PT_DEX_HIT_PREV);
     v.dex.state = PT_DEX_STATE_PAGE; DevCheckTouch(&old, &v); AssertHits(DexHitV, &v, kDevDexArea, PT_DEX_HIT_AREA); AssertHits(DexHitV, &v, kDevDexCry, PT_DEX_HIT_CRY);
     v.dex.sel.flags = 1; DevCheckTouch(&old, &v); assert(Count(110, 56, 196, 14, UiTypeColor(v.dex.type[0])) == 0);        /* seen only: no type chips */

@@ -558,14 +558,17 @@ static void DevDexList(const CtrPokeTouchView *v)
 }
 
 /* Slot i of a habitat's page (m its Pokemon, `sunk` chosen), a key on the menu's rows: the picture of one seen (64x64
- * at x + 4, faceY + 1) beside its number and its name (from x + 74, capitals faceY + 18 and faceY + 36); a caught
- * one's mark at its top-left corner, over the picture (v0.6.0's place: x + 6, faceY + 4). */
+ * at x + 4, faceY + 1: rows faceY + 1 to faceY + 64 of the 66-tall face, up or sunk) beside its number and its name
+ * (from x + 74, capitals faceY + 18 and faceY + 36, ending by x + w - 6: a name wider is cut there and counted in
+ * sDevKeyCut, though none FireRed has is: WIGGLYTUFF's 60 px of the 68); a caught one's mark at its top-left corner,
+ * over the picture (v0.6.0's place: x + 6, faceY + 4). */
 static void DevDexSlotDraw(const CtrPokeTouchDexMon *m, int i, int sunk)
 {
     CtrPokeTouchRect r = DevDexSlot(i);
     int faceY = DevKey(&r, DEV_LOOK_KEY, sunk, 6), x = r.x + 74, end = r.x + r.w - 6;
     uint16_t ink = DevKeyInk(DEV_LOOK_KEY, sunk), shadow = DevKeyInkShadow(DEV_LOOK_KEY, sunk);
     char text[DEV_DEX_WORD];
+    const char *name;
 
     if (m->flags & 1) {
         DevArt(DEV_ART_PICTURE, r.x + 4, faceY + 1, 64, 64);
@@ -577,7 +580,10 @@ static void DevDexSlotDraw(const CtrPokeTouchDexMon *m, int i, int sunk)
     }
     DevDexNumber(m->number, text, sizeof(text));
     DevTextInk(text, x, faceY + 18, end, ink, shadow);
-    DevTextInk(DevDexName(m, "?????", text, sizeof(text)), x, faceY + 36, end, ink, shadow);
+    name = DevDexName(m, "?????", text, sizeof(text));
+    if (DevTextWidth(name) > end - x)
+        ++sDevKeyCut;
+    DevTextInk(name, x, faceY + 36, end, ink, shadow);
 }
 
 /* A habitat's page (CATEGORY): the menu's grid (no board of its own). */
