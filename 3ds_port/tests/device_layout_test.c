@@ -630,12 +630,14 @@ static int ScreensFaults(void)
 /* The Pokedex (def_dex_menu): the top menu's tabs are the grid's three (DevGridTab(3, i), the Bag's pockets' places);
  * its six keys a page (the board's: three across 8 px apart, two rows 72 apart, 66 tall) and a habitat's four slots on
  * the same rows lie in MEIO, their drops ending by 187, and apart; the ordered list (def_dex_list) shows the grid's
- * five rows (DevGridRow, GridFaults); a Pokemon's page on the tall screen's paper: the picture, the data beside it and
- * short of the footprint, the rule under them and the entry under the rule. */
+ * five rows (DevGridRow, GridFaults); a Pokemon's page on the tall screen's paper (def_dex_page): the picture, the data
+ * and its HT and WT rows beside it and short of the footprint, the rule under them and the entry (four lines 14 apart)
+ * under the rule. */
 static int DexFaults(void)
 {
     const CtrPokeTouchRect tallPaper = {14, 14, 292, 160};
-    const CtrPokeTouchRect page[5] = {kDevDexPic, kDevDexData, kDevDexFoot, kDevDexRule, kDevDexEntry};
+    const CtrPokeTouchRect page[7] = {kDevDexPic, kDevDexData, kDevDexFoot, kDevDexRule, kDevDexEntry, DevDexDataRow(0),
+                                      DevDexDataRow(1)};
     int faults = 0;
 
     for (int i = 0; i < 6; ++i) {
@@ -669,9 +671,13 @@ static int DexFaults(void)
     }
     assert(PT_DEX_ROWS == DEV_GRID_ROWS);
     assert(Same(kDevDexPic, (CtrPokeTouchRect){20, 20, 80, 80}) && kDevDexFoot.x == 282 && kDevDexFoot.y == 20
-           && kDevDexEntry.w == 280 && kDevDexEntry.h >= 5 * 13);
+           && kDevDexEntry.w == 280 && kDevDexEntry.h >= 4 * 14);
+    assert(Same(kDevDexRule, (CtrPokeTouchRect){20, 106, 280, 1})       /* def_dex_page: capitals 115, 129, 143, 157 */
+           && Same(kDevDexEntry, (CtrPokeTouchRect){20, 112, 280, 62}));
+    assert(Same(DevDexDataRow(0), (CtrPokeTouchRect){110, 74, 130, 14})
+           && Same(DevDexDataRow(1), (CtrPokeTouchRect){110, 88, 130, 14}));  /* HT, WT */
     assert(Same(kDevDexArea, (CtrPokeTouchRect){8, 188, 110, 42}) && Same(kDevDexCry, (CtrPokeTouchRect){126, 188, 110, 42}));
-    for (int i = 0; i < 5; ++i)
+    for (int i = 0; i < 7; ++i)
         if (!Within(page[i], tallPaper, 0)) {
             fprintf(stderr, "Pokedex: piece %d of a Pokemon's page leaves the paper\n", i);
             ++faults;
@@ -681,6 +687,15 @@ static int DexFaults(void)
         || kDevDexEntry.y < kDevDexRule.y + kDevDexRule.h) {
         fprintf(stderr, "Pokedex: a Pokemon's page's pieces meet each other\n");
         ++faults;
+    }
+    for (int i = 0; i < 2; ++i) {           /* HT and WT: beside the picture, short of the footprint, above the rule */
+        CtrPokeTouchRect r = DevDexDataRow(i);
+
+        if (r.x < kDevDexPic.x + kDevDexPic.w || r.x + r.w > kDevDexFoot.x || r.y + r.h > kDevDexRule.y
+            || (i && r.y < DevDexDataRow(i - 1).y + DevDexDataRow(i - 1).h)) {      /* rows, not keys: no drop */
+            fprintf(stderr, "Pokedex: data row %d meets another piece of the page\n", i);
+            ++faults;
+        }
     }
     if (kDevTallScreen.y + kDevTallScreen.h + 1 > kDevDexArea.y) {
         fprintf(stderr, "Pokedex: AREA and CRY meet the screen\n");
@@ -984,6 +999,7 @@ int main(void)
         {"Pokedex menu key 0", DevDexItem(0)}, {"Pokedex menu key 5", DevDexItem(5)}, {"Pokedex slot 0", DevDexSlot(0)},
         {"Pokedex slot 3", DevDexSlot(3)}, {"Pokedex picture", kDevDexPic}, {"Pokedex data", kDevDexData},
         {"Pokedex footprint", kDevDexFoot}, {"Pokedex rule", kDevDexRule}, {"Pokedex entry", kDevDexEntry},
+        {"Pokedex HT row", DevDexDataRow(0)}, {"Pokedex WT row", DevDexDataRow(1)},
         {"Pokedex AREA", kDevDexArea}, {"Pokedex CRY", kDevDexCry},
         {"move to forget's column", kDevLearnColumn}, {"move to forget's picture", kDevLearnPic},
         {"move to forget's slot 0", DevLearnSlot(0)}, {"move to forget's rule", kDevLearnRule},

@@ -905,6 +905,30 @@ static void KitSmallWordCut(void)
     assert(DevSmallWrapRun(kWide, x, x, 198, right, 3, DEV_SMALL_LINE, DEV_INK, 0) == 1 && sDevKeyCut == 0);
 }
 
+/* The same in the normal font (DevWrap, DevWrapPitch): a word wider than a whole line is drawn cut at the line's end,
+ * nothing past it, and counted once a draw, alone or starting the second line; a text that fits its lines counts
+ * nothing, nor does DevWrapLines, which only counts lines. */
+static void KitWordCut(void)
+{
+    static const char kWide[] = "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW";       /* 30 W's: over 100 px in either font */
+    char text[64];
+    int x = 20, room = 100, right = x + room;
+
+    assert(DevTextWidth(kWide) > room && DevTextWidth("AB CD") <= room);
+    clear(SENTINEL); sDevKeyCut = 0;
+    assert(DevWrap(kWide, x, 100, room, 3, DEV_INK, DEV_INK_SH) == 1 && sDevKeyCut == 1);
+    assert(Count(x, 100, room, 9, DEV_INK) > 0 && Count(right, 0, W - right, H, DEV_INK) == 0
+           && Count(right, 0, W - right, H, DEV_INK_SH) == 0);
+    snprintf(text, sizeof(text), "AB %s", kWide);
+    clear(SENTINEL); sDevKeyCut = 0;
+    assert(DevWrapPitch(text, x, 100, room, 3, 14, DEV_INK, DEV_INK_SH) == 2 && sDevKeyCut == 1);
+    assert(Count(x, 114, room, 9, DEV_INK) > 0 && Count(right, 0, W - right, H, DEV_INK) == 0
+           && Count(right, 0, W - right, H, DEV_INK_SH) == 0);
+    clear(SENTINEL); sDevKeyCut = 0;
+    assert(DevWrap("AB CD EF GH IJ KL", x, 100, DevTextWidth("AB CD"), 3, DEV_INK, DEV_INK_SH) == 3 && sDevKeyCut == 0);
+    assert(DevWrapLines(kWide, room, 3) == 1 && DevWrapLines(text, room, 3) == 2 && sDevKeyCut == 0);
+}
+
 /* The HP and PP colours of FireRed's own battle screens (the top screen shows the same). */
 static void KitBarLevels(void)
 {
@@ -1063,6 +1087,13 @@ static void KitPieces(void)
     /* a footer's small text that needs more lines than it is given is cut, and counted */
     sDevKeyCut = 0; assert(DevSmallFit(kLongWords, 20, 20, 198, 224, 1, DEV_SMALL_LINE, DEV_INK) == 1 && sDevKeyCut == 1); sDevKeyCut = 0;
     KitSmallWordCut();                                      /* ...as is a word wider than its line */
+    KitWordCut();                                           /* ...in either font */
+    /* a row's value wider than the room its label leaves: cut with "..." by the row's end and counted; one that fits
+     * not */
+    p = (CtrPokeTouchRect){110, 74, 130, 14};
+    clear(SENTINEL); sDevKeyCut = 0; DevLabelValue(&p, "HT", "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW");
+    assert(sDevKeyCut == 1 && Count(150, 76, 90, 9, DEV_INK) > 0 && Count(240, 0, W - 240, H, DEV_INK) == 0);
+    sDevKeyCut = 0; DevLabelValue(&p, "HT", "3'03\""); assert(sDevKeyCut == 0);
     KitRowsThreeToFive();
 }
 

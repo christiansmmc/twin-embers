@@ -1,5 +1,6 @@
 /* ---- dex: the Pokedex as the red device, through the field dispatcher (the menu and a habitat's page on the grid,
- * def_dex_menu; the list on the grid's five rows, def_dex_list; plan 3 Task 3, plan 04b Tasks 6-7) --------------------
+ * def_dex_menu; the list on the grid's five rows, def_dex_list; a Pokemon's page and a catch's, def_dex_page and
+ * def_dex_added; plan 3 Task 3, plan 04b Tasks 6-8) -------------------------------------------------------------------
  * Included by device_render_test.c before its kSuites. Also the harness's caught mark and menu icons while a suite sets
  * dexArt (none otherwise, as the other art stubs): CtrPokeTouch_DexCaughtMarker an 8x8 tile in STUB_MARK,
  * CtrPokeTouch_DexMenuIcon a 64x48 frame 1 px wide in STUB_DEX_ICON (the board's stand-in's border). */
@@ -157,15 +158,22 @@ static void DexUpperCase(CtrPokeTouchView v)
     TouchSamePixels(&cased, &v, 0, "the entry, as FireRed writes it");
 }
 
+/* A port-written entry in capitals: three lines of 280 px in the stub's and FireRed's widths, six with its capitals 12
+ * wide. */
+static const char kFiveLines[] = "PORT WORDS FOR THIS TEST THAT NEED A FIFTH LINE ON THE PAGE ONCE EVERY CAPITAL "
+                                 "IS DRAWN TWELVE PIXELS WIDE SO THE FIFTH IS COUNTED";
+
 /* The plan's suite (every key, row and slot hit where it is drawn; ▲ ▼ grey and not hit at the list's ends; the
  * seen-only row without its mark and its page without type chips; BACK where drawn), the review's checks (a touch
  * chooses, the menu's pages and tabs, CLOSE, what is not drawn, BACK's states, the ways in and out, upper case), then
  * the states for the eye. */
 static void SuiteDex(void)
 {
-    CtrPokeTouchView v = DexBoard(), old = v, other, lv, cv;
+    CtrPokeTouchView v = DexBoard(), old = v, other, lv, cv, av;
     CtrPokeTouchRect r;
-    int i;
+    uint8_t keep[256];
+    unsigned c;
+    int i, w;
 
     dexArt = 1;
     memset(sDevDexIcon, 0, sizeof(sDevDexIcon));            /* the icons decoded again, with the stub's art */
@@ -405,19 +413,78 @@ static void SuiteDex(void)
     other.dex.category = 0; TouchSamePixels(&v, &other, 0, "another habitat on the title");
     CtrPokeTouch_Draw(canvas, &old);
 
-    /* PAGE: the type chips of a caught one, the rule, the entry; AREA and CRY up (sunk under a touch), BACK in the
-     * Summary's place; the page a catch added: OK sunk, nothing else hit, no BACK */
+    /* PAGE (def_dex_page): the type chips of a caught one; HT and WT on DevDexDataRow (the labels' capitals 77 and 91,
+     * the values' 76 and 90 ending at 240); the rule at y 106 (DEV_RULE); the entry from capitals 115, 14 apart; AREA
+     * and CRY up (sunk under a touch), BACK in the Summary's place */
     v = DexBoard(); v.dex.state = PT_DEX_STATE_PAGE; DevCheckTouch(&old, &v);
     assert(Count(110, 56, 196, 14, UiTypeColor(12)) > 0 && Count(110, 56, 196, 14, UiTypeColor(3)) > 0);
-    assert(Count(kDevDexRule.x, kDevDexRule.y, kDevDexRule.w, kDevDexRule.h, DEV_INK_SH) == kDevDexRule.w);
-    assert(Count(20, 108, 280, 64, DEV_INK) > 0 && Count(110, 18, 168, 36, DEV_INK) > 0 && Count(110, 70, 120, 30, DEV_INK2) > 0);
+    assert(at(100, 106) == DEV_RULE && Count(20, 115, 280, 9, DEV_INK) > 0 && Count(110, 77, 20, 7, DEV_INK2) > 0
+           && Count(200, 76, 40, 9, DEV_INK) > 0 && Count(241, 72, 40, 30, DEV_INK) == 0);
+    assert(Count(kDevDexRule.x, kDevDexRule.y, kDevDexRule.w, kDevDexRule.h, DEV_RULE) == kDevDexRule.w
+           && at(19, 106) != DEV_RULE && at(300, 106) != DEV_RULE && Count(20, 105, 280, 1, DEV_RULE) == 0
+           && Count(20, 107, 280, 1, DEV_RULE) == 0);
+    assert(Count(110, 76, 20, 1, DEV_INK2) == 0 && Count(110, 91, 20, 7, DEV_INK2) > 0
+           && Count(200, 90, 40, 9, DEV_INK) > 0 && Count(230, 76, 10, 9, DEV_INK) > 0
+           && Count(230, 90, 10, 9, DEV_INK) > 0);
+    assert(Count(14, 107, 292, 7, DEV_INK) == 0 && Count(20, 129, 280, 9, DEV_INK) > 0);    /* the entry's lines 1-2 */
+    /* an entry of five lines: four drawn (the fourth's capitals at 157, nothing between the third's and it), the fifth
+     * left out and counted, once a draw; three lines as the fonts are (the capitals made 12 wide for that one draw, as
+     * the choice suite's priced label: no font makes 199 bytes of words five lines of 280 px; drawn without BACK, whose
+     * German word widens past its key too) */
+    other = v; strcpy(other.dex.desc, kFiveLines); DevCheckTouch(&old, &other); assert(sDevKeyCut == 0);
+    other.backVisible = 0; memcpy(keep, fontWidths, sizeof(keep));
+    for (c = 0xbb; c <= 0xd4; ++c) fontWidths[c] = 12;                               /* A..Z */
+    memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &other);                                /* one draw: one cut */
+    assert(Count(20, 157, 280, 9, DEV_INK) > 0 && sDevKeyCut == 1); sDevKeyCut = 0;
+    assert(Count(20, 143, 280, 9, DEV_INK) > 0 && Count(14, 152, 292, 5, DEV_INK) == 0
+           && Count(14, 167, 292, 7, DEV_INK) == 0);
+    memcpy(fontWidths, keep, sizeof(keep)); memset(sPtFontReady, 0, sizeof(sPtFontReady));
+    CtrPokeTouch_Draw(canvas, &old);                                                  /* the canvas as `old` again */
+    DevCheckTouch(&old, &v);
     AssertKey(kDevDexArea, DEV_LOOK_KEY, 0); AssertKey(kDevDexCry, DEV_LOOK_KEY, 0); AssertKey(kDevTallBack, DEV_LOOK_DARK, 0);
     AssertHits(BackV, &v, kDevTallBack, 1); assert(CtrPokeTouch_DexHit(&v, 160, 90) == -1);
     v.dex.pressed = PT_DEX_HIT_AREA; DevCheckTouch(&old, &v); AssertKey(kDevDexArea, DEV_LOOK_KEY, 1); AssertKey(kDevDexCry, DEV_LOOK_KEY, 0);
     v.dex.pressed = PT_DEX_HIT_CRY; DevCheckTouch(&old, &v); AssertKey(kDevDexCry, DEV_LOOK_KEY, 1);
-    v.dex.pressed = -1; v.dex.added = 1; DevCheckTouch(&old, &v); AssertKey(kDevWideKey, DEV_LOOK_KEY, 1);
-    assert(!BackV(&v, 278, 209) && !BackV(&v, 247, 220) && at(247, 212) == DEV_SUNK && at(60, 212) == DEV_SUNK);
-    v.dex.added = 0; DevCheckTouch(&old, &v);
+    v.dex.pressed = -1; DevCheckTouch(&old, &v);
+    /* the page a catch added (def_dex_added): REGISTERED on its chip (DEV_TAG_NEW, 14 tall, the word's small width and
+     * 8, ending at 278 at y 20, the word white over the chip's shadow); OK alone, up, sunk only under a touch (of it or
+     * of the screen: the fill gives PT_DEX_HIT_CONTINUE for both), the whole drawn again; nothing else hit, no BACK */
+    av = v; av.dex.added = 1; DevCheckTouch(&old, &av); w = DevSmallTextWidth(DevDexNewWord()) + 8;
+    assert(Count(278 - w, 20, w, 14, DEV_TAG_NEW) > 0 && at(279, 27) != DEV_TAG_NEW);
+    AssertKey(kDevWideKey, DEV_LOOK_KEY, 0);
+    assert(at(278 - w, 20) == DEV_TAG_NEW && at(277, 33) == DEV_TAG_NEW && at(277 - w, 27) != DEV_TAG_NEW
+           && at(278 - w, 19) != DEV_TAG_NEW && at(278 - w, 34) != DEV_TAG_NEW && at(278, 27) != DEV_TAG_NEW);
+    assert(Count(278 - w, 20, w, 14, DEV_WHITE) > 0 && Count(278 - w, 20, w, 14, DevChipShadow(DEV_TAG_NEW)) > 0);
+    assert(!BackV(&av, 278, 209) && !BackV(&av, 247, 220) && at(247, 212) == DEV_KEY && at(60, 212) == DEV_KEY);
+    AssertHits(DexHitV, &av, kDevWideKey, PT_DEX_HIT_CONTINUE);
+    assert(CtrPokeTouch_DexHit(&av, 160, 90) == PT_DEX_HIT_CONTINUE);
+    av.dex.pressed = PT_DEX_HIT_CONTINUE; assert(DevWhole(DevCheckTouch(&old, &av)));
+    AssertKey(kDevWideKey, DEV_LOOK_KEY, 1);
+    assert(at(247, 214) == DEV_SUNK && at(60, 214) == DEV_SUNK && Count(278 - w, 20, w, 14, DEV_TAG_NEW) > 0);
+    av.dex.pressed = -1; assert(DevWhole(DevCheckTouch(&old, &av))); AssertKey(kDevWideKey, DEV_LOOK_KEY, 0);
+    /* the name ends 4 px before the tag, or 4 px before the footprint without it: one wider (W made 16 px) is cut there
+     * and counted, once a draw. FireRed's widest names (ten capitals: 60 px in its font and in the stub's 6 px, to
+     * x 213-214) fit beside REGISTERED and REGISTRADO. German's REGISTRIERT is 59 px wide on its chip in FireRed's
+     * small font (the name's room to 215) but 63 with the stub's 5 px small glyphs (to 211): the label-fit build's stub
+     * is wider than FireRed's there, so German leaves this one check out */
+#if !CTR_LANG_DE
+    other = av; strcpy(other.dex.sel.name, "Wigglytuff"); other.dex.sel.number = 40;
+    sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &other); assert(sDevKeyCut == 0);
+#endif
+    {
+        uint8_t keepW = fontWidths[0xd1];                                   /* FireRed's W */
+
+        fontWidths[0xd1] = 16; memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        other = av; strcpy(other.dex.sel.name, "WWWWWWWWWWW");
+        sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &other); assert(sDevKeyCut == 1); sDevKeyCut = 0;
+        assert(Count(274 - w, 14, 4, 40, DEV_INK) == 0 && Count(238 - w, 22, 36, 8, DEV_INK) > 0);
+        other.dex.added = 0; sDevKeyCut = 0; CtrPokeTouch_Draw(canvas, &other); assert(sDevKeyCut == 1); sDevKeyCut = 0;
+        assert(Count(278, 14, 4, 40, DEV_INK) == 0 && Count(242, 22, 36, 8, DEV_INK) > 0);
+        fontWidths[0xd1] = keepW; memset(sPtFontReady, 0, sizeof(sPtFontReady));
+        CtrPokeTouch_Draw(canvas, &old);
+    }
+    DevCheckTouch(&old, &v);
 
     /* BUSY with nothing kept: the shell, nothing hit; what the Pokedex does not draw presents nothing; the shell's
      * colour whole; the ways in and out (HOME; the AREA page: FireRed's picture in the frame's screen, no Pokedex) */

@@ -355,7 +355,8 @@ static inline CtrPokeTouchRect DevCardBadge(int i)
     return r;
 }
 
-/* ---- The Pokedex (the top menu: def_dex_menu; the list: def_dex_list; 3ds_device_dex_impl.h) ------------------------
+/* ---- The Pokedex (the top menu: def_dex_menu; the list: def_dex_list; a Pokemon's page: def_dex_page, def_dex_added;
+ * 3ds_device_dex_impl.h) ---------------------------------------------------------------------------------------------
  * The top menu: its three sections as the grid's tabs (DevGridTab(3, i)), the shown section's rows as keys six to a
  * page in MEIO (DevDexItem: FireRed's menu icon over the row's name), SEEN and OWNED in the small note with ▲ ▼
  * (kDevSmallKey) turning the pages, CLOSE (FireRed's CLOSE POKeDEX row) in the grid's exit (kDevGridExit). An ordered
@@ -363,16 +364,26 @@ static inline CtrPokeTouchRect DevCardBadge(int i)
  * on themselves) and ▲ ▼, the selected Pokemon's types and kind on the grid's note, BACK in the exit. A habitat's
  * page (no board: the menu's grid): the habitat and the page on the title, its Pokemon in four slots on the menu's rows
  * (DevDexSlot: the picture beside the number and the name), the selected one in the small note, ◀ ▶ (the small keys)
- * and BACK in the exit. A Pokemon's page: the tall screen (the picture in kDevDexPic, the number, name, kind, types,
- * height and weight in kDevDexData, the footprint in kDevDexFoot, the entry in kDevDexEntry under kDevDexRule), AREA,
- * CRY and the BACK (kDevTallBack) under it; the page a catch has just added: OK, the wide key, instead. */
+ * and BACK in the exit. A Pokemon's page: the tall screen (the picture in kDevDexPic; the number, name, kind and types
+ * in kDevDexData, a catch's REGISTERED ending at its right; height and weight on DevDexDataRow; the footprint in
+ * kDevDexFoot; the entry, four lines 14 apart, in kDevDexEntry under kDevDexRule), AREA, CRY and the BACK
+ * (kDevTallBack) under it; the page a catch has just added: OK, the wide key, instead. */
 static const CtrPokeTouchRect kDevDexPic __attribute__((unused)) = {20, 20, 80, 80};
 static const CtrPokeTouchRect kDevDexData __attribute__((unused)) = {110, 20, 168, 80};
 static const CtrPokeTouchRect kDevDexFoot __attribute__((unused)) = {282, 20, 16, 16};
-static const CtrPokeTouchRect kDevDexRule __attribute__((unused)) = {20, 104, 280, 1};
-static const CtrPokeTouchRect kDevDexEntry __attribute__((unused)) = {20, 108, 280, 65};
+static const CtrPokeTouchRect kDevDexRule __attribute__((unused)) = {20, 106, 280, 1};
+static const CtrPokeTouchRect kDevDexEntry __attribute__((unused)) = {20, 112, 280, 62};
 static const CtrPokeTouchRect kDevDexArea __attribute__((unused)) = {8, 188, 110, 42};
 static const CtrPokeTouchRect kDevDexCry __attribute__((unused)) = {126, 188, 110, 42};
+
+/* Row i of a Pokemon's data (0 HT, 1 WT; def_dex_page): the label small at its left, the value ending at its right
+ * (240), both centred down its 14 rows. */
+static inline CtrPokeTouchRect DevDexDataRow(int i)
+{
+    CtrPokeTouchRect r = {110, (int16_t)(74 + 14 * i), 130, 14};
+
+    return r;
+}
 
 /* Key i (0-5) of the top menu's page: three across (96 wide, 8 apart), two rows 72 apart, 66 tall (the board's). */
 static inline CtrPokeTouchRect DevDexItem(int i)

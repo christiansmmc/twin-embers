@@ -675,7 +675,9 @@ UI_FN void DevWrapCopy(char *line, const char *s, int n)
     line[n] = 0;
 }
 
-/* DevWrapFirst's lines, `pitch` apart, drawn when `draw`, else only counted; the first from firstX, the others from x. */
+/* DevWrapFirst's lines, `pitch` apart, drawn when `draw`, else only counted; the first from firstX, the others from x.
+ * A line always takes its first word: one wider than the line is drawn cut at the line's end and, when drawn, counted
+ * in sDevKeyCut (once a word, a draw); a run that only counts lines (DevWrapLines) counts no cut. */
 UI_FN int DevWrapRun(const char *s, int firstX, int x, int top, int firstWidth, int width, int maxLines, uint16_t ink,
                      uint16_t shadow, int pitch, int draw)
 {
@@ -701,8 +703,11 @@ UI_FN int DevWrapRun(const char *s, int firstX, int x, int top, int firstWidth, 
             ++end;                          /* past the space, to the next word */
         }
         DevWrapCopy(line, s, fit);
-        if (draw)
+        if (draw) {
+            if (DevTextWidth(line) > room)
+                ++sDevKeyCut;               /* a word alone wider than the line: cut at its end */
             DevTextInk(line, from, top + lines * pitch, from + room, ink, shadow);
+        }
         ++lines;
         s += fit;
     }
@@ -710,9 +715,10 @@ UI_FN int DevWrapRun(const char *s, int firstX, int x, int top, int firstWidth, 
 }
 
 /* Text wrapped at spaces and line breaks into at most maxLines lines from `top`, DEV_LINE_H apart, the first firstWidth
- * wide and the others `width`; a word wider than a line is cut at its end. A line break (FireRed's descriptions keep the
- * ones of its own window) is a space here. Breaking only there keeps UTF-8 and the raw-code escapes whole. Returns the
- * lines drawn. (Rework 1's KitWrapFirst.) */
+ * wide and the others `width`; a word wider than a line is cut at its end and counted in sDevKeyCut (DevWrapRun; lines
+ * past maxLines are left out, not counted here). A line break (FireRed's descriptions keep the ones of its own window)
+ * is a space here. Breaking only there keeps UTF-8 and the raw-code escapes whole. Returns the lines drawn. (Rework 1's
+ * KitWrapFirst.) */
 UI_FN int DevWrapFirst(const char *s, int x, int top, int firstWidth, int width, int maxLines, uint16_t ink,
                        uint16_t shadow)
 {
@@ -725,7 +731,8 @@ UI_FN int DevWrap(const char *s, int x, int top, int width, int maxLines, uint16
     return DevWrapFirst(s, x, top, width, width, maxLines, ink, shadow);
 }
 
-/* DevWrap with its lines `pitch` apart (a board's own line height). Returns the lines drawn. */
+/* DevWrap with its lines `pitch` apart (a board's own line height; a word wider than a line counted). Returns the lines
+ * drawn. */
 UI_FN int DevWrapPitch(const char *s, int x, int top, int width, int maxLines, int pitch, uint16_t ink, uint16_t shadow)
 {
     return DevWrapRun(s, x, x, top, width, width, maxLines, ink, shadow, pitch, 1);
@@ -1284,8 +1291,8 @@ UI_FN int DevOnKey(const CtrPokeTouchRect *r, int x, int y)
 }
 
 /* A label and its value across row r: the label small in the secondary ink at its left, the value in the paper's ink
- * ending at its right, cut with "..." to the room the label leaves (a label that does not fit is counted in sDevKeyCut).
- * Both centred down the row. (The Pokedex's rows.) */
+ * ending at its right, cut with "..." to the room the label leaves (a label that does not fit, or a value cut, is
+ * counted in sDevKeyCut). Both centred down the row. (The Pokedex's rows.) */
 UI_FN void DevLabelValue(const CtrPokeTouchRect *r, const char *label, const char *value)
 {
     char cut[64];
@@ -1297,6 +1304,7 @@ UI_FN void DevLabelValue(const CtrPokeTouchRect *r, const char *label, const cha
     if (DevTextWidth(value) > room) {
         DevCutText(value, room, cut, sizeof(cut));
         value = cut;
+        ++sDevKeyCut;
     }
     DevText(value, right - DevTextWidth(value), r->y + (r->h - UI_TEXT_H) / 2, right);
 }
