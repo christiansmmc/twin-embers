@@ -790,10 +790,10 @@ static int NamingFaults(void)
 }
 
 /* The PC box (def_box; owner decision O3): its screen's plain paper with the band and the thirty places (or the Party's
- * seven rows) on it; the right column beside it (◀ ▶, the hand's screen, PARTY POKéMON and the count's screen one under
- * the other in the grid's middle band, ending by 184; the chooser's key in the hand's place; a menu's keys; YES and NO,
- * def_choice_yesno's two tall keys in the column, NO's drop above the footer); CLOSE, a menu's CANCEL, BACK and the
- * chooser's CANCEL in the grid's exit, the footer the grid's note. */
+ * six rows, 24 tall and 26 apart: Call 12) on it; the right column beside it (◀ ▶, the hand's screen, PARTY POKéMON and
+ * the count's screen one under the other in the grid's middle band, ending by 184; the chooser's key in the hand's place;
+ * a menu's keys; YES and NO, def_choice_yesno's two tall keys in the column, NO's drop above the footer); CLOSE, the
+ * Party's CANCEL, a menu's CANCEL, BACK and the chooser's CANCEL in the grid's exit, the footer the grid's note. */
 static int BoxFaults(void)
 {
     const CtrPokeTouchRect paper = PaperOf(kDevBoxScreen), column = {188, 8, 124, 177};
@@ -802,7 +802,7 @@ static int BoxFaults(void)
     assert(Same(kDevBoxScreen, (CtrPokeTouchRect){8, 8, 172, 176}) && Same(paper, (CtrPokeTouchRect){14, 14, 160, 164}));
     assert(Same(kDevBoxTitle, (CtrPokeTouchRect){14, 14, 160, 20}));
     assert(Same(DevBoxCell(0), (CtrPokeTouchRect){22, 34, 24, 24}) && Same(DevBoxCell(29), (CtrPokeTouchRect){142, 130, 24, 24}));
-    assert(Same(DevBoxPartyRow(0), (CtrPokeTouchRect){16, 16, 156, 20}) && Same(DevBoxPartyRow(6), (CtrPokeTouchRect){16, 136, 156, 20}));
+    assert(Same(DevBoxPartyRow(0), (CtrPokeTouchRect){16, 16, 156, 24}) && Same(DevBoxPartyRow(5), (CtrPokeTouchRect){16, 146, 156, 24}));
     assert(Same(kDevBoxHand, (CtrPokeTouchRect){188, 40, 124, 60}) && Same(kDevBoxParty, (CtrPokeTouchRect){188, 108, 124, 40}));
     assert(Same(kDevBoxCount, (CtrPokeTouchRect){188, 156, 124, 28}) && Same(kDevBoxChoose, kDevBoxHand));
     assert(DEV_BOX_COLUMN == 5 && Same(DevBoxMenuKey(0), (CtrPokeTouchRect){188, 8, 124, 30})
@@ -816,11 +816,14 @@ static int BoxFaults(void)
             ++faults;
         }
     }
-    for (int i = 0; i < 7; ++i)
-        if (!Within(DevBoxPartyRow(i), paper, 0)) {
-            fprintf(stderr, "box: Party row %d leaves the paper\n", i);
+    for (int i = 0; i < 6; ++i) {
+        CtrPokeTouchRect row = DevBoxPartyRow(i);
+
+        if (!Within(row, paper, 0) || row.h != 24 || (i > 0 && row.y - DevBoxPartyRow(i - 1).y != 26)) {
+            fprintf(stderr, "box: Party row %d leaves the paper, or is not 24 tall and 26 under the last\n", i);
             ++faults;
         }
+    }
     if (!Within(kDevBoxTitle, paper, 0) || !Within(kDevBoxPrev, column, 1) || !Within(kDevBoxNext, column, 1)
         || !Within(kDevBoxParty, column, 1) || !Within(kDevBoxChoose, column, 1)) {
         fprintf(stderr, "box: the band or a key of the right column out of place\n");
@@ -980,6 +983,7 @@ int main(void)
     const CtrPokeTouchRect relearnList[] = {kDevGridUp, kDevGridDown, kDevGridExit};
     const CtrPokeTouchRect relearnYesNo[] = {DevGridColumnKey(40, 36, 30, 0), DevGridColumnKey(40, 36, 30, 1)};
     const CtrPokeTouchRect boxKeys[] = {kDevBoxPrev, kDevBoxNext, kDevBoxParty, kDevGridExit};
+    const CtrPokeTouchRect boxParty[] = {kDevGridExit};                 /* the Party's rows are rows; its CANCEL a key */
     const CtrPokeTouchRect boxYesNo[] = {kDevBoxYes, kDevBoxNo, kDevGridExit};
     const CtrPokeTouchRect boxWallMenu[] = {DevBoxMenuKey(0), DevBoxMenuKey(1), DevBoxMenuKey(2), DevBoxMenuKey(3),
                                             kDevGridExit};
@@ -1053,7 +1057,7 @@ int main(void)
         {"naming symbol 3,5", DevNameKey(6, 3, 5)}, {"naming icon", kDevNameIcon}, {"naming slot 0", DevNameSlot(0)},
         {"naming gender sign's slot", DevNameSlot(PT_NAME_MAX)},
         {"box screen", kDevBoxScreen}, {"box band", kDevBoxTitle}, {"box place 0", DevBoxCell(0)},
-        {"box place 29", DevBoxCell(29)}, {"box Party row 0", DevBoxPartyRow(0)}, {"box CANCEL row", DevBoxPartyRow(6)},
+        {"box place 29", DevBoxCell(29)}, {"box Party row 0", DevBoxPartyRow(0)}, {"box Party row 5", DevBoxPartyRow(5)},
         {"box previous", kDevBoxPrev}, {"box next", kDevBoxNext}, {"box PARTY POKeMON", kDevBoxParty},
         {"box hand", kDevBoxHand}, {"box count", kDevBoxCount}, {"box chooser", kDevBoxChoose},
         {"box column key 1", DevBoxMenuKey(0)}, {"box column key 5", DevBoxMenuKey(DEV_BOX_COLUMN - 1)},
@@ -1081,7 +1085,8 @@ int main(void)
                                DEV_GROUP("Pokedex habitat", dexCategory), DEV_GROUP("Pokedex page", dexPage),
                                DEV_GROUP("Pokedex page added", dexAdded), DEV_GROUP("the move to forget", learnKeys),
                                DEV_GROUP("relearner list", relearnList), DEV_GROUP("relearner YES / NO", relearnYesNo),
-                               DEV_GROUP("PC box", boxKeys), DEV_GROUP("box YES / NO", boxYesNo),
+                               DEV_GROUP("PC box", boxKeys), DEV_GROUP("box Party", boxParty),
+                               DEV_GROUP("box YES / NO", boxYesNo),
                                DEV_GROUP("box chooser", boxChooser), DEV_GROUP("box marks", boxMarks),
                                DEV_GROUP("box wallpaper menu", boxWallMenu),
                                DEV_GROUP("Easy Chat list", ecList), DEV_GROUP("Easy Chat question", ecAsk),

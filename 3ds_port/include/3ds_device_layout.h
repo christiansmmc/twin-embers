@@ -481,13 +481,14 @@ static inline CtrPokeTouchRect DevNameKey(int cols, int r, int c)
 /* ---- The PC box (def_box; 3ds_device_box_impl.h) -------------------------------------------------------------------
  * The box's screen on the left (kDevBoxScreen, owner decision O3: plain paper, no wallpaper): the box's name on the band
  * at its top (kDevBoxTitle, a row), the thirty places 24 px apart under it (DevBoxCell, rows), or with the cursor in the
- * Party the Party's rows on the same paper (DevBoxPartyRow, 6 its CANCEL). The right column: ◀ ▶ (kDevBoxPrev,
- * kDevBoxNext), the hand's screen (kDevBoxHand), PARTY POKéMON (kDevBoxParty) and the box's count (kDevBoxCount, a
- * screen) one under the other; CLOSE, a dark key, in the grid's exit (kDevGridExit) and the footer on the grid's note
- * (kDevGridNote) in every state. A menu or the marks: their keys in the column (DevBoxMenuKey, DEV_BOX_COLUMN at most),
- * a menu's CANCEL row and the marks' CANCEL in the grid's exit (a menu without CANCEL: the view's BACK there). YES / NO:
- * two tall keys in the column (kDevBoxYes, kDevBoxNo: def_choice_yesno's), BACK in the grid's exit. The box chooser: ◀ ▶
- * and the chosen box's key in the hand's place (kDevBoxChoose), CANCEL in the grid's exit. */
+ * Party the Party's six rows on the same screen (DevBoxPartyRow: Call 12), their CANCEL in the grid's exit. The right
+ * column: ◀ ▶ (kDevBoxPrev, kDevBoxNext), the hand's screen (kDevBoxHand), PARTY POKéMON (kDevBoxParty) and the box's
+ * count (kDevBoxCount, a screen) one under the other; CLOSE, a dark key, in the grid's exit (kDevGridExit) and the footer
+ * on the grid's note (kDevGridNote) in every state. A menu or the marks: their keys in the column (DevBoxMenuKey,
+ * DEV_BOX_COLUMN at most), a menu's CANCEL row and the marks' CANCEL in the grid's exit (a menu without CANCEL: the view's
+ * BACK there). YES / NO: two tall keys in the column (kDevBoxYes, kDevBoxNo: def_choice_yesno's), BACK in the grid's
+ * exit. The box chooser: ◀ ▶ and the chosen box's key in the hand's place (kDevBoxChoose), PARTY POKéMON and the count as
+ * in the box, CANCEL in the grid's exit. */
 static const CtrPokeTouchRect kDevBoxScreen __attribute__((unused)) = {8, 8, 172, 176};
 static const CtrPokeTouchRect kDevBoxTitle __attribute__((unused)) = {14, 14, 160, 20};
 static const CtrPokeTouchRect kDevBoxPrev __attribute__((unused)) = {188, 8, 58, 24};
@@ -508,10 +509,11 @@ static inline CtrPokeTouchRect DevBoxCell(int i)
     return r;
 }
 
-/* The Party's row i (0-5 a slot, 6 its CANCEL) on the box's paper. */
+/* The Party's row i (0-5, a slot) on the box's screen: 24 tall, 26 apart (a list's rows; six: Call 12). FireRed's
+ * seventh row, CANCEL, is the dark key in the grid's exit (kDevGridExit). */
 static inline CtrPokeTouchRect DevBoxPartyRow(int i)
 {
-    CtrPokeTouchRect r = {16, (int16_t)(16 + 20 * i), 156, 20};
+    CtrPokeTouchRect r = {16, (int16_t)(16 + 26 * i), 156, 24};
 
     return r;
 }

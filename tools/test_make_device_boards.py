@@ -60,7 +60,7 @@ class DeviceBoards(unittest.TestCase):
                     self.assertIn('<x-dc>', tool.board_html(trace))
 
     def test_real_traces_pin_the_pieces(self):
-        """The pieces a hand-made trace stands for, on the harness's own traces: the PC box's message dims its keys (dim)
+        """The pieces a hand-made trace stands for, on the harness's own traces: the PC box's message dims CLOSE (dim)
         beside its screens (screen) (the box itself is never dimmed: its icons fade), the box's Party has its rows (row);
         the naming keyboard's page key FireRed's cursor turns to lights a lone LED (led); the relearner's list has its
         type chips (chip) and ▲ ▼ (tri); the Trainer Card's front has its badges not earned as holes in the paper

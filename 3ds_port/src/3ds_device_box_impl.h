@@ -5,32 +5,35 @@
  *  - the box's screen: plain paper (no wallpaper: owner decision O3), the box's name as typed centred on the band at its
  *    top (inverted while FireRed's cursor is on it), the thirty places 24 px apart, each a square of the lighter paper
  *    with its Pokemon's icon (FireRed's, clipped to the paper), the cursor's place framed; MOVE ITEMS: a blue square at
- *    a place's lower right when its Pokemon holds an item. With the cursor in the Party the Party's rows on the same
- *    paper instead (half icon, nickname, level; CANCEL), the cursor's inverted, and the keys beside it grey (v0.6.0
+ *    a place's lower right when its Pokemon holds an item. With the cursor in the Party the Party's six rows on the same
+ *    screen instead (24 tall, 26 apart: Call 12; half icon, nickname, level), the cursor's inverted, FireRed's seventh
+ *    row, CANCEL, the dark key in the grid's exit (sunk the same), and ◀ ▶ and PARTY POKéMON beige (not taken: v0.6.0
  *    takes only the Party then);
  *  - the right column: ◀ ▶ (sunk while held); the hand's screen (IN HAND, and the Pokemon in hand with its name, or
  *    MOVE ITEMS' item in hand); PARTY POKéMON (cream, sunk by FireRed's cursor on its buttons or a held touch); how
  *    many Pokemon the box holds; CLOSE in the grid's exit (dark, sunk the same);
- *  - the footer (the grid's note): FireRed's message (its ▼ while it waits for A, and then a tap anywhere is its A: the
- *    keys grey); else MOVE ITEMS' item under the cursor; else the Pokemon under the cursor (its name, the gender's sign
- *    and level; its type chips and ITEM with its item); else the box's name;
+ *  - the footer (the grid's note): FireRed's message (its ▼ while it waits for A, and then a tap anywhere is its A: ◀ ▶
+ *    and PARTY POKéMON beige, CLOSE or the Party's CANCEL dimmed, none sunk); else MOVE ITEMS' item under the cursor;
+ *    else the Pokemon under the cursor (its name, the gender's sign and level; its type chips and ITEM with its item);
+ *    else the box's name;
  *  - a menu or the marks: their keys in the right column (the menu's rows; the four marks at 2x and OK), a menu's CANCEL
  *    row (FireRed's last, menuCancel: recipe 0268) and the marks' CANCEL the dark key in the grid's exit; a menu without
  *    CANCEL (the wallpaper menus) every row in the column and CANCEL in the exit the view's BACK (FireRed's B leaves
  *    it); YES / NO two tall keys in the column (def_choice_yesno) and BACK in the exit (B is NO); FireRed's cursor sunk;
  *  - the box chooser: ◀ ▶ and the chosen box's key in the hand's place (its name and how many it holds), always sunk;
- *    CANCEL in the grid's exit, a dark key: the view's BACK (FireRed's chooser has no CANCEL of its own; BACK sends its
- *    B, as v0.6.0's BACK did there), sunk while held, grey while the chooser takes no B;
+ *    PARTY POKéMON beige and the box's count as in the box; CANCEL in the grid's exit, a dark key: the view's BACK
+ *    (FireRed's chooser has no CANCEL of its own; BACK sends its B, as v0.6.0's BACK did there), sunk while held, grey
+ *    while the chooser takes no B;
  *  - in every state but the box's own and FireRed's busy moments (a menu, YES / NO, the marks, the chooser, a message)
  *    each icon but the cursor's place's (or Party row's) at half strength over what is under it; the paper, the name and
  *    the frame at full strength, the box never dimmed.
  * Under a held touch the key or row it holds is chosen instead of the cursor's (DevChosen, among the box's places, band
  * and keys, the Party's rows, a menu's keys). While FireRed is busy the box is drawn without the cursor's marks and
  * nothing is hit. BACK (DevBoxBack): the chooser's CANCEL, YES / NO's BACK and a CANCEL-less menu's CANCEL; none else
- * (CLOSE is FireRed's exit, a menu's CANCEL row and the marks' CANCEL FireRed's own). A touch on the box is the PC's own
- * controller (3ds_bottom.c ProcessStorageTouch, the 3ds_storage_touch.h codes: the cursor walked there and A); on BACK
- * it is BACK's (ProcessBack: FireRed's B). Every rectangle is 3ds_device_layout.h's, so what is drawn is what a touch
- * takes.
+ * (CLOSE is FireRed's exit, the Party's CANCEL, a menu's CANCEL row and the marks' CANCEL FireRed's own). A touch on the
+ * box is the PC's own controller (3ds_bottom.c ProcessStorageTouch, the 3ds_storage_touch.h codes: the cursor walked
+ * there and A); on BACK it is BACK's (ProcessBack: FireRed's B). Every rectangle is 3ds_device_layout.h's, so what is
+ * drawn is what a touch takes.
  *
  * Words (decision 5): FireRed's menu rows and items in capitals (DevUpper); a nickname, the box's name and the chosen
  * box's name as typed, a nickname that is its species' own name in capitals; FireRed's messages and descriptions as it
@@ -141,14 +144,14 @@ int CtrPokeTouch_BoxHit(const CtrPokeTouchView *v, int x, int y)
     default:
         return ST_HIT_NONE;                         /* busy */
     }
-    if (b->area == ST_AREA_PARTY) {
-        for (int i = 0; i < 7; ++i) {
+    if (b->area == ST_AREA_PARTY) {                 /* six rows, FireRed's CANCEL in the exit; nothing else taken */
+        for (int i = 0; i < 6; ++i) {
             CtrPokeTouchRect r = DevBoxPartyRow(i);
 
             if (UiIn(&r, x, y))
                 return ST_HIT_PARTY_BASE + i;
         }
-        return ST_HIT_NONE;
+        return DevOnKey(&kDevGridExit, x, y) ? ST_HIT_PARTY_BASE + 6 : ST_HIT_NONE;
     }
     if (DevOnKey(&kDevBoxPrev, x, y))
         return ST_HIT_PREV;
@@ -170,7 +173,7 @@ int CtrPokeTouch_BoxHit(const CtrPokeTouchView *v, int x, int y)
 }
 
 /* The touch held as it is drawn: a code of what is drawn and taken in the state shown (a place, the band, ◀ ▶, PARTY
- * POKéMON, CLOSE; a Party row; a key of the column or the exit; the chooser's ◀ ▶), else -1. */
+ * POKéMON, CLOSE; a Party row or the Party's CANCEL; a key of the column or the exit; the chooser's ◀ ▶), else -1. */
 static int DevBoxPress(const CtrPokeTouchBox *b)
 {
     int p = b->pressed;
@@ -192,8 +195,8 @@ static int DevBoxPress(const CtrPokeTouchBox *b)
     }
 }
 
-/* FireRed's cursor as the code of what it is on (a place, ST_HIT_TITLE, PARTY POKéMON, CLOSE, a Party row), or -1
- * (none; busy). */
+/* FireRed's cursor as the code of what it is on (a place, ST_HIT_TITLE, PARTY POKéMON, CLOSE, a Party row or the
+ * Party's CANCEL), or -1 (none; busy). */
 static int DevBoxCursor(const CtrPokeTouchBox *b)
 {
     if (b->state == PT_BOX_STATE_BUSY)
@@ -392,30 +395,26 @@ static void DevBoxPlaces(const CtrPokeTouchBox *b, const CtrPokeTouchRect *paper
     }
 }
 
-/* The Party on the box's paper: a row for each slot (its icon at half size, its nickname as typed, its level) and
- * CANCEL; the chosen row inverted; `fade`: the icons but the chosen row's at half strength; MOVE ITEMS: a blue square by
- * the icon of a Pokemon that holds an item. */
+/* The Party on the box's screen: a row for each slot (24 tall, 26 apart: its icon at half size at (x + 2, y + 4), its
+ * nickname as typed from x + 22 and its level ending 6 px in, capitals y + 8); the chosen row inverted; `fade`: the icons
+ * but the chosen row's at half strength; MOVE ITEMS: a blue square by the icon of a Pokemon that holds an item. A
+ * nickname the level cuts is counted in sDevKeyCut. (FireRed's seventh row, CANCEL, is the exit's: DevBoxExit.) */
 static void DevBoxParty(const CtrPokeTouchBox *b, int cursor, int press, int fade)
 {
     char text[DEV_BOX_TEXT];
 
-    for (int i = 0; i < 7; ++i) {
+    for (int i = 0; i < 6; ++i) {
         CtrPokeTouchRect r = DevBoxPartyRow(i);
         int chosen = DevChosen(ST_HIT_PARTY_BASE + i, cursor, press);
-        int top = r.y + (r.h - UI_TEXT_H) / 2, right = r.x + r.w - 6;
+        int x = r.x + 22, top = r.y + 8, right = r.x + r.w - 6;
         uint16_t ink = DevRowInk(chosen), shadow = chosen ? ink : DEV_INK_SH;
 
         DevRow(&r, chosen);
-        if (i == 6) {
-            DevUpper(text, CtrUiText(UIS_CANCEL), sizeof(text));
-            DevTextInk(text, r.x + 22, top, right, ink, shadow);
-            continue;
-        }
         if (!b->party[i].species)
             continue;
-        DevBoxIcon(&b->party[i], r.x + 2, r.y + 2, &r, 1, fade && !chosen);
+        DevBoxIcon(&b->party[i], r.x + 2, r.y + 4, &r, 1, fade && !chosen);
         if (b->items && b->partyItem[i])
-            DevRect(r.x + 14, r.y + 12, 6, 6, DEV_BLUE_INK);
+            DevRect(r.x + 14, r.y + 14, 6, 6, DEV_BLUE_INK);
         if (!b->party[i].egg) {
             snprintf(text, sizeof(text), CTR_TR("Lv%u", "Nv%u", "Lv%u"), (unsigned)b->partyLevel[i]);
             right -= DevTextWidth(text);
@@ -423,39 +422,55 @@ static void DevBoxParty(const CtrPokeTouchBox *b, int cursor, int press, int fad
             right -= 6;
         }
         DevBoxText(b->partyName[i], (int)sizeof(b->partyName[i]), text, (int)sizeof(text));
-        DevTextInk(text, r.x + 22, top, right, ink, shadow);
+        if (DevTextWidth(text) > right - x)
+            ++sDevKeyCut;
+        DevTextInk(text, x, top, right, ink, shadow);
     }
 }
 
 /* ---- The right column, the hand, the footer ----------------------------------------------------------------------- */
 
-/* ◀ ▶, PARTY POKéMON (cream) and CLOSE (dark, in the grid's exit): sunk as chosen; grey (`dim`) while they are not
- * taken. Under PARTY POKéMON the box's count: how many of its places hold a Pokemon, small, centred on its screen. */
-static void DevBoxSide(const CtrPokeTouchBox *b, int cursor, int press, int dim)
+/* ◀ ▶ (`arrows`) and PARTY POKéMON (`party`) cream while the box takes them, sunk as chosen, else beige (DEV_LOOK_FAINT,
+ * their triangles and word in its ink: not taken, as in the Party, under a message, the chooser's PARTY POKéMON). Under
+ * PARTY POKéMON the box's count: how many of its places hold a Pokemon, small, centred on its screen. */
+static void DevBoxColumn(const CtrPokeTouchBox *b, int arrows, int party, int cursor, int press)
 {
     CtrPokeTouchRect paper;
     char text[16];
-    int sunk, faceY, n = 0;
+    int look = party ? DEV_LOOK_KEY : DEV_LOOK_FAINT, sunk = party && DevChosen(ST_HIT_BUTTON_PARTY, cursor, press);
+    int faceY, n = 0;
 
-    DevArrowKeys(&kDevBoxPrev, &kDevBoxNext, 1, 1, press == ST_HIT_PREV, press == ST_HIT_NEXT, 1);
-    sunk = DevChosen(ST_HIT_BUTTON_PARTY, cursor, press);
-    faceY = DevKey(&kDevBoxParty, DEV_LOOK_KEY, sunk, 6);
-    DevKeyWord(&kDevBoxParty, faceY, DEV_LOOK_KEY, sunk,
+    if (arrows) {
+        DevArrowKeys(&kDevBoxPrev, &kDevBoxNext, 1, 1, press == ST_HIT_PREV, press == ST_HIT_NEXT, 1);
+    } else {
+        for (int k = 0; k < 2; ++k) {
+            const CtrPokeTouchRect *r = k ? &kDevBoxNext : &kDevBoxPrev;
+
+            faceY = DevKey(r, DEV_LOOK_FAINT, 0, 6);
+            DevTriangle(r->x + r->w / 2, faceY + r->h / 2, 2 + k, DevKeyInk(DEV_LOOK_FAINT, 0));
+        }
+    }
+    faceY = DevKey(&kDevBoxParty, look, sunk, 6);
+    DevKeyWord(&kDevBoxParty, faceY, look, sunk,
                CTR_TR("PARTY POK\xC3\xA9MON", "EQUIPO POK\xC3\xA9MON", "POK\xC3\xA9MON-TEAM"));
-    sunk = DevChosen(ST_HIT_BUTTON_CLOSE, cursor, press);
-    faceY = DevKey(&kDevGridExit, DEV_LOOK_DARK, sunk, 6);
-    DevKeyWord(&kDevGridExit, faceY, DEV_LOOK_DARK, sunk, DevCloseWord());
     paper = DevScreen(&kDevBoxCount);
     for (int i = 0; i < PT_BOX_SLOTS; ++i)
         n += b->slot[i].species != 0;
     snprintf(text, sizeof(text), "%u / %u", (unsigned)n, (unsigned)PT_BOX_SLOTS);
     DevSmallText(text, paper.x + (paper.w - DevSmallTextWidth(text)) / 2, paper.y + 3, DEV_INK2, paper.x + paper.w);
-    if (!dim)
-        return;
-    DevDim(&kDevBoxPrev);
-    DevDim(&kDevBoxNext);
-    DevDim(&kDevBoxParty);
-    DevDim(&kDevGridExit);
+}
+
+/* The grid's exit outside a menu, YES / NO and the chooser: CLOSE (FireRed's button), or with the cursor in the Party
+ * FireRed's seventh row, CANCEL; a dark key sunk as chosen, or (`dim`: a message) up and dimmed. */
+static void DevBoxExit(const CtrPokeTouchBox *b, int cursor, int press, int dim)
+{
+    int party = b->area == ST_AREA_PARTY;
+    int sunk = !dim && DevChosen(party ? ST_HIT_PARTY_BASE + 6 : ST_HIT_BUTTON_CLOSE, cursor, press);
+    int faceY = DevKey(&kDevGridExit, DEV_LOOK_DARK, sunk, 6);
+
+    DevKeyWord(&kDevGridExit, faceY, DEV_LOOK_DARK, sunk, party ? DevCancelWord() : DevCloseWord());
+    if (dim)
+        DevDim(&kDevGridExit);
 }
 
 /* The hand's screen: IN HAND small at its top left; the Pokemon in hand (its icon at the screen's left, clipped to the
@@ -614,32 +629,35 @@ static void DevBoxMenu(const CtrPokeTouchBox *b, int press)
     }
 }
 
-/* The chooser: ◀ ▶ (sunk while held) and the chosen box's key in the hand's place, always sunk: its name as typed and
- * how many it holds, centred down it. */
-static void DevBoxChooser(const CtrPokeTouchBox *b, int press)
+/* The chooser's key in the hand's place, always sunk: the chosen box's name as typed centred at capitals faceY + 15 (cut
+ * at 4 px in and then counted), how many it holds small centred at capitals faceY + 34. */
+static void DevBoxChooser(const CtrPokeTouchBox *b)
 {
     const CtrPokeTouchRect *r = &kDevBoxChoose;
     int faceY = DevKey(r, DEV_LOOK_KEY, 1, 6), w;
     char text[DEV_BOX_TEXT];
 
-    DevArrowKeys(&kDevBoxPrev, &kDevBoxNext, 1, 1, press == ST_HIT_PREV, press == ST_HIT_NEXT, 1);
     DevBoxText(b->chooseName, (int)sizeof(b->chooseName), text, (int)sizeof(text));
     w = DevTextWidth(text);
-    DevTextInk(text, r->x + (r->w - w) / 2, faceY + r->h / 2 - 14, r->x + r->w - 4, DEV_SUNK_INK, DEV_SUNK_INK_SH);
+    if (w > r->w - 8)
+        ++sDevKeyCut;
+    DevTextInk(text, w > r->w - 8 ? r->x + 4 : r->x + (r->w - w) / 2, faceY + 15, r->x + r->w - 4, DEV_SUNK_INK,
+               DEV_SUNK_INK_SH);
     snprintf(text, sizeof(text), "%u/%u", (unsigned)b->chooseCount, (unsigned)PT_BOX_SLOTS);
     w = DevSmallTextWidth(text);
-    DevSmallText(text, r->x + (r->w - w) / 2, faceY + r->h / 2 + 6, DEV_SUNK_INK, r->x + r->w - 4);
+    DevSmallText(text, r->x + (r->w - w) / 2, faceY + 34, DEV_SUNK_INK, r->x + r->w - 4);
 }
 
 /* The box whole (after DevBegin: the dispatcher's). A held touch chooses among the box's own pieces only while the box
  * takes it (BOX); a menu's keys, the chooser's ◀ ▶ take theirs. In every state but BOX and BUSY (FireRed's cursor
  * walking, a fade) the box's icons but the cursor's place's are faded, never the box dimmed: its paper, name and frame
- * at full strength. */
+ * at full strength. The column's keys the state does not take are beige (the Party's ◀ ▶ and PARTY POKéMON, also while
+ * its cursor walks; a message's; the chooser's PARTY POKéMON), a message's exit dimmed. */
 static void DevBoxDraw(const CtrPokeTouchView *v)
 {
     const CtrPokeTouchBox *b = &v->box;
     int press = DevBoxPress(b), cursor = DevBoxCursor(b), boxPress = b->state == PT_BOX_STATE_BOX ? press : -1;
-    int message = b->state == PT_BOX_STATE_MESSAGE;
+    int message = b->state == PT_BOX_STATE_MESSAGE, taken = !message && b->area != ST_AREA_PARTY;
     int fade = b->state != PT_BOX_STATE_BOX && b->state != PT_BOX_STATE_BUSY;
     CtrPokeTouchRect paper;
 
@@ -657,11 +675,13 @@ static void DevBoxDraw(const CtrPokeTouchView *v)
         return;
     }
     if (b->state == PT_BOX_STATE_CHOOSE) {
-        DevBoxChooser(b, press);
+        DevBoxColumn(b, 1, 0, -1, press);
+        DevBoxChooser(b);
         DevFieldBack(v, &kDevGridExit, DevCancelWord());
         return;
     }
-    DevBoxSide(b, cursor, boxPress, message || (b->state == PT_BOX_STATE_BOX && b->area == ST_AREA_PARTY));
+    DevBoxColumn(b, taken, taken, cursor, boxPress);
+    DevBoxExit(b, cursor, boxPress, message);
     DevBoxHand(b);
 }
 
